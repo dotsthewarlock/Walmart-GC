@@ -279,8 +279,18 @@ function markSelectedCardUsed() {
     return;
   }
 
+  const visibleCardIndices = getVisibleCardIndices();
+  const currentPosition = getCurrentVisiblePosition(visibleCardIndices);
+
   card.remainingBalance = 0;
   syncDerivedStatus(card);
+
+  if (hideUsedCards) {
+    const remainingVisibleCardIndices = getVisibleCardIndices();
+    const nextPosition = Math.min(currentPosition, remainingVisibleCardIndices.length - 1);
+    selectedCardIndex = remainingVisibleCardIndices[nextPosition] ?? -1;
+  }
+
   renderApp();
 }
 
