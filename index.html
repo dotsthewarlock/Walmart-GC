@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Walmart-GC</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="container">
+        <p class="eyebrow">Walmart-GC</p>
+        <h1>Gift card manager</h1>
+        <p class="intro">
+          Mobile-first checkout access for Walmart gift cards. Phase 1 uses sample
+          in-memory data only; Google Sheet sync will be added later.
+        </p>
+      </div>
+    </header>
+
+    <main class="container app-shell" aria-live="polite">
+      <section class="panel list-panel" aria-labelledby="card-list-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Cards</p>
+            <h2 id="card-list-heading">Card list</h2>
+          </div>
+          <span id="card-count" class="count-badge">0 cards</span>
+        </div>
+        <div id="card-list" class="card-list"></div>
+      </section>
+
+      <section class="panel detail-panel" aria-labelledby="card-detail-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Selected card</p>
+            <h2 id="card-detail-heading">Card detail</h2>
+          </div>
+          <span id="detail-status" class="status-badge">Status</span>
+        </div>
+
+        <article id="card-detail" class="card-detail">
+          <div class="barcode-placeholder" aria-label="Barcode display placeholder">
+            <span>Barcode display placeholder</span>
+            <small>No barcode library is connected in Phase 1.</small>
+          </div>
+
+          <dl class="detail-grid">
+            <div>
+              <dt>Card number</dt>
+              <dd id="detail-number">—</dd>
+            </div>
+            <div>
+              <dt>PIN</dt>
+              <dd id="detail-pin" class="pin-value">—</dd>
+            </div>
+            <div>
+              <dt>Balance</dt>
+              <dd id="detail-balance">—</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd id="detail-status-text">—</dd>
+            </div>
+          </dl>
+
+          <div class="notes-block">
+            <h3>Notes</h3>
+            <p id="detail-notes">Select a card to view notes.</p>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

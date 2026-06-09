@@ -1,0 +1,262 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --text: #172033;
+  --muted: #637083;
+  --primary: #0071dc;
+  --primary-dark: #004f9a;
+  --border: #d8e0ea;
+  --shadow: 0 18px 45px rgba(23, 32, 51, 0.08);
+  --unused: #0f7b3f;
+  --partial: #946200;
+  --used: #6d7480;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+
+button {
+  font: inherit;
+}
+
+.container {
+  width: min(100% - 2rem, 68rem);
+  margin: 0 auto;
+}
+
+.app-header {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #ffffff;
+  padding: 2rem 0 5rem;
+}
+
+.app-header h1,
+.section-heading h2 {
+  margin: 0;
+  line-height: 1.1;
+}
+
+.app-header h1 {
+  font-size: clamp(2rem, 9vw, 4rem);
+  letter-spacing: -0.04em;
+}
+
+.intro {
+  max-width: 42rem;
+  margin: 1rem 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1.05rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.app-shell {
+  display: grid;
+  gap: 1rem;
+  margin-top: -3rem;
+  padding-bottom: 2rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.count-badge,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: #eef4fb;
+  color: var(--primary-dark);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.card-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card-button {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  padding: 1rem;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.card-button:hover,
+.card-button:focus-visible,
+.card-button[aria-pressed="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  outline: none;
+}
+
+.card-button:active {
+  transform: scale(0.99);
+}
+
+.card-row-top,
+.card-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.card-number {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.card-balance {
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.card-note {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.status-badge[data-status="Unused"] {
+  background: rgba(15, 123, 63, 0.12);
+  color: var(--unused);
+}
+
+.status-badge[data-status="Partial"] {
+  background: rgba(148, 98, 0, 0.14);
+  color: var(--partial);
+}
+
+.status-badge[data-status="Used"] {
+  background: rgba(109, 116, 128, 0.14);
+  color: var(--used);
+}
+
+.barcode-placeholder {
+  display: grid;
+  min-height: 10rem;
+  place-items: center;
+  border: 2px dashed var(--border);
+  border-radius: 1rem;
+  background: repeating-linear-gradient(
+    90deg,
+    #ffffff 0,
+    #ffffff 0.45rem,
+    #edf2f7 0.45rem,
+    #edf2f7 0.65rem
+  );
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.barcode-placeholder span {
+  display: block;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-weight: 800;
+}
+
+.barcode-placeholder small {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--muted);
+}
+
+.detail-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+
+.detail-grid div,
+.notes-block {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  padding: 0.85rem;
+}
+
+dt,
+.notes-block h3 {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+dd,
+.notes-block p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.pin-value {
+  letter-spacing: 0.16em;
+}
+
+.notes-block {
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 48rem) {
+  .app-shell {
+    grid-template-columns: minmax(18rem, 0.95fr) minmax(24rem, 1.25fr);
+    align-items: start;
+  }
+
+  .panel {
+    padding: 1.25rem;
+  }
+
+  .detail-panel {
+    position: sticky;
+    top: 1rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
