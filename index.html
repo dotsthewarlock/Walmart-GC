@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Walmart-GC</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="container">
+        <p class="eyebrow">Walmart-GC</p>
+        <h1>Gift card manager</h1>
+        <p class="intro">
+          Mobile-first checkout access for Walmart gift cards. Phase 2 uses sample
+          in-memory data only; Google Sheet sync will be added later.
+        </p>
+      </div>
+    </header>
+
+    <main class="container app-shell" aria-live="polite">
+      <section class="panel list-panel" aria-labelledby="card-list-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Cards</p>
+            <h2 id="card-list-heading">Card list</h2>
+          </div>
+          <span id="card-count" class="count-badge">0 cards</span>
+        </div>
+
+        <label class="filter-toggle">
+          <input id="hide-used-toggle" type="checkbox" />
+          <span>Hide used cards</span>
+        </label>
+
+        <div id="card-list" class="card-list"></div>
+      </section>
+
+      <section class="panel detail-panel" aria-labelledby="card-detail-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Selected card</p>
+            <h2 id="card-detail-heading">Card detail</h2>
+          </div>
+          <span id="detail-status" class="status-badge">Status</span>
+        </div>
+
+        <nav class="card-nav" aria-label="Gift card navigation">
+          <button id="previous-card" class="secondary-button" type="button">Previous</button>
+          <span id="card-position" class="position-label">Card 0 of 0</span>
+          <button id="next-card" class="secondary-button" type="button">Next</button>
+        </nav>
+
+        <article id="card-detail" class="card-detail">
+          <div class="barcode-placeholder" aria-label="Barcode display placeholder">
+            <span>Barcode display placeholder</span>
+            <small>No barcode library is connected in Phase 2.</small>
+          </div>
+
+          <div class="action-row" aria-label="Card actions">
+            <button id="update-balance" class="primary-button" type="button">Update Balance</button>
+            <button id="mark-used" class="secondary-button" type="button">Mark Used</button>
+            <button id="open-fullscreen" class="secondary-button" type="button">Full Screen Barcode</button>
+          </div>
+
+          <dl class="detail-grid">
+            <div>
+              <dt>Card number</dt>
+              <dd id="detail-number">—</dd>
+            </div>
+            <div>
+              <dt>PIN</dt>
+              <dd id="detail-pin" class="pin-value">—</dd>
+            </div>
+            <div>
+              <dt>Balance</dt>
+              <dd id="detail-balance">—</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd id="detail-status-text">—</dd>
+            </div>
+          </dl>
+
+          <div class="notes-block">
+            <h3>Notes</h3>
+            <p id="detail-notes">Select a card to view notes.</p>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <section id="fullscreen-barcode" class="fullscreen-barcode" aria-labelledby="fullscreen-heading" aria-hidden="true">
+      <div class="fullscreen-content" role="dialog" aria-modal="true">
+        <div class="fullscreen-header">
+          <div>
+            <p class="eyebrow">Checkout mode</p>
+            <h2 id="fullscreen-heading">Full Screen Barcode</h2>
+          </div>
+          <button id="close-fullscreen" class="secondary-button" type="button">Close</button>
+        </div>
+
+        <div class="barcode-placeholder barcode-placeholder-large" aria-label="Full screen barcode display placeholder">
+          <span>Barcode display placeholder</span>
+          <small>Actual barcode generation will be added in a later phase.</small>
+        </div>
+
+        <dl class="fullscreen-grid">
+          <div>
+            <dt>Card number</dt>
+            <dd id="fullscreen-number">—</dd>
+          </div>
+          <div>
+            <dt>PIN</dt>
+            <dd id="fullscreen-pin" class="pin-value">—</dd>
+          </div>
+          <div>
+            <dt>Remaining balance</dt>
+            <dd id="fullscreen-balance">—</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>
