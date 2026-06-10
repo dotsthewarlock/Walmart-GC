@@ -699,3 +699,101 @@ dd,
   }
 
 }
+
+.connection-card {
+  background: #fbfdff;
+}
+
+.connection-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.connection-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  color: var(--text);
+  padding: 0.8rem;
+}
+
+.connection-input:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  outline: none;
+}
+
+.connection-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.connection-status {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: #f8fafc;
+  color: var(--text);
+  padding: 0.8rem;
+}
+
+.connection-status-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.connection-status-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: var(--used);
+}
+
+.connection-status p,
+.connection-status ul {
+  margin: 0;
+}
+
+.connection-status ul {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1.15rem;
+}
+
+.connection-status.is-connected {
+  border-color: rgba(15, 123, 63, 0.32);
+  background: rgba(15, 123, 63, 0.08);
+}
+
+.connection-status.is-connected .connection-status-dot {
+  background: var(--unused);
+}
+
+.connection-status.is-checking .connection-status-dot {
+  background: var(--primary);
+}
+
+.connection-status.is-error {
+  border-color: rgba(180, 35, 24, 0.28);
+  background: var(--danger-bg);
+}
+
+.connection-status.is-error .connection-status-dot {
+  background: var(--danger);
+}
+
+.data-action-row:has(> :only-child) {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 36rem) {
+  .connection-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
