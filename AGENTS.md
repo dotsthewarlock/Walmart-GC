@@ -288,46 +288,54 @@ If mergeability cannot be confirmed, state that clearly.
 
 ---
 
-Verification Rules
+## Verification Rules
 
 Codex environments may have limited:
 
-- GitHub access
-- Browser access
-- npm access
-- Proxy/network access
+* GitHub access
+* Browser access
+* npm access
+* Proxy/network access
 
 Do NOT install:
 
-- Playwright
-- Browser screenshot tooling
-- npm packages
-- Frameworks
-- Build tools
-- External dependencies
+* Playwright
+* Browser screenshot tooling
+* npm packages
+* Frameworks
+* Build tools
+* External dependencies
 
 unless explicitly approved.
 
-If no browser is available:
-
-- Skip screenshots.
-- Report:
-
-Browser screenshot verification was unavailable in this environment.
-
 Preferred verification methods:
 
-- "node --check"
-- "git diff --check"
-- conflict-marker scan
-- HTML parse validation
-- static DOM/hook checks
-- local HTTP server + curl smoke test
-- manual verification notes
+* `node --check`
+* `git diff --check`
+* conflict-marker scan
+* HTML parse validation
+* static DOM/hook checks
+* local HTTP server + curl smoke test
+* manual verification notes
 
-Screenshot capture is optional.
+Browser verification is optional.
 
-Lack of screenshot capability does not block a PR.
+Do not install browser tooling to perform screenshot verification.
+
+If browser access is unavailable:
+
+* Skip browser verification.
+* Do not treat browser verification as required.
+* Continue with other verification methods.
+
+Screenshot capture is optional and does not block a PR.
+
+Before stating a PR is ready:
+
+* Verification completed using available methods.
+* Any unavailable verification methods should only be reported if they were explicitly required by the task.
+* Do not emit warnings for optional browser verification that was not performed.
+
 
 ---
 
