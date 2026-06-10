@@ -7,26 +7,26 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <nav class="top-nav" aria-label="Panel navigation">
+      <button id="nav-list" class="nav-button" type="button" data-panel="list" aria-pressed="true">Card List</button>
+      <button id="nav-detail" class="nav-button" type="button" data-panel="detail" aria-pressed="false">Card Detail</button>
+      <button id="nav-settings" class="nav-button icon-nav-button" type="button" data-panel="settings" aria-label="Settings" title="Settings" aria-pressed="false">⚙</button>
+      <button id="nav-data" class="nav-button icon-nav-button" type="button" data-panel="data" aria-label="Data" title="Data" aria-pressed="false">▦</button>
+    </nav>
+
     <header class="app-header">
       <div class="container">
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 4 refines the
-          sample-data UX with top navigation, focused panels, and compact mobile
-          card details; Google Sheet sync will be added later.
+          Mobile-first checkout access for Walmart gift cards. Phase 5B refines the
+          local data panel and checkout workflow while keeping this a prototype;
+          Google Sheet sync will be added later.
         </p>
       </div>
     </header>
 
     <main class="container app-shell" aria-live="polite">
-      <nav class="top-nav" aria-label="Panel navigation">
-        <button id="nav-list" class="nav-button" type="button" data-panel="list" aria-pressed="true">Card List</button>
-        <button id="nav-detail" class="nav-button" type="button" data-panel="detail" aria-pressed="false">Card Detail</button>
-        <button id="nav-settings" class="nav-button" type="button" data-panel="settings" aria-pressed="false">Settings</button>
-        <button id="nav-data" class="nav-button" type="button" data-panel="data" aria-pressed="false">Data</button>
-      </nav>
-
       <section id="list-panel" class="panel list-panel" aria-labelledby="card-list-heading" data-panel-name="list">
         <div class="section-heading">
           <div>
@@ -69,7 +69,7 @@
             <dl class="detail-grid">
               <div>
                 <dt>Card number</dt>
-                <dd id="detail-number">—</dd>
+                <dd><button id="detail-number" class="card-number-toggle" type="button" aria-label="Reveal full card number">—</button></dd>
               </div>
               <div>
                 <dt>PIN</dt>
@@ -177,8 +177,8 @@
               <div>
                 <h3>Raw card data</h3>
                 <p>Schema: <code>cardNumber,pin,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used</code></p>
+                <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
               </div>
-              <button id="toggle-data-lock" class="secondary-button" type="button">Unlock Editing</button>
             </div>
 
             <textarea
@@ -186,19 +186,31 @@
               class="raw-data-input"
               aria-label="Raw CSV card data"
               spellcheck="false"
-              readonly
+              rows="8"
+              placeholder="Paste or import card data here..."
             ></textarea>
           </div>
 
           <div class="data-actions" aria-label="Data actions">
-            <button id="load-card-data" class="primary-button" type="button">Load / Refresh Card Data</button>
-            <button id="scan-new-card" class="secondary-button" type="button" disabled>Scan New Card - Coming Later</button>
-            <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
-            <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
-            <button id="export-csv" class="danger-button" type="button">Export CSV with Card Numbers and PINs</button>
-            <button id="connect-sheets" class="secondary-button" type="button" disabled>Connect Google Sheets - Coming Later</button>
-            <button id="sync-sheets" class="secondary-button" type="button" disabled>Sync Google Sheets - Coming Later</button>
+            <div class="data-action-row">
+              <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
+              <button id="toggle-data-lock" class="secondary-button" type="button">Lock Editing</button>
+            </div>
+            <div class="data-action-row">
+              <button id="refresh-card-data" class="secondary-button" type="button">Refresh Data</button>
+              <button id="update-card-data" class="primary-button" type="button">Update Data</button>
+            </div>
+            <div class="data-action-row">
+              <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
+              <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
+              <button id="export-csv" class="danger-button" type="button">Export CSV</button>
+            </div>
+            <div class="data-action-row">
+              <button id="connect-sheets" class="secondary-button" type="button" disabled title="Google Sheets connection in development">Connect Sheets *</button>
+              <button id="sync-sheets" class="secondary-button" type="button" disabled title="Google Sheets upload in development">Upload Sheets *</button>
+            </div>
           </div>
+          <p class="data-footnote">* Features in development</p>
 
           <div class="validation-card">
             <h3>Validation Warnings</h3>
@@ -244,11 +256,29 @@
           </div>
           <button id="barcode-close" class="secondary-button" type="button">Close</button>
         </div>
+        <p id="fullscreen-position" class="fullscreen-position">Card 0 of 0</p>
+        <dl class="fullscreen-card-meta" aria-label="Checkout card details">
+          <div>
+            <dt>Card Number</dt>
+            <dd id="fullscreen-card-number">—</dd>
+          </div>
+          <div>
+            <dt>PIN</dt>
+            <dd id="fullscreen-pin">—</dd>
+          </div>
+        </dl>
         <div class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen barcode placeholder">
           <span>Barcode display placeholder</span>
-          <small>No real barcode generation is connected in Phase 3.</small>
+          <small>No real barcode generation is connected in Phase 5B.</small>
         </div>
-        <p id="fullscreen-card-number" class="fullscreen-card-number">—</p>
+        <div class="fullscreen-nav" aria-label="Checkout navigation">
+          <button id="fullscreen-prev" class="secondary-button" type="button">Previous</button>
+          <button id="fullscreen-next" class="secondary-button" type="button">Next</button>
+        </div>
+        <div class="fullscreen-actions" aria-label="Checkout actions">
+          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark Used</button>
+          <button id="fullscreen-update-balance" class="primary-button" type="button">Update Balance</button>
+        </div>
       </div>
     </div>
 
