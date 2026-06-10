@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.01 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.02 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.01"
+          data-html-version="1.01.02"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.01 · JS loading · CSS 1.01.01
+          HTML 1.01.02 · JS loading · CSS 1.01.02
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -69,10 +69,11 @@
               id="barcode-open"
               class="barcode-placeholder barcode-action"
               type="button"
-              aria-label="Open full screen barcode placeholder"
+              aria-label="Open full screen checkout barcode"
             >
-              <span>Barcode display placeholder</span>
-              <small>No barcode library is connected in Phase 3.</small>
+              <span id="detail-barcode-status">Barcode unavailable</span>
+              <div id="detail-barcode-render" class="barcode-render" aria-hidden="true"></div>
+              <small id="detail-barcode-caption">Select a Walmart Canada card to render its checkout barcode.</small>
             </button>
 
             <dl class="detail-grid">
@@ -300,10 +301,15 @@
             <dt>PIN</dt>
             <dd id="fullscreen-pin">—</dd>
           </div>
+          <div>
+            <dt>Current Balance</dt>
+            <dd id="fullscreen-current-balance">—</dd>
+          </div>
         </dl>
-        <div class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen barcode placeholder">
-          <span>Barcode display placeholder</span>
-          <small>No real barcode generation is connected in Phase 5B.</small>
+        <div id="fullscreen-barcode-frame" class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen checkout barcode">
+          <span id="fullscreen-barcode-status">Barcode unavailable</span>
+          <div id="fullscreen-barcode-render" class="barcode-render fullscreen-barcode-render" aria-hidden="true"></div>
+          <small id="fullscreen-barcode-caption">Select a Walmart Canada card to render its checkout barcode.</small>
         </div>
         <div class="fullscreen-nav" aria-label="Checkout navigation">
           <button id="fullscreen-prev" class="secondary-button" type="button">Previous</button>

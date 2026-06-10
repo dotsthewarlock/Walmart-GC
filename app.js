@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js version 1.01.01 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.02 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.01";
-const DEBUG_VERSION_CSS = "1.01.01";
+const DEBUG_VERSION_JS = "1.01.02";
+const DEBUG_VERSION_CSS = "1.01.02";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -131,6 +131,13 @@ const fullscreenBarcode = document.querySelector("#fullscreen-barcode");
 const barcodeCloseButton = document.querySelector("#barcode-close");
 const fullscreenCardNumber = document.querySelector("#fullscreen-card-number");
 const fullscreenPin = document.querySelector("#fullscreen-pin");
+const fullscreenCurrentBalance = document.querySelector("#fullscreen-current-balance");
+const detailBarcodeStatus = document.querySelector("#detail-barcode-status");
+const detailBarcodeRender = document.querySelector("#detail-barcode-render");
+const detailBarcodeCaption = document.querySelector("#detail-barcode-caption");
+const fullscreenBarcodeStatus = document.querySelector("#fullscreen-barcode-status");
+const fullscreenBarcodeRender = document.querySelector("#fullscreen-barcode-render");
+const fullscreenBarcodeCaption = document.querySelector("#fullscreen-barcode-caption");
 const fullscreenPosition = document.querySelector("#fullscreen-position");
 const fullscreenPreviousButton = document.querySelector("#fullscreen-prev");
 const fullscreenNextButton = document.querySelector("#fullscreen-next");
@@ -190,6 +197,20 @@ const legacyCsvHeaders = [
   "used",
 ];
 const prototypeDefaultMerchant = "walmart-ca";
+const walmartCaBarcodePrefix = "79936686504000";
+const code128Patterns = [
+  "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213",
+  "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221", "223211", "221132",
+  "221231", "213212", "223112", "312131", "311222", "321122", "321221", "312212", "322112", "322211",
+  "212123", "212321", "232121", "111323", "131123", "131321", "112313", "132113", "132311", "211313",
+  "231113", "231311", "112133", "112331", "132131", "113123", "113321", "133121", "313121", "211331",
+  "231131", "213113", "213311", "213131", "311123", "311321", "331121", "312113", "312311", "332111",
+  "314111", "221411", "431111", "111224", "111422", "121124", "121421", "141122", "141221", "112214",
+  "112412", "122114", "122411", "142112", "142211", "241211", "221114", "413111", "241112", "134111",
+  "111242", "121142", "121241", "114212", "124112", "124211", "411212", "421112", "421211", "212141",
+  "214121", "412121", "111143", "111341", "131141", "114113", "114311", "411113", "411311", "113141",
+  "114131", "311141", "411131", "211412", "211214", "211232", "2331112",
+];
 
 const storageKeys = {
   cards: "walmartGc.cards",
@@ -256,6 +277,142 @@ function formatDate(dateValue) {
   }
 
   return dateFormatter.format(new Date(`${dateValue}T00:00:00Z`));
+}
+
+function normalizeCardNumber(cardNumber) {
+  return String(cardNumber ?? "").replace(/\D/g, "");
+}
+
+function getBarcodeFallbackMessage(card) {
+  if (!normalizeCardNumber(card?.cardNumber)) {
+    return "Barcode unavailable";
+  }
+
+  const merchant = card?.merchant || prototypeDefaultMerchant;
+  if (merchant !== prototypeDefaultMerchant) {
+    return "Barcode unavailable for this merchant";
+  }
+
+  return "Barcode unavailable";
+}
+
+function getBarcodePayload(card) {
+  const cardNumber = normalizeCardNumber(card?.cardNumber);
+  const merchant = card?.merchant || prototypeDefaultMerchant;
+
+  if (merchant !== prototypeDefaultMerchant || !cardNumber) {
+    return "";
+  }
+
+  // Walmart Canada checkout barcodes are derived from scanned sample gift cards;
+  // keep the static prefix frontend-only so the approved Sheet schema stays unchanged.
+  return `${walmartCaBarcodePrefix}${cardNumber}`;
+}
+
+function getCode128CValues(payload) {
+  if (!/^\d+$/.test(payload) || payload.length % 2 !== 0) {
+    return [];
+  }
+
+  const values = [105];
+  for (let index = 0; index < payload.length; index += 2) {
+    values.push(Number(payload.slice(index, index + 2)));
+  }
+
+  const checksum = values.reduce((sum, value, index) => {
+    return index === 0 ? value : sum + value * index;
+  }, 0) % 103;
+
+  values.push(checksum, 106);
+  return values;
+}
+
+function createCode128BarcodeSvg(payload, options = {}) {
+  const values = getCode128CValues(payload);
+
+  if (!values.length) {
+    return null;
+  }
+
+  const moduleWidth = options.moduleWidth || 2;
+  const height = options.height || 88;
+  const quietZone = options.quietZone || moduleWidth * 10;
+  const svgNamespace = "http://www.w3.org/2000/svg";
+  const totalModules = values
+    .map((value) => code128Patterns[value])
+    .reduce((sum, pattern) => sum + pattern.split("").reduce((width, digit) => width + Number(digit), 0), 0);
+  const width = totalModules * moduleWidth + quietZone * 2;
+  const svg = document.createElementNS(svgNamespace, "svg");
+
+  svg.setAttribute("class", "barcode-svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Code 128 checkout barcode");
+  svg.setAttribute("preserveAspectRatio", "none");
+
+  const background = document.createElementNS(svgNamespace, "rect");
+  background.setAttribute("width", String(width));
+  background.setAttribute("height", String(height));
+  background.setAttribute("fill", "#ffffff");
+  svg.appendChild(background);
+
+  let cursor = quietZone;
+  values.forEach((value) => {
+    const pattern = code128Patterns[value];
+
+    pattern.split("").forEach((digit, index) => {
+      const barWidth = Number(digit) * moduleWidth;
+      if (index % 2 === 0) {
+        const bar = document.createElementNS(svgNamespace, "rect");
+        bar.setAttribute("x", String(cursor));
+        bar.setAttribute("y", "0");
+        bar.setAttribute("width", String(barWidth));
+        bar.setAttribute("height", String(height));
+        bar.setAttribute("fill", "#000000");
+        svg.appendChild(bar);
+      }
+      cursor += barWidth;
+    });
+  });
+
+  return svg;
+}
+
+function renderBarcode(container, statusElement, captionElement, card, options = {}) {
+  container.replaceChildren();
+
+  const payload = getBarcodePayload(card);
+  if (!payload) {
+    statusElement.textContent = getBarcodeFallbackMessage(card);
+    captionElement.textContent = "Card number and PIN remain available below.";
+    container.hidden = true;
+    return false;
+  }
+
+  try {
+    const svg = createCode128BarcodeSvg(payload, options);
+    if (!svg) {
+      throw new Error("Barcode payload is not compatible with the local Code 128 renderer.");
+    }
+
+    container.appendChild(svg);
+    container.hidden = false;
+    statusElement.textContent = "Walmart Canada checkout barcode";
+    captionElement.textContent = "Encodes the Walmart Canada checkout payload derived from this card number.";
+    return true;
+  } catch {
+    statusElement.textContent = "Barcode unavailable";
+    captionElement.textContent = "Card number and PIN remain available below.";
+    container.hidden = true;
+    return false;
+  }
+}
+
+function clearRenderedBarcode(container, statusElement, captionElement) {
+  container.replaceChildren();
+  container.hidden = true;
+  statusElement.textContent = "Barcode unavailable";
+  captionElement.textContent = "Select a Walmart Canada card to render its checkout barcode.";
 }
 
 function todayString() {
@@ -1949,8 +2106,11 @@ function clearCardDetail() {
   markUsedButton.disabled = true;
   openBalanceModalButton.disabled = true;
   barcodeOpenButton.disabled = true;
+  clearRenderedBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption);
+  clearRenderedBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption);
   fullscreenCardNumber.textContent = "—";
   fullscreenPin.textContent = "—";
+  fullscreenCurrentBalance.textContent = "—";
   fullscreenPosition.textContent = "Card 0 of 0";
   fullscreenPreviousButton.disabled = true;
   fullscreenNextButton.disabled = true;
@@ -1991,9 +2151,12 @@ function renderCardDetail() {
   markUsedButton.textContent = card.used ? "Unmark Used" : "Mark Used";
   openBalanceModalButton.disabled = false;
   barcodeOpenButton.disabled = false;
+  renderBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption, card, { height: 88 });
+  renderBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption, card, { height: 132, moduleWidth: 3 });
   fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
   fullscreenCardNumber.textContent = groupCardNumber(card.cardNumber);
   fullscreenPin.textContent = card.pin;
+  fullscreenCurrentBalance.textContent = formatBalance(card.currentBalance);
   fullscreenPreviousButton.disabled = visiblePosition <= 0;
   fullscreenNextButton.disabled = visiblePosition === visibleIndexes.length - 1;
   fullscreenMarkUsedButton.disabled = false;

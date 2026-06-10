@@ -74,6 +74,7 @@ Assumptions:
 ## Current Implementation Phase
 
 - Final Phase 8 cleanup – MVP UI/UX cleanup and documentation cleanup; Phase 9 has not started
+- Phase 8.5 – Barcode Rendering & Checkout Validation is pre-Phase-9 and derives Walmart Canada checkout barcodes in the frontend from static prefix plus `cardNumber`; it does not require schema, CSV, Apps Script, sync, conflict, persistence, or OAuth changes.
 
 ## Architecture Baseline
 
