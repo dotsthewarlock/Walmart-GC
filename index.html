@@ -12,8 +12,8 @@
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 1 uses sample
-          in-memory data only; Google Sheet sync will be added later.
+          Mobile-first checkout access for Walmart gift cards. Phase 3 prototypes a
+          minimalist card detail workflow with sample in-memory data only.
         </p>
       </div>
     </header>
@@ -30,47 +30,178 @@
         <div id="card-list" class="card-list"></div>
       </section>
 
-      <section class="panel detail-panel" aria-labelledby="card-detail-heading">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Selected card</p>
-            <h2 id="card-detail-heading">Card detail</h2>
-          </div>
-          <span id="detail-status" class="status-badge">Status</span>
-        </div>
-
-        <article id="card-detail" class="card-detail">
-          <div class="barcode-placeholder" aria-label="Barcode display placeholder">
-            <span>Barcode display placeholder</span>
-            <small>No barcode library is connected in Phase 1.</small>
-          </div>
-
-          <dl class="detail-grid">
+      <section class="detail-column" aria-labelledby="card-detail-heading">
+        <article id="card-detail" class="panel detail-panel">
+          <div class="section-heading">
             <div>
-              <dt>Card number</dt>
+              <p class="eyebrow">Selected card</p>
+              <h2 id="card-detail-heading">Card detail</h2>
+            </div>
+            <span id="used-state" class="used-badge">Active</span>
+          </div>
+
+          <div class="checkout-nav" aria-label="Checkout navigation">
+            <button id="prev-card" class="secondary-button" type="button">Previous</button>
+            <span id="card-position" class="position-indicator">Card 0 of 0</span>
+            <button id="next-card" class="secondary-button" type="button">Next</button>
+          </div>
+
+          <button
+            id="barcode-open"
+            class="barcode-placeholder barcode-action"
+            type="button"
+            aria-label="Open full-screen barcode placeholder"
+          >
+            <span>Barcode display placeholder</span>
+            <small>No barcode generation is connected in this prototype.</small>
+          </button>
+
+          <dl class="detail-grid compact-detail-grid">
+            <div class="detail-tile">
+              <dt>Card Number</dt>
               <dd id="detail-number">—</dd>
             </div>
-            <div>
+            <div class="detail-tile detail-tile-right">
               <dt>PIN</dt>
               <dd id="detail-pin" class="pin-value">—</dd>
             </div>
-            <div>
-              <dt>Balance</dt>
-              <dd id="detail-balance">—</dd>
+            <div class="detail-tile balance-tile">
+              <dt>Starting Balance</dt>
+              <dd id="starting-balance">—</dd>
+              <p class="date-line"><span>Date Added</span> <time id="date-added">—</time></p>
             </div>
-            <div>
-              <dt>Status</dt>
-              <dd id="detail-status-text">—</dd>
+            <div id="current-balance-tile" class="detail-tile balance-tile">
+              <dt>Current Balance</dt>
+              <dd id="current-balance">—</dd>
+              <p class="date-line"><span id="current-date-label">Date Updated</span> <time id="date-updated">—</time></p>
             </div>
           </dl>
+
+          <div class="action-row">
+            <button id="mark-used" class="secondary-button" type="button">Mark Used</button>
+            <button id="update-balance" class="primary-button" type="button">Update Balance</button>
+          </div>
 
           <div class="notes-block">
             <h3>Notes</h3>
             <p id="detail-notes">Select a card to view notes.</p>
           </div>
         </article>
+
+        <aside class="panel settings-panel" aria-labelledby="settings-heading">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Prototype</p>
+              <h2 id="settings-heading">Settings</h2>
+            </div>
+          </div>
+
+          <div class="settings-list">
+            <label class="toggle-row" for="advance-on-used">
+              <span>
+                <strong>Proceed to next card when Mark Used</strong>
+                <small>Default on</small>
+              </span>
+              <input id="advance-on-used" class="toggle-input" type="checkbox" checked />
+            </label>
+
+            <label class="toggle-row" for="hide-used">
+              <span>
+                <strong>Hide Used Cards</strong>
+                <small>Default on</small>
+              </span>
+              <input id="hide-used" class="toggle-input" type="checkbox" checked />
+            </label>
+
+            <label class="toggle-row" for="hide-zero">
+              <span>
+                <strong>Hide $0 Balance Cards</strong>
+                <small>Independent of Used</small>
+              </span>
+              <input id="hide-zero" class="toggle-input" type="checkbox" />
+            </label>
+
+            <label class="select-row" for="sort-cards">
+              <span>Sort Cards</span>
+              <select id="sort-cards">
+                <option value="balance-desc">Balance (High → Low)</option>
+                <option value="balance-asc">Balance (Low → High)</option>
+                <option value="added-desc">Date Added (Newest First)</option>
+                <option value="added-asc">Date Added (Oldest First)</option>
+                <option value="updated-desc">Date Updated (Newest First)</option>
+                <option value="updated-asc">Date Updated (Oldest First)</option>
+                <option value="card-number">Card Number</option>
+              </select>
+            </label>
+
+            <button id="mark-zero-used" class="danger-button" type="button">
+              Mark All $0 Cards as Used
+            </button>
+          </div>
+        </aside>
       </section>
     </main>
+
+    <div id="fullscreen-barcode" class="modal-backdrop" hidden>
+      <div class="fullscreen-content" role="dialog" aria-modal="true" aria-labelledby="fullscreen-title">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Checkout mode</p>
+            <h2 id="fullscreen-title">Full-screen barcode</h2>
+          </div>
+          <button id="barcode-close" class="secondary-button" type="button">Close</button>
+        </div>
+        <div class="barcode-placeholder fullscreen-placeholder" aria-label="Full-screen barcode placeholder">
+          <span>Barcode display placeholder</span>
+          <small>No real barcode generation is connected in this prototype.</small>
+        </div>
+        <p id="fullscreen-card-number" class="fullscreen-card-number">—</p>
+      </div>
+    </div>
+
+    <div id="balance-modal" class="modal-backdrop" hidden>
+      <form class="modal-card" role="dialog" aria-modal="true" aria-labelledby="balance-modal-title">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Balance</p>
+            <h2 id="balance-modal-title">Update Balance</h2>
+          </div>
+        </div>
+
+        <label class="field-row" for="amount-used-input">
+          <span>Amount Used</span>
+          <input id="amount-used-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+
+        <label class="field-row" for="remaining-balance-input">
+          <span>Remaining Balance</span>
+          <input id="remaining-balance-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+
+        <p id="balance-error" class="form-error" aria-live="assertive"></p>
+
+        <div class="modal-actions">
+          <button id="balance-cancel" class="secondary-button" type="button">Cancel</button>
+          <button class="primary-button" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="confirm-modal" class="modal-backdrop" hidden>
+      <form class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Confirm</p>
+            <h2 id="confirm-title">Mark zero-balance cards?</h2>
+          </div>
+        </div>
+        <p id="confirm-message" class="confirm-message">Mark 0 zero-balance cards as Used?</p>
+        <div class="modal-actions">
+          <button id="confirm-cancel" class="secondary-button" type="button">Cancel</button>
+          <button class="danger-button compact-danger" type="submit">Confirm</button>
+        </div>
+      </form>
+    </div>
 
     <script src="app.js"></script>
   </body>
