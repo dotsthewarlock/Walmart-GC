@@ -166,6 +166,11 @@ YOUR_WEB_APP_URL?action=health
 
 A successful response is JSON with `ok` set to `true` and data about the spreadsheet and schema.
 
+
+## Browser Write Compatibility
+
+Walmart-GC sends write requests to `updateCard`, `batchUpdate`, and `replaceAll` as simple browser POST requests for Apps Script Web App compatibility. The request body remains the approved JSON envelope, and Apps Script reads it from `e.postData.contents`. If a browser reports a network or CORS-style failure during a write, treat the Sheet update as unconfirmed: the app keeps local data in the current browser, and you should confirm the deployment URL/access settings before using **Retry Sync**.
+
 ## Common Errors
 
 ### Authorization Failure

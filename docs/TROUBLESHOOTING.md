@@ -147,6 +147,7 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 - Network connection is unavailable.
 - Apps Script URL is invalid or unreachable.
 - Apps Script deployment permissions changed.
+- The browser reports a network/CORS-style failure because Apps Script could not be reached for the write.
 - Apps Script returned an unexpected response.
 - Walmart-GC has not loaded from Sheets yet and does not have a Sheet version for safe writes.
 
@@ -158,9 +159,10 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 4. Confirm the Apps Script URL is still saved.
 5. Select **Test Connection**.
 6. If Health Check succeeds, select **Retry Sync**. Retry Sync should show a visible retrying, success, failure, missing Sheet version, no pending operation, or conflict message.
-7. If Retry Sync succeeds, verify the relevant rows in the Google Sheet.
-8. If Retry Sync says to load from Sheets first, download a CSV backup before loading if the browser session contains data you need to preserve.
-9. If you prefer to discard the browser's unsynced local changes, select **Refresh from Sheets** instead.
+7. If the previous error looked like a network or CORS failure, treat the Sheet write as unconfirmed until Retry Sync succeeds or you verify the rows directly in Google Sheets.
+8. If Retry Sync succeeds, verify the relevant rows in the Google Sheet.
+9. If Retry Sync says to load from Sheets first, download a CSV backup before loading if the browser session contains data you need to preserve.
+10. If you prefer to discard the browser's unsynced local changes, select **Refresh from Sheets** instead.
 
 ## Conflict State
 
@@ -296,6 +298,7 @@ When temporarily offline:
 - Settings remain available.
 - Local changes are saved in browser storage.
 - Apps Script Health Check, Load from Sheets, and sync writes cannot complete.
+- Failed writes may appear as browser network or CORS failures, but Walmart-GC should still preserve local data and offer Retry Sync when possible.
 - The app may show **Unsynced** after a failed write.
 - The Data panel should keep the local session available and show **Last sync attempt** plus **Last error**.
 

@@ -1009,6 +1009,17 @@ function buildWriteEnvelope(payload) {
   };
 }
 
+function postAppsScriptJson(actionUrl, envelope) {
+  return fetch(actionUrl, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "text/plain;charset=utf-8",
+    },
+    body: JSON.stringify(envelope),
+  });
+}
+
 function setSyncState(nextState) {
   syncState = {
     ...syncState,
@@ -1172,14 +1183,7 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
   });
 
   try {
-    const response = await fetch(actionUrl, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(envelope),
-    });
+    const response = await postAppsScriptJson(actionUrl, envelope);
 
     let responseBody;
     try {
@@ -1207,7 +1211,7 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
 
     handleSuccessfulWrite(responseBody, successMessage);
   } catch {
-    handleFailedWrite("Saved locally. Sheets sync will need attention when the network or Apps Script URL is reachable again.");
+    handleFailedWrite("Saved locally, but Sheets sync could not reach Apps Script. Your local data remains in this browser. Confirm the Apps Script deployment URL and try Retry Sync.");
   }
 }
 
@@ -1515,14 +1519,7 @@ async function useCurrentSessionToOverwriteSheets() {
   });
 
   try {
-    const response = await fetch(replaceAllUrl, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(envelope),
-    });
+    const response = await postAppsScriptJson(replaceAllUrl, envelope);
 
     let responseBody;
     try {
@@ -1553,7 +1550,7 @@ async function useCurrentSessionToOverwriteSheets() {
       `Overwrote Sheets with ${sampleGiftCards.length} current-session card${sampleGiftCards.length === 1 ? "" : "s"}.`,
     );
   } catch {
-    handleFailedWrite("Sheets were not overwritten. The current session is still saved locally, and the network or Apps Script URL needs attention.");
+    handleFailedWrite("Sheets were not overwritten because Walmart-GC could not reach Apps Script. Your current session remains saved locally in this browser. Confirm the Apps Script deployment URL and try Retry Sync or recovery again.");
   }
 }
 
