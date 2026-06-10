@@ -1,9 +1,9 @@
 # Manual Test Plan
 
-This manual test plan validates the active Phase 9 architecture:
+This manual test plan validates the active Phase 9.1 architecture:
 
 ```text
-User Google Account ↔ Google OAuth ↔ Google Sheets API ↔ Walmart-GC Web App
+User Google Account ↔ Google OAuth drive.file ↔ Google Drive/Sheets APIs ↔ Walmart-GC Web App
 ```
 
 ## Test Environment
@@ -14,8 +14,8 @@ Record:
 | --- | --- |
 | Browser/device |  |
 | Walmart-GC URL |  |
-| OAuth Client ID configured |  |
-| Google Sheet URL/ID |  |
+| Embedded OAuth Client ID present? |  |
+| Active Sheet name/ID |  |
 | Starting card count |  |
 | HTML/JS/CSS debug versions |  |
 
@@ -23,33 +23,35 @@ Record:
 
 - [ ] App loads from a static URL.
 - [ ] Debug fingerprint is visible in the header.
-- [ ] Data panel shows sections in this order: Google Account, Direct Google Sheet, CSV Backup & Recovery, Diagnostics/status output.
-- [ ] No active Apps Script setup, URL field, health check, or load button appears.
+- [ ] Data panel shows Google Account, Google Sheet, CSV Backup & Recovery, and diagnostics/status output.
+- [ ] No user-facing OAuth Client ID input appears.
+- [ ] No normal first-run Sheet URL/ID input appears.
+- [ ] No active Apps Script setup, URL field, health check, or Apps Script load button appears.
 - [ ] CSV export is available before sync testing.
 
-## Google Account
+## Google Account and Sheet Lifecycle
 
-- [ ] Paste a Google OAuth Web Client ID.
-- [ ] Select **Save Client ID**.
 - [ ] Select **Connect Google**.
 - [ ] Complete Google consent.
+- [ ] OAuth requests `https://www.googleapis.com/auth/drive.file` and does not request broad `spreadsheets` or full `drive` scope.
 - [ ] Diagnostics show OAuth configured.
 - [ ] Diagnostics show Google connection is connected.
-- [ ] Diagnostics show Sheets scope is available.
+- [ ] Diagnostics show Google file access is available.
+- [ ] App searches for `Walmart-GC Data`.
+- [ ] If missing, app creates `Walmart-GC Data`.
+- [ ] App stores the active Sheet ID locally.
+- [ ] App initializes `Cards` headers.
+- [ ] App initializes hidden `_META` metadata with `sheetVersion`.
+- [ ] **Open Sheet** opens the active Google Sheet.
 - [ ] Disconnect Google.
-- [ ] Local cards and direct Sheet settings remain available.
-- [ ] Reconnect Google.
+- [ ] Local cards and saved Sheet state remain available.
+- [ ] Reconnect Google and confirm it reuses the saved/found Sheet.
 
-## Direct Google Sheet
+## First-Run Data Safety
 
-- [ ] Paste a valid Google Sheet URL or ID.
-- [ ] Select **Save Sheet**.
-- [ ] Diagnostics show Direct Sheet ID configured.
-- [ ] Select **Initialize Sheet** on a blank workbook.
-- [ ] Confirm `Cards` headers exist.
-- [ ] Confirm `_META` exists and stores a sheet version.
-- [ ] Select **Load from Google Sheets**.
-- [ ] Existing rows load into the app.
+- [ ] Blank remote Sheet with no meaningful local cards leaves the app ready with an empty card list.
+- [ ] Blank remote Sheet with local cards does not upload local cards automatically; **Sync Now** is explicit.
+- [ ] Remote Sheet with cards does not replace local unsynced cards automatically; **Load from Google Sheets** is explicit.
 
 ## Completed-Action Sync
 
@@ -60,7 +62,7 @@ Verify each action syncs only after the action is completed:
 - [ ] Notes save syncs to Google Sheets.
 - [ ] Merchant change syncs to Google Sheets.
 - [ ] New card save syncs to Google Sheets.
-- [ ] Accepted CSV import creates an unsynced pending operation if direct sync is not ready, then syncs after **Sync Now** when ready.
+- [ ] Accepted CSV import creates an unsynced pending operation if sync is not ready, then syncs after **Sync Now** when ready.
 - [ ] No sync is attempted on every keystroke while editing fields.
 
 ## CSV Backup & Recovery
@@ -97,15 +99,16 @@ Confirm diagnostics include readable label/value rows for:
 - [ ] OAuth configured.
 - [ ] Google script loaded.
 - [ ] Google connection state.
-- [ ] Sheets scope available / needs reconnect.
-- [ ] Direct Sheet ID configured.
+- [ ] Google file access available / needs reconnect.
+- [ ] Active Sheet ID configured.
+- [ ] Active Sheet name.
 - [ ] Cards sheet initialized.
 - [ ] Local sheetVersion.
 - [ ] Remote sheetVersion, if known.
 - [ ] Sync state.
 - [ ] Unsynced changes.
 - [ ] Last successful sync.
-- [ ] Last direct Sheets error.
+- [ ] Last Google API error.
 - [ ] Local card count where useful.
 
 ## Regression Checks

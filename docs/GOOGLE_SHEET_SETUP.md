@@ -1,30 +1,38 @@
 # Google Sheet Setup
 
-This guide explains how to create a Google Sheet that Walmart-GC can use as its source of truth.
+This guide describes the active Phase 9.1 Google Sheet flow.
 
-Walmart-GC stores gift card data in your own Google Sheet. In Phase 9, the web app loads from and saves to that Sheet directly through Google OAuth and the Google Sheets API.
+Normal users do **not** create a Google Cloud project, paste an OAuth Client ID, deploy Apps Script, create a spreadsheet manually, or paste a Sheet URL/ID. Walmart-GC uses the maintainer-provided public OAuth browser client and the `drive.file` permission to manage one app-created/app-accessible spreadsheet.
 
-## Create the Sheet
+## Normal First-Run Flow
 
-1. Open [Google Sheets](https://sheets.google.com/).
-2. Select **Blank spreadsheet**.
-3. Rename the spreadsheet to something easy to recognize, such as:
-   - `Walmart Gift Cards`
-   - `Walmart-GC Cards`
-   - `Gift Card Tracker`
-4. You may leave the workbook blank and let Walmart-GC initialize it, or manually rename the first tab to:
+1. Open Walmart-GC.
+2. Open the **Data** panel.
+3. Select **Connect Google**.
+4. Approve Google Drive file access.
+5. Walmart-GC searches Drive for an app-accessible spreadsheet named:
 
    ```text
-   Cards
+   Walmart-GC Data
    ```
 
-5. If you create the `Cards` tab manually, add the required headers in row 1 exactly as shown below.
+6. If the spreadsheet is not found, Walmart-GC creates it.
+7. Walmart-GC initializes the required `Cards` tab and hidden `_META` metadata tab.
+8. Walmart-GC loads remote cards when it can do so without silently replacing local unsynced data.
 
-> Tip: **Initialize Sheet** in Walmart-GC can create the `Cards` headers and `_META` metadata tab for a blank workbook. It must not be used as a substitute for reviewing populated workbooks before syncing.
+## Dedicated Spreadsheet
+
+Walmart-GC uses one dedicated spreadsheet by default:
+
+```text
+Walmart-GC Data
+```
+
+Use the **Open Sheet** button in the Data panel to view it in Google Sheets after connection.
 
 ## Required Schema
 
-The `Cards` tab must use this exact header order:
+The `Cards` tab uses this exact header order:
 
 ```text
 cardNumber
@@ -47,62 +55,14 @@ cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dat
 
 ## Schema Rules
 
-### `cardNumber`
-
-- Required for every card row.
-- Must be unique in the Sheet.
-- Used as the record ID.
-- Duplicate card numbers prevent clean loading or saving.
-
-### `pin`
-
-- Required for practical checkout use.
-- Stored as Sheet data and displayed in the app detail view.
-
-### `merchant`
-
-- Defaults to:
-
-  ```text
-  walmart-ca
-  ```
-
-- CSV imports that omit merchant default to `walmart-ca`.
-
-### `startingBalance`
-
-- Historical starting value for the card.
-- Keep this as the original card balance.
-
-### `currentBalance`
-
-- Authoritative remaining balance.
-- This is the balance Walmart-GC shows and updates.
-
-### `dateAdded`
-
-- Date the card was added.
-- Recommended format: `YYYY-MM-DD`.
-
-### `dateUpdated`
-
-- Date the current balance or card record was last updated.
-- Recommended format: `YYYY-MM-DD`.
-
-### `dateUsed`
-
-- Date the card was marked used.
-- Leave blank when the card is not used.
-
-### `used`
-
-- Use `true` for used cards.
-- Use `false` for unused or partially used cards.
-- Independent of balance.
-
-### `notes`
-
-- Optional free-text notes.
+- `cardNumber` is required, must be unique, and is the record ID.
+- `pin` is required for practical checkout use.
+- `merchant` defaults to `walmart-ca`.
+- `startingBalance` is the historical starting value.
+- `currentBalance` is the authoritative remaining balance.
+- `dateAdded`, `dateUpdated`, and `dateUsed` should use `YYYY-MM-DD` when populated.
+- `used` is independent of balance.
+- `notes` is optional free text.
 
 ## Example Rows
 
@@ -113,41 +73,18 @@ cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dat
 6098765432109999,9999,walmart-ca,25.00,0.00,2026-06-03,2026-06-08,2026-06-08,true,Fully used
 ```
 
-## Shared Sheets
+## Data Safety
 
-Shared Google Sheets are allowed when Google Sheets grants the relevant people access. Walmart-GC does not create user accounts, manage roles, or provide real-time collaboration features.
+Walmart-GC does not silently erase local data, silently overwrite remote Sheet rows, or automatically merge conflicts.
 
-If another person or browser changes the Sheet after your last load, Walmart-GC may detect a sync conflict and ask you to choose a recovery action.
+- If Google has cards and the browser also has local cards, Walmart-GC keeps local data until you explicitly choose **Load from Google Sheets** or **Sync Now**.
+- If Google is empty and the browser has local cards, Walmart-GC keeps local data and lets you explicitly sync it.
+- If the Sheet changes outside the current browser session, `_META.sheetVersion` conflict handling prevents silent overwrites.
 
-## Common Mistakes
+## CSV Backup
 
-### Missing or Modified Headers
+CSV export/import remains available even while Google is disconnected or offline. Export a CSV backup before destructive recovery choices.
 
-Fix:
+## Maintainer-Only OAuth Configuration
 
-1. Open the Google Sheet.
-2. Open the `Cards` tab.
-3. Confirm row 1 contains all required headers in the approved order.
-4. Restore exact names and order if needed.
-5. Use **Load from Google Sheets** again.
-
-### Duplicate Card Numbers
-
-Fix:
-
-1. In the `cardNumber` column, look for duplicate values.
-2. Keep only one row per card number.
-3. Manually combine the most accurate balance, used state, and notes.
-4. Use **Load from Google Sheets** again.
-
-### Extra Blank or Partial Rows
-
-Fix:
-
-1. Delete fully blank rows that accidentally contain spaces or formatting-only values.
-2. Make sure each populated row has a `cardNumber`.
-3. Make sure balances are valid numbers.
-
-## Next Step
-
-After the Sheet exists, open Walmart-GC, save the Google OAuth Client ID, connect Google, paste the Sheet URL or ID, and use **Initialize Sheet** or **Load from Google Sheets**.
+The public OAuth Client ID is static browser configuration maintained in the app source before deployment. It is not a secret. End users should not need to see, paste, or manage OAuth client configuration.

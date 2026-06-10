@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.05 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.06 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.05";
+const DEBUG_VERSION_JS = "1.01.06";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -162,6 +162,7 @@ const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
 const directSheetInput = document.querySelector("#direct-sheet-id");
 const saveDirectSheetButton = document.querySelector("#save-direct-sheet");
 const initializeDirectSheetButton = document.querySelector("#initialize-direct-sheet");
+const openDirectSheetButton = document.querySelector("#open-direct-sheet");
 const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
 const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
 const directSheetStatusArea = document.querySelector("#direct-sheet-status");
@@ -244,13 +245,16 @@ const defaultSyncState = {
   lastSyncTimestamp: "",
   lastSyncAttemptTimestamp: "",
   lastKnownSheetVersion: "",
-  message: "Load or initialize the direct Google Sheet to enable completed-action sync writes.",
+  message: "Connect Google to find or create Walmart-GC Data and enable completed-action sync writes.",
   lastErrorMessage: "",
   pendingOperation: null,
 };
 
-const googleOAuthClientIdPlaceholder = "PASTE_GOOGLE_OAUTH_WEB_CLIENT_ID_HERE";
-const googleOAuthScopes = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets";
+const embeddedGoogleOAuthClientId = "PASTE_REAL_CLIENT_ID_IN_CODEX_TASK_OR_REPLACE_PLACEHOLDER_BEFORE_COMMIT";
+const googleOAuthClientIdPlaceholder = "PASTE_REAL_CLIENT_ID_IN_CODEX_TASK_OR_REPLACE_PLACEHOLDER_BEFORE_COMMIT";
+const googleOAuthScopes = "https://www.googleapis.com/auth/drive.file";
+const googleDriveSpreadsheetMimeType = "application/vnd.google-apps.spreadsheet";
+const walmartGcDataSheetName = "Walmart-GC Data";
 const googleOAuthStatuses = {
   disconnected: "Disconnected",
   connecting: "Connecting",
@@ -261,9 +265,10 @@ const googleOAuthStatuses = {
 
 
 const directSheetsStatuses = {
-  notConfigured: "Not configured",
-  ready: "Ready",
-  checking: "Checking",
+  notConfigured: "Not created",
+  ready: "Connected",
+  checking: "Finding sheet",
+  creating: "Creating sheet",
   syncing: "Syncing",
   conflict: "Conflict",
   error: "Error",
@@ -283,19 +288,19 @@ const defaultDirectSheetsState = {
   remoteSheetVersion: "",
   lastSuccessfulSyncAt: "",
   pendingUnsynced: false,
-  message: "Save a dedicated Google Sheet URL or ID, then initialize it for direct sync.",
+  message: "Connect Google to find or create Walmart-GC Data.",
   lastErrorMessage: "",
 };
 
 const defaultGoogleOAuthState = {
-  clientId: "",
+  clientId: embeddedGoogleOAuthClientId,
   status: googleOAuthStatuses.disconnected,
   scriptLoaded: false,
   connectedEmail: "",
   connectedName: "",
   connectedAt: "",
   tokenExpiresAt: "",
-  message: "Enter a Google OAuth Web Client ID, then connect Google. Local cards remain usable without Google.",
+  message: "Connect Google to authorize Google file access. Local cards remain usable without Google.",
   lastErrorMessage: "",
 };
 
@@ -307,6 +312,7 @@ let googleTokenClient = null;
 let googleAccessToken = "";
 let googleTokenExpiryTimeout = null;
 let googleTokenRequestMode = "connect";
+let loadedCardsFromStorage = false;
 
 function formatBalance(balance) {
   return currencyFormatter.format(balance);
@@ -718,7 +724,7 @@ function normalizeStoredGoogleOAuth(oauth) {
   }
 
   return {
-    clientId: String(oauth.clientId || ""),
+    clientId: embeddedGoogleOAuthClientId,
     status,
     scriptLoaded: Boolean(window.walmartGcGoogleIdentityLoaded),
     connectedEmail: String(oauth.connectedEmail || ""),
@@ -748,11 +754,13 @@ function applySettings(settings) {
 
 function loadAppState() {
   removeStoredJson("walmartGc.connection");
-  const storedCards = normalizeStoredCards(readStoredJson(storageKeys.cards));
+  const storedCardsRaw = readStoredJson(storageKeys.cards);
+  const storedCards = normalizeStoredCards(storedCardsRaw);
   const storedSettings = normalizeStoredSettings(readStoredJson(storageKeys.settings));
   const storedSync = normalizeStoredSync(readStoredJson(storageKeys.sync));
   const storedGoogleOAuth = normalizeStoredGoogleOAuth(readStoredJson(storageKeys.oauth));
   const storedDirectSheets = normalizeStoredDirectSheets(readStoredJson(storageKeys.directSheets));
+  loadedCardsFromStorage = Boolean(storedCards);
 
   return {
     cards: storedCards ?? cloneStateValue(bundledSampleGiftCards),
@@ -1097,7 +1105,7 @@ async function updateRawCardData() {
       startMessage: "Imported data saved locally. Syncing imported cards to Sheets...",
       noAutoSyncMessage: syncState.lastKnownSheetVersion
         ? "Imported data saved locally, but it is not ready to sync right now. Retry Sync or download a CSV backup."
-        : "Imported data saved locally. Load or initialize the direct Google Sheet before syncing so Walmart-GC can verify the current Sheet version.",
+        : "Imported data saved locally. Connect Google and load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version.",
     },
   );
 }
@@ -1224,7 +1232,7 @@ function getDirectSheetsStatusClass() {
   if (directSheetsState.status === directSheetsStatuses.ready) {
     return "connected";
   }
-  if ([directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status)) {
+  if ([directSheetsStatuses.checking, directSheetsStatuses.creating, directSheetsStatuses.syncing].includes(directSheetsState.status)) {
     return "checking";
   }
   if (directSheetsState.status === directSheetsStatuses.conflict) {
@@ -1236,7 +1244,7 @@ function getDirectSheetsStatusClass() {
   return "not-connected";
 }
 
-function hasSheetsScopeInMemory() {
+function hasGoogleFileAccessInMemory() {
   return Boolean(googleAccessToken && googleOAuthState.status === googleOAuthStatuses.connected);
 }
 
@@ -1251,28 +1259,37 @@ function renderDirectSheetsState() {
     return;
   }
 
-  directSheetInput.value = directSheetsState.spreadsheetUrl || directSheetsState.spreadsheetId;
-  const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
-  saveDirectSheetButton.disabled = isBusy;
-  initializeDirectSheetButton.disabled = isBusy;
-  loadDirectSheetButton.disabled = isBusy;
-  syncDirectSheetButton.disabled = isBusy;
+  if (directSheetInput) {
+    directSheetInput.value = directSheetsState.spreadsheetUrl || directSheetsState.spreadsheetId;
+  }
+  const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.creating, directSheetsStatuses.syncing].includes(directSheetsState.status);
+  if (saveDirectSheetButton) {
+    saveDirectSheetButton.disabled = isBusy;
+  }
+  if (initializeDirectSheetButton) {
+    initializeDirectSheetButton.disabled = isBusy;
+  }
+  if (openDirectSheetButton) {
+    openDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
+  }
+  loadDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
+  syncDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
 
   const details = [
     renderDiagnosticRow("OAuth configured", isGoogleOAuthConfigured() ? "Yes" : "No"),
     renderDiagnosticRow("Google script loaded", hasGoogleIdentityScript() || googleOAuthState.scriptLoaded ? "Yes" : "No"),
     renderDiagnosticRow("Google connection", googleOAuthState.status),
-    renderDiagnosticRow("Sheets scope available", hasSheetsScopeInMemory() ? "Yes" : "Needs reconnect/authorization"),
-    renderDiagnosticRow("Spreadsheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
-    renderDiagnosticRow("Spreadsheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
-    renderDiagnosticRow("Spreadsheet name", valueOrFallback(directSheetsState.spreadsheetName)),
+    renderDiagnosticRow("Google file access available", hasGoogleFileAccessInMemory() ? "Yes" : "Needs reconnect/authorization"),
+    renderDiagnosticRow("Active sheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
+    renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
+    renderDiagnosticRow("Active sheet name", valueOrFallback(directSheetsState.spreadsheetName)),
     renderDiagnosticRow("Cards sheet initialized", valueOrFallback(directSheetsState.cardsSheetInitialized)),
     renderDiagnosticRow("Local last known sheetVersion", valueOrFallback(syncState.lastKnownSheetVersion)),
     renderDiagnosticRow("Remote sheetVersion", valueOrFallback(directSheetsState.remoteSheetVersion)),
     renderDiagnosticRow("Sync state", getSyncStatusLabel()),
     renderDiagnosticRow("Unsynced changes", directSheetsState.pendingUnsynced || syncState.pendingOperation ? "Yes" : "No"),
-    renderDiagnosticRow("Last successful direct sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
-    renderDiagnosticRow("Last direct Sheets error", valueOrFallback(directSheetsState.lastErrorMessage)),
+    renderDiagnosticRow("Last successful sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
+    renderDiagnosticRow("Last Google API error", valueOrFallback(directSheetsState.lastErrorMessage)),
     renderDiagnosticRow("Local card count", String(sampleGiftCards.length)),
   ];
 
@@ -1285,7 +1302,7 @@ function renderDirectSheetsState() {
       <span class="sync-badge">${escapeHtml(getSyncStatusLabel())}</span>
     </div>
     <p>${escapeHtml(directSheetsState.message || defaultDirectSheetsState.message)}</p>
-    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open configured Google Sheet</a></p>` : ""}
+    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open Sheet</a></p>` : ""}
     ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
     <ul class="diagnostic-list">${details.join("")}</ul>
   `;
@@ -1319,7 +1336,7 @@ function markGoogleTokenExpired() {
   setGoogleOAuthState({
     status: googleOAuthStatuses.needsReconnect,
     tokenExpiresAt: "",
-    message: "Google access expired. Reconnect Google before direct Google Sheets sync.",
+    message: "Google access expired. Reconnect Google before Google Sheets sync.",
     lastErrorMessage: "Token expired.",
   });
 }
@@ -1349,11 +1366,15 @@ function renderGoogleOAuthState() {
     return;
   }
 
-  googleOAuthClientIdInput.value = googleOAuthState.clientId;
+  if (googleOAuthClientIdInput) {
+    googleOAuthClientIdInput.value = googleOAuthState.clientId;
+  }
   const configured = isGoogleOAuthConfigured();
   const scriptLoaded = hasGoogleIdentityScript() || Boolean(window.walmartGcGoogleIdentityLoaded);
   const isBusy = googleOAuthState.status === googleOAuthStatuses.connecting;
-  saveGoogleOAuthClientButton.disabled = isBusy;
+  if (saveGoogleOAuthClientButton) {
+    saveGoogleOAuthClientButton.disabled = isBusy;
+  }
   connectGoogleButton.disabled = isBusy;
   disconnectGoogleButton.disabled = isBusy && !googleAccessToken;
   disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
@@ -1363,7 +1384,7 @@ function renderGoogleOAuthState() {
     renderDiagnosticRow("Google script loaded", scriptLoaded ? "Yes" : "No"),
     renderDiagnosticRow("Connection state", googleOAuthState.status),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail)),
-    renderDiagnosticRow("Token in memory", googleAccessToken ? "Yes" : "No"),
+    renderDiagnosticRow("Google file access in memory", googleAccessToken ? "Yes" : "No"),
     renderDiagnosticRow("Token expires", formatConnectionTimestamp(googleOAuthState.tokenExpiresAt)),
     renderDiagnosticRow("Last OAuth error", valueOrFallback(googleOAuthState.lastErrorMessage)),
   ];
@@ -1380,39 +1401,21 @@ function renderGoogleOAuthState() {
 }
 
 function saveGoogleOAuthClientFromInput() {
-  const clientId = googleOAuthClientIdInput.value.trim();
-  const clientChanged = clientId !== googleOAuthState.clientId;
+  if (googleOAuthState.clientId !== embeddedGoogleOAuthClientId) {
+    setGoogleOAuthState({ clientId: embeddedGoogleOAuthClientId });
+  }
 
-  if (!clientId || clientId === googleOAuthClientIdPlaceholder) {
+  if (!isGoogleOAuthConfigured()) {
     googleAccessToken = "";
     googleTokenClient = null;
     clearGoogleTokenExpiryTimer();
     setGoogleOAuthState({
-      ...cloneStateValue(defaultGoogleOAuthState),
-      clientId: clientId === googleOAuthClientIdPlaceholder ? clientId : "",
       status: googleOAuthStatuses.error,
-      message: "Paste a Google OAuth Web Client ID before connecting. The Client ID is public configuration, not a secret.",
-      lastErrorMessage: "Missing OAuth Client ID.",
+      tokenExpiresAt: "",
+      message: "Google OAuth is not configured for this deployment. The maintainer must embed the public OAuth Client ID before users can connect.",
+      lastErrorMessage: "Missing embedded OAuth Client ID.",
     });
-    return;
   }
-
-  if (clientChanged) {
-    googleAccessToken = "";
-    googleTokenClient = null;
-    clearGoogleTokenExpiryTimer();
-  }
-
-  setGoogleOAuthState({
-    clientId,
-    status: clientChanged ? googleOAuthStatuses.disconnected : googleOAuthState.status,
-    connectedEmail: clientChanged ? "" : googleOAuthState.connectedEmail,
-    connectedName: clientChanged ? "" : googleOAuthState.connectedName,
-    connectedAt: clientChanged ? "" : googleOAuthState.connectedAt,
-    tokenExpiresAt: clientChanged ? "" : googleOAuthState.tokenExpiresAt,
-    message: "Google OAuth Client ID saved. Connect Google to authorize this browser session.",
-    lastErrorMessage: "",
-  });
 }
 
 function getGoogleOAuthFriendlyError(response) {
@@ -1429,18 +1432,6 @@ function getGoogleOAuthFriendlyError(response) {
   }
 
   return combined || "Google sign-in could not be completed.";
-}
-
-async function loadGoogleUserProfile(accessToken) {
-  const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Google profile request failed with ${response.status}.`);
-  }
-
-  return response.json();
 }
 
 async function handleGoogleOAuthTokenResponse(tokenResponse) {
@@ -1470,41 +1461,37 @@ async function handleGoogleOAuthTokenResponse(tokenResponse) {
     return;
   }
 
+  const grantedScopes = String(tokenResponse?.scope || "").split(/\s+/).filter(Boolean);
+  if (grantedScopes.length && !grantedScopes.includes(googleOAuthScopes)) {
+    const message = "Google did not grant Walmart-GC file access. Reconnect and approve Google Drive file access.";
+    googleAccessToken = "";
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      tokenExpiresAt: "",
+      message,
+      lastErrorMessage: "drive.file scope was not granted.",
+    });
+    return;
+  }
+
   googleAccessToken = accessToken;
   const expiresInSeconds = Number(tokenResponse.expires_in || 0);
   const tokenExpiresAt = expiresInSeconds > 0
     ? new Date(Date.now() + expiresInSeconds * 1000).toISOString()
     : "";
-
-  try {
-    const profile = await loadGoogleUserProfile(accessToken);
-    const email = String(profile?.email || "").trim();
-    const name = String(profile?.name || "").trim();
-    if (tokenExpiresAt) {
-      scheduleGoogleTokenExpiry(tokenExpiresAt);
-    }
-    setGoogleOAuthState({
-      status: googleOAuthStatuses.connected,
-      connectedEmail: email,
-      connectedName: name,
-      connectedAt: new Date().toISOString(),
-      tokenExpiresAt,
-      message: email
-        ? `Connected as ${email}. Direct Google Sheets sync is ready when a Sheet is saved and initialized.`
-        : "Connected to Google. Direct Google Sheets sync is ready when a Sheet is saved and initialized.",
-      lastErrorMessage: "",
-    });
-  } catch (error) {
-    googleAccessToken = "";
-    googleTokenClient = null;
-    clearGoogleTokenExpiryTimer();
-    setGoogleOAuthState({
-      status: googleOAuthStatuses.error,
-      tokenExpiresAt: "",
-      message: "Google connected, but Walmart-GC could not read the account profile. Try again when online.",
-      lastErrorMessage: error instanceof Error ? error.message : "Profile request failed.",
-    });
+  if (tokenExpiresAt) {
+    scheduleGoogleTokenExpiry(tokenExpiresAt);
   }
+
+  setGoogleOAuthState({
+    status: googleOAuthStatuses.connected,
+    connectedAt: new Date().toISOString(),
+    tokenExpiresAt,
+    message: "Connected to Google. Finding or creating Walmart-GC Data...",
+    lastErrorMessage: "",
+  });
+
+  await connectGoogleAndPrepareSheet();
 }
 
 function initializeGoogleTokenClient() {
@@ -1512,12 +1499,12 @@ function initializeGoogleTokenClient() {
     return false;
   }
 
-  if (googleTokenClient && googleTokenClient.__clientId === googleOAuthState.clientId) {
+  if (googleTokenClient && googleTokenClient.__clientId === embeddedGoogleOAuthClientId) {
     return true;
   }
 
   googleTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: googleOAuthState.clientId,
+    client_id: embeddedGoogleOAuthClientId,
     scope: googleOAuthScopes,
     prompt: "consent",
     callback: handleGoogleOAuthTokenResponse,
@@ -1530,7 +1517,7 @@ function initializeGoogleTokenClient() {
       });
     },
   });
-  googleTokenClient.__clientId = googleOAuthState.clientId;
+  googleTokenClient.__clientId = embeddedGoogleOAuthClientId;
   return true;
 }
 
@@ -1589,7 +1576,7 @@ function disconnectGoogleAccount() {
     connectedName: "",
     connectedAt: "",
     tokenExpiresAt: "",
-    message: "Google account disconnected. Local cards and Direct Sheet settings were not changed.",
+    message: "Google account disconnected. Local cards and saved Sheet settings were not changed.",
     lastErrorMessage: "",
   });
 }
@@ -1627,7 +1614,7 @@ function getSyncStatusLabel() {
 function canAutoSyncToSheets() {
   return Boolean(
     isDirectSheetsConfigured()
-      && hasSheetsScopeInMemory()
+      && hasGoogleFileAccessInMemory()
       && syncState.lastKnownSheetVersion
       && syncState.status !== syncStatuses.conflict,
   );
@@ -1650,8 +1637,8 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
   if (!canAutoSyncToSheets()) {
     const message = options.noAutoSyncMessage
       || (isDirectSheetsConfigured()
-        ? "Saved locally. Reconnect Google and load or initialize the direct Sheet before syncing."
-        : "Saved locally. Save a direct Google Sheet, connect Google, then initialize or load before syncing.");
+        ? "Saved locally. Reconnect Google and load or initialize Walmart-GC Data before syncing."
+        : "Saved locally. Connect Google to create or locate Walmart-GC Data before syncing.");
     setSyncState({
       status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
@@ -1671,17 +1658,17 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
   await syncCardsToDirectSheets({
     pendingOperation,
     successMessage,
-    startMessage: options.startMessage || "Syncing completed action directly to Google Sheets...",
+    startMessage: options.startMessage || "Syncing completed action to Google Sheets...",
   });
 }
 
 function getRecoveryUnavailableMessage() {
   if (!isDirectSheetsConfigured()) {
-    return "Save a direct Google Sheet before using Sheets recovery actions.";
+    return "Connect Google to create or locate Walmart-GC Data before using Sheets recovery actions.";
   }
 
-  if (!hasSheetsScopeInMemory()) {
-    return "Reconnect Google with Sheets permission before using direct Sheets recovery actions.";
+  if (!hasGoogleFileAccessInMemory()) {
+    return "Reconnect Google with file access before using Google Sheets recovery actions.";
   }
 
   return "";
@@ -1801,7 +1788,7 @@ function saveDirectSheetFromInput() {
     remoteSheetVersion: changed ? "" : directSheetsState.remoteSheetVersion,
     lastSuccessfulSyncAt: changed ? "" : directSheetsState.lastSuccessfulSyncAt,
     pendingUnsynced: false,
-    message: "Direct Sheet saved locally. Connect Google, then initialize or load the Sheet.",
+    message: "Advanced Sheet ID saved locally. Connect Google, then load the Sheet.",
     lastErrorMessage: "",
   });
 }
@@ -1817,7 +1804,7 @@ function getDirectSheetsFriendlyHttpError(status, bodyText = "") {
     return "Google authorization expired or was rejected. Reconnect Google, then try again.";
   }
   if (status === 403) {
-    return "Google Sheets access was denied. Confirm the account has access, the Sheets API is enabled, and reconnect Google with Sheets permission.";
+    return "Google file access was denied. Confirm Google Drive API and Google Sheets API are enabled, then reconnect Google.";
   }
   if (status === 404) {
     return "Google could not find this spreadsheet. Check the Sheet ID/URL and account permissions.";
@@ -1831,13 +1818,13 @@ function getDirectSheetsFriendlyHttpError(status, bodyText = "") {
   return bodyText ? `Google Sheets API request failed (${status}): ${bodyText.slice(0, 180)}` : `Google Sheets API request failed (${status}).`;
 }
 
-async function getGoogleAccessTokenForSheets() {
+async function getGoogleAccessTokenForDriveFile() {
   if (!isGoogleOAuthConfigured()) {
-    throw makeDirectSheetsError("Paste and save a Google OAuth Client ID before using direct Google Sheets sync.");
+    throw makeDirectSheetsError("Google OAuth is not configured for this deployment. Add the public OAuth Client ID before deployment.");
   }
 
   if (navigator.onLine === false) {
-    throw makeDirectSheetsError("Direct Google Sheets sync is unavailable while offline. Local data remains saved in this browser.");
+    throw makeDirectSheetsError("Google sync is unavailable while offline. Local data remains saved in this browser.");
   }
 
   if (!hasGoogleIdentityScript()) {
@@ -1847,17 +1834,17 @@ async function getGoogleAccessTokenForSheets() {
   if (!googleAccessToken || googleOAuthState.status !== googleOAuthStatuses.connected) {
     setGoogleOAuthState({
       status: googleOAuthStatuses.needsReconnect,
-      message: "Reconnect Google with Sheets permission before using direct sync.",
-      lastErrorMessage: "Missing in-memory Sheets access token.",
+      message: "Reconnect Google with file access before using sync.",
+      lastErrorMessage: "Missing in-memory Google file access token.",
     });
-    throw makeDirectSheetsError("Reconnect Google with Sheets permission before using direct sync.");
+    throw makeDirectSheetsError("Reconnect Google with file access before using sync.");
   }
 
   return googleAccessToken;
 }
 
 async function sheetsFetch(path, options = {}) {
-  const accessToken = await getGoogleAccessTokenForSheets();
+  const accessToken = await getGoogleAccessTokenForDriveFile();
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${path}`, {
     ...options,
     headers: {
@@ -1880,13 +1867,267 @@ async function sheetsFetch(path, options = {}) {
   return response.json();
 }
 
+function getDriveFriendlyHttpError(status, bodyText = "") {
+  if (status === 401) {
+    return "Google authorization expired or was rejected. Reconnect Google, then try again.";
+  }
+  if (status === 403) {
+    return "Google Drive file access was denied. Confirm the Drive API is enabled and reconnect Google.";
+  }
+  if (status === 404) {
+    return "Google Drive could not find the requested file. Reconnect Google, then try again.";
+  }
+  if (status === 429) {
+    return "Google Drive is rate limiting requests. Wait a moment, then retry.";
+  }
+  if (status >= 500) {
+    return "Google Drive is temporarily unavailable. Local data remains saved; try again later.";
+  }
+  return bodyText ? `Google Drive API request failed (${status}): ${bodyText.slice(0, 180)}` : `Google Drive API request failed (${status}).`;
+}
+
+async function driveFetch(path, options = {}) {
+  const accessToken = await getGoogleAccessTokenForDriveFile();
+  const response = await fetch(`https://www.googleapis.com/drive/v3/${path}`, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    throw makeDirectSheetsError(getDriveFriendlyHttpError(response.status, bodyText), response.status);
+  }
+
+  if (response.status === 204) {
+    return {};
+  }
+
+  return response.json();
+}
+
+function escapeDriveQueryValue(value) {
+  return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function findWalmartGcDataSheet() {
+  const query = [
+    `name = '${escapeDriveQueryValue(walmartGcDataSheetName)}'`,
+    `mimeType = '${googleDriveSpreadsheetMimeType}'`,
+    "trashed = false",
+  ].join(" and ");
+  const searchParams = new URLSearchParams({
+    q: query,
+    spaces: "drive",
+    pageSize: "10",
+    orderBy: "modifiedTime desc,name",
+    fields: "files(id,name,modifiedTime,webViewLink)",
+  });
+  const body = await driveFetch(`files?${searchParams.toString()}`);
+  const files = Array.isArray(body.files) ? body.files : [];
+  if (files.length > 1) {
+    setDirectSheetsState({
+      message: `Found ${files.length} app-accessible Walmart-GC Data spreadsheets. Using the most recently modified file.`,
+    });
+  }
+  return files[0] || null;
+}
+
+async function createWalmartGcDataSheet() {
+  return driveFetch("files?fields=id,name,modifiedTime,webViewLink", {
+    method: "POST",
+    body: JSON.stringify({
+      name: walmartGcDataSheetName,
+      mimeType: googleDriveSpreadsheetMimeType,
+    }),
+  });
+}
+
+function setActiveDirectSheet(file) {
+  const spreadsheetId = String(file?.id || "").trim();
+  if (!spreadsheetId) {
+    throw makeDirectSheetsError("Google did not return a spreadsheet ID for Walmart-GC Data.");
+  }
+
+  const spreadsheetUrl = String(file?.webViewLink || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`);
+  const changed = spreadsheetId !== directSheetsState.spreadsheetId;
+  if (changed) {
+    syncState = cloneStateValue(defaultSyncState);
+  }
+  setDirectSheetsState({
+    spreadsheetId,
+    spreadsheetUrl,
+    spreadsheetName: String(file?.name || walmartGcDataSheetName),
+    status: directSheetsStatuses.ready,
+    cardsSheetInitialized: changed ? "unknown" : directSheetsState.cardsSheetInitialized,
+    remoteSheetVersion: changed ? "" : directSheetsState.remoteSheetVersion,
+    lastSuccessfulSyncAt: changed ? "" : directSheetsState.lastSuccessfulSyncAt,
+    pendingUnsynced: changed ? false : directSheetsState.pendingUnsynced,
+    message: `Using ${String(file?.name || walmartGcDataSheetName)} for Google Sheets sync.`,
+    lastErrorMessage: "",
+  });
+}
+
+async function ensureWalmartGcDataSheet() {
+  setDirectSheetsState({
+    status: directSheetsStatuses.checking,
+    message: `Finding ${walmartGcDataSheetName} in Google Drive...`,
+    lastErrorMessage: "",
+  });
+  let file = await findWalmartGcDataSheet();
+  if (!file) {
+    setDirectSheetsState({
+      status: directSheetsStatuses.creating,
+      message: `Creating ${walmartGcDataSheetName} in Google Drive...`,
+      lastErrorMessage: "",
+    });
+    file = await createWalmartGcDataSheet();
+  }
+  setActiveDirectSheet(file);
+  return file;
+}
+
+function hasMeaningfulLocalCards() {
+  if (sampleGiftCards.length === 0) {
+    return false;
+  }
+  if (loadedCardsFromStorage) {
+    return true;
+  }
+  return JSON.stringify(sampleGiftCards) !== JSON.stringify(bundledSampleGiftCards);
+}
+
+async function connectGoogleAndPrepareSheet() {
+  try {
+    const file = await ensureWalmartGcDataSheet();
+    const structure = await ensureCardsSheet();
+    let meta = await readSheetMeta();
+    if (!meta.sheetVersion) {
+      meta = await writeSheetMeta({ sheetVersion: generateRequestId() });
+    }
+    const headerRows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
+    if (!areHeadersValid(headerRows[0])) {
+      throw makeDirectSheetsError("The Cards tab headers do not match the approved schema. Local data was not changed.");
+    }
+    const rows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
+    const loadedCards = cardsFromSheetRows(rows);
+    const localHasCards = hasMeaningfulLocalCards();
+    const now = new Date().toISOString();
+
+    if (loadedCards.length > 0 && localHasCards) {
+      syncState = {
+        ...syncState,
+        status: syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: now,
+        lastKnownSheetVersion: meta.sheetVersion,
+        message: "Connected to Walmart-GC Data. Remote cards were found; press Load from Google Sheets to replace this local session, or Sync Now to save local cards after reviewing.",
+        lastErrorMessage: "",
+      };
+      setDirectSheetsState({
+        spreadsheetName: structure.spreadsheetName || file.name || walmartGcDataSheetName,
+        status: directSheetsStatuses.ready,
+        cardsSheetInitialized: "yes",
+        remoteSheetVersion: meta.sheetVersion,
+        pendingUnsynced: true,
+        message: "Connected. Remote cards exist, so Walmart-GC did not replace local cards automatically.",
+        lastErrorMessage: "",
+      });
+      return;
+    }
+
+    if (loadedCards.length === 0 && localHasCards) {
+      syncState = {
+        ...syncState,
+        status: syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: now,
+        lastKnownSheetVersion: meta.sheetVersion,
+        message: "Connected to an empty Walmart-GC Data Sheet. Local cards were kept in this browser; press Sync Now to copy them to Google Sheets.",
+        lastErrorMessage: "",
+      };
+      setDirectSheetsState({
+        spreadsheetName: structure.spreadsheetName || file.name || walmartGcDataSheetName,
+        status: directSheetsStatuses.ready,
+        cardsSheetInitialized: "yes",
+        remoteSheetVersion: meta.sheetVersion,
+        pendingUnsynced: true,
+        message: "Connected to an empty Sheet. Local cards were not uploaded automatically.",
+        lastErrorMessage: "",
+      });
+      return;
+    }
+
+    sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedCards);
+    loadedCardsFromStorage = true;
+    selectedCardIndex = loadedCards.length > 0 ? 0 : -1;
+    detailNumberRevealed = false;
+    syncState = {
+      ...syncState,
+      status: syncStatuses.connected,
+      lastSyncTimestamp: now,
+      lastSyncAttemptTimestamp: now,
+      lastKnownSheetVersion: meta.sheetVersion,
+      message: loadedCards.length
+        ? "Loaded cards from Walmart-GC Data. Completed actions will now sync directly."
+        : "Connected to a blank Walmart-GC Data Sheet. Add or import cards when ready.",
+      lastErrorMessage: "",
+      pendingOperation: null,
+    };
+    setDirectSheetsState({
+      spreadsheetName: structure.spreadsheetName || file.name || walmartGcDataSheetName,
+      status: directSheetsStatuses.ready,
+      cardsSheetInitialized: "yes",
+      remoteSheetVersion: meta.sheetVersion,
+      lastSuccessfulSyncAt: now,
+      pendingUnsynced: false,
+      message: loadedCards.length
+        ? `Connected and loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data.`
+        : "Connected and initialized Walmart-GC Data. The Sheet is ready for cards.",
+      lastErrorMessage: "",
+    });
+    saveAppState();
+    refreshRawCardData(loadedCards.length
+      ? `Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data into this session.`
+      : "Connected to a blank Walmart-GC Data Sheet. The local card list is empty and ready.");
+    renderApp(selectedCardIndex);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Google Sheet setup failed.";
+    setDirectSheetsState({
+      status: directSheetsStatuses.error,
+      message,
+      lastErrorMessage: message,
+    });
+    setSyncState({
+      status: syncStatuses.unsynced,
+      lastErrorMessage: message,
+      message: "Google setup failed. Local cards remain available in this browser.",
+    });
+  }
+}
+
+function openActiveGoogleSheet() {
+  const sheetUrl = getDirectSheetsDisplayUrl();
+  if (!sheetUrl) {
+    setDirectSheetsState({
+      status: directSheetsStatuses.notConfigured,
+      message: "Connect Google to create or locate Walmart-GC Data before opening the Sheet.",
+      lastErrorMessage: "No active Sheet ID configured.",
+    });
+    return;
+  }
+  window.open(sheetUrl, "_blank", "noopener");
+}
+
 function encodeSheetRange(range) {
   return encodeURIComponent(range).replace(/%21/g, "!");
 }
 
 async function getDirectSpreadsheetMetadata() {
   if (!directSheetsState.spreadsheetId) {
-    throw makeDirectSheetsError("Save a Google Sheet URL or ID before using direct sync.");
+    throw makeDirectSheetsError("Connect Google to create or locate Walmart-GC Data before using sync.");
   }
 
   return sheetsFetch(`${directSheetsState.spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title,hidden)`);
@@ -2028,14 +2269,18 @@ function cardsFromSheetRows(rows) {
 }
 
 async function initializeDirectSheetStructure() {
-  saveDirectSheetFromInput();
   if (!directSheetsState.spreadsheetId) {
+    setDirectSheetsState({
+      status: directSheetsStatuses.notConfigured,
+      message: "Connect Google to create or locate Walmart-GC Data before initializing.",
+      lastErrorMessage: "No active Sheet ID configured.",
+    });
     return;
   }
 
   setDirectSheetsState({
     status: directSheetsStatuses.checking,
-    message: "Initializing direct Google Sheet structure...",
+    message: "Initializing Walmart-GC Data structure...",
     lastErrorMessage: "",
   });
 
@@ -2054,8 +2299,8 @@ async function initializeDirectSheetStructure() {
       lastSyncAttemptTimestamp: new Date().toISOString(),
       lastKnownSheetVersion: hasExistingCardRows ? "" : meta.sheetVersion,
       message: hasExistingCardRows
-        ? "Direct Sheet initialized. Load from Google Sheets before syncing so existing Sheet rows are not overwritten."
-        : "Blank Direct Sheet initialized. Completed local actions can now sync directly.",
+        ? "Walmart-GC Data initialized. Load from Google Sheets before syncing so existing Sheet rows are not overwritten."
+        : "Blank Walmart-GC Data Sheet initialized. Completed local actions can now sync.",
       lastErrorMessage: "",
       pendingOperation: null,
     };
@@ -2066,12 +2311,12 @@ async function initializeDirectSheetStructure() {
       remoteSheetVersion: meta.sheetVersion,
       pendingUnsynced: hasExistingCardRows,
       message: hasExistingCardRows
-        ? "Direct Sheet structure is ready and existing card rows were detected. Load from Google Sheets before syncing."
-        : "Direct Sheet initialized with Cards headers and metadata.",
+        ? "Walmart-GC Data structure is ready and existing card rows were detected. Load from Google Sheets before syncing."
+        : "Walmart-GC Data initialized with Cards headers and metadata.",
       lastErrorMessage: "",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Direct Sheet initialization failed.";
+    const message = error instanceof Error ? error.message : "Walmart-GC Data initialization failed.";
     setDirectSheetsState({
       status: directSheetsStatuses.error,
       cardsSheetInitialized: "unknown",
@@ -2083,8 +2328,12 @@ async function initializeDirectSheetStructure() {
 }
 
 async function loadCardsFromDirectSheets() {
-  saveDirectSheetFromInput();
   if (!directSheetsState.spreadsheetId) {
+    setDirectSheetsState({
+      status: directSheetsStatuses.notConfigured,
+      message: "Connect Google to create or locate Walmart-GC Data before loading.",
+      lastErrorMessage: "No active Sheet ID configured.",
+    });
     return;
   }
 
@@ -2112,6 +2361,7 @@ async function loadCardsFromDirectSheets() {
     const rows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
     const loadedCards = cardsFromSheetRows(rows);
     sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedCards);
+    loadedCardsFromStorage = true;
     selectedCardIndex = loadedCards.length > 0 ? 0 : -1;
     detailNumberRevealed = false;
     syncState = {
@@ -2120,7 +2370,7 @@ async function loadCardsFromDirectSheets() {
       lastSyncTimestamp: new Date().toISOString(),
       lastSyncAttemptTimestamp: new Date().toISOString(),
       lastKnownSheetVersion: meta.sheetVersion,
-      message: "Loaded from direct Google Sheets. Completed actions will now sync directly.",
+      message: "Loaded from Walmart-GC Data. Completed actions will now sync.",
       lastErrorMessage: "",
       pendingOperation: null,
     };
@@ -2131,11 +2381,11 @@ async function loadCardsFromDirectSheets() {
       remoteSheetVersion: meta.sheetVersion,
       lastSuccessfulSyncAt: new Date().toISOString(),
       pendingUnsynced: false,
-      message: `Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from direct Google Sheets.`,
+      message: `Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data.`,
       lastErrorMessage: "",
     });
     saveAppState();
-    refreshRawCardData(`Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from direct Google Sheets into this session.`);
+    refreshRawCardData(`Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data into this session.`);
     renderApp(selectedCardIndex);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Direct Google Sheets load failed.";
@@ -2158,18 +2408,18 @@ async function detectDirectSheetsConflict(remoteVersion) {
 
 async function syncCardsToDirectSheets(options = {}) {
   if (!isDirectSheetsConfigured()) {
-    throw makeDirectSheetsError("Save a direct Google Sheet before syncing.");
+    throw makeDirectSheetsError("Connect Google to create or locate Walmart-GC Data before syncing.");
   }
 
   setDirectSheetsState({
     status: directSheetsStatuses.syncing,
     pendingUnsynced: true,
-    message: options.startMessage || "Syncing current local cards directly to Google Sheets...",
+    message: options.startMessage || "Syncing current local cards to Google Sheets...",
     lastErrorMessage: "",
   });
   setSyncState({
     lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: options.startMessage || "Syncing current local cards directly to Google Sheets...",
+    message: options.startMessage || "Syncing current local cards to Google Sheets...",
     pendingOperation: options.pendingOperation || {
       action: "batchUpdate",
       payload: { cards: cloneStateValue(sampleGiftCards) },
@@ -2212,7 +2462,7 @@ async function syncCardsToDirectSheets(options = {}) {
       lastSyncTimestamp: now,
       lastSyncAttemptTimestamp: now,
       lastKnownSheetVersion: nextMeta.sheetVersion,
-      message: options.successMessage || "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+      message: options.successMessage || "Sync succeeded. Current local cards were saved to Google Sheets.",
       lastErrorMessage: "",
       pendingOperation: null,
     };
@@ -2237,7 +2487,7 @@ async function syncCardsToDirectSheets(options = {}) {
     });
     setSyncState({
       status: syncStatuses.unsynced,
-      message: "Saved locally, but direct Google Sheets sync failed. Local data remains in this browser.",
+      message: "Saved locally, but Google Sheets sync failed. Local data remains in this browser.",
       lastErrorMessage: message,
     });
     return false;
@@ -2261,8 +2511,8 @@ async function useCurrentSessionToOverwriteDirectSheets() {
 
   await syncCardsToDirectSheets({
     force: true,
-    successMessage: `Overwrote direct Google Sheet with ${sampleGiftCards.length} current-session card${sampleGiftCards.length === 1 ? "" : "s"}.`,
-    startMessage: "Overwriting direct Google Sheet with the current session...",
+    successMessage: `Overwrote Walmart-GC Data with ${sampleGiftCards.length} current-session card${sampleGiftCards.length === 1 ? "" : "s"}.`,
+    startMessage: "Overwriting Walmart-GC Data with the current session...",
   });
 }
 
@@ -2270,7 +2520,7 @@ async function retrySyncCurrentSession() {
   const pendingOperation = normalizePendingSyncOperation(syncState.pendingOperation);
 
   if (!isDirectSheetsConfigured()) {
-    const message = "Sync failed: save a direct Google Sheet before retrying sync.";
+    const message = "Sync failed: connect Google to create or locate Walmart-GC Data before retrying sync.";
     setSyncState({
       status: syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
@@ -2297,7 +2547,7 @@ async function retrySyncCurrentSession() {
   }
 
   if (!syncState.lastKnownSheetVersion) {
-    const message = "Load or initialize the direct Google Sheet before syncing so Walmart-GC can verify the current Sheet version.";
+    const message = "Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version.";
     setSyncState({
       status: syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
@@ -2312,11 +2562,11 @@ async function retrySyncCurrentSession() {
     pendingOperation: pendingOperation || {
       action: "batchUpdate",
       payload: { cards: cloneStateValue(sampleGiftCards) },
-      successMessage: "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+      successMessage: "Sync succeeded. Current local cards were saved to Google Sheets.",
       description: "current local cards",
     },
-    successMessage: pendingOperation?.successMessage || "Sync succeeded. Current local cards were saved directly to Google Sheets.",
-    startMessage: `Retrying direct Google Sheets sync${pendingOperation?.description ? ` for ${pendingOperation.description}` : ""}...`,
+    successMessage: pendingOperation?.successMessage || "Sync succeeded. Current local cards were saved to Google Sheets.",
+    startMessage: `Retrying Google Sheets sync${pendingOperation?.description ? ` for ${pendingOperation.description}` : ""}...`,
   });
 }
 
@@ -2917,11 +3167,20 @@ csvFileInput.addEventListener("change", (event) => {
   event.target.value = "";
 });
 exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
-saveDirectSheetButton.addEventListener("click", saveDirectSheetFromInput);
-initializeDirectSheetButton.addEventListener("click", initializeDirectSheetStructure);
+if (saveDirectSheetButton) {
+  saveDirectSheetButton.addEventListener("click", saveDirectSheetFromInput);
+}
+if (initializeDirectSheetButton) {
+  initializeDirectSheetButton.addEventListener("click", initializeDirectSheetStructure);
+}
+if (openDirectSheetButton) {
+  openDirectSheetButton.addEventListener("click", openActiveGoogleSheet);
+}
 loadDirectSheetButton.addEventListener("click", loadCardsFromDirectSheets);
 syncDirectSheetButton.addEventListener("click", retrySyncCurrentSession);
-saveGoogleOAuthClientButton.addEventListener("click", saveGoogleOAuthClientFromInput);
+if (saveGoogleOAuthClientButton) {
+  saveGoogleOAuthClientButton.addEventListener("click", saveGoogleOAuthClientFromInput);
+}
 connectGoogleButton.addEventListener("click", connectGoogleAccount);
 disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
 window.addEventListener("walmart-gc-google-identity-loaded", handleGoogleIdentityLoaded);

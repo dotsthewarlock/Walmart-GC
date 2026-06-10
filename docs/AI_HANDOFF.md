@@ -4,18 +4,18 @@
 
 Active branch: `phase-9-oauth`.
 
-Current implementation phase: Phase 9C — Apps Script removal and direct Google Sheets cleanup.
+Current implementation phase: Phase 9.1 — low-friction OAuth and automatic `Walmart-GC Data` Sheet lifecycle.
 
-The preserved `main` branch remains the known-good Apps Script MVP. Phase 9 work uses Google OAuth plus the direct Google Sheets API as the only online sync path.
+The preserved `main` branch remains the known-good Apps Script MVP. Phase 9 work uses Google OAuth with `drive.file`, Google Drive file lifecycle calls, and the direct Google Sheets API as the only online sync path.
 
 ## Current Architecture
 
 ```text
 User Google Account
         ↕
-Google OAuth
+Google OAuth (`drive.file`)
         ↕
-Google Sheets API
+Google Drive API + Google Sheets API
         ↕
 Walmart-GC Web App
         ↕
@@ -69,7 +69,7 @@ Rules:
 Online sync path:
 
 ```text
-Google OAuth + Direct Google Sheets API only
+Google OAuth `drive.file` + Google Drive API + Direct Google Sheets API only
 ```
 
 Completed actions should sync after:
@@ -83,10 +83,10 @@ Completed actions should sync after:
 
 Do not sync on every keystroke.
 
-If direct Sheets is not configured, Google is disconnected, or the browser is offline:
+If Walmart-GC Data is not configured yet, Google is disconnected, or the browser is offline:
 
 - Keep local changes.
-- Preserve cards/settings/direct Sheet configuration.
+- Preserve cards/settings/saved Sheet configuration.
 - Mark unsynced where appropriate.
 - Show readable setup/reconnect guidance.
 - Do not erase data.
@@ -106,7 +106,7 @@ Preserve Phase 9B conflict behavior:
 Preferred order:
 
 1. Google Account.
-2. Direct Google Sheet.
+2. Google Sheet.
 3. CSV Backup & Recovery.
 4. Diagnostics/status output.
 
@@ -117,15 +117,15 @@ Diagnostics should focus on:
 - OAuth configured.
 - Google script loaded.
 - Google connection state.
-- Sheets scope available / needs reconnect.
-- Direct Sheet ID configured.
+- Google file access available / needs reconnect.
+- Active Sheet ID configured.
 - Cards sheet initialized.
 - Local sheetVersion.
 - Remote sheetVersion.
 - Sync state.
 - Unsynced changes.
 - Last successful sync.
-- Last Direct Sheets error.
+- Last Google API error.
 - Local card count where useful.
 
 ## Historical MVP References
@@ -141,7 +141,6 @@ Do not add:
 - Databases.
 - Dedicated backend services.
 - App-managed user accounts.
-- Automatic Sheet file creation unless separately approved.
 - Schema changes.
 - Real-time collaboration features.
 - Migration wizard.

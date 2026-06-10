@@ -20,9 +20,9 @@ The application is designed around:
 ```text
 User Google Account
         ↕
-Google OAuth
+Google OAuth (`drive.file`)
         ↕
-Google Sheets API
+Google Drive API + Google Sheets API
         ↕
 Walmart-GC Web App
 ```
@@ -77,13 +77,15 @@ Completed on `phase-9-oauth`. Added direct Sheet URL/ID setup, Sheet initializat
 
 ## Current Implementation Phase
 
-### Phase 9C – Apps Script Removal & Cleanup
+### Phase 9.1 – Low-Friction OAuth + Sheet Lifecycle
 
-Current. Walmart-GC uses Google OAuth plus the direct Google Sheets API as the only online sync path.
+Current. Walmart-GC uses Google OAuth with `drive.file`, the Google Drive API to find/create `Walmart-GC Data`, and the direct Google Sheets API as the only online sync path.
 
-Phase 9C goals:
+Phase 9.1 goals:
 
-- Remove Apps Script setup, health check, load, diagnostics, and fallback routing from the active app.
+- Remove normal-user OAuth Client ID setup.
+- Replace manual first-run Sheet URL/ID setup with automatic `Walmart-GC Data` find/create.
+- Use Google Drive `drive.file` access instead of broad Sheets or Drive scopes.
 - Keep direct Google Sheets sync, conflict handling, local persistence, and CSV backup/recovery intact.
 - Keep `main` preserved as the known-good Apps Script MVP.
 - Keep Apps Script docs/code only as historical MVP reference material unless separately archived.

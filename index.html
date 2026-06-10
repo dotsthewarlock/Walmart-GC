@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.05 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.06 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,16 +20,16 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.05"
+          data-html-version="1.01.06"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.05 · JS loading · CSS 1.01.03
+          HTML 1.01.06 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 9C syncs completed local actions directly with a dedicated Google Sheet
-          after Google authorization and Sheet initialization.
+          Mobile-first checkout access for Walmart gift cards. Phase 9.1 connects Google, creates or locates your dedicated Walmart-GC Data Sheet,
+          and syncs completed local actions directly with Google Sheets.
         </p>
       </div>
     </header>
@@ -185,22 +185,11 @@
             <div class="data-card-heading">
               <div>
                 <h3>Google Account</h3>
-                <p>Connect Google to authorize direct Google Sheets API sync. Tokens stay in memory and are not saved.</p>
+                <p>Connect Google to create or locate your dedicated Walmart-GC Data spreadsheet. Tokens stay in memory and are not saved.</p>
               </div>
             </div>
 
-            <label class="connection-label" for="google-oauth-client-id">Google OAuth Client ID</label>
-            <input
-              id="google-oauth-client-id"
-              class="connection-input"
-              type="text"
-              inputmode="text"
-              autocomplete="off"
-              placeholder="Paste OAuth Web Client ID (not a secret)"
-            />
-
             <div class="connection-actions oauth-actions" aria-label="Google account actions">
-              <button id="save-google-oauth-client" class="secondary-button" type="button">Save Client ID</button>
               <button id="connect-google" class="primary-button" type="button">Connect Google</button>
               <button id="disconnect-google" class="secondary-button" type="button">Disconnect</button>
             </div>
@@ -211,24 +200,13 @@
           <div class="data-card direct-sheets-card">
             <div class="data-card-heading">
               <div>
-                <h3>Direct Google Sheet</h3>
-                <p>Paste one dedicated Google Sheet URL or spreadsheet ID. Create the Sheet in Google first, then initialize the <code>Cards</code> and <code>_META</code> tabs here.</p>
+                <h3>Google Sheet</h3>
+                <p>Walmart-GC automatically finds or creates one dedicated spreadsheet named <code>Walmart-GC Data</code>, then prepares the <code>Cards</code> and <code>_META</code> tabs.</p>
               </div>
             </div>
 
-            <label class="connection-label" for="direct-sheet-id">Google Sheet URL or ID</label>
-            <input
-              id="direct-sheet-id"
-              class="connection-input"
-              type="text"
-              inputmode="url"
-              autocomplete="off"
-              placeholder="https://docs.google.com/spreadsheets/d/... or spreadsheet ID"
-            />
-
-            <div class="connection-actions" aria-label="Direct Google Sheets actions">
-              <button id="save-direct-sheet" class="secondary-button" type="button">Save Sheet</button>
-              <button id="initialize-direct-sheet" class="primary-button" type="button">Initialize Sheet</button>
+            <div class="connection-actions" aria-label="Google Sheets actions">
+              <button id="open-direct-sheet" class="secondary-button" type="button">Open Sheet</button>
               <button id="load-direct-sheet" class="primary-button" type="button">Load from Google Sheets</button>
               <button id="sync-direct-sheet" class="secondary-button" type="button">Sync Now</button>
             </div>

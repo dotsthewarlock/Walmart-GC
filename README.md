@@ -10,7 +10,7 @@ Walmart-GC is a static web application that helps users manage large numbers of 
 - Display Walmart Canada checkout barcodes for in-store checkout.
 - Display PINs.
 - Track remaining balances and used state.
-- Synchronize completed actions with a Google Sheet through Google OAuth and the Google Sheets API.
+- Synchronize completed actions with an automatically located or created `Walmart-GC Data` spreadsheet through Google OAuth, Drive file access, and the Google Sheets API.
 - Continue using local browser data when offline or disconnected.
 - Export/import CSV backups.
 
@@ -25,7 +25,7 @@ User-owned Google Sheet
 Online sync path:
 
 ```text
-Google Account ↔ Google OAuth ↔ Google Sheets API ↔ Walmart-GC Web App
+Google Account ↔ Google OAuth drive.file ↔ Google Drive/Sheets APIs ↔ Walmart-GC Web App
 ```
 
 Frontend:
@@ -43,6 +43,7 @@ Walmart-GC does not require a dedicated server, database, build step, framework,
 - JavaScript
 - GitHub Pages
 - Google OAuth
+- Google Drive API
 - Google Sheets API
 - Google Sheets
 
@@ -56,9 +57,9 @@ Walmart-GC does not require a dedicated server, database, build step, framework,
 
 ## Current Status
 
-Phase 9C — Apps Script removal and direct Google Sheets cleanup.
+Phase 9.1 — low-friction OAuth and automatic `Walmart-GC Data` Sheet lifecycle.
 
-The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses Google OAuth plus the direct Google Sheets API as the only online sync path. Apps Script is retained only as historical MVP reference material.
+The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses Google OAuth with `drive.file`, the Google Drive API for Sheet lifecycle, and the Google Sheets API for data sync. Apps Script is retained only as historical MVP reference material.
 
 ## Sheet Sharing
 
