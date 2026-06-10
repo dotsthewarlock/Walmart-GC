@@ -221,6 +221,7 @@ const defaultSyncState = {
   lastKnownSheetVersion: "",
   message: "Load from Sheets to enable completed-action sync writes.",
   lastErrorMessage: "",
+  pendingOperation: null,
 };
 
 let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
@@ -419,6 +420,47 @@ function normalizeStoredConnection(connection) {
   };
 }
 
+function normalizePendingSyncOperation(operation) {
+  if (!isPlainObject(operation)) {
+    return null;
+  }
+
+  const action = operation.action === "updateCard" ? "updateCard" : "batchUpdate";
+  if (!isPlainObject(operation.payload)) {
+    return null;
+  }
+
+  if (action === "updateCard") {
+    const card = normalizeStoredCard(operation.payload.card);
+    if (!card) {
+      return null;
+    }
+
+    return {
+      action,
+      payload: { card },
+      successMessage: String(operation.successMessage || "Sync succeeded."),
+      description: String(operation.description || "card update"),
+    };
+  }
+
+  if (!Array.isArray(operation.payload.cards)) {
+    return null;
+  }
+
+  const cards = normalizeStoredCards(operation.payload.cards);
+  if (!cards) {
+    return null;
+  }
+
+  return {
+    action,
+    payload: { cards },
+    successMessage: String(operation.successMessage || "Sync succeeded."),
+    description: String(operation.description || "local card data"),
+  };
+}
+
 function normalizeStoredSync(sync) {
   if (!isPlainObject(sync)) {
     return cloneStateValue(defaultSyncState);
@@ -436,6 +478,7 @@ function normalizeStoredSync(sync) {
     lastKnownSheetVersion: String(sync.lastKnownSheetVersion || ""),
     message: String(sync.message || defaultSyncState.message),
     lastErrorMessage: String(sync.lastErrorMessage || ""),
+    pendingOperation: normalizePendingSyncOperation(sync.pendingOperation),
   };
 }
 
@@ -754,7 +797,7 @@ function refreshRawCardData(summaryText) {
   );
 }
 
-function updateRawCardData() {
+async function updateRawCardData() {
   const suppliedRows = getDataRowCount(rawDataInput.value);
 
   if (suppliedRows > dataPanelRowLimit) {
@@ -779,10 +822,26 @@ function updateRawCardData() {
     ? `Imported ${parsedCards.length} card${parsedCards.length === 1 ? "" : "s"}.`
     : `Imported ${parsedCards.length} card${parsedCards.length === 1 ? "" : "s"}. ${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`;
   renderValidationWarnings(warnings, summary);
-  postCompletedActionToSheets(
+
+  const importedCardsPayload = { cards: cloneStateValue(parsedCards) };
+  const importedCardsNoun = `card${parsedCards.length === 1 ? "" : "s"}`;
+  const importSuccessMessage = `Sync succeeded. Imported ${parsedCards.length} ${importedCardsNoun} ${parsedCards.length === 1 ? "was" : "were"} saved to Sheets.`;
+  await postCompletedActionToSheets(
     "batchUpdate",
-    { cards: cloneStateValue(parsedCards) },
-    `Saved ${parsedCards.length} imported card${parsedCards.length === 1 ? "" : "s"} to Sheets.`,
+    importedCardsPayload,
+    importSuccessMessage,
+    {
+      pendingOperation: {
+        action: "batchUpdate",
+        payload: importedCardsPayload,
+        successMessage: importSuccessMessage,
+        description: "accepted CSV import",
+      },
+      startMessage: "Imported data saved locally. Syncing imported cards to Sheets...",
+      noAutoSyncMessage: syncState.lastKnownSheetVersion
+        ? "Imported data saved locally, but it is not ready to sync right now. Retry Sync or download a CSV backup."
+        : "Imported data saved locally. Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.",
+    },
   );
 }
 
@@ -1032,6 +1091,7 @@ function handleSuccessfulWrite(responseBody, successMessage) {
     lastKnownSheetVersion: sheetVersion || syncState.lastKnownSheetVersion,
     message: successMessage,
     lastErrorMessage: "",
+    pendingOperation: null,
   };
   connectionState = {
     ...connectionState,
@@ -1075,10 +1135,22 @@ function handleFailedWrite(message, responseBody) {
   renderConnectionState();
 }
 
-async function postCompletedActionToSheets(action, payload, successMessage) {
+async function postCompletedActionToSheets(action, payload, successMessage, options = {}) {
+  const pendingOperation = normalizePendingSyncOperation(options.pendingOperation ?? {
+    action,
+    payload,
+    successMessage,
+    description: action === "batchUpdate" ? "local card updates" : "card update",
+  });
+
   if (!canAutoSyncToSheets()) {
-    saveAppState();
-    renderConnectionState();
+    setSyncState({
+      status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      message: options.noAutoSyncMessage || "Saved locally. Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.",
+      lastErrorMessage: options.noAutoSyncMessage || "Saved locally, but no safe Sheet version is available for syncing.",
+      pendingOperation,
+    });
     return;
   }
 
@@ -1087,6 +1159,7 @@ async function postCompletedActionToSheets(action, payload, successMessage) {
     : buildUpdateCardUrl(connectionState.appsScriptUrl);
 
   if (!actionUrl) {
+    setSyncState({ pendingOperation });
     handleFailedWrite("Saved locally, but the Apps Script URL is not valid. Update the Data Panel connection before syncing.");
     return;
   }
@@ -1094,7 +1167,8 @@ async function postCompletedActionToSheets(action, payload, successMessage) {
   const envelope = buildWriteEnvelope(payload);
   setSyncState({
     lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: "Syncing completed action to Sheets...",
+    message: options.startMessage || "Syncing completed action to Sheets...",
+    pendingOperation,
   });
 
   try {
@@ -1335,26 +1409,73 @@ function validateLoadCardsEnvelope(responseBody) {
 }
 
 async function retrySyncCurrentSession() {
-  if (!connectionState.appsScriptUrl || !buildBatchUpdateUrl(connectionState.appsScriptUrl)) {
+  const batchUpdateUrl = buildBatchUpdateUrl(connectionState.appsScriptUrl);
+  const pendingOperation = normalizePendingSyncOperation(syncState.pendingOperation);
+
+  if (syncState.status === syncStatuses.conflict) {
+    setSyncState({
+      status: syncStatuses.conflict,
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      message: "Conflict detected. The Sheet changed since this session loaded. Download a CSV backup before recovery.",
+      lastErrorMessage: "Conflict detected. Retry Sync will not overwrite Sheet changes automatically.",
+    });
+    return;
+  }
+
+  if (!connectionState.appsScriptUrl || !batchUpdateUrl) {
+    const message = "Sync failed: save a valid Apps Script Web App URL before retrying sync.";
     setConnectionState({
       connectionStatus: connectionStatuses.error,
-      message: "Save a valid Apps Script Web App URL before retrying sync.",
+      message,
+      lastErrorMessage: message,
+    });
+    setSyncState({
+      status: syncStatuses.unsynced,
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      message,
+      lastErrorMessage: message,
     });
     return;
   }
 
   if (!syncState.lastKnownSheetVersion) {
+    const message = "Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.";
     setSyncState({
       status: syncStatuses.unsynced,
-      message: "Load from Sheets once before retrying sync, so Walmart-GC has a Sheet version to protect against overwrites.",
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      message,
+      lastErrorMessage: message,
     });
     return;
   }
 
+  if (!pendingOperation && sampleGiftCards.length === 0) {
+    const message = "No pending sync operation found. Make a change or import data before retrying.";
+    setSyncState({
+      status: syncStatuses.unsynced,
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      message,
+      lastErrorMessage: "",
+    });
+    return;
+  }
+
+  const operation = pendingOperation || {
+    action: "batchUpdate",
+    payload: { cards: cloneStateValue(sampleGiftCards) },
+    successMessage: `Sync succeeded. Current local cards were saved to Sheets.`,
+    description: "current local cards",
+  };
+
   await postCompletedActionToSheets(
-    "batchUpdate",
-    { cards: cloneStateValue(sampleGiftCards) },
-    `Retried sync for ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"}.`,
+    operation.action,
+    cloneStateValue(operation.payload),
+    operation.successMessage || "Sync succeeded.",
+    {
+      pendingOperation: operation,
+      startMessage: `Retrying sync to Sheets${operation.description ? ` for ${operation.description}` : ""}...`,
+      noAutoSyncMessage: "Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.",
+    },
   );
 }
 
