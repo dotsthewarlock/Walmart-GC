@@ -763,7 +763,24 @@ dd,
 .connection-status ul {
   display: grid;
   gap: 0.25rem;
-  padding-left: 1.15rem;
+  padding-left: 0;
+}
+
+.diagnostic-row {
+  display: grid;
+  gap: 0.15rem;
+  list-style: none;
+  min-width: 0;
+}
+
+.diagnostic-label,
+.diagnostic-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diagnostic-value {
+  color: var(--text);
 }
 
 .connection-status.is-connected {
@@ -790,6 +807,13 @@ dd,
 
 .data-action-row:has(> :only-child) {
   grid-template-columns: 1fr;
+}
+
+@media (min-width: 32rem) {
+  .diagnostic-row {
+    grid-template-columns: minmax(9.5rem, max-content) minmax(0, 1fr);
+    align-items: baseline;
+  }
 }
 
 @media (min-width: 36rem) {

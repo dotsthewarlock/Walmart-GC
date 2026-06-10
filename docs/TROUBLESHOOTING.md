@@ -64,7 +64,7 @@ Start here when something does not work:
 
 ### What Health Check Does
 
-Health Check calls the Apps Script `health` action. It verifies that Apps Script can reach the spreadsheet, check or initialize safe structure, report schema status, and return Sheet metadata. The Data panel now records health status, last health check time, health Sheet version, Sheet/schema details, and the last actionable error when available.
+Health Check calls the Apps Script `health` action. It verifies that Apps Script can reach the spreadsheet, check or initialize safe structure, report schema status, and return Sheet metadata. The Data panel records health status, last health check time, health Sheet version, Sheet/schema details, sync details, and the last actionable error with visible values; missing values display safe fallbacks such as `Not available` or `Never` instead of blank rows.
 
 ### Symptoms
 
@@ -99,7 +99,7 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 
 8. If there are multiple visible tabs with the approved schema, rename the intended one to `Cards` and remove ambiguity.
 9. Return to Walmart-GC and select **Test Connection** again.
-10. Review **Health status**, **Last health check**, and **Last error** in the Data panel for the next action.
+10. Review **Spreadsheet**, **Sheet**, **Schema version**, **Health status**, **Last health check**, and **Last error** in the Data panel for the next action. Values should be visible; unavailable fields should show `Not available` or `Never`.
 
 ## Cannot Load Cards
 
@@ -126,7 +126,7 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 3. Confirm headers exactly match the approved schema.
 4. Check every populated row for a non-empty `cardNumber`.
 5. Remove or merge duplicate card numbers.
-6. Return to the Data panel and check **Last sync attempt**, **Last known Sheet version**, and **Last error** before retrying.
+6. Return to the Data panel and check **Last sync attempt**, **Last successful sync**, **Last known Sheet version**, and **Last error** before retrying. Diagnostics should show visible values or safe fallbacks, not blank rows.
 7. Make sure `startingBalance` and `currentBalance` are numbers, such as `25.00`.
 8. Use `true` or `false` for `used`.
 9. Return to Walmart-GC.
