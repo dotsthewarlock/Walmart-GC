@@ -133,6 +133,7 @@ const saveConnectionButton = document.querySelector("#save-connection");
 const testConnectionButton = document.querySelector("#test-connection");
 const loadSheetsButton = document.querySelector("#load-sheets");
 const connectionStatusArea = document.querySelector("#connection-status");
+const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -791,14 +792,14 @@ function importCsvFile(file) {
   reader.readAsText(file);
 }
 
-function exportCurrentCardsCsv() {
+function exportCurrentCardsCsv(filename = "walmart-gift-cards-export.csv") {
   const csvContent = cardsToCsv(sampleGiftCards);
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement("a");
 
   downloadLink.href = url;
-  downloadLink.download = "walmart-gift-cards-export.csv";
+  downloadLink.download = filename;
   document.body.append(downloadLink);
   downloadLink.click();
   downloadLink.remove();
@@ -845,6 +846,10 @@ function buildUpdateCardUrl(rawUrl) {
 
 function buildBatchUpdateUrl(rawUrl) {
   return buildAppsScriptActionUrl(rawUrl, "batchUpdate");
+}
+
+function buildReplaceAllUrl(rawUrl) {
+  return buildAppsScriptActionUrl(rawUrl, "replaceAll");
 }
 
 function getHealthData(responseBody) {
@@ -1011,6 +1016,12 @@ function handleSuccessfulWrite(responseBody, successMessage) {
   renderApp(selectedCardIndex);
 }
 
+function downloadSessionCsvBackup() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  exportCurrentCardsCsv(`walmart-gift-cards-session-backup-${timestamp}.csv`);
+  renderValidationWarnings([], "Downloaded a CSV backup of the current local session.");
+}
+
 function handleFailedWrite(message, responseBody) {
   const isConflict = getEnvelopeErrorCode(responseBody) === "SYNC_CONFLICT";
   const nextStatus = isConflict ? syncStatuses.conflict : syncStatuses.unsynced;
@@ -1089,12 +1100,73 @@ async function postCompletedActionToSheets(action, payload, successMessage) {
   }
 }
 
+function getRecoveryUnavailableMessage() {
+  if (!connectionState.appsScriptUrl || !parseAppsScriptUrl(connectionState.appsScriptUrl)) {
+    return "Save a valid Apps Script URL before using Sheets recovery actions.";
+  }
+
+  return "";
+}
+
+function renderSyncRecoveryActions(isBusy) {
+  if (!syncRecoveryActions) {
+    return;
+  }
+
+  const unavailableMessage = getRecoveryUnavailableMessage();
+  const disableSheetsActions = Boolean(isBusy || unavailableMessage);
+
+  if (syncState.status === syncStatuses.conflict) {
+    syncRecoveryActions.hidden = false;
+    syncRecoveryActions.innerHTML = `
+      <div class="recovery-panel is-conflict" aria-label="Conflict recovery actions">
+        <div>
+          <p class="recovery-status">Conflict recovery</p>
+          <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
+          <p class="recovery-warning"><strong>Warning:</strong> using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+          ${unavailableMessage ? `<p class="recovery-warning">${escapeHtml(unavailableMessage)}</p>` : ""}
+        </div>
+        <div class="recovery-action-grid">
+          <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download Session CSV Backup</button>
+          <button class="primary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Refresh from Sheets and Replace Local Session</button>
+          <button class="danger-button" type="button" data-sync-recovery="use-current-session" ${disableSheetsActions ? "disabled" : ""}>Use Current Session to Overwrite Sheets</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (syncState.status === syncStatuses.unsynced) {
+    syncRecoveryActions.hidden = false;
+    syncRecoveryActions.innerHTML = `
+      <div class="recovery-panel is-unsynced" aria-label="Unsynced recovery actions">
+        <div>
+          <p class="recovery-status">Unsynced recovery</p>
+          <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
+          <p>Refresh from Sheets replaces this local session only after you press the button. Download a CSV backup first if you want a copy of the current session.</p>
+          ${unavailableMessage ? `<p class="recovery-warning">${escapeHtml(unavailableMessage)}</p>` : ""}
+        </div>
+        <div class="recovery-action-grid">
+          <button class="primary-button" type="button" data-sync-recovery="retry-sync" ${disableSheetsActions ? "disabled" : ""}>Retry Sync</button>
+          <button class="secondary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Refresh from Sheets</button>
+          <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download Session CSV Backup</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  syncRecoveryActions.hidden = true;
+  syncRecoveryActions.innerHTML = "";
+}
+
 function renderConnectionState() {
   appsScriptUrlInput.value = connectionState.appsScriptUrl;
   const isBusy = [connectionStatuses.checking, connectionStatuses.loading].includes(connectionState.connectionStatus);
   testConnectionButton.disabled = isBusy;
   loadSheetsButton.disabled = isBusy;
   saveConnectionButton.disabled = isBusy;
+  renderSyncRecoveryActions(isBusy);
 
   const statusClass = connectionState.connectionStatus === connectionStatuses.connected
     ? "connected"
@@ -1207,6 +1279,129 @@ function validateLoadCardsEnvelope(responseBody) {
   }
 
   return { cards: normalizedCards, sheetVersion };
+}
+
+async function retrySyncCurrentSession() {
+  if (!connectionState.appsScriptUrl || !buildBatchUpdateUrl(connectionState.appsScriptUrl)) {
+    setConnectionState({
+      connectionStatus: connectionStatuses.error,
+      message: "Save a valid Apps Script Web App URL before retrying sync.",
+    });
+    return;
+  }
+
+  if (!syncState.lastKnownSheetVersion) {
+    setSyncState({
+      status: syncStatuses.unsynced,
+      message: "Load from Sheets once before retrying sync, so Walmart-GC has a Sheet version to protect against overwrites.",
+    });
+    return;
+  }
+
+  await postCompletedActionToSheets(
+    "batchUpdate",
+    { cards: cloneStateValue(sampleGiftCards) },
+    `Retried sync for ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"}.`,
+  );
+}
+
+async function useCurrentSessionToOverwriteSheets() {
+  const replaceAllUrl = buildReplaceAllUrl(connectionState.appsScriptUrl);
+
+  if (!connectionState.appsScriptUrl || !replaceAllUrl) {
+    setConnectionState({
+      connectionStatus: connectionStatuses.error,
+      message: "Save a valid Apps Script Web App URL before overwriting Sheets.",
+    });
+    return;
+  }
+
+  const backupRecommended = window.confirm(
+    "Use Current Session will replace every card row in Sheets with this browser session. Download a CSV backup before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+  );
+  if (!backupRecommended) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Final confirmation: overwrite Sheets with the current local session now? This is destructive and Walmart-GC will not automatically merge Sheet changes.",
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  setConnectionState({
+    connectionStatus: connectionStatuses.loading,
+    message: "Overwriting Sheets with the current session...",
+  });
+
+  const envelope = buildWriteEnvelope({
+    confirmReplaceAll: true,
+    cards: cloneStateValue(sampleGiftCards),
+  });
+
+  try {
+    const response = await fetch(replaceAllUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(envelope),
+    });
+
+    let responseBody;
+    try {
+      responseBody = await response.json();
+    } catch {
+      handleFailedWrite("Sheets may not have been overwritten because the replaceAll response was not valid JSON.");
+      return;
+    }
+
+    if (!isPlainObject(responseBody)) {
+      handleFailedWrite("Sheets may not have been overwritten because Apps Script returned an unexpected replaceAll response.");
+      return;
+    }
+
+    if (!response.ok || responseBody.ok !== true) {
+      handleFailedWrite(getWriteErrorMessage(responseBody), responseBody);
+      return;
+    }
+
+    const sheetVersion = String(responseBody.meta?.sheetVersion || "").trim();
+    if (!sheetVersion) {
+      handleFailedWrite("Sheets may have been overwritten, but Apps Script did not return an updated Sheet version.", responseBody);
+      return;
+    }
+
+    handleSuccessfulWrite(
+      responseBody,
+      `Overwrote Sheets with ${sampleGiftCards.length} current-session card${sampleGiftCards.length === 1 ? "" : "s"}.`,
+    );
+  } catch {
+    handleFailedWrite("Sheets were not overwritten. The current session is still saved locally, and the network or Apps Script URL needs attention.");
+  }
+}
+
+async function handleSyncRecoveryAction(action) {
+  if (action === "download-backup") {
+    downloadSessionCsvBackup();
+    return;
+  }
+
+  if (action === "retry-sync") {
+    await retrySyncCurrentSession();
+    return;
+  }
+
+  if (action === "refresh-from-sheets") {
+    await loadCardsFromSheets();
+    return;
+  }
+
+  if (action === "use-current-session") {
+    await useCurrentSessionToOverwriteSheets();
+  }
 }
 
 async function loadCardsFromSheets() {
@@ -1933,6 +2128,14 @@ exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
 saveConnectionButton.addEventListener("click", saveConnectionFromInput);
 testConnectionButton.addEventListener("click", testConnection);
 loadSheetsButton.addEventListener("click", loadCardsFromSheets);
+syncRecoveryActions.addEventListener("click", (event) => {
+  const recoveryButton = event.target.closest("[data-sync-recovery]");
+  if (!recoveryButton) {
+    return;
+  }
+
+  handleSyncRecoveryAction(recoveryButton.dataset.syncRecovery);
+});
 fullscreenBarcode.addEventListener("click", (event) => {
   if (event.target === fullscreenBarcode) {
     closeFullscreenBarcode();

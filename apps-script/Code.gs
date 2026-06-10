@@ -148,7 +148,6 @@ function handleBatchUpdate_(request) {
 function handleReplaceAll_(request) {
   validatePostEnvelope_(request);
   const context = ensureWorkbookStructure_();
-  assertFreshSheetVersion_(context.metaSheet, request.lastKnownSheetVersion);
 
   const payload = request.payload || {};
   if (payload.confirmReplaceAll !== true) {
