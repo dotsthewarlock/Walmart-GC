@@ -1,3 +1,5 @@
+> Historical MVP reference: this document describes the preserved Apps Script MVP on `main`. It is not the active Phase 9 OAuth sync path.
+
 # Apps Script Setup
 
 This guide explains how to deploy the Google Apps Script Web App used by Walmart-GC.

@@ -1,3 +1,5 @@
+> Historical MVP reference: this document describes the preserved Apps Script MVP on `main`. It is not the active Phase 9 OAuth sync path.
+
 # Phase 6 – Schema & API Decisions
 
 Status: Phase 6 approved MVP architecture consolidated. Phase 7 implemented sync against this baseline, and Phase 8 validation has confirmed the MVP architecture is complete and functional.

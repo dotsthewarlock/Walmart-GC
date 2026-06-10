@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.04 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.05 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,15 +20,15 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.04"
+          data-html-version="1.01.05"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.04 · JS loading · CSS 1.01.03
+          HTML 1.01.05 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 9B can sync completed local actions directly with a dedicated Google Sheet
+          Mobile-first checkout access for Walmart gift cards. Phase 9C syncs completed local actions directly with a dedicated Google Sheet
           after Google authorization and Sheet initialization.
         </p>
       </div>
@@ -178,7 +178,7 @@
         <div class="data-layout">
           <p class="data-description">
             Manage Google Sheets sync separately from local CSV backup and recovery tools.
-            Direct Google Sheets is the Phase 9 path; Apps Script remains available temporarily as the legacy MVP fallback.
+            Direct Google Sheets is the only online sync path in Phase 9. CSV remains available for local backup and recovery.
           </p>
 
           <div class="data-card oauth-card">
@@ -235,33 +235,6 @@
 
             <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
             <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
-          </div>
-
-          <div class="data-card connection-card">
-            <div class="data-card-heading">
-              <div>
-                <h3>Legacy Apps Script MVP Connection</h3>
-                <p>Temporary fallback for the stable MVP. Enter your deployed Apps Script Web App URL, test with <code>?action=health</code>, then load with <code>?action=load</code>.</p>
-              </div>
-            </div>
-
-            <label class="connection-label" for="apps-script-url">Apps Script URL</label>
-            <input
-              id="apps-script-url"
-              class="connection-input"
-              type="url"
-              inputmode="url"
-              autocomplete="url"
-              placeholder="https://script.google.com/macros/s/.../exec"
-            />
-
-            <div class="connection-actions" aria-label="Connection actions">
-              <button id="save-connection" class="secondary-button" type="button">Save Connection</button>
-              <button id="test-connection" class="primary-button" type="button">Test Connection</button>
-              <button id="load-sheets" class="primary-button" type="button">Load from Sheets</button>
-            </div>
-
-            <div id="connection-status" class="connection-status" role="status" aria-live="polite"></div>
           </div>
 
           <div class="data-card csv-recovery-card">
