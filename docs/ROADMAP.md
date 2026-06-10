@@ -40,7 +40,7 @@ In progress.
 ## Current Architecture Focus
 
 ### Phase 6 – Google Sheet Schema & Apps Script API Design
-Planning and design in progress.
+Planning and design in progress. Phase 6 MVP schema, Apps Script connection, sync timing, conflict-state, and Data panel setup directions are recorded in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`; implementation remains blocked until API contract decisions are finalized.
 
 ## Upcoming
 
