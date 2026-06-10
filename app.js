@@ -1045,6 +1045,19 @@ function formatConnectionTimestamp(timestamp) {
   });
 }
 
+function valueOrFallback(value, fallback = "Not available") {
+  const normalizedValue = String(value ?? "").trim();
+  return normalizedValue || fallback;
+}
+
+function renderDiagnosticRow(label, value) {
+  return `
+    <li class="diagnostic-row">
+      <strong class="diagnostic-label">${escapeHtml(label)}:</strong>
+      <span class="diagnostic-value">${escapeHtml(value)}</span>
+    </li>`;
+}
+
 function setConnectionState(nextState) {
   connectionState = {
     ...connectionState,
@@ -1291,36 +1304,19 @@ function renderConnectionState() {
         ? "checking"
         : "not-connected";
 
-  const details = [];
-  if (connectionState.spreadsheetName) {
-    details.push(`<li><strong>Spreadsheet:</strong> ${escapeHtml(connectionState.spreadsheetName)}</li>`);
-  }
-  if (connectionState.sheetName) {
-    details.push(`<li><strong>Sheet:</strong> ${escapeHtml(connectionState.sheetName)}</li>`);
-  }
-  if (connectionState.schemaVersion) {
-    details.push(`<li><strong>Schema version:</strong> ${escapeHtml(connectionState.schemaVersion)}</li>`);
-  }
-  if (connectionState.lastHealthSheetVersion) {
-    details.push(`<li><strong>Health Sheet version:</strong> ${escapeHtml(connectionState.lastHealthSheetVersion)}</li>`);
-  }
-  details.push(`<li><strong>Health status:</strong> ${escapeHtml(connectionState.healthStatus || "Not checked")}</li>`);
-  if (connectionState.lastHealthCheckAt) {
-    details.push(`<li><strong>Last health check:</strong> ${escapeHtml(formatConnectionTimestamp(connectionState.lastHealthCheckAt))}</li>`);
-  }
-  details.push(`<li><strong>Sync status:</strong> ${escapeHtml(getSyncStatusLabel())}</li>`);
-  if (syncState.lastSyncAttemptTimestamp) {
-    details.push(`<li><strong>Last sync attempt:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncAttemptTimestamp))}</li>`);
-  }
-  if (syncState.lastSyncTimestamp) {
-    details.push(`<li><strong>Last successful sync:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncTimestamp))}</li>`);
-  }
-  if (syncState.lastKnownSheetVersion) {
-    details.push(`<li><strong>Last known Sheet version:</strong> ${escapeHtml(syncState.lastKnownSheetVersion)}</li>`);
-  }
-  if (connectionState.lastErrorMessage || syncState.lastErrorMessage) {
-    details.push(`<li><strong>Last error:</strong> ${escapeHtml(connectionState.lastErrorMessage || syncState.lastErrorMessage)}</li>`);
-  }
+  const details = [
+    renderDiagnosticRow("Spreadsheet", valueOrFallback(connectionState.spreadsheetName)),
+    renderDiagnosticRow("Sheet", valueOrFallback(connectionState.sheetName)),
+    renderDiagnosticRow("Schema version", valueOrFallback(connectionState.schemaVersion)),
+    renderDiagnosticRow("Health Sheet version", valueOrFallback(connectionState.lastHealthSheetVersion)),
+    renderDiagnosticRow("Health status", valueOrFallback(connectionState.healthStatus, "Not checked")),
+    renderDiagnosticRow("Last health check", formatConnectionTimestamp(connectionState.lastHealthCheckAt)),
+    renderDiagnosticRow("Sync status", getSyncStatusLabel()),
+    renderDiagnosticRow("Last sync attempt", formatConnectionTimestamp(syncState.lastSyncAttemptTimestamp)),
+    renderDiagnosticRow("Last successful sync", formatConnectionTimestamp(syncState.lastSyncTimestamp)),
+    renderDiagnosticRow("Last known Sheet version", valueOrFallback(syncState.lastKnownSheetVersion)),
+    renderDiagnosticRow("Last error", valueOrFallback(connectionState.lastErrorMessage || syncState.lastErrorMessage)),
+  ];
 
   const syncClass = `sync-${syncState.status}`;
   connectionStatusArea.className = `connection-status is-${statusClass} ${syncClass}`;
@@ -1651,6 +1647,9 @@ async function loadCardsFromSheets() {
     connectionState = {
       ...connectionState,
       connectionStatus: connectionStatuses.connected,
+      spreadsheetName: String(responseBody.data?.spreadsheetName || connectionState.spreadsheetName || ""),
+      sheetName: String(responseBody.data?.sheetName || connectionState.sheetName || "Cards"),
+      lastHealthSheetVersion: connectionState.lastHealthSheetVersion || loadedEnvelope.sheetVersion,
       message: `Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets.`,
       lastErrorMessage: "",
     };

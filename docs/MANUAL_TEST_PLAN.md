@@ -130,8 +130,8 @@ Verifies that a new user can start from an empty app state and connect to Apps S
 - [ ] App accepts and saves the Apps Script URL.
 - [ ] Health Check succeeds.
 - [ ] Connection status displays as connected or equivalent success state.
-- [ ] Connection details show Sheet/schema information when available.
-- [ ] Data panel shows Health status, Last health check, and Health Sheet version details when available.
+- [ ] Connection details show visible Sheet/schema information or `Not available` fallbacks.
+- [ ] Data panel shows visible Health status, Last health check, and Health Sheet version values; no diagnostics row has a blank value.
 - [ ] The app indicates that cards can be loaded from Sheets.
 
 ```text
@@ -156,7 +156,7 @@ Verifies loading valid card rows from Google Sheets into the app.
 - [ ] Open each loaded card in Card Detail.
 - [ ] Compare visible card details against the Sheet values.
 - [ ] Confirm balance, PIN, merchant, notes, and Used state display correctly.
-- [ ] Return to the Data panel and check that Last successful sync, Last sync attempt, and Last known Sheet version are shown when available.
+- [ ] Return to the Data panel and check that Last successful sync, Last sync attempt, and Last known Sheet version show visible values; unavailable diagnostics show `Not available` or `Never` instead of blanks.
 
 ### Expected Result
 

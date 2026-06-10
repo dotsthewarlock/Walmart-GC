@@ -128,7 +128,7 @@ Includes:
 
 ### Phase 8C – Hardening & Diagnostics
 
-Current Phase 8C hardening keeps the approved Apps Script sync architecture and endpoints unchanged. The Data panel diagnostics now emphasize health status, last health check, health Sheet version, last sync attempt, last successful sync, last known Sheet version, and last actionable error. Apps Script request handling now returns clearer validation errors for missing or unsupported actions, malformed POST envelopes, invalid card arrays, duplicate card numbers, invalid balances, and invalid used values.
+Current Phase 8C hardening keeps the approved Apps Script sync architecture and endpoints unchanged. The Data panel diagnostics now render stable visible values for Spreadsheet, Sheet, schema version, health status, last health check, health Sheet version, last sync attempt, last successful sync, last known Sheet version, and last actionable error, using `Not available` or `Never` fallbacks instead of blank rows. Apps Script request handling now returns clearer validation errors for missing or unsupported actions, malformed POST envelopes, invalid card arrays, duplicate card numbers, invalid balances, and invalid used values.
 
 Includes:
 
