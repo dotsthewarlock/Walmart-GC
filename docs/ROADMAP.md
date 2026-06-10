@@ -93,6 +93,10 @@ Includes:
 
 Phase 8 PRs should be coherent rather than microscopic. Complete related documentation together, avoid repeated PRs against the same documentation files, and keep each PR logically complete while remaining reviewable.
 
+#### Phase 8.5 – Barcode Rendering & Checkout Validation
+
+Phase 8.5 is a pre-Phase-9 MVP completion step, not OAuth work. Walmart Canada checkout barcodes are generated in the frontend from the existing `merchant` and `cardNumber` fields. No Sheet schema, CSV header, Apps Script endpoint, sync behavior, conflict behavior, or local persistence change is required because the barcode payload is derived at render time as static Walmart Canada prefix plus normalized `cardNumber`.
+
 ## Validated MVP Notes
 
 - Apps Script can initialize a blank Google Sheet by creating the `Cards` tab, approved headers, and hidden `_META` metadata sheet.
