@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js version 1.01.02 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.03 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.02";
-const DEBUG_VERSION_CSS = "1.01.02";
+const DEBUG_VERSION_JS = "1.01.03";
+const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -159,6 +159,11 @@ const testConnectionButton = document.querySelector("#test-connection");
 const loadSheetsButton = document.querySelector("#load-sheets");
 const connectionStatusArea = document.querySelector("#connection-status");
 const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
+const googleOAuthClientIdInput = document.querySelector("#google-oauth-client-id");
+const saveGoogleOAuthClientButton = document.querySelector("#save-google-oauth-client");
+const connectGoogleButton = document.querySelector("#connect-google");
+const disconnectGoogleButton = document.querySelector("#disconnect-google");
+const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -217,6 +222,7 @@ const storageKeys = {
   settings: "walmartGc.settings",
   connection: "walmartGc.connection",
   sync: "walmartGc.sync",
+  oauth: "walmartGc.oauth",
 };
 
 const defaultSettings = {
@@ -263,9 +269,35 @@ const defaultSyncState = {
   pendingOperation: null,
 };
 
+const googleOAuthClientIdPlaceholder = "PASTE_GOOGLE_OAUTH_WEB_CLIENT_ID_HERE";
+const googleOAuthScopes = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
+const googleOAuthStatuses = {
+  disconnected: "Disconnected",
+  connecting: "Connecting",
+  connected: "Connected",
+  needsReconnect: "Needs reconnect",
+  error: "Connection Error",
+};
+
+const defaultGoogleOAuthState = {
+  clientId: "",
+  status: googleOAuthStatuses.disconnected,
+  scriptLoaded: false,
+  connectedEmail: "",
+  connectedName: "",
+  connectedAt: "",
+  tokenExpiresAt: "",
+  message: "Enter a Google OAuth Web Client ID, then connect Google. Local cards remain usable without Google.",
+  lastErrorMessage: "",
+};
+
 let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
 let connectionState = cloneStateValue(defaultConnectionState);
 let syncState = cloneStateValue(defaultSyncState);
+let googleOAuthState = cloneStateValue(defaultGoogleOAuthState);
+let googleTokenClient = null;
+let googleAccessToken = "";
+let googleTokenExpiryTimeout = null;
 
 function formatBalance(balance) {
   return currencyFormatter.format(balance);
@@ -657,6 +689,36 @@ function normalizeStoredSync(sync) {
   };
 }
 
+function normalizeStoredGoogleOAuth(oauth) {
+  if (!isPlainObject(oauth)) {
+    return cloneStateValue(defaultGoogleOAuthState);
+  }
+
+  const allowedStatuses = Object.values(googleOAuthStatuses);
+  let status = allowedStatuses.includes(oauth.status)
+    ? oauth.status
+    : defaultGoogleOAuthState.status;
+
+  if (status === googleOAuthStatuses.connected) {
+    const expiresAt = new Date(String(oauth.tokenExpiresAt || ""));
+    status = expiresAt.getTime() > Date.now()
+      ? googleOAuthStatuses.needsReconnect
+      : googleOAuthStatuses.needsReconnect;
+  }
+
+  return {
+    clientId: String(oauth.clientId || ""),
+    status,
+    scriptLoaded: Boolean(window.walmartGcGoogleIdentityLoaded),
+    connectedEmail: String(oauth.connectedEmail || ""),
+    connectedName: String(oauth.connectedName || ""),
+    connectedAt: String(oauth.connectedAt || ""),
+    tokenExpiresAt: String(oauth.tokenExpiresAt || ""),
+    message: String(oauth.message || defaultGoogleOAuthState.message),
+    lastErrorMessage: String(oauth.lastErrorMessage || ""),
+  };
+}
+
 function getCurrentSettings() {
   return {
     advanceOnMarkUsed,
@@ -678,12 +740,14 @@ function loadAppState() {
   const storedSettings = normalizeStoredSettings(readStoredJson(storageKeys.settings));
   const storedConnection = normalizeStoredConnection(readStoredJson(storageKeys.connection));
   const storedSync = normalizeStoredSync(readStoredJson(storageKeys.sync));
+  const storedGoogleOAuth = normalizeStoredGoogleOAuth(readStoredJson(storageKeys.oauth));
 
   return {
     cards: storedCards ?? cloneStateValue(bundledSampleGiftCards),
     settings: storedSettings,
     connection: storedConnection,
     sync: storedSync,
+    oauth: storedGoogleOAuth,
   };
 }
 
@@ -692,6 +756,7 @@ function saveAppState() {
   writeStoredJson(storageKeys.settings, getCurrentSettings());
   writeStoredJson(storageKeys.connection, connectionState);
   writeStoredJson(storageKeys.sync, syncState);
+  writeStoredJson(storageKeys.oauth, googleOAuthState);
 }
 
 function clearAppState() {
@@ -703,6 +768,7 @@ function applyAppState(appState) {
   applySettings(appState.settings);
   connectionState = appState.connection;
   syncState = appState.sync;
+  googleOAuthState = appState.oauth;
 }
 
 function escapeHtml(value) {
@@ -1238,6 +1304,350 @@ function renderDiagnosticRow(label, value) {
       <strong class="diagnostic-label">${escapeHtml(diagnosticLabel)}:</strong>
       <span class="diagnostic-value">${escapeHtml(diagnosticValue)}</span>
     </li>`;
+}
+
+function getGoogleOAuthClientId() {
+  return String(googleOAuthState.clientId || "").trim();
+}
+
+function isGoogleOAuthConfigured() {
+  const clientId = getGoogleOAuthClientId();
+  return Boolean(clientId && clientId !== googleOAuthClientIdPlaceholder);
+}
+
+function hasGoogleIdentityScript() {
+  return Boolean(window.google?.accounts?.oauth2);
+}
+
+function setGoogleOAuthState(nextState) {
+  googleOAuthState = {
+    ...googleOAuthState,
+    ...nextState,
+    scriptLoaded: hasGoogleIdentityScript() || Boolean(window.walmartGcGoogleIdentityLoaded),
+  };
+  saveAppState();
+  renderGoogleOAuthState();
+}
+
+function clearGoogleTokenExpiryTimer() {
+  if (!googleTokenExpiryTimeout) {
+    return;
+  }
+
+  window.clearTimeout(googleTokenExpiryTimeout);
+  googleTokenExpiryTimeout = null;
+}
+
+function scheduleGoogleTokenExpiry(expiresAt) {
+  clearGoogleTokenExpiryTimer();
+  const expiresAtMs = new Date(expiresAt).getTime();
+  const timeoutMs = expiresAtMs - Date.now();
+
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    markGoogleTokenExpired();
+    return;
+  }
+
+  googleTokenExpiryTimeout = window.setTimeout(markGoogleTokenExpired, Math.min(timeoutMs, 2147483647));
+}
+
+function markGoogleTokenExpired() {
+  googleAccessToken = "";
+  googleTokenClient = null;
+  setGoogleOAuthState({
+    status: googleOAuthStatuses.needsReconnect,
+    tokenExpiresAt: "",
+    message: "Google access expired. Reconnect Google when you want to use future Sheets API sync.",
+    lastErrorMessage: "Token expired.",
+  });
+}
+
+function getGoogleOAuthStatusClass() {
+  if (googleOAuthState.status === googleOAuthStatuses.connected) {
+    return "connected";
+  }
+
+  if (googleOAuthState.status === googleOAuthStatuses.connecting) {
+    return "checking";
+  }
+
+  if (googleOAuthState.status === googleOAuthStatuses.needsReconnect) {
+    return "needs-reconnect";
+  }
+
+  if (googleOAuthState.status === googleOAuthStatuses.error) {
+    return "error";
+  }
+
+  return "not-connected";
+}
+
+function renderGoogleOAuthState() {
+  if (!googleOAuthStatusArea) {
+    return;
+  }
+
+  googleOAuthClientIdInput.value = googleOAuthState.clientId;
+  const configured = isGoogleOAuthConfigured();
+  const scriptLoaded = hasGoogleIdentityScript() || Boolean(window.walmartGcGoogleIdentityLoaded);
+  const isBusy = googleOAuthState.status === googleOAuthStatuses.connecting;
+  saveGoogleOAuthClientButton.disabled = isBusy;
+  connectGoogleButton.disabled = isBusy;
+  disconnectGoogleButton.disabled = isBusy && !googleAccessToken;
+  disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
+
+  const details = [
+    renderDiagnosticRow("OAuth configured", configured ? "Yes" : "No"),
+    renderDiagnosticRow("Google script loaded", scriptLoaded ? "Yes" : "No"),
+    renderDiagnosticRow("Connection state", googleOAuthState.status),
+    renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail)),
+    renderDiagnosticRow("Token in memory", googleAccessToken ? "Yes" : "No"),
+    renderDiagnosticRow("Token expires", formatConnectionTimestamp(googleOAuthState.tokenExpiresAt)),
+    renderDiagnosticRow("Last OAuth error", valueOrFallback(googleOAuthState.lastErrorMessage)),
+  ];
+
+  googleOAuthStatusArea.className = `connection-status oauth-status is-${getGoogleOAuthStatusClass()}`;
+  googleOAuthStatusArea.innerHTML = `
+    <div class="connection-status-header">
+      <span class="connection-status-dot" aria-hidden="true"></span>
+      <strong>${escapeHtml(googleOAuthState.status)}</strong>
+    </div>
+    <p>${escapeHtml(googleOAuthState.message || defaultGoogleOAuthState.message)}</p>
+    <ul class="diagnostic-list">${details.join("")}</ul>
+  `;
+}
+
+function saveGoogleOAuthClientFromInput() {
+  const clientId = googleOAuthClientIdInput.value.trim();
+  const clientChanged = clientId !== googleOAuthState.clientId;
+
+  if (!clientId || clientId === googleOAuthClientIdPlaceholder) {
+    googleAccessToken = "";
+    googleTokenClient = null;
+    clearGoogleTokenExpiryTimer();
+    setGoogleOAuthState({
+      ...cloneStateValue(defaultGoogleOAuthState),
+      clientId: clientId === googleOAuthClientIdPlaceholder ? clientId : "",
+      status: googleOAuthStatuses.error,
+      message: "Paste a Google OAuth Web Client ID before connecting. The Client ID is public configuration, not a secret.",
+      lastErrorMessage: "Missing OAuth Client ID.",
+    });
+    return;
+  }
+
+  if (clientChanged) {
+    googleAccessToken = "";
+    googleTokenClient = null;
+    clearGoogleTokenExpiryTimer();
+  }
+
+  setGoogleOAuthState({
+    clientId,
+    status: clientChanged ? googleOAuthStatuses.disconnected : googleOAuthState.status,
+    connectedEmail: clientChanged ? "" : googleOAuthState.connectedEmail,
+    connectedName: clientChanged ? "" : googleOAuthState.connectedName,
+    connectedAt: clientChanged ? "" : googleOAuthState.connectedAt,
+    tokenExpiresAt: clientChanged ? "" : googleOAuthState.tokenExpiresAt,
+    message: "Google OAuth Client ID saved. Connect Google to authorize this browser session.",
+    lastErrorMessage: "",
+  });
+}
+
+function getGoogleOAuthFriendlyError(response) {
+  const error = String(response?.error || response?.type || "").trim();
+  const description = String(response?.error_description || response?.message || "").trim();
+  const combined = [error, description].filter(Boolean).join(": ");
+
+  if (error === "popup_failed_to_open" || error === "popup_closed") {
+    return "Google sign-in popup was blocked or closed before authorization finished.";
+  }
+
+  if (error === "access_denied") {
+    return "Google sign-in was denied. You can keep using local cards and try again later.";
+  }
+
+  return combined || "Google sign-in could not be completed.";
+}
+
+async function loadGoogleUserProfile(accessToken) {
+  const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Google profile request failed with ${response.status}.`);
+  }
+
+  return response.json();
+}
+
+async function handleGoogleOAuthTokenResponse(tokenResponse) {
+  if (tokenResponse?.error) {
+    const message = getGoogleOAuthFriendlyError(tokenResponse);
+    googleAccessToken = "";
+    googleTokenClient = null;
+    clearGoogleTokenExpiryTimer();
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      tokenExpiresAt: "",
+      message,
+      lastErrorMessage: message,
+    });
+    return;
+  }
+
+  const accessToken = String(tokenResponse?.access_token || "").trim();
+  if (!accessToken) {
+    const message = "Google sign-in did not return an access token. Try connecting again.";
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      tokenExpiresAt: "",
+      message,
+      lastErrorMessage: message,
+    });
+    return;
+  }
+
+  googleAccessToken = accessToken;
+  const expiresInSeconds = Number(tokenResponse.expires_in || 0);
+  const tokenExpiresAt = expiresInSeconds > 0
+    ? new Date(Date.now() + expiresInSeconds * 1000).toISOString()
+    : "";
+
+  try {
+    const profile = await loadGoogleUserProfile(accessToken);
+    const email = String(profile?.email || "").trim();
+    const name = String(profile?.name || "").trim();
+    if (tokenExpiresAt) {
+      scheduleGoogleTokenExpiry(tokenExpiresAt);
+    }
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.connected,
+      connectedEmail: email,
+      connectedName: name,
+      connectedAt: new Date().toISOString(),
+      tokenExpiresAt,
+      message: email
+        ? `Connected as ${email}. Sheets API sync will be added in Phase 9B.`
+        : "Connected to Google. Sheets API sync will be added in Phase 9B.",
+      lastErrorMessage: "",
+    });
+  } catch (error) {
+    googleAccessToken = "";
+    googleTokenClient = null;
+    clearGoogleTokenExpiryTimer();
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      tokenExpiresAt: "",
+      message: "Google connected, but Walmart-GC could not read the account profile. Try again when online.",
+      lastErrorMessage: error instanceof Error ? error.message : "Profile request failed.",
+    });
+  }
+}
+
+function initializeGoogleTokenClient() {
+  if (!hasGoogleIdentityScript()) {
+    return false;
+  }
+
+  if (googleTokenClient && googleTokenClient.__clientId === googleOAuthState.clientId) {
+    return true;
+  }
+
+  googleTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: googleOAuthState.clientId,
+    scope: googleOAuthScopes,
+    prompt: "consent",
+    callback: handleGoogleOAuthTokenResponse,
+    error_callback: (response) => {
+      const message = getGoogleOAuthFriendlyError(response);
+      setGoogleOAuthState({
+        status: googleOAuthStatuses.error,
+        message,
+        lastErrorMessage: message,
+      });
+    },
+  });
+  googleTokenClient.__clientId = googleOAuthState.clientId;
+  return true;
+}
+
+function connectGoogleAccount() {
+  saveGoogleOAuthClientFromInput();
+
+  if (!isGoogleOAuthConfigured()) {
+    return;
+  }
+
+  if (navigator.onLine === false) {
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      message: "Google sign-in is unavailable while offline. Local card data remains usable.",
+      lastErrorMessage: "Browser is offline.",
+    });
+    return;
+  }
+
+  if (!hasGoogleIdentityScript()) {
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      message: "Google Identity Services did not load. Check your network, content blocker, or try again later.",
+      lastErrorMessage: window.walmartGcGoogleIdentityLoadFailed
+        ? "Google Identity Services script failed to load."
+        : "Google Identity Services script is not available.",
+    });
+    return;
+  }
+
+  if (!initializeGoogleTokenClient()) {
+    return;
+  }
+
+  setGoogleOAuthState({
+    status: googleOAuthStatuses.connecting,
+    message: "Opening Google sign-in. If no popup appears, allow popups for this site and try again.",
+    lastErrorMessage: "",
+  });
+  googleTokenClient.requestAccessToken({ prompt: "consent" });
+}
+
+function disconnectGoogleAccount() {
+  const tokenToRevoke = googleAccessToken;
+  googleAccessToken = "";
+  googleTokenClient = null;
+  clearGoogleTokenExpiryTimer();
+
+  if (tokenToRevoke && hasGoogleIdentityScript()) {
+    google.accounts.oauth2.revoke(tokenToRevoke, () => {});
+  }
+
+  setGoogleOAuthState({
+    status: googleOAuthStatuses.disconnected,
+    connectedEmail: "",
+    connectedName: "",
+    connectedAt: "",
+    tokenExpiresAt: "",
+    message: "Google account disconnected. Local cards and Apps Script sync settings were not changed.",
+    lastErrorMessage: "",
+  });
+}
+
+function handleGoogleIdentityLoaded() {
+  setGoogleOAuthState({
+    scriptLoaded: true,
+    message: googleOAuthState.message || defaultGoogleOAuthState.message,
+  });
+}
+
+function handleGoogleIdentityFailed() {
+  setGoogleOAuthState({
+    scriptLoaded: false,
+    status: googleOAuthState.status === googleOAuthStatuses.connected
+      ? googleOAuthStatuses.needsReconnect
+      : googleOAuthState.status,
+    message: "Google Identity Services did not load. Local card data remains usable.",
+    lastErrorMessage: "Google Identity Services script failed to load.",
+  });
 }
 
 function setConnectionState(nextState) {
@@ -2529,6 +2939,11 @@ exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
 saveConnectionButton.addEventListener("click", saveConnectionFromInput);
 testConnectionButton.addEventListener("click", testConnection);
 loadSheetsButton.addEventListener("click", loadCardsFromSheets);
+saveGoogleOAuthClientButton.addEventListener("click", saveGoogleOAuthClientFromInput);
+connectGoogleButton.addEventListener("click", connectGoogleAccount);
+disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
+window.addEventListener("walmart-gc-google-identity-loaded", handleGoogleIdentityLoaded);
+window.addEventListener("walmart-gc-google-identity-failed", handleGoogleIdentityFailed);
 syncRecoveryActions.addEventListener("click", (event) => {
   const recoveryButton = event.target.closest("[data-sync-recovery]");
   if (!recoveryButton) {
@@ -2595,6 +3010,18 @@ hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
 sortCardsSelect.value = sortMode;
 setRawDataLocked(true);
 renderConnectionState();
+renderGoogleOAuthState();
+if (window.walmartGcGoogleIdentityLoaded || hasGoogleIdentityScript()) {
+  handleGoogleIdentityLoaded();
+} else if (window.walmartGcGoogleIdentityLoadFailed) {
+  handleGoogleIdentityFailed();
+} else {
+  window.setTimeout(() => {
+    if (!hasGoogleIdentityScript() && !window.walmartGcGoogleIdentityLoaded) {
+      handleGoogleIdentityFailed();
+    }
+  }, 8000);
+}
 refreshRawCardData("Loaded current session data into the textarea. Editing is locked.");
 renderApp();
 showPanel("list");

@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css version 1.01.02 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css version 1.01.03 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -778,8 +778,13 @@ dd,
 
 }
 
-.connection-card {
+.connection-card,
+.oauth-card {
   background: #fbfdff;
+}
+
+.oauth-card {
+  border-color: rgba(0, 113, 220, 0.18);
 }
 
 .connection-label {
@@ -869,6 +874,15 @@ dd,
 
 .diagnostic-value {
   color: var(--text);
+}
+
+.connection-status.is-needs-reconnect {
+  border-color: rgba(122, 74, 0, 0.25);
+  background: #fffaf0;
+}
+
+.connection-status.is-needs-reconnect .connection-status-dot {
+  background: #7a4a00;
 }
 
 .connection-status.is-connected {
