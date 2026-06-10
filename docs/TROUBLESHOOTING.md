@@ -64,13 +64,14 @@ Start here when something does not work:
 
 ### What Health Check Does
 
-Health Check calls the Apps Script `health` action. It verifies that Apps Script can reach the spreadsheet, check or initialize safe structure, report schema status, and return Sheet metadata.
+Health Check calls the Apps Script `health` action. It verifies that Apps Script can reach the spreadsheet, check or initialize safe structure, report schema status, and return Sheet metadata. The Data panel now records health status, last health check time, health Sheet version, Sheet/schema details, and the last actionable error when available.
 
 ### Symptoms
 
 - **Test Connection** fails.
 - Health Check returns an error code such as `SETUP_REQUIRED`, `INVALID_SCHEMA`, or `NOT_AUTHORIZED`.
 - The response is not JSON.
+- The Data panel shows **Invalid response**, **Unreachable**, **Failed**, or **Schema problem reported** under Health status.
 
 ### Resolution Workflow
 
@@ -98,6 +99,7 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 
 8. If there are multiple visible tabs with the approved schema, rename the intended one to `Cards` and remove ambiguity.
 9. Return to Walmart-GC and select **Test Connection** again.
+10. Review **Health status**, **Last health check**, and **Last error** in the Data panel for the next action.
 
 ## Cannot Load Cards
 
@@ -115,6 +117,7 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 - Two rows use the same `cardNumber`.
 - Balance cells contain invalid values.
 - The Apps Script response does not include Sheet version metadata.
+- Apps Script returned invalid JSON, usually because the URL is not the deployed Web App `/exec` URL or the latest deployment is not active.
 
 ### Resolution Workflow
 
@@ -123,9 +126,10 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 3. Confirm headers exactly match the approved schema.
 4. Check every populated row for a non-empty `cardNumber`.
 5. Remove or merge duplicate card numbers.
-6. Make sure `startingBalance` and `currentBalance` are numbers, such as `25.00`.
-7. Use `true` or `false` for `used`.
-8. Return to Walmart-GC.
+6. Return to the Data panel and check **Last sync attempt**, **Last known Sheet version**, and **Last error** before retrying.
+7. Make sure `startingBalance` and `currentBalance` are numbers, such as `25.00`.
+8. Use `true` or `false` for `used`.
+9. Return to Walmart-GC.
 9. Open **Data**.
 10. Select **Load from Sheets** again.
 
@@ -291,6 +295,7 @@ When temporarily offline:
 - Local changes are saved in browser storage.
 - Apps Script Health Check, Load from Sheets, and sync writes cannot complete.
 - The app may show **Unsynced** after a failed write.
+- The Data panel should keep the local session available and show **Last sync attempt** plus **Last error**.
 
 ### What To Do After Reconnecting
 

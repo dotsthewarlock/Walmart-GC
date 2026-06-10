@@ -199,10 +199,13 @@ const defaultConnectionState = {
   appsScriptUrl: "",
   connectionStatus: connectionStatuses.notConnected,
   lastHealthCheckAt: "",
+  healthStatus: "Not checked",
   spreadsheetName: "",
   sheetName: "",
   schemaVersion: "",
+  lastHealthSheetVersion: "",
   message: "Enter and save an Apps Script URL, then test the connection.",
+  lastErrorMessage: "",
 };
 
 const syncStatuses = {
@@ -214,8 +217,10 @@ const syncStatuses = {
 const defaultSyncState = {
   status: syncStatuses.unsynced,
   lastSyncTimestamp: "",
+  lastSyncAttemptTimestamp: "",
   lastKnownSheetVersion: "",
   message: "Load from Sheets to enable completed-action sync writes.",
+  lastErrorMessage: "",
 };
 
 let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
@@ -404,10 +409,13 @@ function normalizeStoredConnection(connection) {
     appsScriptUrl: String(connection.appsScriptUrl || ""),
     connectionStatus,
     lastHealthCheckAt: String(connection.lastHealthCheckAt || ""),
+    healthStatus: String(connection.healthStatus || defaultConnectionState.healthStatus),
     spreadsheetName: String(connection.spreadsheetName || ""),
     sheetName: String(connection.sheetName || ""),
     schemaVersion: String(connection.schemaVersion || ""),
+    lastHealthSheetVersion: String(connection.lastHealthSheetVersion || ""),
     message: String(connection.message || defaultConnectionState.message),
+    lastErrorMessage: String(connection.lastErrorMessage || ""),
   };
 }
 
@@ -424,8 +432,10 @@ function normalizeStoredSync(sync) {
   return {
     status,
     lastSyncTimestamp: String(sync.lastSyncTimestamp || ""),
+    lastSyncAttemptTimestamp: String(sync.lastSyncAttemptTimestamp || ""),
     lastKnownSheetVersion: String(sync.lastKnownSheetVersion || ""),
     message: String(sync.message || defaultSyncState.message),
+    lastErrorMessage: String(sync.lastErrorMessage || ""),
   };
 }
 
@@ -864,7 +874,11 @@ function getHealthData(responseBody) {
   return isPlainObject(responseBody.data) ? responseBody.data : responseBody;
 }
 
-function getEnvelopeErrorMessage(responseBody, fallbackMessage) {
+function getActionableErrorMessage(baseMessage, actionHint) {
+  return actionHint ? `${baseMessage} ${actionHint}` : baseMessage;
+}
+
+function getEnvelopeErrorMessage(responseBody, fallbackMessage, actionHint = "") {
   if (!isPlainObject(responseBody)) {
     return fallbackMessage;
   }
@@ -884,19 +898,31 @@ function getEnvelopeErrorMessage(responseBody, fallbackMessage) {
     }
   }
 
-  return fallbackMessage;
+  return getActionableErrorMessage(fallbackMessage, actionHint);
 }
 
 function getHealthErrorMessage(responseBody) {
-  return getEnvelopeErrorMessage(responseBody, "Apps Script reported that the connection is not ready.");
+  return getEnvelopeErrorMessage(
+    responseBody,
+    "Apps Script reported that the connection is not ready.",
+    "Confirm the Web App URL ends in /exec, deployment access allows your Google account, and the bound Sheet has the approved Cards headers.",
+  );
 }
 
 function getLoadErrorMessage(responseBody) {
-  return getEnvelopeErrorMessage(responseBody, "Apps Script could not load cards from the Sheet.");
+  return getEnvelopeErrorMessage(
+    responseBody,
+    "Apps Script could not load cards from the Sheet.",
+    "Run Test Connection again, then check the Cards sheet headers and duplicate card numbers.",
+  );
 }
 
 function getWriteErrorMessage(responseBody) {
-  return getEnvelopeErrorMessage(responseBody, "Apps Script could not save this change to Sheets.");
+  return getEnvelopeErrorMessage(
+    responseBody,
+    "Apps Script could not save this change to Sheets.",
+    "Your local data is still saved in this browser; use Retry Sync or download a CSV backup before recovery.",
+  );
 }
 
 function getEnvelopeErrorCode(responseBody) {
@@ -1002,13 +1028,17 @@ function handleSuccessfulWrite(responseBody, successMessage) {
     ...syncState,
     status: syncStatuses.connected,
     lastSyncTimestamp: new Date().toISOString(),
+    lastSyncAttemptTimestamp: new Date().toISOString(),
     lastKnownSheetVersion: sheetVersion || syncState.lastKnownSheetVersion,
     message: successMessage,
+    lastErrorMessage: "",
   };
   connectionState = {
     ...connectionState,
     connectionStatus: connectionStatuses.connected,
+    healthStatus: connectionState.healthStatus || "Not checked",
     message: successMessage,
+    lastErrorMessage: "",
   };
   saveAppState();
   renderConnectionState();
@@ -1031,12 +1061,15 @@ function handleFailedWrite(message, responseBody) {
 
   setSyncState({
     status: nextStatus,
+    lastSyncAttemptTimestamp: new Date().toISOString(),
     message: friendlyMessage,
+    lastErrorMessage: friendlyMessage,
   });
   connectionState = {
     ...connectionState,
     connectionStatus: isConflict ? connectionStatuses.error : connectionStatuses.connected,
     message: friendlyMessage,
+    lastErrorMessage: friendlyMessage,
   };
   saveAppState();
   renderConnectionState();
@@ -1059,6 +1092,10 @@ async function postCompletedActionToSheets(action, payload, successMessage) {
   }
 
   const envelope = buildWriteEnvelope(payload);
+  setSyncState({
+    lastSyncAttemptTimestamp: new Date().toISOString(),
+    message: "Syncing completed action to Sheets...",
+  });
 
   try {
     const response = await fetch(actionUrl, {
@@ -1186,15 +1223,25 @@ function renderConnectionState() {
   if (connectionState.schemaVersion) {
     details.push(`<li><strong>Schema version:</strong> ${escapeHtml(connectionState.schemaVersion)}</li>`);
   }
+  if (connectionState.lastHealthSheetVersion) {
+    details.push(`<li><strong>Health Sheet version:</strong> ${escapeHtml(connectionState.lastHealthSheetVersion)}</li>`);
+  }
+  details.push(`<li><strong>Health status:</strong> ${escapeHtml(connectionState.healthStatus || "Not checked")}</li>`);
   if (connectionState.lastHealthCheckAt) {
-    details.push(`<li><strong>Last checked:</strong> ${escapeHtml(formatConnectionTimestamp(connectionState.lastHealthCheckAt))}</li>`);
+    details.push(`<li><strong>Last health check:</strong> ${escapeHtml(formatConnectionTimestamp(connectionState.lastHealthCheckAt))}</li>`);
   }
   details.push(`<li><strong>Sync status:</strong> ${escapeHtml(getSyncStatusLabel())}</li>`);
+  if (syncState.lastSyncAttemptTimestamp) {
+    details.push(`<li><strong>Last sync attempt:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncAttemptTimestamp))}</li>`);
+  }
   if (syncState.lastSyncTimestamp) {
-    details.push(`<li><strong>Last sync:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncTimestamp))}</li>`);
+    details.push(`<li><strong>Last successful sync:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncTimestamp))}</li>`);
   }
   if (syncState.lastKnownSheetVersion) {
-    details.push(`<li><strong>Sheet version:</strong> ${escapeHtml(syncState.lastKnownSheetVersion)}</li>`);
+    details.push(`<li><strong>Last known Sheet version:</strong> ${escapeHtml(syncState.lastKnownSheetVersion)}</li>`);
+  }
+  if (connectionState.lastErrorMessage || syncState.lastErrorMessage) {
+    details.push(`<li><strong>Last error:</strong> ${escapeHtml(connectionState.lastErrorMessage || syncState.lastErrorMessage)}</li>`);
   }
 
   const syncClass = `sync-${syncState.status}`;
@@ -1224,10 +1271,13 @@ function saveConnectionFromInput() {
       appsScriptUrl,
       connectionStatus: connectionStatuses.error,
       lastHealthCheckAt: "",
+      healthStatus: "Invalid URL",
       spreadsheetName: "",
       sheetName: "",
       schemaVersion: "",
+      lastHealthSheetVersion: "",
       message: "Enter a valid http(s) Apps Script Web App URL.",
+      lastErrorMessage: "Invalid Apps Script URL format.",
     });
     return;
   }
@@ -1241,12 +1291,15 @@ function saveConnectionFromInput() {
     appsScriptUrl,
     connectionStatus: urlChanged ? connectionStatuses.notConnected : connectionState.connectionStatus,
     lastHealthCheckAt: urlChanged ? "" : connectionState.lastHealthCheckAt,
+    healthStatus: urlChanged ? "Not checked" : connectionState.healthStatus,
     spreadsheetName: urlChanged ? "" : connectionState.spreadsheetName,
     sheetName: urlChanged ? "" : connectionState.sheetName,
     schemaVersion: urlChanged ? "" : connectionState.schemaVersion,
+    lastHealthSheetVersion: urlChanged ? "" : connectionState.lastHealthSheetVersion,
     message: urlChanged
       ? "Connection saved locally. Run a health check, then load cards from Sheets."
       : "Connection saved locally.",
+    lastErrorMessage: "",
   });
 }
 
@@ -1412,6 +1465,7 @@ async function loadCardsFromSheets() {
     setConnectionState({
       connectionStatus: connectionStatuses.error,
       message: "Save a valid Apps Script Web App URL before loading cards from Sheets.",
+      lastErrorMessage: "Missing or invalid Apps Script URL for Load from Sheets.",
     });
     return;
   }
@@ -1419,6 +1473,10 @@ async function loadCardsFromSheets() {
   setConnectionState({
     connectionStatus: connectionStatuses.loading,
     message: "Loading cards from the Sheet...",
+  });
+  setSyncState({
+    lastSyncAttemptTimestamp: new Date().toISOString(),
+    message: "Loading cards from Sheets...",
   });
 
   try {
@@ -1435,16 +1493,27 @@ async function loadCardsFromSheets() {
     } catch {
       setConnectionState({
         connectionStatus: connectionStatuses.error,
-        message: "The Sheet load response was not valid JSON.",
+        message: "The Sheet load response was not valid JSON. Confirm this is the Apps Script Web App /exec URL and the latest deployment is active.",
+        lastErrorMessage: "Sheet load response was not valid JSON.",
+      });
+      setSyncState({
+        status: syncStatuses.unsynced,
+        lastErrorMessage: "Sheet load response was not valid JSON.",
       });
       return;
     }
 
     const loadedEnvelope = validateLoadCardsEnvelope(responseBody);
     if (!response.ok || loadedEnvelope.error) {
+      const loadError = loadedEnvelope.error || getLoadErrorMessage(responseBody);
       setConnectionState({
         connectionStatus: connectionStatuses.error,
-        message: loadedEnvelope.error || getLoadErrorMessage(responseBody),
+        message: loadError,
+        lastErrorMessage: loadError,
+      });
+      setSyncState({
+        status: syncStatuses.unsynced,
+        lastErrorMessage: loadError,
       });
       return;
     }
@@ -1456,22 +1525,31 @@ async function loadCardsFromSheets() {
       ...syncState,
       status: syncStatuses.connected,
       lastSyncTimestamp: new Date().toISOString(),
+      lastSyncAttemptTimestamp: new Date().toISOString(),
       lastKnownSheetVersion: loadedEnvelope.sheetVersion,
       message: "Loaded from Sheets. Completed actions will now auto-sync.",
+      lastErrorMessage: "",
     };
     connectionState = {
       ...connectionState,
       connectionStatus: connectionStatuses.connected,
       message: `Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets.`,
+      lastErrorMessage: "",
     };
     saveAppState();
     renderConnectionState();
     refreshRawCardData(`Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets into this session.`);
     renderApp(selectedCardIndex);
   } catch {
+    const loadError = "Unable to reach the Apps Script URL while loading. Check that the URL ends in /exec, deployment access is correct, and your device is online.";
     setConnectionState({
       connectionStatus: connectionStatuses.error,
-      message: "Unable to reach the Apps Script URL. Check the URL, deployment access, and network connection.",
+      message: loadError,
+      lastErrorMessage: loadError,
+    });
+    setSyncState({
+      status: syncStatuses.unsynced,
+      lastErrorMessage: loadError,
     });
   }
 }
@@ -1488,7 +1566,10 @@ async function testConnection() {
       spreadsheetName: "",
       sheetName: "",
       schemaVersion: "",
+      lastHealthSheetVersion: "",
+      healthStatus: "Invalid URL",
       message: "Enter a valid http(s) Apps Script Web App URL before testing.",
+      lastErrorMessage: "Invalid Apps Script URL format.",
     });
     return;
   }
@@ -1496,6 +1577,7 @@ async function testConnection() {
   setConnectionState({
     appsScriptUrl,
     connectionStatus: connectionStatuses.checking,
+    healthStatus: "Checking",
     message: "Checking the Apps Script health endpoint...",
   });
 
@@ -1517,7 +1599,10 @@ async function testConnection() {
         spreadsheetName: "",
         sheetName: "",
         schemaVersion: "",
-        message: "The health check response was not valid JSON.",
+        lastHealthSheetVersion: "",
+        healthStatus: "Invalid response",
+        message: "The health check response was not valid JSON. Confirm this is the Apps Script Web App /exec URL and that the deployment returns JSON for ?action=health.",
+        lastErrorMessage: "Health check response was not valid JSON.",
       });
       return;
     }
@@ -1530,7 +1615,10 @@ async function testConnection() {
         spreadsheetName: "",
         sheetName: "",
         schemaVersion: "",
+        lastHealthSheetVersion: "",
+        healthStatus: "Failed",
         message: getHealthErrorMessage(responseBody),
+        lastErrorMessage: getHealthErrorMessage(responseBody),
       });
       return;
     }
@@ -1541,7 +1629,12 @@ async function testConnection() {
       spreadsheetName: String(healthData.spreadsheetName || "Not provided"),
       sheetName: String(healthData.sheetName || "Not provided"),
       schemaVersion: String(healthData.schemaVersion || "Not provided"),
-      message: "Health check succeeded. You can now load cards from Sheets.",
+      lastHealthSheetVersion: String(healthData.sheetVersion || ""),
+      healthStatus: healthData.schemaValid === false ? "Schema problem reported" : "Healthy",
+      message: healthData.schemaValid === false
+        ? "Health check reached Apps Script, but the Sheet schema needs attention before loading cards."
+        : "Health check succeeded. You can now load cards from Sheets.",
+      lastErrorMessage: healthData.schemaValid === false ? "Apps Script reported a Sheet schema problem." : "",
     });
   } catch {
     setConnectionState({
@@ -1550,7 +1643,10 @@ async function testConnection() {
       spreadsheetName: "",
       sheetName: "",
       schemaVersion: "",
-      message: "Unable to reach the Apps Script URL. Check the URL, deployment access, and network connection.",
+      lastHealthSheetVersion: "",
+      healthStatus: "Unreachable",
+      message: "Unable to reach the Apps Script URL. Check that the URL ends in /exec, your deployment access is correct, and your device is online.",
+      lastErrorMessage: "Apps Script URL unreachable during health check.",
     });
   }
 }

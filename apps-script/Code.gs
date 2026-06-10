@@ -56,13 +56,21 @@ function doPost(e) {
 function handleRequest_(e, method) {
   try {
     const action = getAction_(e);
+    if (!action) {
+      return jsonResponse_(errorEnvelope_(ERROR_CODES.VALIDATION_ERROR, 'Missing action query parameter. Use health, load, updateCard, batchUpdate, or replaceAll.'));
+    }
 
     if (method === 'GET') {
       if (action === 'health') return jsonResponse_(handleHealth_());
       if (action === 'load') return jsonResponse_(handleLoad_());
+      return jsonResponse_(errorEnvelope_(ERROR_CODES.VALIDATION_ERROR, 'Unsupported GET action: ' + action + '. Use health or load.'));
     }
 
     if (method === 'POST') {
+      if (['updateCard', 'batchUpdate', 'replaceAll'].indexOf(action) === -1) {
+        return jsonResponse_(errorEnvelope_(ERROR_CODES.VALIDATION_ERROR, 'Unsupported POST action: ' + action + '. Use updateCard, batchUpdate, or replaceAll.'));
+      }
+
       const request = parsePostBody_(e);
       if (action === 'updateCard') return jsonResponse_(withDocumentLock_(function () {
         return handleUpdateCard_(request);
@@ -75,7 +83,7 @@ function handleRequest_(e, method) {
       }));
     }
 
-    return jsonResponse_(errorEnvelope_(ERROR_CODES.VALIDATION_ERROR, 'Unsupported action.'));
+    return jsonResponse_(errorEnvelope_(ERROR_CODES.VALIDATION_ERROR, 'Unsupported request method.'));
   } catch (err) {
     return jsonResponse_(exceptionEnvelope_(err));
   }
@@ -92,7 +100,9 @@ function handleHealth_() {
     sheetName: sheet ? sheet.getName() : null,
     schemaVersion: meta.schemaVersion || SCHEMA_VERSION,
     schemaValid: Boolean(sheet),
-    setupStatus: context.setupStatus
+    setupStatus: context.setupStatus,
+    lastWriteSource: meta.lastWriteSource || '',
+    sheetVersion: getSheetVersion_(context.metaSheet)
   }, getSheetVersion_(context.metaSheet));
 }
 
@@ -115,6 +125,9 @@ function handleUpdateCard_(request) {
 
   const payload = request.payload || {};
   const card = payload.card || payload;
+  if (!payload.card && !payload.cardNumber) {
+    throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'updateCard requires payload.card or a card payload with cardNumber.');
+  }
   validateCardForWrite_(card);
 
   upsertCard_(context.sheet, card);
@@ -407,13 +420,19 @@ function findCardRow_(sheet, cardNumber) {
 }
 
 function validatePostEnvelope_(request) {
-  if (!request || typeof request !== 'object') {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
     throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'POST body must be a JSON object.');
   }
-  if (!request.lastKnownSheetVersion) {
-    throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'lastKnownSheetVersion is required for write actions.');
+  if (Object.prototype.hasOwnProperty.call(request, 'requestId') && typeof request.requestId !== 'string') {
+    throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'requestId must be a string when provided.');
   }
-  if (!request.payload || typeof request.payload !== 'object') {
+  if (Object.prototype.hasOwnProperty.call(request, 'clientTimestamp') && typeof request.clientTimestamp !== 'string') {
+    throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'clientTimestamp must be an ISO timestamp string when provided.');
+  }
+  if (!request.lastKnownSheetVersion) {
+    throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'lastKnownSheetVersion is required for write actions. Load from Sheets before writing.');
+  }
+  if (!request.payload || typeof request.payload !== 'object' || Array.isArray(request.payload)) {
     throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'payload must be an object.');
   }
 }
@@ -454,7 +473,7 @@ function validateBalance_(value, field) {
 function validateUsed_(value) {
   if (value === '' || value === null || typeof value === 'undefined') return;
   if (value === true || value === false) return;
-  const normalized = String(value).toLowerCase();
+  const normalized = String(value).trim().toLowerCase();
   if (normalized !== 'true' && normalized !== 'false') {
     throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'used must be true or false.');
   }
@@ -478,12 +497,22 @@ function normalizeCellValue_(value) {
 }
 
 function assertUniqueCardNumbers_(cards) {
+  if (!Array.isArray(cards)) {
+    throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'cards must be an array.');
+  }
+
   const seen = {};
-  cards.forEach(function (card) {
+  cards.forEach(function (card, index) {
+    if (!card || typeof card !== 'object' || Array.isArray(card)) {
+      throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'Card at index ' + index + ' must be an object.');
+    }
+
     const cardNumber = String((card && card.cardNumber) || '').trim();
-    if (!cardNumber) return;
+    if (!cardNumber) {
+      throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'Card at index ' + index + ' is missing cardNumber.');
+    }
     if (seen[cardNumber]) {
-      throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'Duplicate cardNumber values are not allowed.');
+      throw apiError_(ERROR_CODES.VALIDATION_ERROR, 'Duplicate cardNumber values are not allowed: ' + cardNumber + '.');
     }
     seen[cardNumber] = true;
   });

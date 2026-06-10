@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This Phase 8B manual test plan verifies the Walmart-GC MVP end-to-end before Phase 8C hardening and diagnostics work begins.
+This manual test plan verifies the Walmart-GC MVP end-to-end through Phase 8C hardening and diagnostics work.
 
 The plan validates the approved MVP architecture without redesigning it:
 
@@ -131,6 +131,7 @@ Verifies that a new user can start from an empty app state and connect to Apps S
 - [ ] Health Check succeeds.
 - [ ] Connection status displays as connected or equivalent success state.
 - [ ] Connection details show Sheet/schema information when available.
+- [ ] Data panel shows Health status, Last health check, and Health Sheet version details when available.
 - [ ] The app indicates that cards can be loaded from Sheets.
 
 ```text
@@ -155,7 +156,7 @@ Verifies loading valid card rows from Google Sheets into the app.
 - [ ] Open each loaded card in Card Detail.
 - [ ] Compare visible card details against the Sheet values.
 - [ ] Confirm balance, PIN, merchant, notes, and Used state display correctly.
-- [ ] Return to the Data panel and check that Sheet version or sync metadata is shown when available.
+- [ ] Return to the Data panel and check that Last successful sync, Last sync attempt, and Last known Sheet version are shown when available.
 
 ### Expected Result
 
@@ -399,7 +400,7 @@ Verifies failed sync preserves local data and can recover when service availabil
 - [ ] Export a CSV backup.
 - [ ] Enter an invalid Apps Script URL, temporarily break network access, or otherwise make Apps Script unreachable.
 - [ ] Make a completed local change, such as a balance update or used-state update.
-- [ ] Observe sync status and any error details.
+- [ ] Observe sync status, Last sync attempt, and Last error details.
 - [ ] Restore the valid Apps Script URL or network access.
 - [ ] Select **Test Connection**.
 - [ ] Select **Retry Sync** if shown, or follow the Data panel recovery path.
@@ -409,6 +410,7 @@ Verifies failed sync preserves local data and can recover when service availabil
 
 - [ ] Local change is preserved in the browser session.
 - [ ] App shows Unsynced or a relevant error state.
+- [ ] Data panel shows a useful Last error and a recent Last sync attempt.
 - [ ] Error copy does not imply the data was lost.
 - [ ] Retry can recover when the service is available and no conflict exists.
 
@@ -431,7 +433,7 @@ Verifies optimistic concurrency behavior when Sheet data changes independently a
 - [ ] In the Google Sheet, modify the same card row externally, or sync a change from another browser/device.
 - [ ] Return to the original app session without reloading from Sheets.
 - [ ] Attempt a completed app sync from the stale state, such as updating balance or used state.
-- [ ] Observe the sync status, error details, and available recovery actions.
+- [ ] Observe the sync status, Last error details, and available recovery actions.
 
 ### Expected Result
 
