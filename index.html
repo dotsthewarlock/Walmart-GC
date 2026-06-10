@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.00 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.01 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.00"
+          data-html-version="1.01.01"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.00 · JS loading · CSS 1.01.00
+          HTML 1.01.01 · JS loading · CSS 1.01.01
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -177,7 +177,7 @@
 
         <div class="data-layout">
           <p class="data-description">
-            Manage local CSV-style card data and refresh the current session from your connected Google Sheet.
+            Manage Google Sheets sync separately from local CSV backup and recovery tools.
             After a successful Sheet load, completed balance, used-state, import, and bulk updates auto-sync to Sheets.
           </p>
 
@@ -209,10 +209,11 @@
             <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
           </div>
 
-          <div class="data-card">
+          <div class="data-card csv-recovery-card">
             <div class="data-card-heading">
               <div>
-                <h3>Raw card data</h3>
+                <h3>CSV Backup & Recovery</h3>
+                <p>Use CSV export as an emergency backup before major changes, or import CSV to recover local card data.</p>
                 <p>Schema: <code>cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes</code></p>
                 <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
               </div>
@@ -226,27 +227,24 @@
               rows="8"
               placeholder="Paste or import card data here..."
             ></textarea>
-          </div>
 
-          <div class="data-actions" aria-label="Data actions">
-            <div class="data-action-row">
-              <button id="toggle-data-lock" class="secondary-button" type="button">Unlock Editing</button>
-              <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
+            <div class="data-actions" aria-label="CSV backup and recovery actions">
+              <div class="data-action-row">
+                <button id="toggle-data-lock" class="secondary-button" type="button">Unlock Editing</button>
+                <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
+              </div>
+              <div class="data-action-row">
+                <button id="refresh-card-data" class="secondary-button" type="button">Refresh Data</button>
+                <button id="update-card-data" class="primary-button" type="button">Update Data</button>
+              </div>
+              <div class="data-action-row">
+                <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
+                <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
+                <button id="export-csv" class="danger-button" type="button">Export CSV</button>
+              </div>
             </div>
-            <div class="data-action-row">
-              <button id="refresh-card-data" class="secondary-button" type="button">Refresh Data</button>
-              <button id="update-card-data" class="primary-button" type="button">Update Data</button>
-            </div>
-            <div class="data-action-row">
-              <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
-              <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
-              <button id="export-csv" class="danger-button" type="button">Export CSV</button>
-            </div>
-            <div class="data-action-row">
-              <button id="sync-sheets" class="secondary-button" type="button" disabled title="Google Sheets upload in development">Upload Sheets *</button>
-            </div>
+            <p class="data-footnote">* Scan remains disabled for the MVP; use CSV import/export for backup and recovery.</p>
           </div>
-          <p class="data-footnote">* Direct manual upload remains disabled; completed actions sync automatically after loading from Sheets.</p>
 
           <div class="validation-card">
             <h3>Validation Warnings</h3>
