@@ -19,9 +19,9 @@
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 5B refines the
-          local data panel and checkout workflow while keeping this a prototype;
-          Google Sheet sync will be added later.
+          Mobile-first checkout access for Walmart gift cards. Phase 7 begins
+          Google Sheets loading while keeping local CSV tools available and
+          write sync disabled until a later PR.
         </p>
       </div>
     </header>
@@ -168,15 +168,15 @@
 
         <div class="data-layout">
           <p class="data-description">
-            Manage local CSV-style card data for schema testing before full Google Sheets sync is implemented.
-            Card data remains local in this PR; the connection tools only run a health check.
+            Manage local CSV-style card data and refresh the current session from your connected Google Sheet.
+            Sheet refreshes only call the approved read endpoint and never write local changes back to Sheets.
           </p>
 
           <div class="data-card connection-card">
             <div class="data-card-heading">
               <div>
                 <h3>Google Sheets Connection</h3>
-                <p>Enter your deployed Apps Script Web App URL. Testing only calls <code>?action=health</code>.</p>
+                <p>Enter your deployed Apps Script Web App URL. Test with <code>?action=health</code>, then load with <code>?action=load</code>.</p>
               </div>
             </div>
 
@@ -193,6 +193,7 @@
             <div class="connection-actions" aria-label="Connection actions">
               <button id="save-connection" class="secondary-button" type="button">Save Connection</button>
               <button id="test-connection" class="primary-button" type="button">Test Connection</button>
+              <button id="load-sheets" class="primary-button" type="button">Load from Sheets</button>
             </div>
 
             <div id="connection-status" class="connection-status" role="status" aria-live="polite"></div>
@@ -235,7 +236,7 @@
               <button id="sync-sheets" class="secondary-button" type="button" disabled title="Google Sheets upload in development">Upload Sheets *</button>
             </div>
           </div>
-          <p class="data-footnote">* Features in development</p>
+          <p class="data-footnote">* Write sync features are still in development.</p>
 
           <div class="validation-card">
             <h3>Validation Warnings</h3>

@@ -131,6 +131,7 @@ const dataCountSummary = document.querySelector("#data-count-summary");
 const appsScriptUrlInput = document.querySelector("#apps-script-url");
 const saveConnectionButton = document.querySelector("#save-connection");
 const testConnectionButton = document.querySelector("#test-connection");
+const loadSheetsButton = document.querySelector("#load-sheets");
 const connectionStatusArea = document.querySelector("#connection-status");
 
 let selectedCardIndex = -1;
@@ -188,6 +189,7 @@ const defaultSettings = {
 const connectionStatuses = {
   notConnected: "Not Connected",
   checking: "Checking",
+  loading: "Loading",
   connected: "Connected",
   error: "Connection Error",
 };
@@ -240,6 +242,51 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function normalizeBooleanField(value, fallback = false) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    if (value === 1) {
+      return true;
+    }
+    if (value === 0) {
+      return false;
+    }
+  }
+
+  if (typeof value === "string") {
+    const normalizedValue = value.trim().toLowerCase();
+    if (["true", "yes", "y", "1"].includes(normalizedValue)) {
+      return true;
+    }
+    if (["false", "no", "n", "0", ""].includes(normalizedValue)) {
+      return false;
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeDateField(value, fallback = "") {
+  const rawValue = String(value ?? "").trim();
+  if (!rawValue) {
+    return fallback;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(rawValue)) {
+    return rawValue.slice(0, 10);
+  }
+
+  const parsedDate = new Date(rawValue);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.toISOString().slice(0, 10);
+  }
+
+  return fallback;
+}
+
 function readStoredJson(key) {
   try {
     const value = localStorage.getItem(key);
@@ -279,16 +326,18 @@ function normalizeStoredCard(card) {
     return null;
   }
 
+  const dateAdded = normalizeDateField(card.dateAdded, todayString());
+
   return {
     cardNumber,
     pin,
     merchant: String(card.merchant || prototypeDefaultMerchant),
     startingBalance: normalizeMoney(startingBalance),
     currentBalance: normalizeMoney(currentBalance),
-    dateAdded: String(card.dateAdded || todayString()),
-    dateUpdated: String(card.dateUpdated || card.dateAdded || todayString()),
-    dateUsed: String(card.dateUsed || ""),
-    used: Boolean(card.used),
+    dateAdded,
+    dateUpdated: normalizeDateField(card.dateUpdated, dateAdded),
+    dateUsed: normalizeDateField(card.dateUsed, ""),
+    used: normalizeBooleanField(card.used),
     notes: String(card.notes ?? ""),
   };
 }
@@ -754,14 +803,22 @@ function parseAppsScriptUrl(rawUrl) {
   }
 }
 
-function buildHealthCheckUrl(rawUrl) {
+function buildAppsScriptActionUrl(rawUrl, action) {
   const parsedUrl = parseAppsScriptUrl(rawUrl);
   if (!parsedUrl) {
     return null;
   }
 
-  parsedUrl.searchParams.set("action", "health");
+  parsedUrl.searchParams.set("action", action);
   return parsedUrl.toString();
+}
+
+function buildHealthCheckUrl(rawUrl) {
+  return buildAppsScriptActionUrl(rawUrl, "health");
+}
+
+function buildLoadCardsUrl(rawUrl) {
+  return buildAppsScriptActionUrl(rawUrl, "load");
 }
 
 function getHealthData(responseBody) {
@@ -776,9 +833,9 @@ function getHealthData(responseBody) {
   return isPlainObject(responseBody.data) ? responseBody.data : responseBody;
 }
 
-function getHealthErrorMessage(responseBody) {
+function getEnvelopeErrorMessage(responseBody, fallbackMessage) {
   if (!isPlainObject(responseBody)) {
-    return "The health check returned an unexpected response.";
+    return fallbackMessage;
   }
 
   if (isPlainObject(responseBody.error)) {
@@ -796,7 +853,15 @@ function getHealthErrorMessage(responseBody) {
     }
   }
 
-  return "Apps Script reported that the connection is not ready.";
+  return fallbackMessage;
+}
+
+function getHealthErrorMessage(responseBody) {
+  return getEnvelopeErrorMessage(responseBody, "Apps Script reported that the connection is not ready.");
+}
+
+function getLoadErrorMessage(responseBody) {
+  return getEnvelopeErrorMessage(responseBody, "Apps Script could not load cards from the Sheet.");
 }
 
 function formatConnectionTimestamp(timestamp) {
@@ -826,14 +891,16 @@ function setConnectionState(nextState) {
 
 function renderConnectionState() {
   appsScriptUrlInput.value = connectionState.appsScriptUrl;
-  testConnectionButton.disabled = connectionState.connectionStatus === connectionStatuses.checking;
-  saveConnectionButton.disabled = connectionState.connectionStatus === connectionStatuses.checking;
+  const isBusy = [connectionStatuses.checking, connectionStatuses.loading].includes(connectionState.connectionStatus);
+  testConnectionButton.disabled = isBusy;
+  loadSheetsButton.disabled = isBusy;
+  saveConnectionButton.disabled = isBusy;
 
   const statusClass = connectionState.connectionStatus === connectionStatuses.connected
     ? "connected"
     : connectionState.connectionStatus === connectionStatuses.error
       ? "error"
-      : connectionState.connectionStatus === connectionStatuses.checking
+      : isBusy
         ? "checking"
         : "not-connected";
 
@@ -849,6 +916,12 @@ function renderConnectionState() {
   }
   if (connectionState.lastHealthCheckAt) {
     details.push(`<li><strong>Last checked:</strong> ${escapeHtml(formatConnectionTimestamp(connectionState.lastHealthCheckAt))}</li>`);
+  }
+  if (syncState.lastSyncTimestamp) {
+    details.push(`<li><strong>Last loaded:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncTimestamp))}</li>`);
+  }
+  if (syncState.lastKnownSheetVersion) {
+    details.push(`<li><strong>Sheet version:</strong> ${escapeHtml(syncState.lastKnownSheetVersion)}</li>`);
   }
 
   connectionStatusArea.className = `connection-status is-${statusClass}`;
@@ -892,9 +965,111 @@ function saveConnectionFromInput() {
     sheetName: urlChanged ? "" : connectionState.sheetName,
     schemaVersion: urlChanged ? "" : connectionState.schemaVersion,
     message: urlChanged
-      ? "Connection saved locally. Run a health check before syncing in a future PR."
+      ? "Connection saved locally. Run a health check, then load cards from Sheets."
       : "Connection saved locally.",
   });
+}
+
+
+function validateLoadCardsEnvelope(responseBody) {
+  if (!isPlainObject(responseBody)) {
+    return { error: "Apps Script returned an unexpected response." };
+  }
+
+  if (responseBody.ok !== true) {
+    return { error: getLoadErrorMessage(responseBody) };
+  }
+
+  if (!isPlainObject(responseBody.data) || !Array.isArray(responseBody.data.cards)) {
+    return { error: "Apps Script did not include a valid cards list." };
+  }
+
+  if (!isPlainObject(responseBody.meta)) {
+    return { error: "Apps Script did not include Sheet version metadata." };
+  }
+
+  const sheetVersion = String(responseBody.meta.sheetVersion || "").trim();
+  if (!sheetVersion) {
+    return { error: "Apps Script did not include a Sheet version." };
+  }
+
+  const normalizedCards = normalizeStoredCards(responseBody.data.cards);
+  if (!normalizedCards) {
+    return { error: "Apps Script returned card data that this app could not read." };
+  }
+
+  return { cards: normalizedCards, sheetVersion };
+}
+
+async function loadCardsFromSheets() {
+  const savedAppsScriptUrl = connectionState.appsScriptUrl;
+  const loadUrl = buildLoadCardsUrl(savedAppsScriptUrl);
+
+  if (!savedAppsScriptUrl || !loadUrl) {
+    setConnectionState({
+      connectionStatus: connectionStatuses.error,
+      message: "Save a valid Apps Script Web App URL before loading cards from Sheets.",
+    });
+    return;
+  }
+
+  setConnectionState({
+    connectionStatus: connectionStatuses.loading,
+    message: "Loading cards from the Sheet...",
+  });
+
+  try {
+    const response = await fetch(loadUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    let responseBody;
+    try {
+      responseBody = await response.json();
+    } catch {
+      setConnectionState({
+        connectionStatus: connectionStatuses.error,
+        message: "The Sheet load response was not valid JSON.",
+      });
+      return;
+    }
+
+    const loadedEnvelope = validateLoadCardsEnvelope(responseBody);
+    if (!response.ok || loadedEnvelope.error) {
+      setConnectionState({
+        connectionStatus: connectionStatuses.error,
+        message: loadedEnvelope.error || getLoadErrorMessage(responseBody),
+      });
+      return;
+    }
+
+    sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedEnvelope.cards);
+    selectedCardIndex = loadedEnvelope.cards.length > 0 ? 0 : -1;
+    detailNumberRevealed = false;
+    syncState = {
+      ...syncState,
+      status: "connected",
+      lastSyncTimestamp: new Date().toISOString(),
+      lastKnownSheetVersion: loadedEnvelope.sheetVersion,
+    };
+    connectionState = {
+      ...connectionState,
+      connectionStatus: connectionStatuses.connected,
+      message: `Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets.`,
+    };
+    saveAppState();
+    renderConnectionState();
+    refreshRawCardData(`Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets into this session.`);
+    renderApp(selectedCardIndex);
+  } catch {
+    setConnectionState({
+      connectionStatus: connectionStatuses.error,
+      message: "Unable to reach the Apps Script URL. Check the URL, deployment access, and network connection.",
+    });
+  }
 }
 
 async function testConnection() {
@@ -962,7 +1137,7 @@ async function testConnection() {
       spreadsheetName: String(healthData.spreadsheetName || "Not provided"),
       sheetName: String(healthData.sheetName || "Not provided"),
       schemaVersion: String(healthData.schemaVersion || "Not provided"),
-      message: "Health check succeeded. Card loading and sync are not enabled yet.",
+      message: "Health check succeeded. You can now load cards from Sheets.",
     });
   } catch {
     setConnectionState({
@@ -1523,6 +1698,7 @@ csvFileInput.addEventListener("change", (event) => {
 exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
 saveConnectionButton.addEventListener("click", saveConnectionFromInput);
 testConnectionButton.addEventListener("click", testConnection);
+loadSheetsButton.addEventListener("click", loadCardsFromSheets);
 fullscreenBarcode.addEventListener("click", (event) => {
   if (event.target === fullscreenBarcode) {
     closeFullscreenBarcode();
