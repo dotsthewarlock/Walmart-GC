@@ -2,6 +2,7 @@ const sampleGiftCards = [
   {
     cardNumber: "6045782190348765",
     pin: "4821",
+    merchant: "walmart-ca",
     startingBalance: 50,
     currentBalance: 50,
     dateAdded: "2026-06-01",
@@ -13,6 +14,7 @@ const sampleGiftCards = [
   {
     cardNumber: "6045789317522388",
     pin: "9064",
+    merchant: "walmart-ca",
     startingBalance: 100,
     currentBalance: 37.42,
     dateAdded: "2026-05-28",
@@ -24,6 +26,7 @@ const sampleGiftCards = [
   {
     cardNumber: "6045780642197715",
     pin: "1138",
+    merchant: "walmart-ca",
     startingBalance: 25,
     currentBalance: 0,
     dateAdded: "2026-05-20",
@@ -35,6 +38,7 @@ const sampleGiftCards = [
   {
     cardNumber: "6045787063154490",
     pin: "7205",
+    merchant: "walmart-ca",
     startingBalance: 75,
     currentBalance: 18.25,
     dateAdded: "2026-06-05",
@@ -46,6 +50,7 @@ const sampleGiftCards = [
   {
     cardNumber: "6045784926808824",
     pin: "3349",
+    merchant: "walmart-ca",
     startingBalance: 10,
     currentBalance: 0,
     dateAdded: "2026-06-03",
@@ -141,6 +146,18 @@ const dataPanelRowLimit = 100;
 const csvHeaders = [
   "cardNumber",
   "pin",
+  "merchant",
+  "startingBalance",
+  "currentBalance",
+  "dateAdded",
+  "dateUpdated",
+  "dateUsed",
+  "used",
+  "notes",
+];
+const legacyCsvHeaders = [
+  "cardNumber",
+  "pin",
   "startingBalance",
   "currentBalance",
   "dateAdded",
@@ -148,6 +165,7 @@ const csvHeaders = [
   "dateUsed",
   "used",
 ];
+const prototypeDefaultMerchant = "walmart-ca";
 
 function formatBalance(balance) {
   return currencyFormatter.format(balance);
@@ -308,8 +326,10 @@ function normalizeCsvRows(rawCsv) {
   }
 
   const firstRow = parseCsvLine(rows[0].line);
-  const hasHeader = firstRow && firstRow.map((value) => value.toLowerCase()).join(",") === csvHeaders.join(",").toLowerCase();
-  return hasHeader ? rows.slice(1) : rows;
+  const normalizedHeader = firstRow?.map((value) => value.toLowerCase()).join(",");
+  const hasApprovedHeader = normalizedHeader === csvHeaders.join(",").toLowerCase();
+  const hasLegacyPrototypeHeader = normalizedHeader === legacyCsvHeaders.join(",").toLowerCase();
+  return hasApprovedHeader || hasLegacyPrototypeHeader ? rows.slice(1) : rows;
 }
 
 function parseRawCardData(rawCsv) {
@@ -323,21 +343,26 @@ function parseRawCardData(rawCsv) {
     const displayRow = lineNumber;
     const values = parseCsvLine(line);
 
-    if (!values || values.length !== csvHeaders.length) {
+    if (!values || ![csvHeaders.length, legacyCsvHeaders.length].includes(values.length)) {
       warnings.push(`Row ${displayRow}: malformed row; expected ${csvHeaders.length} CSV fields.`);
       return;
     }
 
+    const isLegacyPrototypeRow = values.length === legacyCsvHeaders.length;
     const [
       cardNumber,
       pin,
+      merchantRaw,
       startingBalanceRaw,
       currentBalanceRaw,
       dateAddedRaw,
       dateUpdatedRaw,
       dateUsedRaw,
       usedRaw,
-    ] = values;
+      notesRaw = "",
+    ] = isLegacyPrototypeRow
+      ? [values[0], values[1], "", ...values.slice(2), ""]
+      : values;
     let hasError = false;
 
     if (!cardNumber) {
@@ -356,6 +381,11 @@ function parseRawCardData(rawCsv) {
       hasError = true;
     }
 
+    const merchant = merchantRaw || prototypeDefaultMerchant;
+    if (!merchantRaw) {
+      warnings.push(`Row ${displayRow}: missing merchant; defaulted to ${prototypeDefaultMerchant} for prototype import.`);
+    }
+
     const startingBalance = readCsvMoney(startingBalanceRaw);
     if (startingBalance === null || Number.isNaN(startingBalance)) {
       warnings.push(`Row ${displayRow}: invalid starting balance.`);
@@ -365,6 +395,9 @@ function parseRawCardData(rawCsv) {
     const currentBalance = currentBalanceRaw === "" ? startingBalance : readCsvMoney(currentBalanceRaw);
     if (Number.isNaN(currentBalance)) {
       warnings.push(`Row ${displayRow}: invalid current balance.`);
+      hasError = true;
+    } else if (currentBalance < 0) {
+      warnings.push(`Row ${displayRow}: current balance cannot be below zero.`);
       hasError = true;
     }
 
@@ -387,13 +420,14 @@ function parseRawCardData(rawCsv) {
     parsedCards.push({
       cardNumber,
       pin,
+      merchant,
       startingBalance,
       currentBalance,
       dateAdded,
       dateUpdated,
       dateUsed,
       used,
-      notes: "Loaded from Data panel CSV prototype.",
+      notes: notesRaw,
     });
   });
 
