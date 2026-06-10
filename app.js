@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.03 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.04 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.03";
+const DEBUG_VERSION_JS = "1.01.04";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -164,6 +164,12 @@ const saveGoogleOAuthClientButton = document.querySelector("#save-google-oauth-c
 const connectGoogleButton = document.querySelector("#connect-google");
 const disconnectGoogleButton = document.querySelector("#disconnect-google");
 const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
+const directSheetInput = document.querySelector("#direct-sheet-id");
+const saveDirectSheetButton = document.querySelector("#save-direct-sheet");
+const initializeDirectSheetButton = document.querySelector("#initialize-direct-sheet");
+const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
+const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
+const directSheetStatusArea = document.querySelector("#direct-sheet-status");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -223,6 +229,7 @@ const storageKeys = {
   connection: "walmartGc.connection",
   sync: "walmartGc.sync",
   oauth: "walmartGc.oauth",
+  directSheets: "walmartGc.directSheets",
 };
 
 const defaultSettings = {
@@ -270,13 +277,41 @@ const defaultSyncState = {
 };
 
 const googleOAuthClientIdPlaceholder = "PASTE_GOOGLE_OAUTH_WEB_CLIENT_ID_HERE";
-const googleOAuthScopes = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
+const googleOAuthScopes = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets";
 const googleOAuthStatuses = {
   disconnected: "Disconnected",
   connecting: "Connecting",
   connected: "Connected",
   needsReconnect: "Needs reconnect",
   error: "Connection Error",
+};
+
+
+const directSheetsStatuses = {
+  notConfigured: "Not configured",
+  ready: "Ready",
+  checking: "Checking",
+  syncing: "Syncing",
+  conflict: "Conflict",
+  error: "Error",
+};
+
+const directSheetsSchemaVersion = "1";
+const directSheetsCardsTab = "Cards";
+const directSheetsMetaTab = "_META";
+const directSheetsAppName = "Walmart-GC";
+
+const defaultDirectSheetsState = {
+  spreadsheetId: "",
+  spreadsheetUrl: "",
+  spreadsheetName: "",
+  status: directSheetsStatuses.notConfigured,
+  cardsSheetInitialized: "unknown",
+  remoteSheetVersion: "",
+  lastSuccessfulSyncAt: "",
+  pendingUnsynced: false,
+  message: "Save a dedicated Google Sheet URL or ID, then initialize it for direct sync.",
+  lastErrorMessage: "",
 };
 
 const defaultGoogleOAuthState = {
@@ -295,9 +330,11 @@ let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
 let connectionState = cloneStateValue(defaultConnectionState);
 let syncState = cloneStateValue(defaultSyncState);
 let googleOAuthState = cloneStateValue(defaultGoogleOAuthState);
+let directSheetsState = cloneStateValue(defaultDirectSheetsState);
 let googleTokenClient = null;
 let googleAccessToken = "";
 let googleTokenExpiryTimeout = null;
+let googleTokenRequestMode = "connect";
 
 function formatBalance(balance) {
   return currencyFormatter.format(balance);
@@ -689,6 +726,32 @@ function normalizeStoredSync(sync) {
   };
 }
 
+function normalizeStoredDirectSheets(directSheets) {
+  if (!isPlainObject(directSheets)) {
+    return cloneStateValue(defaultDirectSheetsState);
+  }
+
+  const allowedStatuses = Object.values(directSheetsStatuses);
+  const status = allowedStatuses.includes(directSheets.status)
+    ? directSheets.status
+    : defaultDirectSheetsState.status;
+
+  return {
+    spreadsheetId: String(directSheets.spreadsheetId || ""),
+    spreadsheetUrl: String(directSheets.spreadsheetUrl || ""),
+    spreadsheetName: String(directSheets.spreadsheetName || ""),
+    status,
+    cardsSheetInitialized: ["yes", "no", "unknown"].includes(directSheets.cardsSheetInitialized)
+      ? directSheets.cardsSheetInitialized
+      : "unknown",
+    remoteSheetVersion: String(directSheets.remoteSheetVersion || ""),
+    lastSuccessfulSyncAt: String(directSheets.lastSuccessfulSyncAt || ""),
+    pendingUnsynced: Boolean(directSheets.pendingUnsynced),
+    message: String(directSheets.message || defaultDirectSheetsState.message),
+    lastErrorMessage: String(directSheets.lastErrorMessage || ""),
+  };
+}
+
 function normalizeStoredGoogleOAuth(oauth) {
   if (!isPlainObject(oauth)) {
     return cloneStateValue(defaultGoogleOAuthState);
@@ -741,6 +804,7 @@ function loadAppState() {
   const storedConnection = normalizeStoredConnection(readStoredJson(storageKeys.connection));
   const storedSync = normalizeStoredSync(readStoredJson(storageKeys.sync));
   const storedGoogleOAuth = normalizeStoredGoogleOAuth(readStoredJson(storageKeys.oauth));
+  const storedDirectSheets = normalizeStoredDirectSheets(readStoredJson(storageKeys.directSheets));
 
   return {
     cards: storedCards ?? cloneStateValue(bundledSampleGiftCards),
@@ -748,6 +812,7 @@ function loadAppState() {
     connection: storedConnection,
     sync: storedSync,
     oauth: storedGoogleOAuth,
+    directSheets: storedDirectSheets,
   };
 }
 
@@ -757,6 +822,7 @@ function saveAppState() {
   writeStoredJson(storageKeys.connection, connectionState);
   writeStoredJson(storageKeys.sync, syncState);
   writeStoredJson(storageKeys.oauth, googleOAuthState);
+  writeStoredJson(storageKeys.directSheets, directSheetsState);
 }
 
 function clearAppState() {
@@ -769,6 +835,7 @@ function applyAppState(appState) {
   connectionState = appState.connection;
   syncState = appState.sync;
   googleOAuthState = appState.oauth;
+  directSheetsState = appState.directSheets;
 }
 
 function escapeHtml(value) {
@@ -1272,6 +1339,7 @@ function setSyncState(nextState) {
   };
   saveAppState();
   renderConnectionState();
+  renderDirectSheetsState();
 }
 
 function formatConnectionTimestamp(timestamp) {
@@ -1327,6 +1395,90 @@ function setGoogleOAuthState(nextState) {
   };
   saveAppState();
   renderGoogleOAuthState();
+  renderDirectSheetsState();
+}
+
+function setDirectSheetsState(nextState) {
+  directSheetsState = {
+    ...directSheetsState,
+    ...nextState,
+  };
+  saveAppState();
+  renderDirectSheetsState();
+  renderConnectionState();
+}
+
+function isDirectSheetsConfigured() {
+  return Boolean(directSheetsState.spreadsheetId);
+}
+
+function getDirectSheetsStatusClass() {
+  if (directSheetsState.status === directSheetsStatuses.ready) {
+    return "connected";
+  }
+  if ([directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status)) {
+    return "checking";
+  }
+  if (directSheetsState.status === directSheetsStatuses.conflict) {
+    return "error";
+  }
+  if (directSheetsState.status === directSheetsStatuses.error) {
+    return "error";
+  }
+  return "not-connected";
+}
+
+function hasSheetsScopeInMemory() {
+  return Boolean(googleAccessToken && googleOAuthState.status === googleOAuthStatuses.connected);
+}
+
+function getDirectSheetsDisplayUrl() {
+  return directSheetsState.spreadsheetId
+    ? `https://docs.google.com/spreadsheets/d/${directSheetsState.spreadsheetId}/edit`
+    : "";
+}
+
+function renderDirectSheetsState() {
+  if (!directSheetStatusArea) {
+    return;
+  }
+
+  directSheetInput.value = directSheetsState.spreadsheetUrl || directSheetsState.spreadsheetId;
+  const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
+  saveDirectSheetButton.disabled = isBusy;
+  initializeDirectSheetButton.disabled = isBusy;
+  loadDirectSheetButton.disabled = isBusy;
+  syncDirectSheetButton.disabled = isBusy;
+
+  const details = [
+    renderDiagnosticRow("OAuth configured", isGoogleOAuthConfigured() ? "Yes" : "No"),
+    renderDiagnosticRow("Google connection", googleOAuthState.status),
+    renderDiagnosticRow("Sheets scope available", hasSheetsScopeInMemory() ? "Yes" : "Needs reconnect/authorization"),
+    renderDiagnosticRow("Spreadsheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
+    renderDiagnosticRow("Spreadsheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
+    renderDiagnosticRow("Spreadsheet name", valueOrFallback(directSheetsState.spreadsheetName)),
+    renderDiagnosticRow("Cards sheet initialized", valueOrFallback(directSheetsState.cardsSheetInitialized)),
+    renderDiagnosticRow("Local last known sheetVersion", valueOrFallback(syncState.lastKnownSheetVersion)),
+    renderDiagnosticRow("Remote sheetVersion", valueOrFallback(directSheetsState.remoteSheetVersion)),
+    renderDiagnosticRow("Sync state", getSyncStatusLabel()),
+    renderDiagnosticRow("Unsynced changes", directSheetsState.pendingUnsynced || syncState.pendingOperation ? "Yes" : "No"),
+    renderDiagnosticRow("Last successful direct sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
+    renderDiagnosticRow("Last direct Sheets error", valueOrFallback(directSheetsState.lastErrorMessage)),
+  ];
+
+  const sheetLink = getDirectSheetsDisplayUrl();
+  directSheetStatusArea.className = `connection-status is-${getDirectSheetsStatusClass()} sync-${syncState.status}`;
+  directSheetStatusArea.innerHTML = `
+    <div class="connection-status-header">
+      <span class="connection-status-dot" aria-hidden="true"></span>
+      <strong>${escapeHtml(directSheetsState.status)}</strong>
+      <span class="sync-badge">${escapeHtml(getSyncStatusLabel())}</span>
+    </div>
+    <p>${escapeHtml(directSheetsState.message || defaultDirectSheetsState.message)}</p>
+    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open configured Google Sheet</a></p>` : ""}
+    ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
+    <ul class="diagnostic-list">${details.join("")}</ul>
+  `;
 }
 
 function clearGoogleTokenExpiryTimer() {
@@ -1357,7 +1509,7 @@ function markGoogleTokenExpired() {
   setGoogleOAuthState({
     status: googleOAuthStatuses.needsReconnect,
     tokenExpiresAt: "",
-    message: "Google access expired. Reconnect Google when you want to use future Sheets API sync.",
+    message: "Google access expired. Reconnect Google before direct Google Sheets sync.",
     lastErrorMessage: "Token expired.",
   });
 }
@@ -1528,8 +1680,8 @@ async function handleGoogleOAuthTokenResponse(tokenResponse) {
       connectedAt: new Date().toISOString(),
       tokenExpiresAt,
       message: email
-        ? `Connected as ${email}. Sheets API sync will be added in Phase 9B.`
-        : "Connected to Google. Sheets API sync will be added in Phase 9B.",
+        ? `Connected as ${email}. Direct Google Sheets sync is ready when a Sheet is saved and initialized.`
+        : "Connected to Google. Direct Google Sheets sync is ready when a Sheet is saved and initialized.",
       lastErrorMessage: "",
     });
   } catch (error) {
@@ -1627,7 +1779,7 @@ function disconnectGoogleAccount() {
     connectedName: "",
     connectedAt: "",
     tokenExpiresAt: "",
-    message: "Google account disconnected. Local cards and Apps Script sync settings were not changed.",
+    message: "Google account disconnected. Local cards, Direct Sheet settings, and Apps Script sync settings were not changed.",
     lastErrorMessage: "",
   });
 }
@@ -1657,6 +1809,7 @@ function setConnectionState(nextState) {
   };
   saveAppState();
   renderConnectionState();
+  renderDirectSheetsState();
 }
 
 function getSyncStatusLabel() {
@@ -1673,7 +1826,7 @@ function getSyncStatusLabel() {
 
 function canAutoSyncToSheets() {
   return Boolean(
-    connectionState.appsScriptUrl
+    ((isDirectSheetsConfigured() && hasSheetsScopeInMemory()) || connectionState.appsScriptUrl)
       && syncState.lastKnownSheetVersion
       && syncState.status !== syncStatuses.conflict,
   );
@@ -1718,6 +1871,7 @@ function handleSuccessfulWrite(responseBody, successMessage) {
   };
   saveAppState();
   renderConnectionState();
+  renderDirectSheetsState();
   refreshRawCardData(successMessage);
   renderApp(selectedCardIndex);
 }
@@ -1749,6 +1903,7 @@ function handleFailedWrite(message, responseBody) {
   };
   saveAppState();
   renderConnectionState();
+  renderDirectSheetsState();
 }
 
 async function postCompletedActionToSheets(action, payload, successMessage, options = {}) {
@@ -1758,6 +1913,32 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
     successMessage,
     description: action === "batchUpdate" ? "local card updates" : "card update",
   });
+
+  if (isDirectSheetsConfigured()) {
+    if (!syncState.lastKnownSheetVersion || syncState.status === syncStatuses.conflict || !hasSheetsScopeInMemory()) {
+      setSyncState({
+        status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message: options.noAutoSyncMessage || "Saved locally. Reconnect Google and load or initialize the direct Sheet before syncing.",
+        lastErrorMessage: options.noAutoSyncMessage || "Saved locally, but direct Sheets sync is not ready.",
+        pendingOperation,
+      });
+      setDirectSheetsState({
+        status: syncState.status === syncStatuses.conflict ? directSheetsStatuses.conflict : directSheetsStatuses.error,
+        pendingUnsynced: true,
+        message: options.noAutoSyncMessage || "Saved locally. Direct Google Sheets sync needs authorization and a safe Sheet version.",
+        lastErrorMessage: options.noAutoSyncMessage || "Direct Sheets sync is not ready.",
+      });
+      return;
+    }
+
+    await syncCardsToDirectSheets({
+      pendingOperation,
+      successMessage,
+      startMessage: options.startMessage || "Syncing completed action directly to Google Sheets...",
+    });
+    return;
+  }
 
   if (!canAutoSyncToSheets()) {
     setSyncState({
@@ -1821,8 +2002,15 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
 }
 
 function getRecoveryUnavailableMessage() {
+  if (isDirectSheetsConfigured()) {
+    if (!hasSheetsScopeInMemory()) {
+      return "Reconnect Google with Sheets permission before using direct Sheets recovery actions.";
+    }
+    return "";
+  }
+
   if (!connectionState.appsScriptUrl || !parseAppsScriptUrl(connectionState.appsScriptUrl)) {
-    return "Save a valid Apps Script URL before using Sheets recovery actions.";
+    return "Save a direct Google Sheet or a valid Apps Script URL before using Sheets recovery actions.";
   }
 
   return "";
@@ -2000,9 +2188,568 @@ function validateLoadCardsEnvelope(responseBody) {
   return { cards: normalizedCards, sheetVersion };
 }
 
+
+function parseSpreadsheetId(value) {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) {
+    return "";
+  }
+
+  const urlMatch = rawValue.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (urlMatch) {
+    return urlMatch[1];
+  }
+
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  return "";
+}
+
+function getDirectSheetInputValue() {
+  return String(directSheetInput?.value || "").trim();
+}
+
+function saveDirectSheetFromInput() {
+  const inputValue = getDirectSheetInputValue();
+  const spreadsheetId = parseSpreadsheetId(inputValue);
+
+  if (!inputValue) {
+    setDirectSheetsState(cloneStateValue(defaultDirectSheetsState));
+    return;
+  }
+
+  if (!spreadsheetId) {
+    setDirectSheetsState({
+      spreadsheetUrl: inputValue,
+      spreadsheetId: "",
+      status: directSheetsStatuses.error,
+      cardsSheetInitialized: "unknown",
+      message: "Enter a valid Google Sheet URL or spreadsheet ID.",
+      lastErrorMessage: "Invalid Sheet URL or ID.",
+    });
+    return;
+  }
+
+  const changed = spreadsheetId !== directSheetsState.spreadsheetId;
+  if (changed) {
+    syncState = cloneStateValue(defaultSyncState);
+  }
+
+  setDirectSheetsState({
+    spreadsheetId,
+    spreadsheetUrl: inputValue,
+    spreadsheetName: changed ? "" : directSheetsState.spreadsheetName,
+    status: directSheetsStatuses.ready,
+    cardsSheetInitialized: changed ? "unknown" : directSheetsState.cardsSheetInitialized,
+    remoteSheetVersion: changed ? "" : directSheetsState.remoteSheetVersion,
+    lastSuccessfulSyncAt: changed ? "" : directSheetsState.lastSuccessfulSyncAt,
+    pendingUnsynced: false,
+    message: "Direct Sheet saved locally. Connect Google, then initialize or load the Sheet.",
+    lastErrorMessage: "",
+  });
+}
+
+function makeDirectSheetsError(message, status = "") {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function getDirectSheetsFriendlyHttpError(status, bodyText = "") {
+  if (status === 401) {
+    return "Google authorization expired or was rejected. Reconnect Google, then try again.";
+  }
+  if (status === 403) {
+    return "Google Sheets access was denied. Confirm the account has access, the Sheets API is enabled, and reconnect Google with Sheets permission.";
+  }
+  if (status === 404) {
+    return "Google could not find this spreadsheet. Check the Sheet ID/URL and account permissions.";
+  }
+  if (status === 429) {
+    return "Google Sheets is rate limiting requests. Wait a moment, then retry sync.";
+  }
+  if (status >= 500) {
+    return "Google Sheets is temporarily unavailable. Local data remains saved; try again later.";
+  }
+  return bodyText ? `Google Sheets API request failed (${status}): ${bodyText.slice(0, 180)}` : `Google Sheets API request failed (${status}).`;
+}
+
+async function getGoogleAccessTokenForSheets() {
+  if (!isGoogleOAuthConfigured()) {
+    throw makeDirectSheetsError("Paste and save a Google OAuth Client ID before using direct Google Sheets sync.");
+  }
+
+  if (navigator.onLine === false) {
+    throw makeDirectSheetsError("Direct Google Sheets sync is unavailable while offline. Local data remains saved in this browser.");
+  }
+
+  if (!hasGoogleIdentityScript()) {
+    throw makeDirectSheetsError("Google Identity Services did not load. Check your network or content blocker, then reconnect Google.");
+  }
+
+  if (!googleAccessToken || googleOAuthState.status !== googleOAuthStatuses.connected) {
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.needsReconnect,
+      message: "Reconnect Google with Sheets permission before using direct sync.",
+      lastErrorMessage: "Missing in-memory Sheets access token.",
+    });
+    throw makeDirectSheetsError("Reconnect Google with Sheets permission before using direct sync.");
+  }
+
+  return googleAccessToken;
+}
+
+async function sheetsFetch(path, options = {}) {
+  const accessToken = await getGoogleAccessTokenForSheets();
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${path}`, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    throw makeDirectSheetsError(getDirectSheetsFriendlyHttpError(response.status, bodyText), response.status);
+  }
+
+  if (response.status === 204) {
+    return {};
+  }
+
+  return response.json();
+}
+
+function encodeSheetRange(range) {
+  return encodeURIComponent(range).replace(/%21/g, "!");
+}
+
+async function getDirectSpreadsheetMetadata() {
+  if (!directSheetsState.spreadsheetId) {
+    throw makeDirectSheetsError("Save a Google Sheet URL or ID before using direct sync.");
+  }
+
+  return sheetsFetch(`${directSheetsState.spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title,hidden)`);
+}
+
+function getSheetProperties(metadata, title) {
+  return metadata?.sheets?.find((sheet) => sheet?.properties?.title === title)?.properties || null;
+}
+
+async function readSheetValues(spreadsheetId, range) {
+  const encodedRange = encodeSheetRange(range);
+  const body = await sheetsFetch(`${spreadsheetId}/values/${encodedRange}?majorDimension=ROWS`);
+  return Array.isArray(body.values) ? body.values : [];
+}
+
+async function writeSheetValues(spreadsheetId, range, values) {
+  const encodedRange = encodeSheetRange(range);
+  return sheetsFetch(`${spreadsheetId}/values/${encodedRange}?valueInputOption=RAW`, {
+    method: "PUT",
+    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
+  });
+}
+
+async function clearSheetValues(spreadsheetId, range) {
+  const encodedRange = encodeSheetRange(range);
+  return sheetsFetch(`${spreadsheetId}/values/${encodedRange}:clear`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+function areHeadersValid(row) {
+  return csvHeaders.every((header, index) => String(row?.[index] || "").trim() === header);
+}
+
+async function ensureCardsSheet() {
+  const spreadsheetId = directSheetsState.spreadsheetId;
+  const metadata = await getDirectSpreadsheetMetadata();
+  const requests = [];
+  let cardsProperties = getSheetProperties(metadata, directSheetsCardsTab);
+  let metaProperties = getSheetProperties(metadata, directSheetsMetaTab);
+
+  if (!cardsProperties) {
+    requests.push({ addSheet: { properties: { title: directSheetsCardsTab } } });
+  }
+  if (!metaProperties) {
+    requests.push({ addSheet: { properties: { title: directSheetsMetaTab, hidden: true } } });
+  } else if (!metaProperties.hidden) {
+    requests.push({ updateSheetProperties: { properties: { sheetId: metaProperties.sheetId, hidden: true }, fields: "hidden" } });
+  }
+
+  if (requests.length) {
+    await sheetsFetch(`${spreadsheetId}:batchUpdate`, {
+      method: "POST",
+      body: JSON.stringify({ requests }),
+    });
+    const updatedMetadata = await getDirectSpreadsheetMetadata();
+    cardsProperties = getSheetProperties(updatedMetadata, directSheetsCardsTab);
+    metaProperties = getSheetProperties(updatedMetadata, directSheetsMetaTab);
+  }
+
+  const headerRows = await readSheetValues(spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
+  if (!headerRows.length || headerRows[0].every((cell) => !String(cell || "").trim())) {
+    await writeSheetValues(spreadsheetId, `${directSheetsCardsTab}!A1:J1`, [csvHeaders]);
+  } else if (!areHeadersValid(headerRows[0])) {
+    throw makeDirectSheetsError("The Cards tab headers do not match the approved Walmart-GC schema. No data was changed.");
+  }
+
+  const metaHeaderRows = await readSheetValues(spreadsheetId, `${directSheetsMetaTab}!A1:B1`);
+  if (!metaHeaderRows.length || metaHeaderRows[0][0] !== "key" || metaHeaderRows[0][1] !== "value") {
+    await writeSheetValues(spreadsheetId, `${directSheetsMetaTab}!A1:B1`, [["key", "value"]]);
+  }
+
+  return {
+    spreadsheetName: String(metadata?.properties?.title || ""),
+    cardsSheetId: cardsProperties?.sheetId,
+    metaSheetId: metaProperties?.sheetId,
+  };
+}
+
+async function readSheetMeta() {
+  const values = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsMetaTab}!A:B`);
+  const meta = {};
+  values.slice(1).forEach((row) => {
+    const key = String(row?.[0] || "").trim();
+    if (key) {
+      meta[key] = String(row?.[1] || "");
+    }
+  });
+  return meta;
+}
+
+async function writeSheetMeta(nextMeta = {}) {
+  const mergedMeta = {
+    schemaVersion: directSheetsSchemaVersion,
+    sheetVersion: nextMeta.sheetVersion || generateRequestId(),
+    lastUpdated: new Date().toISOString(),
+    appName: directSheetsAppName,
+  };
+  const rows = [["key", "value"], ...Object.entries(mergedMeta)];
+  await clearSheetValues(directSheetsState.spreadsheetId, `${directSheetsMetaTab}!A:B`);
+  await writeSheetValues(directSheetsState.spreadsheetId, `${directSheetsMetaTab}!A1:B${rows.length}`, rows);
+  return mergedMeta;
+}
+
+function cardsToSheetRows(cards) {
+  return [csvHeaders, ...cards.map((card) => csvHeaders.map((header) => {
+    if (header === "used") {
+      return card.used ? "TRUE" : "FALSE";
+    }
+    return card[header] ?? "";
+  }))];
+}
+
+function cardsFromSheetRows(rows) {
+  const cards = [];
+  const seenCardNumbers = new Set();
+  rows.forEach((row, index) => {
+    const hasAnyValue = row.some((cell) => String(cell || "").trim());
+    if (!hasAnyValue) {
+      return;
+    }
+
+    const rawCard = {};
+    csvHeaders.forEach((header, headerIndex) => {
+      rawCard[header] = row[headerIndex] ?? "";
+    });
+    const normalizedCard = normalizeStoredCard(rawCard);
+    if (!normalizedCard) {
+      throw makeDirectSheetsError(`Cards row ${index + 2} contains malformed card data. Local data was not changed.`);
+    }
+    if (seenCardNumbers.has(normalizedCard.cardNumber)) {
+      throw makeDirectSheetsError(`Cards row ${index + 2} duplicates cardNumber ${normalizedCard.cardNumber}. Local data was not changed.`);
+    }
+    seenCardNumbers.add(normalizedCard.cardNumber);
+    cards.push(normalizedCard);
+  });
+  return cards;
+}
+
+async function initializeDirectSheetStructure() {
+  saveDirectSheetFromInput();
+  if (!directSheetsState.spreadsheetId) {
+    return;
+  }
+
+  setDirectSheetsState({
+    status: directSheetsStatuses.checking,
+    message: "Initializing direct Google Sheet structure...",
+    lastErrorMessage: "",
+  });
+
+  try {
+    const structure = await ensureCardsSheet();
+    let meta = await readSheetMeta();
+    if (!meta.sheetVersion) {
+      meta = await writeSheetMeta({ sheetVersion: generateRequestId() });
+    }
+    const existingRows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
+    const hasExistingCardRows = existingRows.some((row) => row.some((cell) => String(cell || "").trim()));
+
+    syncState = {
+      ...syncState,
+      status: hasExistingCardRows ? syncStatuses.unsynced : syncStatuses.connected,
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      lastKnownSheetVersion: hasExistingCardRows ? "" : meta.sheetVersion,
+      message: hasExistingCardRows
+        ? "Direct Sheet initialized. Load from Google Sheets before syncing so existing Sheet rows are not overwritten."
+        : "Blank Direct Sheet initialized. Completed local actions can now sync directly.",
+      lastErrorMessage: "",
+      pendingOperation: null,
+    };
+    setDirectSheetsState({
+      spreadsheetName: structure.spreadsheetName,
+      status: directSheetsStatuses.ready,
+      cardsSheetInitialized: "yes",
+      remoteSheetVersion: meta.sheetVersion,
+      pendingUnsynced: hasExistingCardRows,
+      message: hasExistingCardRows
+        ? "Direct Sheet structure is ready and existing card rows were detected. Load from Google Sheets before syncing."
+        : "Direct Sheet initialized with Cards headers and metadata.",
+      lastErrorMessage: "",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Direct Sheet initialization failed.";
+    setDirectSheetsState({
+      status: directSheetsStatuses.error,
+      cardsSheetInitialized: "unknown",
+      message,
+      lastErrorMessage: message,
+    });
+    setSyncState({ status: syncStatuses.unsynced, lastErrorMessage: message });
+  }
+}
+
+async function loadCardsFromDirectSheets() {
+  saveDirectSheetFromInput();
+  if (!directSheetsState.spreadsheetId) {
+    return;
+  }
+
+  setDirectSheetsState({
+    status: directSheetsStatuses.checking,
+    message: "Loading cards directly from Google Sheets...",
+    lastErrorMessage: "",
+  });
+  setSyncState({
+    lastSyncAttemptTimestamp: new Date().toISOString(),
+    message: "Loading cards directly from Google Sheets...",
+  });
+
+  try {
+    const structure = await ensureCardsSheet();
+    let meta = await readSheetMeta();
+    if (!meta.sheetVersion) {
+      meta = await writeSheetMeta({ sheetVersion: generateRequestId() });
+    }
+    const headerRows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
+    if (!areHeadersValid(headerRows[0])) {
+      throw makeDirectSheetsError("The Cards tab headers do not match the approved schema. Local data was not changed.");
+    }
+
+    const rows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
+    const loadedCards = cardsFromSheetRows(rows);
+    sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedCards);
+    selectedCardIndex = loadedCards.length > 0 ? 0 : -1;
+    detailNumberRevealed = false;
+    syncState = {
+      ...syncState,
+      status: syncStatuses.connected,
+      lastSyncTimestamp: new Date().toISOString(),
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      lastKnownSheetVersion: meta.sheetVersion,
+      message: "Loaded from direct Google Sheets. Completed actions will now sync directly.",
+      lastErrorMessage: "",
+      pendingOperation: null,
+    };
+    setDirectSheetsState({
+      spreadsheetName: structure.spreadsheetName,
+      status: directSheetsStatuses.ready,
+      cardsSheetInitialized: "yes",
+      remoteSheetVersion: meta.sheetVersion,
+      lastSuccessfulSyncAt: new Date().toISOString(),
+      pendingUnsynced: false,
+      message: `Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from direct Google Sheets.`,
+      lastErrorMessage: "",
+    });
+    saveAppState();
+    refreshRawCardData(`Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from direct Google Sheets into this session.`);
+    renderApp(selectedCardIndex);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Direct Google Sheets load failed.";
+    setDirectSheetsState({
+      status: directSheetsStatuses.error,
+      message,
+      lastErrorMessage: message,
+    });
+    setSyncState({ status: syncStatuses.unsynced, lastErrorMessage: message });
+  }
+}
+
+async function detectDirectSheetsConflict(remoteVersion) {
+  const localVersion = String(syncState.lastKnownSheetVersion || "").trim();
+  if (!localVersion) {
+    return false;
+  }
+  return !remoteVersion || remoteVersion !== localVersion;
+}
+
+async function syncCardsToDirectSheets(options = {}) {
+  if (!isDirectSheetsConfigured()) {
+    throw makeDirectSheetsError("Save a direct Google Sheet before syncing.");
+  }
+
+  setDirectSheetsState({
+    status: directSheetsStatuses.syncing,
+    pendingUnsynced: true,
+    message: options.startMessage || "Syncing current local cards directly to Google Sheets...",
+    lastErrorMessage: "",
+  });
+  setSyncState({
+    lastSyncAttemptTimestamp: new Date().toISOString(),
+    message: options.startMessage || "Syncing current local cards directly to Google Sheets...",
+    pendingOperation: options.pendingOperation || {
+      action: "batchUpdate",
+      payload: { cards: cloneStateValue(sampleGiftCards) },
+      successMessage: options.successMessage || "Sync succeeded.",
+      description: "current local cards",
+    },
+  });
+
+  try {
+    const structure = await ensureCardsSheet();
+    const remoteMeta = await readSheetMeta();
+    const remoteVersion = String(remoteMeta.sheetVersion || "").trim();
+    if (!options.force && await detectDirectSheetsConflict(remoteVersion)) {
+      const message = "Conflict detected: the Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
+      setDirectSheetsState({
+        spreadsheetName: structure.spreadsheetName,
+        status: directSheetsStatuses.conflict,
+        cardsSheetInitialized: "yes",
+        remoteSheetVersion: remoteVersion,
+        pendingUnsynced: true,
+        message,
+        lastErrorMessage: message,
+      });
+      setSyncState({
+        status: syncStatuses.conflict,
+        message,
+        lastErrorMessage: message,
+      });
+      return false;
+    }
+
+    const rows = cardsToSheetRows(sampleGiftCards);
+    await clearSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A:J`);
+    await writeSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A1:J${rows.length}`, rows);
+    const nextMeta = await writeSheetMeta({ sheetVersion: generateRequestId() });
+    const now = new Date().toISOString();
+    syncState = {
+      ...syncState,
+      status: syncStatuses.connected,
+      lastSyncTimestamp: now,
+      lastSyncAttemptTimestamp: now,
+      lastKnownSheetVersion: nextMeta.sheetVersion,
+      message: options.successMessage || "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+      lastErrorMessage: "",
+      pendingOperation: null,
+    };
+    setDirectSheetsState({
+      spreadsheetName: structure.spreadsheetName,
+      status: directSheetsStatuses.ready,
+      cardsSheetInitialized: "yes",
+      remoteSheetVersion: nextMeta.sheetVersion,
+      lastSuccessfulSyncAt: now,
+      pendingUnsynced: false,
+      message: options.successMessage || `Synced ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"} directly to Google Sheets.`,
+      lastErrorMessage: "",
+    });
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Direct Google Sheets sync failed.";
+    setDirectSheetsState({
+      status: directSheetsStatuses.error,
+      pendingUnsynced: true,
+      message,
+      lastErrorMessage: message,
+    });
+    setSyncState({
+      status: syncStatuses.unsynced,
+      message: "Saved locally, but direct Google Sheets sync failed. Local data remains in this browser.",
+      lastErrorMessage: message,
+    });
+    return false;
+  }
+}
+
+async function useCurrentSessionToOverwriteDirectSheets() {
+  const backupRecommended = window.confirm(
+    "Use Current Session will replace every card row in the configured Google Sheet with this browser session. Download a CSV backup before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+  );
+  if (!backupRecommended) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Final confirmation: overwrite the configured Google Sheet with the current local session now? Walmart-GC will not automatically merge Sheet changes.",
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  await syncCardsToDirectSheets({
+    force: true,
+    successMessage: `Overwrote direct Google Sheet with ${sampleGiftCards.length} current-session card${sampleGiftCards.length === 1 ? "" : "s"}.`,
+    startMessage: "Overwriting direct Google Sheet with the current session...",
+  });
+}
+
 async function retrySyncCurrentSession() {
   const batchUpdateUrl = buildBatchUpdateUrl(connectionState.appsScriptUrl);
   const pendingOperation = normalizePendingSyncOperation(syncState.pendingOperation);
+
+  if (isDirectSheetsConfigured()) {
+    if (syncState.status === syncStatuses.conflict) {
+      setSyncState({
+        status: syncStatuses.conflict,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message: "Conflict detected. Load the remote Sheet or explicitly overwrite it with this session.",
+        lastErrorMessage: "Conflict detected. Retry Sync will not overwrite Sheet changes automatically.",
+      });
+      return;
+    }
+
+    if (!syncState.lastKnownSheetVersion) {
+      const message = "Load or initialize the direct Google Sheet before syncing so Walmart-GC can verify the current Sheet version.";
+      setSyncState({
+        status: syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message,
+        lastErrorMessage: message,
+      });
+      setDirectSheetsState({ status: directSheetsStatuses.error, pendingUnsynced: true, message, lastErrorMessage: message });
+      return;
+    }
+
+    await syncCardsToDirectSheets({
+      pendingOperation: pendingOperation || {
+        action: "batchUpdate",
+        payload: { cards: cloneStateValue(sampleGiftCards) },
+        successMessage: "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+        description: "current local cards",
+      },
+      successMessage: pendingOperation?.successMessage || "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+      startMessage: `Retrying direct Google Sheets sync${pendingOperation?.description ? ` for ${pendingOperation.description}` : ""}...`,
+    });
+    return;
+  }
 
   if (syncState.status === syncStatuses.conflict) {
     setSyncState({
@@ -2154,12 +2901,20 @@ async function handleSyncRecoveryAction(action) {
   }
 
   if (action === "refresh-from-sheets") {
-    await loadCardsFromSheets();
+    if (isDirectSheetsConfigured()) {
+      await loadCardsFromDirectSheets();
+    } else {
+      await loadCardsFromSheets();
+    }
     return;
   }
 
   if (action === "use-current-session") {
-    await useCurrentSessionToOverwriteSheets();
+    if (isDirectSheetsConfigured()) {
+      await useCurrentSessionToOverwriteDirectSheets();
+    } else {
+      await useCurrentSessionToOverwriteSheets();
+    }
   }
 }
 
@@ -2939,6 +3694,10 @@ exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
 saveConnectionButton.addEventListener("click", saveConnectionFromInput);
 testConnectionButton.addEventListener("click", testConnection);
 loadSheetsButton.addEventListener("click", loadCardsFromSheets);
+saveDirectSheetButton.addEventListener("click", saveDirectSheetFromInput);
+initializeDirectSheetButton.addEventListener("click", initializeDirectSheetStructure);
+loadDirectSheetButton.addEventListener("click", loadCardsFromDirectSheets);
+syncDirectSheetButton.addEventListener("click", retrySyncCurrentSession);
 saveGoogleOAuthClientButton.addEventListener("click", saveGoogleOAuthClientFromInput);
 connectGoogleButton.addEventListener("click", connectGoogleAccount);
 disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
@@ -3011,6 +3770,7 @@ sortCardsSelect.value = sortMode;
 setRawDataLocked(true);
 renderConnectionState();
 renderGoogleOAuthState();
+renderDirectSheetsState();
 if (window.walmartGcGoogleIdentityLoaded || hasGoogleIdentityScript()) {
   handleGoogleIdentityLoaded();
 } else if (window.walmartGcGoogleIdentityLoadFailed) {
