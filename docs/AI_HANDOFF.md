@@ -142,6 +142,10 @@ Includes:
 
 Live MVP validation found that CSV import plus **Update Data** could update local browser state without giving **Retry Sync** enough information to write the accepted import to Sheets. The frontend now treats an accepted import as a completed local action with a pending `batchUpdate` operation until Apps Script confirms the write. Retry Sync must always show visible feedback: retrying, success, failure, missing Sheet version, no pending operation, or conflict. Imported local cards remain available in the browser and through CSV export/backup if sync fails.
 
+### Phase 8C Apps Script Write CORS Fix
+
+Browser-based Apps Script writes intentionally use a CORS-safelisted simple POST transport: `Content-Type: text/plain;charset=utf-8` with the existing JSON request envelope in the body. This preserves `updateCard`, `batchUpdate`, and `replaceAll` endpoint contracts while avoiding the `application/json` preflight path that can be blocked before Apps Script receives the request. Apps Script continues to parse `e.postData.contents` as JSON. If a write cannot reach Apps Script, the UI must not claim the Sheet was updated; local browser data remains preserved and Retry Sync or explicit recovery should be used.
+
 ## Sync Provider Direction
 
 Google Apps Script is the approved MVP sync provider. Future versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is a post-MVP enhancement. OAuth work is not part of Phase 8, no OAuth setup or implementation tasks should be added for Phase 8, and contributors should not redesign the MVP around OAuth.

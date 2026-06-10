@@ -338,6 +338,7 @@ The current Data panel exposes CSV/raw data tools. If the deployed UI being test
 - [ ] Accept or apply the import with **Update Data**.
 - [ ] Confirm the local Card List reflects the accepted import.
 - [ ] Confirm the Data panel reports that imported data is syncing, synced, unsynced, or blocked by a missing Sheet version; Retry Sync must not be silent.
+- [ ] In browser developer tools, confirm accepted import writes do not fail due to a CORS preflight error.
 - [ ] Open the Google Sheet and confirm expected rows exist after a successful sync.
 - [ ] Repeat with a rejected or cancelled import path if the UI supports cancellation.
 - [ ] Try an intentional duplicate card number only in a disposable test Sheet/session.
@@ -345,6 +346,7 @@ The current Data panel exposes CSV/raw data tools. If the deployed UI being test
 ### Expected Result
 
 - [ ] Accepted import syncs after completion when the app is connected with a known Sheet version.
+- [ ] Accepted import uses the approved `batchUpdate` write path without changing endpoint names or schema.
 - [ ] If import sync fails, imported local cards remain in the browser session and CSV export/backup remains available.
 - [ ] Rejected or cancelled import does not sync.
 - [ ] Duplicate handling matches implementation behavior and does not silently corrupt data.
@@ -414,7 +416,8 @@ Verifies failed sync preserves local data and can recover when service availabil
 - [ ] Local change is preserved in the browser session.
 - [ ] App shows Unsynced or a relevant error state with visible Retry Sync feedback.
 - [ ] Data panel shows a useful Last error and a recent Last sync attempt.
-- [ ] Error copy does not imply the data was lost.
+- [ ] Error copy does not imply the data was lost or confirmed in Sheets.
+- [ ] Network/CORS-style failures clearly say the write was not confirmed and local browser data remains preserved.
 - [ ] Retry can recover when the service is available and no conflict exists.
 
 ```text
@@ -477,6 +480,7 @@ Verifies each recovery path that exists in the UI.
 - [ ] CSV backup can be produced before risky recovery.
 - [ ] Refresh-from-Sheets replaces the local session with Sheet data only after user action.
 - [ ] Use-current-session overwrite replaces Sheet card rows only after explicit confirmation.
+- [ ] `replaceAll` write attempts do not fail due to a CORS preflight error in browser developer tools.
 - [ ] App returns to Connected/Synced or the expected state after successful recovery.
 
 ```text
