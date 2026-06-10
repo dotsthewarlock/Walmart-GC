@@ -55,10 +55,10 @@ Delivered areas include:
 
 ## Current Implementation Phase
 
-### Phase 8 – MVP Hardening & Deployment
-Current. Phase 8 is focused on hardening, deployment, documentation, verification, troubleshooting, diagnostics, and setup guidance. It is not a feature-expansion or architecture phase.
+### Final Phase 8 Cleanup – Stable MVP Baseline
+Current. Phase 8 validation has confirmed the approved Google Sheet ↔ Google Apps Script ↔ Walmart-GC MVP architecture is complete and functional. Current activity is final Phase 8 UI/UX cleanup and documentation cleanup before any Phase 9 work begins.
 
-The MVP architecture is complete. Architecture redesigns should not be proposed unless a concrete MVP blocker exists. Minor implementation decisions should be resolved by applying `docs/PHASE_6_SCHEMA_API_DECISIONS.md`, `AGENTS.md`, and this roadmap.
+Do not declare Phase 9 started. Phase 8 remains focused on hardening, deployment, documentation, verification, troubleshooting, diagnostics, setup guidance, and final UI/UX cleanup. It is not a feature-expansion or architecture phase. Architecture redesigns should not be proposed unless a concrete MVP blocker exists. Minor implementation decisions should be resolved by applying `docs/PHASE_6_SCHEMA_API_DECISIONS.md`, `AGENTS.md`, and this roadmap.
 
 Phase 8 should proceed through three execution tracks:
 
@@ -93,14 +93,37 @@ Includes:
 
 Phase 8 PRs should be coherent rather than microscopic. Complete related documentation together, avoid repeated PRs against the same documentation files, and keep each PR logically complete while remaining reviewable.
 
+## Validated MVP Notes
+
+- Apps Script can initialize a blank Google Sheet by creating the `Cards` tab, approved headers, and hidden `_META` metadata sheet.
+- Browser writes to Apps Script should continue using the CORS-safelisted simple POST transport. Do not switch write transport back to `Content-Type: application/json` if that triggers browser preflight failures before Apps Script receives the request.
+- Accepted CSV import is treated as a completed local action with a pending `batchUpdate` operation until Apps Script confirms the write. Retry Sync must keep that accepted import writeable to Sheets and show clear feedback for retrying, success, failure, missing Sheet version, no pending operation, or conflict.
+
+## Final Phase 8 Data Panel Cleanup Priorities
+
+- Align diagnostics in a two-column/table-like label/value layout so mobile and desktop users can scan connection state quickly.
+- Group Google Sheets controls together, including connection, health, refresh, Retry Sync, and open Sheet actions.
+- Remove the obsolete or non-functional Upload Sheets button if it remains unused.
+- Keep CSV backup/recovery controls separate from Google Sheets sync controls so backup/import actions are not confused with live Sheets synchronization.
+
+## Debug File Version Protocol
+
+`index.html`, `app.js`, and `styles.css` each have independent manual debug versions. Increment only the changed core files in a PR, and leave unchanged core-file versions unchanged. Codex final summaries for changes touching any core file must end with a `LIVE VERSION CHECK` block listing HTML, JS, and CSS values.
+
 ## MVP Sharing and Access Position
 
 Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions. Google Sheets controls sharing and access, and shared Sheets are allowed when users have the necessary Google access.
 
 The MVP is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. The approved sync and conflict-handling mechanisms remain the project solution when Sheet data changes independently.
 
-## Post-MVP Direction
+## Post-MVP / Phase 9 Direction
 
-Post-MVP enhancements should be considered only after MVP hardening is complete.
+Post-MVP enhancements should be considered only after MVP hardening is complete. Phase 9 has not started.
 
-Google Apps Script remains the approved MVP sync provider. Future versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is a post-MVP enhancement. OAuth work is not part of Phase 8, and contributors should not redesign the MVP around OAuth.
+The likely Phase 9 preparation path is:
+
+1. Tag the stable MVP, likely as `mvp-apps-script-final`.
+2. Preserve `main` as the known-good Apps Script MVP.
+3. Create a dedicated `phase-9-oauth` branch for future OAuth work.
+
+Google Apps Script remains the approved MVP sync provider. Future Phase 9 OAuth work should move 100% to direct Google OAuth + Google Sheets API access. Apps Script does not require long-term support after the MVP baseline is preserved. No migration guarantee is required for future OAuth work; CSV export/import is an acceptable fallback path.

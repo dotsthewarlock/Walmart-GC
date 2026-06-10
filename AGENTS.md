@@ -127,9 +127,9 @@ docs/PHASE_6_SCHEMA_API_DECISIONS.md
 
 Do not redesign approved decisions without discussion.
 
-MVP architecture is complete. Phase 8 is a hardening, documentation, deployment, verification, and diagnostics phase; it is not an architecture phase. Do not propose architecture redesigns during Phase 8 unless a concrete MVP blocker exists. Resolve minor implementation questions by applying the approved Phase 6 decisions and current repository documentation.
+MVP architecture is complete and functional. Current activity is final Phase 8 UI/UX cleanup and documentation cleanup for a stable MVP baseline; Phase 8 remains a hardening, documentation, deployment, verification, diagnostics, and setup-guidance phase, not an architecture phase. Do not propose architecture redesigns during Phase 8 unless a concrete MVP blocker exists. Resolve minor implementation questions by applying the approved Phase 6 decisions and current repository documentation.
 
-Google Apps Script is the approved MVP sync provider. Future post-MVP versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is not part of Phase 8 and contributors must not redesign the MVP around OAuth.
+Google Apps Script is the approved MVP sync provider. Future post-MVP versions may evaluate direct Google OAuth + Google Sheets API access, but OAuth is not part of Phase 8 and contributors must not redesign the MVP around OAuth. Apps Script is the stable MVP provider; future OAuth work should be treated as a separate post-MVP branch with no requirement to preserve Apps Script as a long-term provider.
 
 Changes affecting:
 
@@ -406,6 +406,13 @@ Current UI architecture:
 
 Data Panel is the sync/setup control center.
 
+Final Phase 8 Data Panel cleanup priorities:
+
+* Align diagnostics into a two-column/table-like label/value layout.
+* Group Google Sheets connection, health, refresh, and retry controls together.
+* Remove the obsolete/non-functional Upload Sheets button if it remains unused.
+* Keep CSV backup/recovery controls separate from Google Sheets sync controls.
+
 Approved architecture, schema, sync behavior, and connection model are documented in:
 
 ```text
@@ -456,10 +463,17 @@ Completed:
 
 Current:
 
-* Phase 8 – MVP hardening and deployment documentation
+* Final Phase 8 cleanup – UI/UX cleanup and documentation cleanup for a stable MVP baseline. Phase 9 has not started.
   * Phase 8A – Documentation & Onboarding
   * Phase 8B – Verification & Testing
   * Phase 8C – Hardening & Diagnostics
+
+Future only, not current work:
+
+* Phase 9 may begin after the stable MVP is tagged, likely as `mvp-apps-script-final`.
+* Future Phase 9 work should use a dedicated `phase-9-oauth` branch and preserve `main` as the known-good Apps Script MVP.
+* Future OAuth direction is 100% direct Google OAuth + Google Sheets API, with no Apps Script long-term support requirement.
+* No migration guarantee is required for post-MVP OAuth work; CSV export/import is an acceptable fallback path.
 
 Upcoming:
 

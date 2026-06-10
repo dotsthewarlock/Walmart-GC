@@ -1,6 +1,6 @@
 # Phase 6 – Schema & API Decisions
 
-Status: Phase 6 approved MVP architecture consolidated. Phase 7 implemented sync against this baseline.
+Status: Phase 6 approved MVP architecture consolidated. Phase 7 implemented sync against this baseline, and Phase 8 validation has confirmed the MVP architecture is complete and functional.
 
 This document records approved Phase 6 decisions that remain the MVP architecture baseline.
 
@@ -32,7 +32,7 @@ Do not implement in Phase 6:
 
 Phase 7 implementation followed this document. Exact implementation details that remain deferred are listed in the Open / Deferred section.
 
-The MVP architecture is complete. Phase 8 is focused on documentation, deployment, setup guidance, testing, troubleshooting, diagnostics, and hardening; it is not an architecture phase. Do not reinterpret deferred post-MVP possibilities as Phase 8 implementation work.
+The MVP architecture is complete and functional. Current activity is final Phase 8 UI/UX cleanup and documentation cleanup for a stable MVP baseline. Phase 8 is focused on documentation, deployment, setup guidance, testing, troubleshooting, diagnostics, hardening, and final UI/UX cleanup; it is not an architecture phase. Do not reinterpret deferred post-MVP possibilities as Phase 8 implementation work, and do not declare Phase 9 started.
 
 Current application architecture remains:
 
@@ -84,7 +84,7 @@ Sheet discovery/setup behavior when connecting:
 2. If `Cards` does not exist, search visible sheets for the approved schema.
 3. If exactly one schema-matching sheet exists, rename it to `Cards` and continue.
 4. If multiple matching sheets exist, do not rename; return a setup conflict requiring user choice or manual fix.
-5. If no matching sheet exists and the workbook is blank, create or rename a sheet to `Cards`, generate schema headers, create/hide `_META`, and return success with zero cards.
+5. If no matching sheet exists and the workbook is blank, create or rename a sheet to `Cards`, generate the approved schema headers, create/hide `_META`, and return success with zero cards. This blank-Sheet initialization is an approved Apps Script structural setup path.
 6. If no matching sheet exists and the workbook is not blank, do not overwrite user data; return setup guidance.
 
 ### 3. API Endpoint Strategy
@@ -123,6 +123,8 @@ Deferred endpoints/features:
 ### 4. API Request / Response Envelope
 
 Use a consistent API envelope.
+
+Browser write transport note: Apps Script write requests may send the JSON envelope as a CORS-safelisted simple POST body, using `Content-Type: text/plain;charset=utf-8`, so browser writes can reach Apps Script without an `application/json` preflight. Apps Script should parse `e.postData.contents` as JSON. Do not switch write transport back to `Content-Type: application/json` if that triggers preflight failures before Apps Script receives the request.
 
 POST request envelope:
 
@@ -210,6 +212,7 @@ Recovery actions include:
 - retry
 - retry Sheets version check
 - refresh from Sheets
+- write accepted CSV imports and other pending bulk operations through `batchUpdate` during Retry Sync
 - download session CSV backup
 - use current session to overwrite Sheets
 - dismiss alert
@@ -246,6 +249,13 @@ When connected, Data panel should show:
 - download CSV template
 - refresh from Sheets
 - download session CSV
+
+Final Phase 8 Data Panel cleanup priorities:
+
+- align diagnostics in a two-column/table-like label/value layout
+- group Google Sheets connection, health, refresh, Retry Sync, and open Sheet controls together
+- remove the obsolete/non-functional Upload Sheets button if it remains unused
+- keep CSV backup/recovery controls separate from Google Sheets sync controls
 
 ### 8. Sheet Validation & Auto-Repair
 
@@ -312,6 +322,14 @@ Rules:
 - Starting balance remains historical.
 - Used remains independent of balance.
 
+### Accepted CSV Import / Retry Sync Direction
+
+- Accepted CSV import is a completed local action.
+- Accepted imports should create a pending `batchUpdate` operation until Apps Script confirms the write.
+- Retry Sync must be able to write accepted imports to Sheets when the connection/version state allows it.
+- Retry Sync must show visible feedback for retrying, success, failure, missing Sheet version, no pending operation, or conflict.
+- If sync fails, imported local cards remain available through browser state and CSV export/backup.
+
 ### Local Persistence Direction
 
 - frontend should persist local card data
@@ -351,7 +369,7 @@ The following items are open, deferred, or not approved implementation details:
 - whether to later add a revision counter
 - deployment instructions for Apps Script
 - Google Picker / Sheet selection
-- frontend-created Sheet flow
+- frontend-created Sheet flow beyond Apps Script blank-Sheet initialization
 - table editor
 - role-based permissions beyond owner/editor
 
@@ -773,6 +791,9 @@ Implementation notes:
 - Record approvals before implementation.
 - Keep Current Balance authoritative unless a future approved decision changes that.
 - Keep Used as an independent boolean unless a future approved decision changes that.
-- The Phase 6 MVP architecture is complete and remains the baseline after Phase 7 sync implementation.
-- Phase 8 must focus on documentation, deployment, verification, troubleshooting, diagnostics, and hardening, not architecture redesign.
-- OAuth and alternate sync providers are post-MVP possibilities, not Phase 8 objectives.
+- The Phase 6 MVP architecture is complete, functional, and remains the baseline after Phase 7 sync implementation and Phase 8 validation.
+- Phase 8 must focus on documentation, deployment, verification, troubleshooting, diagnostics, hardening, and final UI/UX cleanup, not architecture redesign.
+- For core-file changes, `index.html`, `app.js`, and `styles.css` use independent manual debug versions; increment only changed core files and end Codex final summaries with `LIVE VERSION CHECK`.
+- OAuth is a future Phase 9 direction only and is not started.
+- Before future OAuth work begins, tag the stable MVP, likely as `mvp-apps-script-final`; preserve `main` as the known-good Apps Script MVP; and create a dedicated `phase-9-oauth` branch.
+- Future OAuth should move 100% to direct Google OAuth + Google Sheets API access. Apps Script has no long-term support requirement after the MVP is preserved. No migration guarantee is required; CSV export/import is an acceptable fallback path.
