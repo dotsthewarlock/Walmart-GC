@@ -55,17 +55,52 @@ Delivered areas include:
 
 ## Current Implementation Phase
 
-### Phase 8 – MVP Hardening & Deployment Documentation
-Current. Phase 8 is focused on hardening and documentation, not feature expansion or architecture changes.
+### Phase 8 – MVP Hardening & Deployment
+Current. Phase 8 is focused on hardening, deployment, documentation, verification, troubleshooting, diagnostics, and setup guidance. It is not a feature-expansion or architecture phase.
 
-Focus areas:
+The MVP architecture is complete. Architecture redesigns should not be proposed unless a concrete MVP blocker exists. Minor implementation decisions should be resolved by applying `docs/PHASE_6_SCHEMA_API_DECISIONS.md`, `AGENTS.md`, and this roadmap.
 
-- Phase 8A – Deployment and setup documentation.
-- Phase 8B – Sync diagnostics and MVP troubleshooting guidance.
-- Phase 8C – Apps Script hardening.
-- Phase 8D – Manual end-to-end test plan and mobile checkout verification.
-- Production-readiness review.
+Phase 8 should proceed through three execution tracks:
 
-## Future
+#### Phase 8A – Documentation & Onboarding
+
+Includes:
+
+- Deployment documentation.
+- Apps Script setup guide.
+- Google Sheet setup guide.
+- Troubleshooting guide.
+
+#### Phase 8B – Verification & Testing
+
+Includes:
+
+- Manual test plan.
+- Setup validation.
+- Sync validation.
+- Offline validation.
+- Conflict validation.
+
+#### Phase 8C – Hardening & Diagnostics
+
+Includes:
+
+- Diagnostics improvements.
+- Validation review.
+- Edge-case handling.
+- Apps Script hardening.
+- Large-sheet review.
+
+Phase 8 PRs should be coherent rather than microscopic. Complete related documentation together, avoid repeated PRs against the same documentation files, and keep each PR logically complete while remaining reviewable.
+
+## MVP Sharing and Access Position
+
+Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions. Google Sheets controls sharing and access, and shared Sheets are allowed when users have the necessary Google access.
+
+The MVP is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. The approved sync and conflict-handling mechanisms remain the project solution when Sheet data changes independently.
+
+## Post-MVP Direction
 
 Post-MVP enhancements should be considered only after MVP hardening is complete.
+
+Google Apps Script remains the approved MVP sync provider. Future versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is a post-MVP enhancement. OAuth work is not part of Phase 8, and contributors should not redesign the MVP around OAuth.
