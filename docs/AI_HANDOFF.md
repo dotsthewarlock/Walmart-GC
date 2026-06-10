@@ -1,5 +1,7 @@
 # Walmart-GC AI Handoff
 
+For full project instructions, workflow rules, and governance, see AGENTS.md.
+
 ## Repository
 
 dotsthewarlock/Walmart-GC
@@ -26,6 +28,8 @@ User Google Sheet ↔ Google Apps Script ↔ Walmart-GC
 Current implementation is prototype-only and does not yet include sync.
 
 ## Current Data Model
+
+The current data model is a prototype and is not the final Google Sheet schema.
 
 cardNumber
 pin
@@ -55,18 +59,18 @@ Assumptions:
 
 ## Completed Phases
 
-- Phase 1 – Static Foundation
-- Phase 2 – Checkout Workflow
+- Phase 1 – Static App Foundation
+- Phase 2 – Checkout Workflow Improvements
 - Phase 3 – Used Flag Model
-- Phase 4 – Mobile Navigation
+- Phase 4 – Mobile Navigation Workflow
 
-## Current Phase
+## Current Implementation Phase
 
 - Phase 5B – Data Panel & Checkout Refinements
 
-## Next Phase
+## Current Architecture Focus
 
-- Phase 6 – Google Sheet Schema & Apps Script Design
+- Phase 6 – Google Sheet Schema & Apps Script API Design
 
 ## Verification Rules
 

@@ -1,5 +1,7 @@
 # Walmart-GC Roadmap
 
+> For full project instructions and governance, see AGENTS.md.
+
 ## Product Vision
 
 Walmart-GC is a mobile-first gift card management application for users managing dozens of Walmart gift cards.
@@ -21,25 +23,27 @@ User Google Sheet ↔ Google Apps Script ↔ Walmart-GC Web App
 ### Phase 1 – Static App Foundation
 Completed.
 
-### Phase 2 – Checkout Workflow
+### Phase 2 – Checkout Workflow Improvements
 Completed.
 
 ### Phase 3 – Used Flag Model
 Completed.
 
-### Phase 4 – Mobile Navigation
+### Phase 4 – Mobile Navigation Workflow
 Completed.
 
-## Current
+## Current Implementation Phase
 
 ### Phase 5B – Data Panel & Checkout Refinements
 In progress.
 
-## Upcoming
+## Current Architecture Focus
 
-### Phase 6 – Google Sheet Schema & Apps Script Design
-Architecture phase.
+### Phase 6 – Google Sheet Schema & Apps Script API Design
+Planning and design in progress.
+
+## Upcoming
 
 ### Phase 7 – Sync Implementation
 
-### Phase 8 – MVP Hardening
+### Phase 8 – MVP Hardening & Deployment Documentation
