@@ -108,6 +108,13 @@ const fullscreenBarcode = document.querySelector("#fullscreen-barcode");
 const barcodeCloseButton = document.querySelector("#barcode-close");
 const fullscreenCardNumber = document.querySelector("#fullscreen-card-number");
 const cardDetail = document.querySelector("#card-detail");
+const rawDataInput = document.querySelector("#raw-data-input");
+const toggleDataLockButton = document.querySelector("#toggle-data-lock");
+const loadCardDataButton = document.querySelector("#load-card-data");
+const importCsvButton = document.querySelector("#import-csv");
+const exportCsvButton = document.querySelector("#export-csv");
+const csvFileInput = document.querySelector("#csv-file-input");
+const dataValidationWarnings = document.querySelector("#data-validation-warnings");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -117,6 +124,18 @@ let sortMode = "balance-asc";
 let amountUsedEditedLast = false;
 let touchStartX = 0;
 let touchStartY = 0;
+let rawDataLocked = true;
+
+const csvHeaders = [
+  "cardNumber",
+  "pin",
+  "startingBalance",
+  "currentBalance",
+  "dateAdded",
+  "dateUpdated",
+  "dateUsed",
+  "used",
+];
 
 function formatBalance(balance) {
   return currencyFormatter.format(balance);
@@ -136,6 +155,255 @@ function todayString() {
 
 function normalizeMoney(value) {
   return Math.round(value * 100) / 100;
+}
+
+function escapeCsvValue(value) {
+  const text = String(value ?? "");
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  return text;
+}
+
+function cardToCsvRow(card) {
+  return csvHeaders
+    .map((field) => escapeCsvValue(field === "used" ? String(Boolean(card[field])) : card[field]))
+    .join(",");
+}
+
+function cardsToCsv(cards) {
+  return [csvHeaders.join(","), ...cards.map(cardToCsvRow)].join("\n");
+}
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter = line[index + 1];
+
+    if (character === '"') {
+      if (inQuotes && nextCharacter === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (character === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  if (inQuotes) {
+    return null;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function parseBooleanValue(value) {
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (["true", "yes", "y", "1"].includes(normalizedValue)) {
+    return true;
+  }
+
+  if (["false", "no", "n", "0"].includes(normalizedValue)) {
+    return false;
+  }
+
+  return null;
+}
+
+function readCsvMoney(value) {
+  if (value.trim() === "") {
+    return null;
+  }
+
+  const parsedValue = Number.parseFloat(value.replace(/^\$/, ""));
+  return Number.isFinite(parsedValue) ? normalizeMoney(parsedValue) : NaN;
+}
+
+function setRawDataLocked(isLocked) {
+  rawDataLocked = isLocked;
+  rawDataInput.readOnly = rawDataLocked;
+  toggleDataLockButton.textContent = rawDataLocked ? "Unlock Editing" : "Lock Editing";
+}
+
+function renderValidationWarnings(warnings, loadedCount = null) {
+  dataValidationWarnings.innerHTML = "";
+
+  if (warnings.length === 0) {
+    dataValidationWarnings.textContent = loadedCount === null
+      ? "No validation run yet."
+      : `Loaded ${loadedCount} valid card${loadedCount === 1 ? "" : "s"} with no warnings.`;
+    return;
+  }
+
+  const summary = document.createElement("p");
+  summary.textContent = loadedCount === null
+    ? `${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`
+    : `Loaded ${loadedCount} valid card${loadedCount === 1 ? "" : "s"}; ${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`;
+  dataValidationWarnings.append(summary);
+
+  const warningList = document.createElement("ul");
+  warnings.forEach((warning) => {
+    const item = document.createElement("li");
+    item.textContent = warning;
+    warningList.append(item);
+  });
+  dataValidationWarnings.append(warningList);
+}
+
+function normalizeCsvRows(rawCsv) {
+  const rows = rawCsv
+    .split(/\r?\n/)
+    .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
+    .filter(({ line }) => line);
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const firstRow = parseCsvLine(rows[0].line);
+  const hasHeader = firstRow && firstRow.map((value) => value.toLowerCase()).join(",") === csvHeaders.join(",").toLowerCase();
+  return hasHeader ? rows.slice(1) : rows;
+}
+
+function parseRawCardData(rawCsv) {
+  const warnings = [];
+  const parsedCards = [];
+  const seenCardNumbers = new Set();
+  const rows = normalizeCsvRows(rawCsv);
+  const fallbackToday = todayString();
+
+  rows.forEach(({ line, lineNumber }) => {
+    const displayRow = lineNumber;
+    const values = parseCsvLine(line);
+
+    if (!values || values.length !== csvHeaders.length) {
+      warnings.push(`Row ${displayRow}: malformed row; expected ${csvHeaders.length} CSV fields.`);
+      return;
+    }
+
+    const [
+      cardNumber,
+      pin,
+      startingBalanceRaw,
+      currentBalanceRaw,
+      dateAddedRaw,
+      dateUpdatedRaw,
+      dateUsedRaw,
+      usedRaw,
+    ] = values;
+    let hasError = false;
+
+    if (!cardNumber) {
+      warnings.push(`Row ${displayRow}: missing card number.`);
+      hasError = true;
+    } else if (seenCardNumbers.has(cardNumber)) {
+      warnings.push(`Row ${displayRow}: duplicate card number ${cardNumber}.`);
+      hasError = true;
+    }
+
+    if (!pin) {
+      warnings.push(`Row ${displayRow}: missing PIN.`);
+      hasError = true;
+    }
+
+    const startingBalance = readCsvMoney(startingBalanceRaw);
+    if (startingBalance === null || Number.isNaN(startingBalance)) {
+      warnings.push(`Row ${displayRow}: invalid starting balance.`);
+      hasError = true;
+    }
+
+    const currentBalance = currentBalanceRaw === "" ? startingBalance : readCsvMoney(currentBalanceRaw);
+    if (Number.isNaN(currentBalance)) {
+      warnings.push(`Row ${displayRow}: invalid current balance.`);
+      hasError = true;
+    }
+
+    const used = usedRaw === "" ? false : parseBooleanValue(usedRaw);
+    if (used === null) {
+      warnings.push(`Row ${displayRow}: invalid used value.`);
+      hasError = true;
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    seenCardNumbers.add(cardNumber);
+
+    const dateAdded = dateAddedRaw || fallbackToday;
+    const dateUpdated = dateUpdatedRaw || dateAdded || fallbackToday;
+    const dateUsed = dateUsedRaw || (used ? dateUpdated || fallbackToday : "");
+
+    parsedCards.push({
+      cardNumber,
+      pin,
+      startingBalance,
+      currentBalance,
+      dateAdded,
+      dateUpdated,
+      dateUsed,
+      used,
+      notes: "Loaded from Data panel CSV prototype.",
+    });
+  });
+
+  return { parsedCards, warnings };
+}
+
+function loadRawCardData() {
+  const { parsedCards, warnings } = parseRawCardData(rawDataInput.value);
+
+  sampleGiftCards.splice(0, sampleGiftCards.length, ...parsedCards);
+  selectedCardIndex = parsedCards.length > 0 ? 0 : -1;
+  renderApp(selectedCardIndex);
+  renderValidationWarnings(warnings, parsedCards.length);
+}
+
+function importCsvFile(file) {
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    rawDataInput.value = String(reader.result ?? "");
+    renderValidationWarnings(["CSV imported into the raw data area. Press Load / Refresh Card Data to validate and load it."], null);
+  });
+  reader.addEventListener("error", () => {
+    renderValidationWarnings(["Unable to read the selected CSV file."], null);
+  });
+  reader.readAsText(file);
+}
+
+function exportCurrentCardsCsv() {
+  const csvContent = cardsToCsv(sampleGiftCards);
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const downloadLink = document.createElement("a");
+
+  downloadLink.href = url;
+  downloadLink.download = "walmart-gift-cards-export.csv";
+  document.body.append(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+  URL.revokeObjectURL(url);
 }
 
 function getSortValue(card, mode) {
@@ -474,18 +742,8 @@ function validateBalanceUpdate() {
     ? normalizeMoney(card.currentBalance - amountUsed)
     : normalizeMoney(remainingBalance);
 
-  if (amountUsed !== null && amountUsed < 0) {
-    setBalanceModalError("Amount Used cannot be negative.");
-    return null;
-  }
-
   if (nextBalance < 0) {
     setBalanceModalError("Remaining Balance cannot be negative.");
-    return null;
-  }
-
-  if (nextBalance > card.startingBalance) {
-    setBalanceModalError("Remaining Balance cannot exceed Starting Balance.");
     return null;
   }
 
@@ -588,6 +846,14 @@ cancelConfirmButton.addEventListener("click", closeConfirmModal);
 confirmZeroUsedButton.addEventListener("click", markZeroBalanceCardsUsed);
 barcodeOpenButton.addEventListener("click", openFullscreenBarcode);
 barcodeCloseButton.addEventListener("click", closeFullscreenBarcode);
+toggleDataLockButton.addEventListener("click", () => setRawDataLocked(!rawDataLocked));
+loadCardDataButton.addEventListener("click", loadRawCardData);
+importCsvButton.addEventListener("click", () => csvFileInput.click());
+csvFileInput.addEventListener("change", (event) => {
+  importCsvFile(event.target.files[0]);
+  event.target.value = "";
+});
+exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
 fullscreenBarcode.addEventListener("click", (event) => {
   if (event.target === fullscreenBarcode) {
     closeFullscreenBarcode();
@@ -639,5 +905,7 @@ cardDetail.addEventListener("touchend", (event) => {
 hideUsedCheckbox.checked = hideUsedCards;
 hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
 sortCardsSelect.value = sortMode;
+rawDataInput.value = cardsToCsv(sampleGiftCards);
+setRawDataLocked(true);
 renderApp();
 showPanel("list");
