@@ -160,6 +160,13 @@ The MVP is not designed for real-time collaboration workflows, live multi-client
 
 Prefer coherent PRs over micro-PRs. Related documentation should be completed together, repeated PRs that touch the same documentation files should be avoided, and each Phase 8 PR should be logically complete while remaining reviewable.
 
+## Core File Debug Versions
+
+- `index.html`, `app.js`, and `styles.css` each carry an independent manual debug file version in `#.##.##` format.
+- The live app displays these versions near the top-right of the app header as a cache/debug fingerprint, for example `HTML 1.01.00 · JS 1.01.00 · CSS 1.01.00`.
+- These values are only for confirming which static files GitHub Pages and the browser loaded; they are not release management or product version numbers.
+- When a Codex prompt changes `index.html`, `app.js`, or `styles.css`, it should specify the expected displayed versions after merge/live, and the changed core file markers should be updated manually in the same PR.
+
 ## Verification Rules
 
 Do not install:

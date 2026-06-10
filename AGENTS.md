@@ -341,6 +341,13 @@ Delete:
 
 ---
 
+## Core File Debug Versions
+
+- `index.html`, `app.js`, and `styles.css` each carry an independent manual debug file version in `#.##.##` format.
+- The live app displays these versions near the top-right of the app header as a cache/debug fingerprint, for example `HTML 1.01.00 · JS 1.01.00 · CSS 1.01.00`.
+- These values are only for confirming which static files GitHub Pages and the browser loaded; they are not release management or product version numbers.
+- When a Codex prompt changes `index.html`, `app.js`, or `styles.css`, it should specify the expected displayed versions after merge/live, and the changed core file markers should be updated manually in the same PR.
+
 ## Verification Rules
 
 Codex environments may have limited:

@@ -1,3 +1,22 @@
+// Debug file fingerprint: app.js version 1.01.00 (cache/debug only, not a product release).
+const debugFileVersions = {
+  js: "1.01.00",
+  css: "1.01.00",
+};
+
+function renderDebugVersionFingerprint() {
+  const fingerprint = document.querySelector("#debug-version-fingerprint");
+
+  if (!fingerprint) {
+    return;
+  }
+
+  const htmlVersion = fingerprint.dataset.htmlVersion || "unknown";
+  fingerprint.textContent = `HTML ${htmlVersion} · JS ${debugFileVersions.js} · CSS ${debugFileVersions.css}`;
+}
+
+renderDebugVersionFingerprint();
+
 const bundledSampleGiftCards = [
   {
     cardNumber: "6045782190348765",
