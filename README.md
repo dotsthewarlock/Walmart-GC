@@ -47,6 +47,13 @@ Google Sheet ↔ Google Apps Script ↔ Walmart-GC
 
 The primary goal is to make management of dozens of Walmart gift cards practical on mobile devices while keeping Google Sheets as the source of truth.
 
+## Documentation
+
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
+- [Apps Script Setup](docs/APPS_SCRIPT_SETUP.md)
+- [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+
 ## Current Status
 
 Phase 8 — MVP Hardening & Deployment.
