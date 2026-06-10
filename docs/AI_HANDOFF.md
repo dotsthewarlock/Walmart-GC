@@ -29,7 +29,7 @@ Current implementation is prototype-only and does not yet include sync.
 
 ## Current Data Model
 
-The current implemented data model is still prototype-only. Phase 6 has recorded an MVP Google Sheet schema candidate for planning, but sync/schema implementation must wait until API contract decisions are finalized.
+The current implemented data model is still prototype-only. Phase 6 has recorded the approved MVP Google Sheet schema and sync architecture for planning, but sync/schema implementation must follow `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
 
 Current implemented prototype fields:
 
@@ -42,7 +42,7 @@ dateUpdated
 dateUsed
 used
 
-Phase 6 MVP schema candidate:
+Phase 6 approved MVP schema:
 
 cardNumber
 pin
@@ -86,8 +86,8 @@ Assumptions:
 ## Current Architecture Focus
 
 - Phase 6 – Google Sheet Schema & Apps Script API Design
-  - MVP schema, Apps Script connection, sync timing, conflict-state, and Data panel setup directions are documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
-  - Apps Script API endpoints, payloads, error formats, and deployment instructions remain open; do not implement sync yet.
+  - The approved Phase 6 architecture summary is documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
+  - Phase 7 sync implementation should follow that document; do not implement sync outside the approved architecture.
 
 ## Verification Rules
 
