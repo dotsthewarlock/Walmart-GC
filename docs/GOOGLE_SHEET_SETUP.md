@@ -2,7 +2,7 @@
 
 This guide explains how to create a Google Sheet that Walmart-GC can use as its source of truth.
 
-Walmart-GC stores gift card data in your own Google Sheet. The web app loads from that Sheet and saves completed local actions back to it through the Google Apps Script Web App.
+Walmart-GC stores gift card data in your own Google Sheet. In Phase 9, the web app loads from and saves to that Sheet directly through Google OAuth and the Google Sheets API.
 
 ## Create the Sheet
 
@@ -12,15 +12,15 @@ Walmart-GC stores gift card data in your own Google Sheet. The web app loads fro
    - `Walmart Gift Cards`
    - `Walmart-GC Cards`
    - `Gift Card Tracker`
-4. Rename the first tab to:
+4. You may leave the workbook blank and let Walmart-GC initialize it, or manually rename the first tab to:
 
    ```text
    Cards
    ```
 
-5. Add the required headers in row 1 exactly as shown below.
+5. If you create the `Cards` tab manually, add the required headers in row 1 exactly as shown below.
 
-> Tip: The Apps Script setup can safely create or repair the basic structure for a blank workbook, but creating the Sheet yourself first makes setup easier to understand and verify.
+> Tip: **Initialize Sheet** in Walmart-GC can create the `Cards` headers and `_META` metadata tab for a blank workbook. It must not be used as a substitute for reviewing populated workbooks before syncing.
 
 ## Required Schema
 
@@ -45,22 +45,14 @@ As a CSV header row, that is:
 cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
-## Header Setup Steps
-
-1. In cell `A1`, enter `cardNumber`.
-2. In cell `B1`, enter `pin`.
-3. Continue across row 1 until `notes` is in cell `J1`.
-4. Do not rename, reorder, or remove these headers.
-5. Do not add extra required fields for MVP setup.
-
 ## Schema Rules
 
 ### `cardNumber`
 
 - Required for every card row.
 - Must be unique in the Sheet.
-- Used as the MVP record ID.
-- Duplicate card numbers will prevent Walmart-GC from loading or saving cleanly.
+- Used as the record ID.
+- Duplicate card numbers prevent clean loading or saving.
 
 ### `pin`
 
@@ -69,43 +61,33 @@ cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dat
 
 ### `merchant`
 
-- Use:
+- Defaults to:
 
   ```text
   walmart-ca
   ```
 
-- If imported CSV data omits merchant, the app's import flow defaults it to `walmart-ca` for prototype-compatible imports.
+- CSV imports that omit merchant default to `walmart-ca`.
 
 ### `startingBalance`
 
 - Historical starting value for the card.
 - Keep this as the original card balance.
-- Walmart-GC does not use this as the live remaining balance.
 
 ### `currentBalance`
 
-- Authoritative remaining balance for MVP use.
+- Authoritative remaining balance.
 - This is the balance Walmart-GC shows and updates.
-- If a balance is changed in Walmart-GC, the app saves the new `currentBalance` back to Sheets after a successful Sheet load.
 
 ### `dateAdded`
 
 - Date the card was added.
-- Recommended format:
-
-  ```text
-  YYYY-MM-DD
-  ```
+- Recommended format: `YYYY-MM-DD`.
 
 ### `dateUpdated`
 
 - Date the current balance or card record was last updated.
-- Recommended format:
-
-  ```text
-  YYYY-MM-DD
-  ```
+- Recommended format: `YYYY-MM-DD`.
 
 ### `dateUsed`
 
@@ -116,13 +98,11 @@ cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dat
 
 - Use `true` for used cards.
 - Use `false` for unused or partially used cards.
-- The app treats this as the MVP archive/hidden state.
-- `used` is independent of balance. A card can have a zero balance without being marked used until you mark it used.
+- Independent of balance.
 
 ### `notes`
 
 - Optional free-text notes.
-- Use for reminders such as purchase source, order number, or special handling.
 
 ## Example Rows
 
@@ -135,53 +115,32 @@ cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dat
 
 ## Shared Sheets
 
-Shared Google Sheets are allowed when Google Sheets grants the relevant people access.
+Shared Google Sheets are allowed when Google Sheets grants the relevant people access. Walmart-GC does not create user accounts, manage roles, or provide real-time collaboration features.
 
-Important notes:
-
-- Google controls Sheet sharing and permissions.
-- Walmart-GC does not create user accounts.
-- Walmart-GC does not manage roles or collaborators.
-- Walmart-GC does not provide real-time collaboration features.
-- If another person or browser changes the Sheet after your last load, Walmart-GC may detect a sync conflict and ask you to choose a recovery action.
+If another person or browser changes the Sheet after your last load, Walmart-GC may detect a sync conflict and ask you to choose a recovery action.
 
 ## Common Mistakes
 
-### Missing Headers
-
-Symptom: Health Check or Load from Sheets reports a schema/setup problem.
+### Missing or Modified Headers
 
 Fix:
 
 1. Open the Google Sheet.
 2. Open the `Cards` tab.
-3. Confirm row 1 contains all required headers.
-4. Confirm headers start in cell `A1` and continue through `J1`.
-
-### Modified Headers
-
-Symptom: Walmart-GC reports `INVALID_SCHEMA` or cannot load cards.
-
-Fix:
-
-1. Compare row 1 to the approved header list.
-2. Restore exact names and order.
-3. Run **Test Connection** again from Walmart-GC.
+3. Confirm row 1 contains all required headers in the approved order.
+4. Restore exact names and order if needed.
+5. Use **Load from Google Sheets** again.
 
 ### Duplicate Card Numbers
-
-Symptom: Load or sync fails with a validation error.
 
 Fix:
 
 1. In the `cardNumber` column, look for duplicate values.
 2. Keep only one row per card number.
-3. If two rows represent the same card, manually combine the most accurate balance, used state, and notes.
-4. Run **Load from Sheets** again.
+3. Manually combine the most accurate balance, used state, and notes.
+4. Use **Load from Google Sheets** again.
 
 ### Extra Blank or Partial Rows
-
-Symptom: A row appears populated but has no `cardNumber`, or a load fails because a card row is incomplete.
 
 Fix:
 
@@ -191,4 +150,4 @@ Fix:
 
 ## Next Step
 
-After the Sheet exists, deploy the Apps Script Web App using [Apps Script Setup](APPS_SCRIPT_SETUP.md).
+After the Sheet exists, open Walmart-GC, save the Google OAuth Client ID, connect Google, paste the Sheet URL or ID, and use **Initialize Sheet** or **Load from Google Sheets**.

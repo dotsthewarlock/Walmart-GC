@@ -1,4 +1,9 @@
 /**
+ * Historical MVP reference for the preserved Apps Script sync provider on main.
+ * Phase 9 OAuth uses direct Google Sheets API sync instead of this file.
+ */
+
+/**
  * Walmart-GC Google Apps Script MVP API.
  *
  * Bound this file to the user's Google Sheet and deploy it as a Web App.

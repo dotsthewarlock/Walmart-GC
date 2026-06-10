@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.04 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.05 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.04";
+const DEBUG_VERSION_JS = "1.01.05";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -153,11 +153,6 @@ const exportCsvButton = document.querySelector("#export-csv");
 const csvFileInput = document.querySelector("#csv-file-input");
 const dataValidationWarnings = document.querySelector("#data-validation-warnings");
 const dataCountSummary = document.querySelector("#data-count-summary");
-const appsScriptUrlInput = document.querySelector("#apps-script-url");
-const saveConnectionButton = document.querySelector("#save-connection");
-const testConnectionButton = document.querySelector("#test-connection");
-const loadSheetsButton = document.querySelector("#load-sheets");
-const connectionStatusArea = document.querySelector("#connection-status");
 const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
 const googleOAuthClientIdInput = document.querySelector("#google-oauth-client-id");
 const saveGoogleOAuthClientButton = document.querySelector("#save-google-oauth-client");
@@ -226,7 +221,6 @@ const code128Patterns = [
 const storageKeys = {
   cards: "walmartGc.cards",
   settings: "walmartGc.settings",
-  connection: "walmartGc.connection",
   sync: "walmartGc.sync",
   oauth: "walmartGc.oauth",
   directSheets: "walmartGc.directSheets",
@@ -237,27 +231,6 @@ const defaultSettings = {
   hideUsedCards: true,
   hideZeroBalanceCards: false,
   sortMode: "balance-asc",
-};
-
-const connectionStatuses = {
-  notConnected: "Not Connected",
-  checking: "Checking",
-  loading: "Loading",
-  connected: "Connected",
-  error: "Connection Error",
-};
-
-const defaultConnectionState = {
-  appsScriptUrl: "",
-  connectionStatus: connectionStatuses.notConnected,
-  lastHealthCheckAt: "",
-  healthStatus: "Not checked",
-  spreadsheetName: "",
-  sheetName: "",
-  schemaVersion: "",
-  lastHealthSheetVersion: "",
-  message: "Enter and save an Apps Script URL, then test the connection.",
-  lastErrorMessage: "",
 };
 
 const syncStatuses = {
@@ -271,7 +244,7 @@ const defaultSyncState = {
   lastSyncTimestamp: "",
   lastSyncAttemptTimestamp: "",
   lastKnownSheetVersion: "",
-  message: "Load from Sheets to enable completed-action sync writes.",
+  message: "Load or initialize the direct Google Sheet to enable completed-action sync writes.",
   lastErrorMessage: "",
   pendingOperation: null,
 };
@@ -327,7 +300,6 @@ const defaultGoogleOAuthState = {
 };
 
 let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
-let connectionState = cloneStateValue(defaultConnectionState);
 let syncState = cloneStateValue(defaultSyncState);
 let googleOAuthState = cloneStateValue(defaultGoogleOAuthState);
 let directSheetsState = cloneStateValue(defaultDirectSheetsState);
@@ -640,30 +612,6 @@ function normalizeStoredSettings(settings) {
   };
 }
 
-function normalizeStoredConnection(connection) {
-  if (!isPlainObject(connection)) {
-    return cloneStateValue(defaultConnectionState);
-  }
-
-  const allowedStatuses = Object.values(connectionStatuses);
-  const connectionStatus = allowedStatuses.includes(connection.connectionStatus)
-    ? connection.connectionStatus
-    : defaultConnectionState.connectionStatus;
-
-  return {
-    appsScriptUrl: String(connection.appsScriptUrl || ""),
-    connectionStatus,
-    lastHealthCheckAt: String(connection.lastHealthCheckAt || ""),
-    healthStatus: String(connection.healthStatus || defaultConnectionState.healthStatus),
-    spreadsheetName: String(connection.spreadsheetName || ""),
-    sheetName: String(connection.sheetName || ""),
-    schemaVersion: String(connection.schemaVersion || ""),
-    lastHealthSheetVersion: String(connection.lastHealthSheetVersion || ""),
-    message: String(connection.message || defaultConnectionState.message),
-    lastErrorMessage: String(connection.lastErrorMessage || ""),
-  };
-}
-
 function normalizePendingSyncOperation(operation) {
   if (!isPlainObject(operation)) {
     return null;
@@ -799,9 +747,9 @@ function applySettings(settings) {
 }
 
 function loadAppState() {
+  removeStoredJson("walmartGc.connection");
   const storedCards = normalizeStoredCards(readStoredJson(storageKeys.cards));
   const storedSettings = normalizeStoredSettings(readStoredJson(storageKeys.settings));
-  const storedConnection = normalizeStoredConnection(readStoredJson(storageKeys.connection));
   const storedSync = normalizeStoredSync(readStoredJson(storageKeys.sync));
   const storedGoogleOAuth = normalizeStoredGoogleOAuth(readStoredJson(storageKeys.oauth));
   const storedDirectSheets = normalizeStoredDirectSheets(readStoredJson(storageKeys.directSheets));
@@ -809,7 +757,6 @@ function loadAppState() {
   return {
     cards: storedCards ?? cloneStateValue(bundledSampleGiftCards),
     settings: storedSettings,
-    connection: storedConnection,
     sync: storedSync,
     oauth: storedGoogleOAuth,
     directSheets: storedDirectSheets,
@@ -819,7 +766,6 @@ function loadAppState() {
 function saveAppState() {
   writeStoredJson(storageKeys.cards, sampleGiftCards);
   writeStoredJson(storageKeys.settings, getCurrentSettings());
-  writeStoredJson(storageKeys.connection, connectionState);
   writeStoredJson(storageKeys.sync, syncState);
   writeStoredJson(storageKeys.oauth, googleOAuthState);
   writeStoredJson(storageKeys.directSheets, directSheetsState);
@@ -832,7 +778,6 @@ function clearAppState() {
 function applyAppState(appState) {
   sampleGiftCards = appState.cards;
   applySettings(appState.settings);
-  connectionState = appState.connection;
   syncState = appState.sync;
   googleOAuthState = appState.oauth;
   directSheetsState = appState.directSheets;
@@ -1152,7 +1097,7 @@ async function updateRawCardData() {
       startMessage: "Imported data saved locally. Syncing imported cards to Sheets...",
       noAutoSyncMessage: syncState.lastKnownSheetVersion
         ? "Imported data saved locally, but it is not ready to sync right now. Retry Sync or download a CSV backup."
-        : "Imported data saved locally. Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.",
+        : "Imported data saved locally. Load or initialize the direct Google Sheet before syncing so Walmart-GC can verify the current Sheet version.",
     },
   );
 }
@@ -1187,149 +1132,12 @@ function exportCurrentCardsCsv(filename = "walmart-gift-cards-export.csv") {
   URL.revokeObjectURL(url);
 }
 
-function getConnectionInputUrl() {
-  return appsScriptUrlInput.value.trim();
-}
-
-function parseAppsScriptUrl(rawUrl) {
-  try {
-    const parsedUrl = new URL(rawUrl);
-    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-      return null;
-    }
-    return parsedUrl;
-  } catch {
-    return null;
-  }
-}
-
-function buildAppsScriptActionUrl(rawUrl, action) {
-  const parsedUrl = parseAppsScriptUrl(rawUrl);
-  if (!parsedUrl) {
-    return null;
-  }
-
-  parsedUrl.searchParams.set("action", action);
-  return parsedUrl.toString();
-}
-
-function buildHealthCheckUrl(rawUrl) {
-  return buildAppsScriptActionUrl(rawUrl, "health");
-}
-
-function buildLoadCardsUrl(rawUrl) {
-  return buildAppsScriptActionUrl(rawUrl, "load");
-}
-
-function buildUpdateCardUrl(rawUrl) {
-  return buildAppsScriptActionUrl(rawUrl, "updateCard");
-}
-
-function buildBatchUpdateUrl(rawUrl) {
-  return buildAppsScriptActionUrl(rawUrl, "batchUpdate");
-}
-
-function buildReplaceAllUrl(rawUrl) {
-  return buildAppsScriptActionUrl(rawUrl, "replaceAll");
-}
-
-function getHealthData(responseBody) {
-  if (!isPlainObject(responseBody)) {
-    return null;
-  }
-
-  if (responseBody.ok !== true) {
-    return null;
-  }
-
-  return isPlainObject(responseBody.data) ? responseBody.data : responseBody;
-}
-
-function getActionableErrorMessage(baseMessage, actionHint) {
-  return actionHint ? `${baseMessage} ${actionHint}` : baseMessage;
-}
-
-function getEnvelopeErrorMessage(responseBody, fallbackMessage, actionHint = "") {
-  if (!isPlainObject(responseBody)) {
-    return fallbackMessage;
-  }
-
-  if (isPlainObject(responseBody.error)) {
-    const code = String(responseBody.error.code || "").trim();
-    const message = String(responseBody.error.message || "").trim();
-
-    if (code && message) {
-      return `${code}: ${message}`;
-    }
-    if (message) {
-      return message;
-    }
-    if (code) {
-      return `Apps Script returned ${code}.`;
-    }
-  }
-
-  return getActionableErrorMessage(fallbackMessage, actionHint);
-}
-
-function getHealthErrorMessage(responseBody) {
-  return getEnvelopeErrorMessage(
-    responseBody,
-    "Apps Script reported that the connection is not ready.",
-    "Confirm the Web App URL ends in /exec, deployment access allows your Google account, and the bound Sheet has the approved Cards headers.",
-  );
-}
-
-function getLoadErrorMessage(responseBody) {
-  return getEnvelopeErrorMessage(
-    responseBody,
-    "Apps Script could not load cards from the Sheet.",
-    "Run Test Connection again, then check the Cards sheet headers and duplicate card numbers.",
-  );
-}
-
-function getWriteErrorMessage(responseBody) {
-  return getEnvelopeErrorMessage(
-    responseBody,
-    "Apps Script could not save this change to Sheets.",
-    "Your local data is still saved in this browser; use Retry Sync or download a CSV backup before recovery.",
-  );
-}
-
-function getEnvelopeErrorCode(responseBody) {
-  if (!isPlainObject(responseBody) || !isPlainObject(responseBody.error)) {
-    return "";
-  }
-
-  return String(responseBody.error.code || "").trim();
-}
-
 function generateRequestId() {
   if (window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
   }
 
   return `wgc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function buildWriteEnvelope(payload) {
-  return {
-    requestId: generateRequestId(),
-    clientTimestamp: new Date().toISOString(),
-    lastKnownSheetVersion: syncState.lastKnownSheetVersion,
-    payload,
-  };
-}
-
-function postAppsScriptJson(actionUrl, envelope) {
-  return fetch(actionUrl, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "text/plain;charset=utf-8",
-    },
-    body: JSON.stringify(envelope),
-  });
 }
 
 function setSyncState(nextState) {
@@ -1452,6 +1260,7 @@ function renderDirectSheetsState() {
 
   const details = [
     renderDiagnosticRow("OAuth configured", isGoogleOAuthConfigured() ? "Yes" : "No"),
+    renderDiagnosticRow("Google script loaded", hasGoogleIdentityScript() || googleOAuthState.scriptLoaded ? "Yes" : "No"),
     renderDiagnosticRow("Google connection", googleOAuthState.status),
     renderDiagnosticRow("Sheets scope available", hasSheetsScopeInMemory() ? "Yes" : "Needs reconnect/authorization"),
     renderDiagnosticRow("Spreadsheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
@@ -1464,6 +1273,7 @@ function renderDirectSheetsState() {
     renderDiagnosticRow("Unsynced changes", directSheetsState.pendingUnsynced || syncState.pendingOperation ? "Yes" : "No"),
     renderDiagnosticRow("Last successful direct sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
     renderDiagnosticRow("Last direct Sheets error", valueOrFallback(directSheetsState.lastErrorMessage)),
+    renderDiagnosticRow("Local card count", String(sampleGiftCards.length)),
   ];
 
   const sheetLink = getDirectSheetsDisplayUrl();
@@ -1779,7 +1589,7 @@ function disconnectGoogleAccount() {
     connectedName: "",
     connectedAt: "",
     tokenExpiresAt: "",
-    message: "Google account disconnected. Local cards, Direct Sheet settings, and Apps Script sync settings were not changed.",
+    message: "Google account disconnected. Local cards and Direct Sheet settings were not changed.",
     lastErrorMessage: "",
   });
 }
@@ -1802,16 +1612,6 @@ function handleGoogleIdentityFailed() {
   });
 }
 
-function setConnectionState(nextState) {
-  connectionState = {
-    ...connectionState,
-    ...nextState,
-  };
-  saveAppState();
-  renderConnectionState();
-  renderDirectSheetsState();
-}
-
 function getSyncStatusLabel() {
   if (syncState.status === syncStatuses.connected) {
     return "Connected/Synced";
@@ -1826,84 +1626,17 @@ function getSyncStatusLabel() {
 
 function canAutoSyncToSheets() {
   return Boolean(
-    ((isDirectSheetsConfigured() && hasSheetsScopeInMemory()) || connectionState.appsScriptUrl)
+    isDirectSheetsConfigured()
+      && hasSheetsScopeInMemory()
       && syncState.lastKnownSheetVersion
       && syncState.status !== syncStatuses.conflict,
   );
-}
-
-function updateCardsFromWriteResponse(responseBody) {
-  const returnedCard = responseBody?.data?.card;
-  const normalizedCard = normalizeStoredCard(returnedCard);
-
-  if (!normalizedCard) {
-    return;
-  }
-
-  const existingIndex = sampleGiftCards.findIndex((card) => card.cardNumber === normalizedCard.cardNumber);
-  if (existingIndex >= 0) {
-    sampleGiftCards[existingIndex] = normalizedCard;
-  } else {
-    sampleGiftCards.push(normalizedCard);
-  }
-}
-
-function handleSuccessfulWrite(responseBody, successMessage) {
-  const sheetVersion = String(responseBody?.meta?.sheetVersion || "").trim();
-  updateCardsFromWriteResponse(responseBody);
-
-  syncState = {
-    ...syncState,
-    status: syncStatuses.connected,
-    lastSyncTimestamp: new Date().toISOString(),
-    lastSyncAttemptTimestamp: new Date().toISOString(),
-    lastKnownSheetVersion: sheetVersion || syncState.lastKnownSheetVersion,
-    message: successMessage,
-    lastErrorMessage: "",
-    pendingOperation: null,
-  };
-  connectionState = {
-    ...connectionState,
-    connectionStatus: connectionStatuses.connected,
-    healthStatus: connectionState.healthStatus || "Not checked",
-    message: successMessage,
-    lastErrorMessage: "",
-  };
-  saveAppState();
-  renderConnectionState();
-  renderDirectSheetsState();
-  refreshRawCardData(successMessage);
-  renderApp(selectedCardIndex);
 }
 
 function downloadSessionCsvBackup() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   exportCurrentCardsCsv(`walmart-gift-cards-session-backup-${timestamp}.csv`);
   renderValidationWarnings([], "Downloaded a CSV backup of the current local session.");
-}
-
-function handleFailedWrite(message, responseBody) {
-  const isConflict = getEnvelopeErrorCode(responseBody) === "SYNC_CONFLICT";
-  const nextStatus = isConflict ? syncStatuses.conflict : syncStatuses.unsynced;
-  const friendlyMessage = isConflict
-    ? "Sheets changed since your last load. Your local change is saved here, auto-sync is paused, and Sheets were not overwritten."
-    : message;
-
-  setSyncState({
-    status: nextStatus,
-    lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: friendlyMessage,
-    lastErrorMessage: friendlyMessage,
-  });
-  connectionState = {
-    ...connectionState,
-    connectionStatus: isConflict ? connectionStatuses.error : connectionStatuses.connected,
-    message: friendlyMessage,
-    lastErrorMessage: friendlyMessage,
-  };
-  saveAppState();
-  renderConnectionState();
-  renderDirectSheetsState();
 }
 
 async function postCompletedActionToSheets(action, payload, successMessage, options = {}) {
@@ -1914,103 +1647,41 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
     description: action === "batchUpdate" ? "local card updates" : "card update",
   });
 
-  if (isDirectSheetsConfigured()) {
-    if (!syncState.lastKnownSheetVersion || syncState.status === syncStatuses.conflict || !hasSheetsScopeInMemory()) {
-      setSyncState({
-        status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
-        lastSyncAttemptTimestamp: new Date().toISOString(),
-        message: options.noAutoSyncMessage || "Saved locally. Reconnect Google and load or initialize the direct Sheet before syncing.",
-        lastErrorMessage: options.noAutoSyncMessage || "Saved locally, but direct Sheets sync is not ready.",
-        pendingOperation,
-      });
-      setDirectSheetsState({
-        status: syncState.status === syncStatuses.conflict ? directSheetsStatuses.conflict : directSheetsStatuses.error,
-        pendingUnsynced: true,
-        message: options.noAutoSyncMessage || "Saved locally. Direct Google Sheets sync needs authorization and a safe Sheet version.",
-        lastErrorMessage: options.noAutoSyncMessage || "Direct Sheets sync is not ready.",
-      });
-      return;
-    }
-
-    await syncCardsToDirectSheets({
-      pendingOperation,
-      successMessage,
-      startMessage: options.startMessage || "Syncing completed action directly to Google Sheets...",
-    });
-    return;
-  }
-
   if (!canAutoSyncToSheets()) {
+    const message = options.noAutoSyncMessage
+      || (isDirectSheetsConfigured()
+        ? "Saved locally. Reconnect Google and load or initialize the direct Sheet before syncing."
+        : "Saved locally. Save a direct Google Sheet, connect Google, then initialize or load before syncing.");
     setSyncState({
       status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
-      message: options.noAutoSyncMessage || "Saved locally. Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.",
-      lastErrorMessage: options.noAutoSyncMessage || "Saved locally, but no safe Sheet version is available for syncing.",
+      message,
+      lastErrorMessage: message,
       pendingOperation,
+    });
+    setDirectSheetsState({
+      status: syncState.status === syncStatuses.conflict ? directSheetsStatuses.conflict : directSheetsStatuses.error,
+      pendingUnsynced: true,
+      message,
+      lastErrorMessage: message,
     });
     return;
   }
 
-  const actionUrl = action === "batchUpdate"
-    ? buildBatchUpdateUrl(connectionState.appsScriptUrl)
-    : buildUpdateCardUrl(connectionState.appsScriptUrl);
-
-  if (!actionUrl) {
-    setSyncState({ pendingOperation });
-    handleFailedWrite("Saved locally, but the Apps Script URL is not valid. Update the Data Panel connection before syncing.");
-    return;
-  }
-
-  const envelope = buildWriteEnvelope(payload);
-  setSyncState({
-    lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: options.startMessage || "Syncing completed action to Sheets...",
+  await syncCardsToDirectSheets({
     pendingOperation,
+    successMessage,
+    startMessage: options.startMessage || "Syncing completed action directly to Google Sheets...",
   });
-
-  try {
-    const response = await postAppsScriptJson(actionUrl, envelope);
-
-    let responseBody;
-    try {
-      responseBody = await response.json();
-    } catch {
-      handleFailedWrite("Saved locally, but the Sheets save response was not valid JSON.");
-      return;
-    }
-
-    if (!isPlainObject(responseBody)) {
-      handleFailedWrite("Saved locally, but Apps Script returned an unexpected save response.");
-      return;
-    }
-
-    if (!response.ok || responseBody.ok !== true) {
-      handleFailedWrite(getWriteErrorMessage(responseBody), responseBody);
-      return;
-    }
-
-    const sheetVersion = String(responseBody.meta?.sheetVersion || "").trim();
-    if (!sheetVersion) {
-      handleFailedWrite("Saved locally, but Apps Script did not return an updated Sheet version.", responseBody);
-      return;
-    }
-
-    handleSuccessfulWrite(responseBody, successMessage);
-  } catch {
-    handleFailedWrite("Saved locally, but Sheets sync could not reach Apps Script. Your local data remains in this browser. Confirm the Apps Script deployment URL and try Retry Sync.");
-  }
 }
 
 function getRecoveryUnavailableMessage() {
-  if (isDirectSheetsConfigured()) {
-    if (!hasSheetsScopeInMemory()) {
-      return "Reconnect Google with Sheets permission before using direct Sheets recovery actions.";
-    }
-    return "";
+  if (!isDirectSheetsConfigured()) {
+    return "Save a direct Google Sheet before using Sheets recovery actions.";
   }
 
-  if (!connectionState.appsScriptUrl || !parseAppsScriptUrl(connectionState.appsScriptUrl)) {
-    return "Save a direct Google Sheet or a valid Apps Script URL before using Sheets recovery actions.";
+  if (!hasSheetsScopeInMemory()) {
+    return "Reconnect Google with Sheets permission before using direct Sheets recovery actions.";
   }
 
   return "";
@@ -2069,125 +1740,9 @@ function renderSyncRecoveryActions(isBusy) {
 }
 
 function renderConnectionState() {
-  appsScriptUrlInput.value = connectionState.appsScriptUrl;
-  const isBusy = [connectionStatuses.checking, connectionStatuses.loading].includes(connectionState.connectionStatus);
-  testConnectionButton.disabled = isBusy;
-  loadSheetsButton.disabled = isBusy;
-  saveConnectionButton.disabled = isBusy;
+  const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
   renderSyncRecoveryActions(isBusy);
-
-  const statusClass = connectionState.connectionStatus === connectionStatuses.connected
-    ? "connected"
-    : connectionState.connectionStatus === connectionStatuses.error
-      ? "error"
-      : isBusy
-        ? "checking"
-        : "not-connected";
-
-  const details = [
-    renderDiagnosticRow("Spreadsheet", valueOrFallback(connectionState.spreadsheetName)),
-    renderDiagnosticRow("Sheet", valueOrFallback(connectionState.sheetName)),
-    renderDiagnosticRow("Schema version", valueOrFallback(connectionState.schemaVersion)),
-    renderDiagnosticRow("Health Sheet version", valueOrFallback(connectionState.lastHealthSheetVersion)),
-    renderDiagnosticRow("Health status", valueOrFallback(connectionState.healthStatus, "Not checked")),
-    renderDiagnosticRow("Last health check", formatConnectionTimestamp(connectionState.lastHealthCheckAt)),
-    renderDiagnosticRow("Sync status", getSyncStatusLabel()),
-    renderDiagnosticRow("Last sync attempt", formatConnectionTimestamp(syncState.lastSyncAttemptTimestamp)),
-    renderDiagnosticRow("Last successful sync", formatConnectionTimestamp(syncState.lastSyncTimestamp)),
-    renderDiagnosticRow("Last known Sheet version", valueOrFallback(syncState.lastKnownSheetVersion)),
-    renderDiagnosticRow("Last error", valueOrFallback(connectionState.lastErrorMessage || syncState.lastErrorMessage)),
-  ];
-
-  const syncClass = `sync-${syncState.status}`;
-  connectionStatusArea.className = `connection-status is-${statusClass} ${syncClass}`;
-  connectionStatusArea.innerHTML = `
-    <div class="connection-status-header">
-      <span class="connection-status-dot" aria-hidden="true"></span>
-      <strong>${escapeHtml(connectionState.connectionStatus)}</strong>
-      <span class="sync-badge">${escapeHtml(getSyncStatusLabel())}</span>
-    </div>
-    <p>${escapeHtml(connectionState.message || defaultConnectionState.message)}</p>
-    ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
-    ${details.length ? `<ul class="diagnostic-list">${details.join("")}</ul>` : ""}
-  `;
 }
-
-function saveConnectionFromInput() {
-  const appsScriptUrl = getConnectionInputUrl();
-
-  if (!appsScriptUrl) {
-    setConnectionState(cloneStateValue(defaultConnectionState));
-    return;
-  }
-
-  if (!parseAppsScriptUrl(appsScriptUrl)) {
-    setConnectionState({
-      appsScriptUrl,
-      connectionStatus: connectionStatuses.error,
-      lastHealthCheckAt: "",
-      healthStatus: "Invalid URL",
-      spreadsheetName: "",
-      sheetName: "",
-      schemaVersion: "",
-      lastHealthSheetVersion: "",
-      message: "Enter a valid http(s) Apps Script Web App URL.",
-      lastErrorMessage: "Invalid Apps Script URL format.",
-    });
-    return;
-  }
-
-  const urlChanged = appsScriptUrl !== connectionState.appsScriptUrl;
-  if (urlChanged) {
-    syncState = cloneStateValue(defaultSyncState);
-  }
-
-  setConnectionState({
-    appsScriptUrl,
-    connectionStatus: urlChanged ? connectionStatuses.notConnected : connectionState.connectionStatus,
-    lastHealthCheckAt: urlChanged ? "" : connectionState.lastHealthCheckAt,
-    healthStatus: urlChanged ? "Not checked" : connectionState.healthStatus,
-    spreadsheetName: urlChanged ? "" : connectionState.spreadsheetName,
-    sheetName: urlChanged ? "" : connectionState.sheetName,
-    schemaVersion: urlChanged ? "" : connectionState.schemaVersion,
-    lastHealthSheetVersion: urlChanged ? "" : connectionState.lastHealthSheetVersion,
-    message: urlChanged
-      ? "Connection saved locally. Run a health check, then load cards from Sheets."
-      : "Connection saved locally.",
-    lastErrorMessage: "",
-  });
-}
-
-
-function validateLoadCardsEnvelope(responseBody) {
-  if (!isPlainObject(responseBody)) {
-    return { error: "Apps Script returned an unexpected response." };
-  }
-
-  if (responseBody.ok !== true) {
-    return { error: getLoadErrorMessage(responseBody) };
-  }
-
-  if (!isPlainObject(responseBody.data) || !Array.isArray(responseBody.data.cards)) {
-    return { error: "Apps Script did not include a valid cards list." };
-  }
-
-  if (!isPlainObject(responseBody.meta)) {
-    return { error: "Apps Script did not include Sheet version metadata." };
-  }
-
-  const sheetVersion = String(responseBody.meta.sheetVersion || "").trim();
-  if (!sheetVersion) {
-    return { error: "Apps Script did not include a Sheet version." };
-  }
-
-  const normalizedCards = normalizeStoredCards(responseBody.data.cards);
-  if (!normalizedCards) {
-    return { error: "Apps Script returned card data that this app could not read." };
-  }
-
-  return { cards: normalizedCards, sheetVersion };
-}
-
 
 function parseSpreadsheetId(value) {
   const rawValue = String(value || "").trim();
@@ -2712,41 +2267,21 @@ async function useCurrentSessionToOverwriteDirectSheets() {
 }
 
 async function retrySyncCurrentSession() {
-  const batchUpdateUrl = buildBatchUpdateUrl(connectionState.appsScriptUrl);
   const pendingOperation = normalizePendingSyncOperation(syncState.pendingOperation);
 
-  if (isDirectSheetsConfigured()) {
-    if (syncState.status === syncStatuses.conflict) {
-      setSyncState({
-        status: syncStatuses.conflict,
-        lastSyncAttemptTimestamp: new Date().toISOString(),
-        message: "Conflict detected. Load the remote Sheet or explicitly overwrite it with this session.",
-        lastErrorMessage: "Conflict detected. Retry Sync will not overwrite Sheet changes automatically.",
-      });
-      return;
-    }
-
-    if (!syncState.lastKnownSheetVersion) {
-      const message = "Load or initialize the direct Google Sheet before syncing so Walmart-GC can verify the current Sheet version.";
-      setSyncState({
-        status: syncStatuses.unsynced,
-        lastSyncAttemptTimestamp: new Date().toISOString(),
-        message,
-        lastErrorMessage: message,
-      });
-      setDirectSheetsState({ status: directSheetsStatuses.error, pendingUnsynced: true, message, lastErrorMessage: message });
-      return;
-    }
-
-    await syncCardsToDirectSheets({
-      pendingOperation: pendingOperation || {
-        action: "batchUpdate",
-        payload: { cards: cloneStateValue(sampleGiftCards) },
-        successMessage: "Sync succeeded. Current local cards were saved directly to Google Sheets.",
-        description: "current local cards",
-      },
-      successMessage: pendingOperation?.successMessage || "Sync succeeded. Current local cards were saved directly to Google Sheets.",
-      startMessage: `Retrying direct Google Sheets sync${pendingOperation?.description ? ` for ${pendingOperation.description}` : ""}...`,
+  if (!isDirectSheetsConfigured()) {
+    const message = "Sync failed: save a direct Google Sheet before retrying sync.";
+    setSyncState({
+      status: syncStatuses.unsynced,
+      lastSyncAttemptTimestamp: new Date().toISOString(),
+      message,
+      lastErrorMessage: message,
+    });
+    setDirectSheetsState({
+      status: directSheetsStatuses.error,
+      pendingUnsynced: Boolean(syncState.pendingOperation),
+      message,
+      lastErrorMessage: message,
     });
     return;
   }
@@ -2755,138 +2290,34 @@ async function retrySyncCurrentSession() {
     setSyncState({
       status: syncStatuses.conflict,
       lastSyncAttemptTimestamp: new Date().toISOString(),
-      message: "Conflict detected. The Sheet changed since this session loaded. Download a CSV backup before recovery.",
+      message: "Conflict detected. Load the remote Sheet or explicitly overwrite it with this session.",
       lastErrorMessage: "Conflict detected. Retry Sync will not overwrite Sheet changes automatically.",
     });
     return;
   }
 
-  if (!connectionState.appsScriptUrl || !batchUpdateUrl) {
-    const message = "Sync failed: save a valid Apps Script Web App URL before retrying sync.";
-    setConnectionState({
-      connectionStatus: connectionStatuses.error,
-      message,
-      lastErrorMessage: message,
-    });
-    setSyncState({
-      status: syncStatuses.unsynced,
-      lastSyncAttemptTimestamp: new Date().toISOString(),
-      message,
-      lastErrorMessage: message,
-    });
-    return;
-  }
-
   if (!syncState.lastKnownSheetVersion) {
-    const message = "Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.";
+    const message = "Load or initialize the direct Google Sheet before syncing so Walmart-GC can verify the current Sheet version.";
     setSyncState({
       status: syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
       message,
       lastErrorMessage: message,
     });
+    setDirectSheetsState({ status: directSheetsStatuses.error, pendingUnsynced: true, message, lastErrorMessage: message });
     return;
   }
 
-  if (!pendingOperation && sampleGiftCards.length === 0) {
-    const message = "No pending sync operation found. Make a change or import data before retrying.";
-    setSyncState({
-      status: syncStatuses.unsynced,
-      lastSyncAttemptTimestamp: new Date().toISOString(),
-      message,
-      lastErrorMessage: "",
-    });
-    return;
-  }
-
-  const operation = pendingOperation || {
-    action: "batchUpdate",
-    payload: { cards: cloneStateValue(sampleGiftCards) },
-    successMessage: `Sync succeeded. Current local cards were saved to Sheets.`,
-    description: "current local cards",
-  };
-
-  await postCompletedActionToSheets(
-    operation.action,
-    cloneStateValue(operation.payload),
-    operation.successMessage || "Sync succeeded.",
-    {
-      pendingOperation: operation,
-      startMessage: `Retrying sync to Sheets${operation.description ? ` for ${operation.description}` : ""}...`,
-      noAutoSyncMessage: "Load from Sheets before syncing so Walmart-GC can verify the current Sheet version.",
+  await syncCardsToDirectSheets({
+    pendingOperation: pendingOperation || {
+      action: "batchUpdate",
+      payload: { cards: cloneStateValue(sampleGiftCards) },
+      successMessage: "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+      description: "current local cards",
     },
-  );
-}
-
-async function useCurrentSessionToOverwriteSheets() {
-  const replaceAllUrl = buildReplaceAllUrl(connectionState.appsScriptUrl);
-
-  if (!connectionState.appsScriptUrl || !replaceAllUrl) {
-    setConnectionState({
-      connectionStatus: connectionStatuses.error,
-      message: "Save a valid Apps Script Web App URL before overwriting Sheets.",
-    });
-    return;
-  }
-
-  const backupRecommended = window.confirm(
-    "Use Current Session will replace every card row in Sheets with this browser session. Download a CSV backup before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
-  );
-  if (!backupRecommended) {
-    return;
-  }
-
-  const confirmed = window.confirm(
-    "Final confirmation: overwrite Sheets with the current local session now? This is destructive and Walmart-GC will not automatically merge Sheet changes.",
-  );
-  if (!confirmed) {
-    return;
-  }
-
-  setConnectionState({
-    connectionStatus: connectionStatuses.loading,
-    message: "Overwriting Sheets with the current session...",
+    successMessage: pendingOperation?.successMessage || "Sync succeeded. Current local cards were saved directly to Google Sheets.",
+    startMessage: `Retrying direct Google Sheets sync${pendingOperation?.description ? ` for ${pendingOperation.description}` : ""}...`,
   });
-
-  const envelope = buildWriteEnvelope({
-    confirmReplaceAll: true,
-    cards: cloneStateValue(sampleGiftCards),
-  });
-
-  try {
-    const response = await postAppsScriptJson(replaceAllUrl, envelope);
-
-    let responseBody;
-    try {
-      responseBody = await response.json();
-    } catch {
-      handleFailedWrite("Sheets may not have been overwritten because the replaceAll response was not valid JSON.");
-      return;
-    }
-
-    if (!isPlainObject(responseBody)) {
-      handleFailedWrite("Sheets may not have been overwritten because Apps Script returned an unexpected replaceAll response.");
-      return;
-    }
-
-    if (!response.ok || responseBody.ok !== true) {
-      handleFailedWrite(getWriteErrorMessage(responseBody), responseBody);
-      return;
-    }
-
-    const sheetVersion = String(responseBody.meta?.sheetVersion || "").trim();
-    if (!sheetVersion) {
-      handleFailedWrite("Sheets may have been overwritten, but Apps Script did not return an updated Sheet version.", responseBody);
-      return;
-    }
-
-    handleSuccessfulWrite(
-      responseBody,
-      `Overwrote Sheets with ${sampleGiftCards.length} current-session card${sampleGiftCards.length === 1 ? "" : "s"}.`,
-    );
-  } catch {
-    handleFailedWrite("Sheets were not overwritten because Walmart-GC could not reach Apps Script. Your current session remains saved locally in this browser. Confirm the Apps Script deployment URL and try Retry Sync or recovery again.");
-  }
 }
 
 async function handleSyncRecoveryAction(action) {
@@ -2901,217 +2332,12 @@ async function handleSyncRecoveryAction(action) {
   }
 
   if (action === "refresh-from-sheets") {
-    if (isDirectSheetsConfigured()) {
-      await loadCardsFromDirectSheets();
-    } else {
-      await loadCardsFromSheets();
-    }
+    await loadCardsFromDirectSheets();
     return;
   }
 
   if (action === "use-current-session") {
-    if (isDirectSheetsConfigured()) {
-      await useCurrentSessionToOverwriteDirectSheets();
-    } else {
-      await useCurrentSessionToOverwriteSheets();
-    }
-  }
-}
-
-async function loadCardsFromSheets() {
-  const savedAppsScriptUrl = connectionState.appsScriptUrl;
-  const loadUrl = buildLoadCardsUrl(savedAppsScriptUrl);
-
-  if (!savedAppsScriptUrl || !loadUrl) {
-    setConnectionState({
-      connectionStatus: connectionStatuses.error,
-      message: "Save a valid Apps Script Web App URL before loading cards from Sheets.",
-      lastErrorMessage: "Missing or invalid Apps Script URL for Load from Sheets.",
-    });
-    return;
-  }
-
-  setConnectionState({
-    connectionStatus: connectionStatuses.loading,
-    message: "Loading cards from the Sheet...",
-  });
-  setSyncState({
-    lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: "Loading cards from Sheets...",
-  });
-
-  try {
-    const response = await fetch(loadUrl, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    });
-
-    let responseBody;
-    try {
-      responseBody = await response.json();
-    } catch {
-      setConnectionState({
-        connectionStatus: connectionStatuses.error,
-        message: "The Sheet load response was not valid JSON. Confirm this is the Apps Script Web App /exec URL and the latest deployment is active.",
-        lastErrorMessage: "Sheet load response was not valid JSON.",
-      });
-      setSyncState({
-        status: syncStatuses.unsynced,
-        lastErrorMessage: "Sheet load response was not valid JSON.",
-      });
-      return;
-    }
-
-    const loadedEnvelope = validateLoadCardsEnvelope(responseBody);
-    if (!response.ok || loadedEnvelope.error) {
-      const loadError = loadedEnvelope.error || getLoadErrorMessage(responseBody);
-      setConnectionState({
-        connectionStatus: connectionStatuses.error,
-        message: loadError,
-        lastErrorMessage: loadError,
-      });
-      setSyncState({
-        status: syncStatuses.unsynced,
-        lastErrorMessage: loadError,
-      });
-      return;
-    }
-
-    sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedEnvelope.cards);
-    selectedCardIndex = loadedEnvelope.cards.length > 0 ? 0 : -1;
-    detailNumberRevealed = false;
-    syncState = {
-      ...syncState,
-      status: syncStatuses.connected,
-      lastSyncTimestamp: new Date().toISOString(),
-      lastSyncAttemptTimestamp: new Date().toISOString(),
-      lastKnownSheetVersion: loadedEnvelope.sheetVersion,
-      message: "Loaded from Sheets. Completed actions will now auto-sync.",
-      lastErrorMessage: "",
-    };
-    connectionState = {
-      ...connectionState,
-      connectionStatus: connectionStatuses.connected,
-      spreadsheetName: String(responseBody.data?.spreadsheetName || connectionState.spreadsheetName || ""),
-      sheetName: String(responseBody.data?.sheetName || connectionState.sheetName || "Cards"),
-      lastHealthSheetVersion: connectionState.lastHealthSheetVersion || loadedEnvelope.sheetVersion,
-      message: `Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets.`,
-      lastErrorMessage: "",
-    };
-    saveAppState();
-    renderConnectionState();
-    refreshRawCardData(`Loaded ${loadedEnvelope.cards.length} card${loadedEnvelope.cards.length === 1 ? "" : "s"} from Sheets into this session.`);
-    renderApp(selectedCardIndex);
-  } catch {
-    const loadError = "Unable to reach the Apps Script URL while loading. Check that the URL ends in /exec, deployment access is correct, and your device is online.";
-    setConnectionState({
-      connectionStatus: connectionStatuses.error,
-      message: loadError,
-      lastErrorMessage: loadError,
-    });
-    setSyncState({
-      status: syncStatuses.unsynced,
-      lastErrorMessage: loadError,
-    });
-  }
-}
-
-async function testConnection() {
-  const appsScriptUrl = getConnectionInputUrl();
-  const healthUrl = buildHealthCheckUrl(appsScriptUrl);
-
-  if (!appsScriptUrl || !healthUrl) {
-    setConnectionState({
-      appsScriptUrl,
-      connectionStatus: connectionStatuses.error,
-      lastHealthCheckAt: "",
-      spreadsheetName: "",
-      sheetName: "",
-      schemaVersion: "",
-      lastHealthSheetVersion: "",
-      healthStatus: "Invalid URL",
-      message: "Enter a valid http(s) Apps Script Web App URL before testing.",
-      lastErrorMessage: "Invalid Apps Script URL format.",
-    });
-    return;
-  }
-
-  setConnectionState({
-    appsScriptUrl,
-    connectionStatus: connectionStatuses.checking,
-    healthStatus: "Checking",
-    message: "Checking the Apps Script health endpoint...",
-  });
-
-  try {
-    const response = await fetch(healthUrl, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    });
-
-    let responseBody;
-    try {
-      responseBody = await response.json();
-    } catch {
-      setConnectionState({
-        connectionStatus: connectionStatuses.error,
-        lastHealthCheckAt: new Date().toISOString(),
-        spreadsheetName: "",
-        sheetName: "",
-        schemaVersion: "",
-        lastHealthSheetVersion: "",
-        healthStatus: "Invalid response",
-        message: "The health check response was not valid JSON. Confirm this is the Apps Script Web App /exec URL and that the deployment returns JSON for ?action=health.",
-        lastErrorMessage: "Health check response was not valid JSON.",
-      });
-      return;
-    }
-
-    const healthData = getHealthData(responseBody);
-    if (!response.ok || !healthData) {
-      setConnectionState({
-        connectionStatus: connectionStatuses.error,
-        lastHealthCheckAt: new Date().toISOString(),
-        spreadsheetName: "",
-        sheetName: "",
-        schemaVersion: "",
-        lastHealthSheetVersion: "",
-        healthStatus: "Failed",
-        message: getHealthErrorMessage(responseBody),
-        lastErrorMessage: getHealthErrorMessage(responseBody),
-      });
-      return;
-    }
-
-    setConnectionState({
-      connectionStatus: connectionStatuses.connected,
-      lastHealthCheckAt: new Date().toISOString(),
-      spreadsheetName: String(healthData.spreadsheetName || "Not provided"),
-      sheetName: String(healthData.sheetName || "Not provided"),
-      schemaVersion: String(healthData.schemaVersion || "Not provided"),
-      lastHealthSheetVersion: String(healthData.sheetVersion || ""),
-      healthStatus: healthData.schemaValid === false ? "Schema problem reported" : "Healthy",
-      message: healthData.schemaValid === false
-        ? "Health check reached Apps Script, but the Sheet schema needs attention before loading cards."
-        : "Health check succeeded. You can now load cards from Sheets.",
-      lastErrorMessage: healthData.schemaValid === false ? "Apps Script reported a Sheet schema problem." : "",
-    });
-  } catch {
-    setConnectionState({
-      connectionStatus: connectionStatuses.error,
-      lastHealthCheckAt: new Date().toISOString(),
-      spreadsheetName: "",
-      sheetName: "",
-      schemaVersion: "",
-      lastHealthSheetVersion: "",
-      healthStatus: "Unreachable",
-      message: "Unable to reach the Apps Script URL. Check that the URL ends in /exec, your deployment access is correct, and your device is online.",
-      lastErrorMessage: "Apps Script URL unreachable during health check.",
-    });
+    await useCurrentSessionToOverwriteDirectSheets();
   }
 }
 
@@ -3691,9 +2917,6 @@ csvFileInput.addEventListener("change", (event) => {
   event.target.value = "";
 });
 exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
-saveConnectionButton.addEventListener("click", saveConnectionFromInput);
-testConnectionButton.addEventListener("click", testConnection);
-loadSheetsButton.addEventListener("click", loadCardsFromSheets);
 saveDirectSheetButton.addEventListener("click", saveDirectSheetFromInput);
 initializeDirectSheetButton.addEventListener("click", initializeDirectSheetStructure);
 loadDirectSheetButton.addEventListener("click", loadCardsFromDirectSheets);

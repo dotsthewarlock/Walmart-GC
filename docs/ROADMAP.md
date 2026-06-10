@@ -8,126 +8,103 @@ Walmart-GC is a mobile-first gift card management application for users managing
 
 The application is designed around:
 
-- Fast in-store checkout
-- Barcode access
-- Balance tracking
-- Mobile usability
-- Google Sheets as the source of truth
+- Fast in-store checkout.
+- Barcode access.
+- Balance tracking.
+- Mobile usability.
+- Google Sheets as the source of truth.
+- CSV backup and recovery.
 
-Architecture:
+## Current Phase 9 Architecture
 
-User Google Sheet ↔ Google Apps Script ↔ Walmart-GC Web App
+```text
+User Google Account
+        ↕
+Google OAuth
+        ↕
+Google Sheets API
+        ↕
+Walmart-GC Web App
+```
+
+Apps Script remains preserved on `main` as the known-good MVP baseline and in historical documentation. It is not an active sync provider on the Phase 9 OAuth branch.
 
 ## Completed
 
 ### Phase 1 – Static App Foundation
+
 Completed.
 
 ### Phase 2 – Checkout Workflow Improvements
+
 Completed.
 
 ### Phase 3 – Used Flag Model
+
 Completed.
 
 ### Phase 4 – Mobile Navigation Workflow
+
 Completed.
 
 ### Phase 5B – Data Panel & Checkout Refinements
+
 Completed.
 
 ### Phase 6 – Google Sheet Schema & Apps Script API Design
-Completed. Architecture decisions are documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md` and remain the approved MVP baseline.
 
-### Phase 7 – Sync Implementation
-Completed. Phase 7 implemented sync against the approved Phase 6 schema, endpoint strategy, connection model, and conflict strategy.
+Completed for the MVP baseline. Historical architecture decisions are documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
 
-Delivered areas include:
+### Phase 7 – Apps Script Sync Implementation
 
-- Frontend schema alignment with the approved MVP schema.
-- Local persistence for cards, settings, connection details, and sync state.
-- Apps Script API contract and connection health check.
-- Loading cards from Google Sheets.
-- Completed-action sync writes using `updateCard` for single-card actions.
-- Accepted import and bulk-action writes using `batchUpdate`.
-- Unsynced and conflict states with recovery workflow support.
-- CSV backup as the emergency recovery path.
-- Explicit `replaceAll` usage only for user-confirmed conflict recovery.
+Completed on the MVP line. The preserved `main` branch remains the known-good Apps Script MVP.
+
+### Phase 8 – Stable MVP Hardening
+
+Completed on the MVP line. Phase 8 focused on documentation, setup guidance, testing, troubleshooting, diagnostics, Apps Script hardening, CSV import sync reliability, and final MVP cleanup.
+
+### Phase 8.5 – Barcode Rendering & Checkout Validation
+
+Completed. Walmart Canada checkout barcodes are generated in the frontend from the existing `merchant` and `cardNumber` fields. No Sheet schema or CSV header change was required because the barcode payload is derived at render time.
+
+### Phase 9A – Google OAuth Foundation
+
+Completed on `phase-9-oauth`. Added Google Account setup, OAuth Client ID storage, Google Identity Services loading/status, and in-memory access token handling.
+
+### Phase 9B – Direct Google Sheets Sync
+
+Completed on `phase-9-oauth`. Added direct Sheet URL/ID setup, Sheet initialization, load, sync, `_META.sheetVersion`, and optimistic conflict detection while Apps Script remained as a temporary legacy fallback.
 
 ## Current Implementation Phase
 
-### Final Phase 8 Cleanup – Stable MVP Baseline
-Current. Phase 8 validation has confirmed the approved Google Sheet ↔ Google Apps Script ↔ Walmart-GC MVP architecture is complete and functional. Current activity is final Phase 8 UI/UX cleanup and documentation cleanup before any Phase 9 work begins.
+### Phase 9C – Apps Script Removal & Cleanup
 
-Do not declare Phase 9 started. Phase 8 remains focused on hardening, deployment, documentation, verification, troubleshooting, diagnostics, setup guidance, and final UI/UX cleanup. It is not a feature-expansion or architecture phase. Architecture redesigns should not be proposed unless a concrete MVP blocker exists. Minor implementation decisions should be resolved by applying `docs/PHASE_6_SCHEMA_API_DECISIONS.md`, `AGENTS.md`, and this roadmap.
+Current. Walmart-GC uses Google OAuth plus the direct Google Sheets API as the only online sync path.
 
-Phase 8 should proceed through three execution tracks:
+Phase 9C goals:
 
-#### Phase 8A – Documentation & Onboarding
+- Remove Apps Script setup, health check, load, diagnostics, and fallback routing from the active app.
+- Keep direct Google Sheets sync, conflict handling, local persistence, and CSV backup/recovery intact.
+- Keep `main` preserved as the known-good Apps Script MVP.
+- Keep Apps Script docs/code only as historical MVP reference material unless separately archived.
 
-Includes:
+## Active Sync Notes
 
-- Deployment documentation.
-- Apps Script setup guide.
-- Google Sheet setup guide.
-- Troubleshooting guide.
-
-#### Phase 8B – Verification & Testing
-
-Includes:
-
-- Manual test plan (`docs/MANUAL_TEST_PLAN.md`).
-- Setup validation.
-- Sync validation.
-- Offline validation.
-- Conflict validation.
-
-#### Phase 8C – Hardening & Diagnostics
-
-Includes:
-
-- Diagnostics improvements.
-- Validation review.
-- Edge-case handling.
-- Apps Script hardening.
-- Large-sheet review.
-
-Phase 8 PRs should be coherent rather than microscopic. Complete related documentation together, avoid repeated PRs against the same documentation files, and keep each PR logically complete while remaining reviewable.
-
-#### Phase 8.5 – Barcode Rendering & Checkout Validation
-
-Phase 8.5 is a pre-Phase-9 MVP completion step, not OAuth work. Walmart Canada checkout barcodes are generated in the frontend from the existing `merchant` and `cardNumber` fields. No Sheet schema, CSV header, Apps Script endpoint, sync behavior, conflict behavior, or local persistence change is required because the barcode payload is derived at render time as static Walmart Canada prefix plus normalized `cardNumber`.
-
-## Validated MVP Notes
-
-- Apps Script can initialize a blank Google Sheet by creating the `Cards` tab, approved headers, and hidden `_META` metadata sheet.
-- Browser writes to Apps Script should continue using the CORS-safelisted simple POST transport. Do not switch write transport back to `Content-Type: application/json` if that triggers browser preflight failures before Apps Script receives the request.
-- Accepted CSV import is treated as a completed local action with a pending `batchUpdate` operation until Apps Script confirms the write. Retry Sync must keep that accepted import writeable to Sheets and show clear feedback for retrying, success, failure, missing Sheet version, no pending operation, or conflict.
-
-## Final Phase 8 Data Panel Cleanup Priorities
-
-- Align diagnostics in a two-column/table-like label/value layout so mobile and desktop users can scan connection state quickly.
-- Group Google Sheets controls together, including connection, health, refresh, Retry Sync, and open Sheet actions.
-- Remove the obsolete or non-functional Upload Sheets button if it remains unused.
-- Keep CSV backup/recovery controls separate from Google Sheets sync controls so backup/import actions are not confused with live Sheets synchronization.
+- The approved card schema remains unchanged.
+- `cardNumber` remains the unique ID.
+- `currentBalance` remains authoritative.
+- `used` remains independent of balance.
+- Direct sync writes completed actions only, not every keystroke.
+- `_META.sheetVersion` provides sheet-level optimistic conflict detection.
+- Conflicts require explicit user recovery; there is no automatic merge or silent overwrite.
+- CSV export/import remains the backup and recovery path.
 
 ## Debug File Version Protocol
 
 `index.html`, `app.js`, and `styles.css` each have independent manual debug versions. Increment only the changed core files in a PR, and leave unchanged core-file versions unchanged. Codex final summaries for changes touching any core file must end with a `LIVE VERSION CHECK` block listing HTML, JS, and CSS values.
 
-## MVP Sharing and Access Position
+## Sharing and Access Position
 
 Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions. Google Sheets controls sharing and access, and shared Sheets are allowed when users have the necessary Google access.
 
-The MVP is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. The approved sync and conflict-handling mechanisms remain the project solution when Sheet data changes independently.
-
-## Post-MVP / Phase 9 Direction
-
-Post-MVP enhancements should be considered only after MVP hardening is complete. Phase 9 has not started.
-
-The likely Phase 9 preparation path is:
-
-1. Tag the stable MVP, likely as `mvp-apps-script-final`.
-2. Preserve `main` as the known-good Apps Script MVP.
-3. Create a dedicated `phase-9-oauth` branch for future OAuth work.
-
-Google Apps Script remains the approved MVP sync provider. Future Phase 9 OAuth work should move 100% to direct Google OAuth + Google Sheets API access. Apps Script does not require long-term support after the MVP baseline is preserved. No migration guarantee is required for future OAuth work; CSV export/import is an acceptable fallback path.
+The app is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. Sheet-level optimistic conflict handling remains the project solution when Sheet data changes independently.
