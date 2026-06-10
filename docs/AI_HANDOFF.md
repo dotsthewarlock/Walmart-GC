@@ -25,7 +25,7 @@ Walmart-GC is a mobile-first gift card management application for users managing
 
 User Google Sheet ↔ Google Apps Script ↔ Walmart-GC
 
-Phase 7 sync implementation is complete. The current application uses the approved Google Sheet ↔ Apps Script ↔ Walmart-GC architecture, with Phase 8 focused on MVP hardening, deployment, documentation, verification, troubleshooting, diagnostics, and setup guidance.
+Phase 7 sync implementation is complete, and Phase 8 validation has confirmed the approved Google Sheet ↔ Apps Script ↔ Walmart-GC MVP architecture is complete and functional. Current activity is final Phase 8 UI/UX cleanup and documentation cleanup for a stable MVP baseline. Phase 9 has not started.
 
 ## Current Data Model
 
@@ -73,15 +73,15 @@ Assumptions:
 
 ## Current Implementation Phase
 
-- Phase 8 – MVP Hardening & Deployment
+- Final Phase 8 cleanup – MVP UI/UX cleanup and documentation cleanup; Phase 9 has not started
 
 ## Architecture Baseline
 
 - The approved Phase 6 architecture summary is documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
 - Treat Phase 6 as the current architecture baseline and historical decision record.
 - Do not change schema, Apps Script APIs, sync behavior, connection model, metadata architecture, or conflict handling without explicit discussion and approval.
-- The MVP architecture is complete.
-- Phase 8 is not an architecture phase.
+- The MVP architecture is complete and functional.
+- Phase 8 is not an architecture phase; current work is final UI/UX cleanup and documentation cleanup.
 - Do not propose architecture redesigns unless a concrete MVP blocker exists.
 - Resolve minor implementation questions using the approved Phase 6 decisions and current repository documentation.
 
@@ -146,9 +146,24 @@ Live MVP validation found that CSV import plus **Update Data** could update loca
 
 Browser-based Apps Script writes intentionally use a CORS-safelisted simple POST transport: `Content-Type: text/plain;charset=utf-8` with the existing JSON request envelope in the body. This preserves `updateCard`, `batchUpdate`, and `replaceAll` endpoint contracts while avoiding the `application/json` preflight path that can be blocked before Apps Script receives the request. Apps Script continues to parse `e.postData.contents` as JSON. If a write cannot reach Apps Script, the UI must not claim the Sheet was updated; local browser data remains preserved and Retry Sync or explicit recovery should be used.
 
+Do not switch write transport back to `Content-Type: application/json` if it reintroduces browser preflight failures before Apps Script receives the request.
+
+### Blank Sheet Initialization
+
+Apps Script can initialize a blank Google Sheet by creating the `Cards` tab, applying the approved MVP headers, and creating/hiding `_META`. This is safe structural setup only and must not overwrite populated user tabs or modify user card data.
+
+### Final Phase 8 Data Panel Cleanup Priorities
+
+- Align diagnostics in a two-column/table-like label/value layout.
+- Group Google Sheets connection, health, refresh, Retry Sync, and open Sheet controls together.
+- Remove the obsolete or non-functional Upload Sheets button if it remains unused.
+- Keep CSV backup/recovery controls separate from Google Sheets sync controls.
+
 ## Sync Provider Direction
 
-Google Apps Script is the approved MVP sync provider. Future versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is a post-MVP enhancement. OAuth work is not part of Phase 8, no OAuth setup or implementation tasks should be added for Phase 8, and contributors should not redesign the MVP around OAuth.
+Google Apps Script is the approved MVP sync provider. OAuth work is not part of Phase 8, no OAuth setup or implementation tasks should be added for Phase 8, and contributors should not redesign the MVP around OAuth.
+
+Future Phase 9 direction only: tag the stable MVP, likely as `mvp-apps-script-final`; preserve `main` as the known-good Apps Script MVP; create a dedicated `phase-9-oauth` branch; move future OAuth work 100% to direct Google OAuth + Google Sheets API; do not require Apps Script long-term support; do not require a migration guarantee; use CSV export/import as an acceptable fallback path.
 
 ## Sheet Sharing and Collaboration Scope
 
