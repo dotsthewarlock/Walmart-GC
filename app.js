@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.00 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.01 (cache/debug only, not a product release).
 const debugFileVersions = {
-  js: "1.01.00",
+  js: "1.01.01",
   css: "1.01.00",
 };
 
@@ -550,9 +550,13 @@ function applyAppState(appState) {
 }
 
 function escapeHtml(value) {
-  const template = document.createElement("template");
-  template.textContent = String(value ?? "");
-  return template.innerHTML;
+  // Regression guard: escaped diagnostics like "Spreadsheet" and "Connected" must stay visible text.
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function escapeCsvValue(value) {
@@ -1070,10 +1074,13 @@ function valueOrFallback(value, fallback = "Not available") {
 }
 
 function renderDiagnosticRow(label, value) {
+  const diagnosticLabel = valueOrFallback(label);
+  const diagnosticValue = valueOrFallback(value);
+
   return `
     <li class="diagnostic-row">
-      <strong class="diagnostic-label">${escapeHtml(label)}:</strong>
-      <span class="diagnostic-value">${escapeHtml(value)}</span>
+      <strong class="diagnostic-label">${escapeHtml(diagnosticLabel)}:</strong>
+      <span class="diagnostic-value">${escapeHtml(diagnosticValue)}</span>
     </li>`;
 }
 
