@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.02 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.03 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.02"
+          data-html-version="1.01.03"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.02 · JS loading · CSS 1.01.02
+          HTML 1.01.03 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -182,11 +182,38 @@
             After a successful Sheet load, completed balance, used-state, import, and bulk updates auto-sync to Sheets.
           </p>
 
+          <div class="data-card oauth-card">
+            <div class="data-card-heading">
+              <div>
+                <h3>Google Account</h3>
+                <p>Phase 9 OAuth foundation for future direct Google Sheets API sync. Connect validates Google sign-in only; Sheets read/write still uses the Apps Script connection below.</p>
+              </div>
+            </div>
+
+            <label class="connection-label" for="google-oauth-client-id">Google OAuth Client ID</label>
+            <input
+              id="google-oauth-client-id"
+              class="connection-input"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              placeholder="Paste OAuth Web Client ID (not a secret)"
+            />
+
+            <div class="connection-actions oauth-actions" aria-label="Google account actions">
+              <button id="save-google-oauth-client" class="secondary-button" type="button">Save Client ID</button>
+              <button id="connect-google" class="primary-button" type="button">Connect Google</button>
+              <button id="disconnect-google" class="secondary-button" type="button">Disconnect</button>
+            </div>
+
+            <div id="google-oauth-status" class="connection-status oauth-status" role="status" aria-live="polite"></div>
+          </div>
+
           <div class="data-card connection-card">
             <div class="data-card-heading">
               <div>
-                <h3>Google Sheets Connection</h3>
-                <p>Enter your deployed Apps Script Web App URL. Test with <code>?action=health</code>, then load with <code>?action=load</code>.</p>
+                <h3>Google Sheets Connection (Apps Script MVP)</h3>
+                <p>Existing MVP sync remains available in this PR. Enter your deployed Apps Script Web App URL, test with <code>?action=health</code>, then load with <code>?action=load</code>.</p>
               </div>
             </div>
 
@@ -322,6 +349,13 @@
       </div>
     </div>
 
+    <script
+      src="https://accounts.google.com/gsi/client"
+      async
+      defer
+      onload="window.walmartGcGoogleIdentityLoaded = true; window.dispatchEvent(new Event('walmart-gc-google-identity-loaded'));"
+      onerror="window.walmartGcGoogleIdentityLoadFailed = true; window.dispatchEvent(new Event('walmart-gc-google-identity-failed'));"
+    ></script>
     <script src="app.js"></script>
   </body>
 </html>
