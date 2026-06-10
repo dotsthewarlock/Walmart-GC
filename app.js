@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js version 1.01.00 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.01 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.00";
-const DEBUG_VERSION_CSS = "1.01.00";
+const DEBUG_VERSION_JS = "1.01.01";
+const DEBUG_VERSION_CSS = "1.01.01";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -1353,7 +1353,7 @@ function renderConnectionState() {
     </div>
     <p>${escapeHtml(connectionState.message || defaultConnectionState.message)}</p>
     ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
-    ${details.length ? `<ul>${details.join("")}</ul>` : ""}
+    ${details.length ? `<ul class="diagnostic-list">${details.join("")}</ul>` : ""}
   `;
 }
 
