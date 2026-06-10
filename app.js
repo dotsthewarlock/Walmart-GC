@@ -132,9 +132,10 @@ let sortMode = "balance-asc";
 let amountUsedEditedLast = false;
 let touchStartX = 0;
 let touchStartY = 0;
-let rawDataLocked = false;
+let rawDataLocked = true;
 let detailNumberRevealed = false;
 let wakeLock = null;
+let balanceOpenedFromCheckout = false;
 
 const dataPanelRowLimit = 100;
 const csvHeaders = [
@@ -399,7 +400,7 @@ function parseRawCardData(rawCsv) {
   return { parsedCards, warnings };
 }
 
-function refreshRawCardData() {
+function refreshRawCardData(summaryText) {
   const displayedCount = Math.min(sampleGiftCards.length, dataPanelRowLimit);
   rawDataInput.value = cardsToCsv(sampleGiftCards, dataPanelRowLimit);
   updateDataCountSummary(displayedCount);
@@ -407,7 +408,10 @@ function refreshRawCardData() {
   const warnings = sampleGiftCards.length > dataPanelRowLimit
     ? [`Displaying first ${dataPanelRowLimit} cards only. Export CSV includes all ${sampleGiftCards.length} cards.`]
     : [];
-  renderValidationWarnings(warnings, `Refreshed ${displayedCount} of ${sampleGiftCards.length} cards into the textarea.`);
+  renderValidationWarnings(
+    warnings,
+    summaryText ?? `Refreshed ${displayedCount} of ${sampleGiftCards.length} cards into the textarea.`,
+  );
 }
 
 function updateRawCardData() {
@@ -734,6 +738,8 @@ function updateSelectedBalance(balance) {
 }
 
 function openBalanceModal() {
+  balanceOpenedFromCheckout = !fullscreenBarcode.hidden;
+
   if (selectedCardIndex < 0) {
     return;
   }
@@ -750,7 +756,14 @@ function openBalanceModal() {
 
 function closeBalanceModal() {
   balanceModal.hidden = true;
-  openBalanceModalButton.focus();
+
+  if (balanceOpenedFromCheckout && !fullscreenBarcode.hidden) {
+    fullscreenUpdateBalanceButton.focus();
+  } else {
+    openBalanceModalButton.focus();
+  }
+
+  balanceOpenedFromCheckout = false;
 }
 
 function readMoneyInput(input) {
@@ -920,16 +933,12 @@ function markUsedFromCheckout() {
     return;
   }
 
-  closeFullscreenBarcode();
   if (!sampleGiftCards[selectedCardIndex].used) {
     toggleSelectedUsed();
   }
-  showPanel("detail", { selectFirstVisible: true });
 }
 
 function updateBalanceFromCheckout() {
-  closeFullscreenBarcode();
-  showPanel("detail", { selectFirstVisible: true });
   openBalanceModal();
 }
 
@@ -1052,8 +1061,7 @@ fullscreenBarcode.addEventListener("touchend", (event) => {
 hideUsedCheckbox.checked = hideUsedCards;
 hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
 sortCardsSelect.value = sortMode;
-rawDataInput.value = "";
-setRawDataLocked(false);
-updateDataCountSummary(0);
+setRawDataLocked(true);
+refreshRawCardData("Loaded current session data into the textarea. Editing is locked.");
 renderApp();
 showPanel("list");
