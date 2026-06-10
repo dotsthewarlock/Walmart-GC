@@ -12,8 +12,9 @@
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 1 uses sample
-          in-memory data only; Google Sheet sync will be added later.
+          Mobile-first checkout access for Walmart gift cards. Phase 2 adds checkout
+          workflow controls using sample in-memory data only; Google Sheet sync will
+          be added later.
         </p>
       </div>
     </header>
@@ -27,6 +28,12 @@
           </div>
           <span id="card-count" class="count-badge">0 cards</span>
         </div>
+
+        <label class="filter-toggle">
+          <input id="hide-used" type="checkbox" />
+          <span>Hide used cards</span>
+        </label>
+
         <div id="card-list" class="card-list"></div>
       </section>
 
@@ -40,10 +47,21 @@
         </div>
 
         <article id="card-detail" class="card-detail">
-          <div class="barcode-placeholder" aria-label="Barcode display placeholder">
-            <span>Barcode display placeholder</span>
-            <small>No barcode library is connected in Phase 1.</small>
+          <div class="checkout-nav" aria-label="Checkout navigation">
+            <button id="prev-card" class="secondary-button" type="button">Previous</button>
+            <span id="card-position" class="position-indicator">Card 0 of 0</span>
+            <button id="next-card" class="secondary-button" type="button">Next</button>
           </div>
+
+          <button
+            id="barcode-open"
+            class="barcode-placeholder barcode-action"
+            type="button"
+            aria-label="Open full screen barcode placeholder"
+          >
+            <span>Barcode display placeholder</span>
+            <small>No barcode library is connected in Phase 2.</small>
+          </button>
 
           <dl class="detail-grid">
             <div>
@@ -64,6 +82,26 @@
             </div>
           </dl>
 
+          <form id="balance-form" class="balance-form">
+            <label for="balance-input">Update balance</label>
+            <div class="balance-controls">
+              <input
+                id="balance-input"
+                type="number"
+                min="0"
+                step="0.01"
+                inputmode="decimal"
+                placeholder="0.00"
+              />
+              <button class="primary-button" type="submit">Update Balance</button>
+            </div>
+            <p id="balance-help" class="form-help">
+              Status updates automatically from the remaining balance.
+            </p>
+          </form>
+
+          <button id="mark-used" class="danger-button" type="button">Mark Used</button>
+
           <div class="notes-block">
             <h3>Notes</h3>
             <p id="detail-notes">Select a card to view notes.</p>
@@ -71,6 +109,23 @@
         </article>
       </section>
     </main>
+
+    <div id="fullscreen-barcode" class="fullscreen-barcode" hidden>
+      <div class="fullscreen-content" role="dialog" aria-modal="true" aria-labelledby="fullscreen-title">
+        <div class="fullscreen-header">
+          <div>
+            <p class="eyebrow">Checkout mode</p>
+            <h2 id="fullscreen-title">Full screen barcode</h2>
+          </div>
+          <button id="barcode-close" class="secondary-button" type="button">Close</button>
+        </div>
+        <div class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen barcode placeholder">
+          <span>Barcode display placeholder</span>
+          <small>No real barcode generation is connected in Phase 2.</small>
+        </div>
+        <p id="fullscreen-card-number" class="fullscreen-card-number">—</p>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
