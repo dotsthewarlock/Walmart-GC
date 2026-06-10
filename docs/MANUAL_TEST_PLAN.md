@@ -337,13 +337,15 @@ The current Data panel exposes CSV/raw data tools. If the deployed UI being test
 - [ ] Select **Import CSV**, or unlock and edit raw data if that is the chosen path.
 - [ ] Accept or apply the import with **Update Data**.
 - [ ] Confirm the local Card List reflects the accepted import.
-- [ ] Open the Google Sheet and confirm expected rows exist.
+- [ ] Confirm the Data panel reports that imported data is syncing, synced, unsynced, or blocked by a missing Sheet version; Retry Sync must not be silent.
+- [ ] Open the Google Sheet and confirm expected rows exist after a successful sync.
 - [ ] Repeat with a rejected or cancelled import path if the UI supports cancellation.
 - [ ] Try an intentional duplicate card number only in a disposable test Sheet/session.
 
 ### Expected Result
 
 - [ ] Accepted import syncs after completion when the app is connected with a known Sheet version.
+- [ ] If import sync fails, imported local cards remain in the browser session and CSV export/backup remains available.
 - [ ] Rejected or cancelled import does not sync.
 - [ ] Duplicate handling matches implementation behavior and does not silently corrupt data.
 - [ ] The app reports validation issues clearly enough to route follow-up to Phase 8C if needed.
@@ -404,12 +406,13 @@ Verifies failed sync preserves local data and can recover when service availabil
 - [ ] Restore the valid Apps Script URL or network access.
 - [ ] Select **Test Connection**.
 - [ ] Select **Retry Sync** if shown, or follow the Data panel recovery path.
+- [ ] Confirm Retry Sync reports a visible retrying, success, failure, missing Sheet version, no pending operation, or conflict message.
 - [ ] Verify the Google Sheet after recovery.
 
 ### Expected Result
 
 - [ ] Local change is preserved in the browser session.
-- [ ] App shows Unsynced or a relevant error state.
+- [ ] App shows Unsynced or a relevant error state with visible Retry Sync feedback.
 - [ ] Data panel shows a useful Last error and a recent Last sync attempt.
 - [ ] Error copy does not imply the data was lost.
 - [ ] Retry can recover when the service is available and no conflict exists.

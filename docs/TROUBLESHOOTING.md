@@ -137,7 +137,7 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 
 ### Symptoms
 
-- A balance or used-state update is saved locally but not confirmed in Sheets.
+- A balance, used-state update, or accepted CSV import is saved locally but not confirmed in Sheets.
 - The Data panel shows **Unsynced**.
 - The app says Sheets sync needs attention.
 - **Retry Sync** appears.
@@ -157,9 +157,10 @@ Health Check calls the Apps Script `health` action. It verifies that Apps Script
 3. Select **Download Session CSV Backup** if the local changes matter.
 4. Confirm the Apps Script URL is still saved.
 5. Select **Test Connection**.
-6. If Health Check succeeds, select **Retry Sync**.
+6. If Health Check succeeds, select **Retry Sync**. Retry Sync should show a visible retrying, success, failure, missing Sheet version, no pending operation, or conflict message.
 7. If Retry Sync succeeds, verify the relevant rows in the Google Sheet.
-8. If you prefer to discard the browser's unsynced local changes, select **Refresh from Sheets** instead.
+8. If Retry Sync says to load from Sheets first, download a CSV backup before loading if the browser session contains data you need to preserve.
+9. If you prefer to discard the browser's unsynced local changes, select **Refresh from Sheets** instead.
 
 ## Conflict State
 
@@ -271,8 +272,9 @@ To restore from a CSV into the browser session:
 4. Choose the backup file.
 5. Review the raw data area and validation warnings.
 6. Select **Update Data**.
-7. If connected with a known Sheet version, the import is saved through the batch update sync flow.
-8. If the app becomes unsynced or conflicted, use the recovery actions.
+7. If connected with a known Sheet version, the accepted import is saved through the `batchUpdate` sync flow.
+8. If the sync fails, the imported local cards remain in the browser session; use **Retry Sync** or download a CSV backup.
+9. If the app becomes unsynced or conflicted, use the recovery actions.
 
 To restore manually in Google Sheets:
 
