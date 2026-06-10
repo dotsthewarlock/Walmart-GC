@@ -797,3 +797,27 @@ dd,
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.sync-badge {
+  border-radius: 999px;
+  background: rgba(0, 113, 220, 0.12);
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0.55rem;
+}
+
+.connection-status.sync-unsynced .sync-badge {
+  background: #fff7d6;
+  color: #7a4a00;
+}
+
+.connection-status.sync-conflict .sync-badge {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.sync-message {
+  margin-top: 0.45rem;
+  font-weight: 700;
+}

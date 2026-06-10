@@ -19,9 +19,9 @@
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 7 begins
-          Google Sheets loading while keeping local CSV tools available and
-          write sync disabled until a later PR.
+          Mobile-first checkout access for Walmart gift cards. Phase 7 now
+          keeps completed local actions synced with Google Sheets after a
+          successful Sheet load.
         </p>
       </div>
     </header>
@@ -169,7 +169,7 @@
         <div class="data-layout">
           <p class="data-description">
             Manage local CSV-style card data and refresh the current session from your connected Google Sheet.
-            Sheet refreshes only call the approved read endpoint and never write local changes back to Sheets.
+            After a successful Sheet load, completed balance, used-state, import, and bulk updates auto-sync to Sheets.
           </p>
 
           <div class="data-card connection-card">
@@ -236,7 +236,7 @@
               <button id="sync-sheets" class="secondary-button" type="button" disabled title="Google Sheets upload in development">Upload Sheets *</button>
             </div>
           </div>
-          <p class="data-footnote">* Write sync features are still in development.</p>
+          <p class="data-footnote">* Direct manual upload remains disabled; completed actions sync automatically after loading from Sheets.</p>
 
           <div class="validation-card">
             <h3>Validation Warnings</h3>
