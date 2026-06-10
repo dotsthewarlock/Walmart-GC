@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.03 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.04 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,17 +20,16 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.03"
+          data-html-version="1.01.04"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.03 · JS loading · CSS 1.01.03
+          HTML 1.01.04 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 7 now
-          keeps completed local actions synced with Google Sheets after a
-          successful Sheet load.
+          Mobile-first checkout access for Walmart gift cards. Phase 9B can sync completed local actions directly with a dedicated Google Sheet
+          after Google authorization and Sheet initialization.
         </p>
       </div>
     </header>
@@ -179,14 +178,14 @@
         <div class="data-layout">
           <p class="data-description">
             Manage Google Sheets sync separately from local CSV backup and recovery tools.
-            After a successful Sheet load, completed balance, used-state, import, and bulk updates auto-sync to Sheets.
+            Direct Google Sheets is the Phase 9 path; Apps Script remains available temporarily as the legacy MVP fallback.
           </p>
 
           <div class="data-card oauth-card">
             <div class="data-card-heading">
               <div>
                 <h3>Google Account</h3>
-                <p>Phase 9 OAuth foundation for future direct Google Sheets API sync. Connect validates Google sign-in only; Sheets read/write still uses the Apps Script connection below.</p>
+                <p>Connect Google to authorize direct Google Sheets API sync. Tokens stay in memory and are not saved.</p>
               </div>
             </div>
 
@@ -209,11 +208,40 @@
             <div id="google-oauth-status" class="connection-status oauth-status" role="status" aria-live="polite"></div>
           </div>
 
+          <div class="data-card direct-sheets-card">
+            <div class="data-card-heading">
+              <div>
+                <h3>Direct Google Sheet</h3>
+                <p>Paste one dedicated Google Sheet URL or spreadsheet ID. Create the Sheet in Google first, then initialize the <code>Cards</code> and <code>_META</code> tabs here.</p>
+              </div>
+            </div>
+
+            <label class="connection-label" for="direct-sheet-id">Google Sheet URL or ID</label>
+            <input
+              id="direct-sheet-id"
+              class="connection-input"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              placeholder="https://docs.google.com/spreadsheets/d/... or spreadsheet ID"
+            />
+
+            <div class="connection-actions" aria-label="Direct Google Sheets actions">
+              <button id="save-direct-sheet" class="secondary-button" type="button">Save Sheet</button>
+              <button id="initialize-direct-sheet" class="primary-button" type="button">Initialize Sheet</button>
+              <button id="load-direct-sheet" class="primary-button" type="button">Load from Google Sheets</button>
+              <button id="sync-direct-sheet" class="secondary-button" type="button">Sync Now</button>
+            </div>
+
+            <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
+            <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
+          </div>
+
           <div class="data-card connection-card">
             <div class="data-card-heading">
               <div>
-                <h3>Google Sheets Connection (Apps Script MVP)</h3>
-                <p>Existing MVP sync remains available in this PR. Enter your deployed Apps Script Web App URL, test with <code>?action=health</code>, then load with <code>?action=load</code>.</p>
+                <h3>Legacy Apps Script MVP Connection</h3>
+                <p>Temporary fallback for the stable MVP. Enter your deployed Apps Script Web App URL, test with <code>?action=health</code>, then load with <code>?action=load</code>.</p>
               </div>
             </div>
 
@@ -234,7 +262,6 @@
             </div>
 
             <div id="connection-status" class="connection-status" role="status" aria-live="polite"></div>
-            <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
           </div>
 
           <div class="data-card csv-recovery-card">
