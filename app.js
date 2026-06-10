@@ -1,4 +1,4 @@
-const sampleGiftCards = [
+const bundledSampleGiftCards = [
   {
     cardNumber: "6045782190348765",
     pin: "4821",
@@ -167,6 +167,34 @@ const legacyCsvHeaders = [
 ];
 const prototypeDefaultMerchant = "walmart-ca";
 
+const storageKeys = {
+  cards: "walmartGc.cards",
+  settings: "walmartGc.settings",
+  connection: "walmartGc.connection",
+  sync: "walmartGc.sync",
+};
+
+const defaultSettings = {
+  advanceOnMarkUsed: true,
+  hideUsedCards: true,
+  hideZeroBalanceCards: false,
+  sortMode: "balance-asc",
+};
+
+const defaultConnectionState = {
+  appsScriptUrl: "",
+};
+
+const defaultSyncState = {
+  status: "unsynced",
+  lastSyncTimestamp: "",
+  lastKnownSheetVersion: "",
+};
+
+let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
+let connectionState = cloneStateValue(defaultConnectionState);
+let syncState = cloneStateValue(defaultSyncState);
+
 function formatBalance(balance) {
   return currencyFormatter.format(balance);
 }
@@ -185,6 +213,177 @@ function todayString() {
 
 function normalizeMoney(value) {
   return Math.round(value * 100) / 100;
+}
+
+function cloneStateValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readStoredJson(key) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? undefined : JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function writeStoredJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Keep the in-memory session usable if storage is unavailable or full.
+  }
+}
+
+function removeStoredJson(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage access failures so reset helpers never break startup.
+  }
+}
+
+function normalizeStoredCard(card) {
+  if (!isPlainObject(card)) {
+    return null;
+  }
+
+  const cardNumber = String(card.cardNumber ?? "").trim();
+  const pin = String(card.pin ?? "").trim();
+  const startingBalance = Number(card.startingBalance);
+  const currentBalance = Number(card.currentBalance);
+
+  if (!cardNumber || !pin || !Number.isFinite(startingBalance) || !Number.isFinite(currentBalance)) {
+    return null;
+  }
+
+  return {
+    cardNumber,
+    pin,
+    merchant: String(card.merchant || prototypeDefaultMerchant),
+    startingBalance: normalizeMoney(startingBalance),
+    currentBalance: normalizeMoney(currentBalance),
+    dateAdded: String(card.dateAdded || todayString()),
+    dateUpdated: String(card.dateUpdated || card.dateAdded || todayString()),
+    dateUsed: String(card.dateUsed || ""),
+    used: Boolean(card.used),
+    notes: String(card.notes ?? ""),
+  };
+}
+
+function normalizeStoredCards(cards) {
+  if (!Array.isArray(cards)) {
+    return null;
+  }
+
+  const normalizedCards = cards.map(normalizeStoredCard);
+  return normalizedCards.includes(null) ? null : normalizedCards;
+}
+
+function normalizeStoredSettings(settings) {
+  if (!isPlainObject(settings)) {
+    return cloneStateValue(defaultSettings);
+  }
+
+  const allowedSortModes = [
+    "balance-asc",
+    "balance-desc",
+    "date-added-asc",
+    "date-added-desc",
+    "date-updated-asc",
+    "date-updated-desc",
+    "card-number",
+  ];
+
+  return {
+    advanceOnMarkUsed: typeof settings.advanceOnMarkUsed === "boolean"
+      ? settings.advanceOnMarkUsed
+      : defaultSettings.advanceOnMarkUsed,
+    hideUsedCards: typeof settings.hideUsedCards === "boolean"
+      ? settings.hideUsedCards
+      : defaultSettings.hideUsedCards,
+    hideZeroBalanceCards: typeof settings.hideZeroBalanceCards === "boolean"
+      ? settings.hideZeroBalanceCards
+      : defaultSettings.hideZeroBalanceCards,
+    sortMode: allowedSortModes.includes(settings.sortMode)
+      ? settings.sortMode
+      : defaultSettings.sortMode,
+  };
+}
+
+function normalizeStoredConnection(connection) {
+  if (!isPlainObject(connection)) {
+    return cloneStateValue(defaultConnectionState);
+  }
+
+  return {
+    appsScriptUrl: String(connection.appsScriptUrl || ""),
+  };
+}
+
+function normalizeStoredSync(sync) {
+  if (!isPlainObject(sync)) {
+    return cloneStateValue(defaultSyncState);
+  }
+
+  return {
+    status: String(sync.status || defaultSyncState.status),
+    lastSyncTimestamp: String(sync.lastSyncTimestamp || ""),
+    lastKnownSheetVersion: String(sync.lastKnownSheetVersion || ""),
+  };
+}
+
+function getCurrentSettings() {
+  return {
+    advanceOnMarkUsed,
+    hideUsedCards,
+    hideZeroBalanceCards,
+    sortMode,
+  };
+}
+
+function applySettings(settings) {
+  advanceOnMarkUsed = settings.advanceOnMarkUsed;
+  hideUsedCards = settings.hideUsedCards;
+  hideZeroBalanceCards = settings.hideZeroBalanceCards;
+  sortMode = settings.sortMode;
+}
+
+function loadAppState() {
+  const storedCards = normalizeStoredCards(readStoredJson(storageKeys.cards));
+  const storedSettings = normalizeStoredSettings(readStoredJson(storageKeys.settings));
+  const storedConnection = normalizeStoredConnection(readStoredJson(storageKeys.connection));
+  const storedSync = normalizeStoredSync(readStoredJson(storageKeys.sync));
+
+  return {
+    cards: storedCards ?? cloneStateValue(bundledSampleGiftCards),
+    settings: storedSettings,
+    connection: storedConnection,
+    sync: storedSync,
+  };
+}
+
+function saveAppState() {
+  writeStoredJson(storageKeys.cards, sampleGiftCards);
+  writeStoredJson(storageKeys.settings, getCurrentSettings());
+  writeStoredJson(storageKeys.connection, connectionState);
+  writeStoredJson(storageKeys.sync, syncState);
+}
+
+function clearAppState() {
+  Object.values(storageKeys).forEach(removeStoredJson);
+}
+
+function applyAppState(appState) {
+  sampleGiftCards = appState.cards;
+  applySettings(appState.settings);
+  connectionState = appState.connection;
+  syncState = appState.sync;
 }
 
 function escapeCsvValue(value) {
@@ -464,6 +663,7 @@ function updateRawCardData() {
 
   sampleGiftCards.splice(0, sampleGiftCards.length, ...parsedCards);
   selectedCardIndex = parsedCards.length > 0 ? 0 : -1;
+  saveAppState();
   detailNumberRevealed = false;
   renderApp(selectedCardIndex);
   updateDataCountSummary(Math.min(parsedCards.length, dataPanelRowLimit));
@@ -748,6 +948,7 @@ function toggleSelectedUsed() {
 
   card.used = !card.used;
   card.dateUsed = card.used ? todayString() : "";
+  saveAppState();
 
   if (card.used && advanceOnMarkUsed) {
     const nextPreferredIndex = visibleIndexesBefore[visiblePositionBefore + 1]
@@ -768,6 +969,7 @@ function updateSelectedBalance(balance) {
   const card = sampleGiftCards[selectedCardIndex];
   card.currentBalance = normalizeMoney(balance);
   card.dateUpdated = todayString();
+  saveAppState();
   renderApp(selectedCardIndex);
 }
 
@@ -920,6 +1122,7 @@ function markZeroBalanceCardsUsed() {
     sampleGiftCards[cardIndex].dateUsed = todayString();
   });
 
+  saveAppState();
   closeConfirmModal();
   renderApp(selectedCardIndex);
 }
@@ -1000,17 +1203,21 @@ fullscreenPreviousButton.addEventListener("click", () => moveSelection(-1));
 fullscreenNextButton.addEventListener("click", () => moveSelection(1));
 advanceOnUsedCheckbox.addEventListener("change", (event) => {
   advanceOnMarkUsed = event.target.checked;
+  saveAppState();
 });
 hideUsedCheckbox.addEventListener("change", (event) => {
   hideUsedCards = event.target.checked;
+  saveAppState();
   renderApp(selectedCardIndex);
 });
 hideZeroBalanceCheckbox.addEventListener("change", (event) => {
   hideZeroBalanceCards = event.target.checked;
+  saveAppState();
   renderApp(selectedCardIndex);
 });
 sortCardsSelect.addEventListener("change", (event) => {
   sortMode = event.target.value;
+  saveAppState();
   renderApp(selectedCardIndex);
 });
 markUsedButton.addEventListener("click", toggleSelectedUsed);
@@ -1091,6 +1298,9 @@ fullscreenBarcode.addEventListener("touchstart", (event) => {
 fullscreenBarcode.addEventListener("touchend", (event) => {
   handleSwipeEnd(event, moveSelection);
 }, { passive: true });
+
+applyAppState(loadAppState());
+saveAppState();
 
 hideUsedCheckbox.checked = hideUsedCards;
 hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
