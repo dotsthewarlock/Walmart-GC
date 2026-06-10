@@ -128,6 +128,10 @@ const exportCsvButton = document.querySelector("#export-csv");
 const csvFileInput = document.querySelector("#csv-file-input");
 const dataValidationWarnings = document.querySelector("#data-validation-warnings");
 const dataCountSummary = document.querySelector("#data-count-summary");
+const appsScriptUrlInput = document.querySelector("#apps-script-url");
+const saveConnectionButton = document.querySelector("#save-connection");
+const testConnectionButton = document.querySelector("#test-connection");
+const connectionStatusArea = document.querySelector("#connection-status");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -181,8 +185,21 @@ const defaultSettings = {
   sortMode: "balance-asc",
 };
 
+const connectionStatuses = {
+  notConnected: "Not Connected",
+  checking: "Checking",
+  connected: "Connected",
+  error: "Connection Error",
+};
+
 const defaultConnectionState = {
   appsScriptUrl: "",
+  connectionStatus: connectionStatuses.notConnected,
+  lastHealthCheckAt: "",
+  spreadsheetName: "",
+  sheetName: "",
+  schemaVersion: "",
+  message: "Enter and save an Apps Script URL, then test the connection.",
 };
 
 const defaultSyncState = {
@@ -321,8 +338,19 @@ function normalizeStoredConnection(connection) {
     return cloneStateValue(defaultConnectionState);
   }
 
+  const allowedStatuses = Object.values(connectionStatuses);
+  const connectionStatus = allowedStatuses.includes(connection.connectionStatus)
+    ? connection.connectionStatus
+    : defaultConnectionState.connectionStatus;
+
   return {
     appsScriptUrl: String(connection.appsScriptUrl || ""),
+    connectionStatus,
+    lastHealthCheckAt: String(connection.lastHealthCheckAt || ""),
+    spreadsheetName: String(connection.spreadsheetName || ""),
+    sheetName: String(connection.sheetName || ""),
+    schemaVersion: String(connection.schemaVersion || ""),
+    message: String(connection.message || defaultConnectionState.message),
   };
 }
 
@@ -384,6 +412,12 @@ function applyAppState(appState) {
   applySettings(appState.settings);
   connectionState = appState.connection;
   syncState = appState.sync;
+}
+
+function escapeHtml(value) {
+  const template = document.createElement("template");
+  template.textContent = String(value ?? "");
+  return template.innerHTML;
 }
 
 function escapeCsvValue(value) {
@@ -702,6 +736,244 @@ function exportCurrentCardsCsv() {
   downloadLink.click();
   downloadLink.remove();
   URL.revokeObjectURL(url);
+}
+
+function getConnectionInputUrl() {
+  return appsScriptUrlInput.value.trim();
+}
+
+function parseAppsScriptUrl(rawUrl) {
+  try {
+    const parsedUrl = new URL(rawUrl);
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return null;
+    }
+    return parsedUrl;
+  } catch {
+    return null;
+  }
+}
+
+function buildHealthCheckUrl(rawUrl) {
+  const parsedUrl = parseAppsScriptUrl(rawUrl);
+  if (!parsedUrl) {
+    return null;
+  }
+
+  parsedUrl.searchParams.set("action", "health");
+  return parsedUrl.toString();
+}
+
+function getHealthData(responseBody) {
+  if (!isPlainObject(responseBody)) {
+    return null;
+  }
+
+  if (responseBody.ok !== true) {
+    return null;
+  }
+
+  return isPlainObject(responseBody.data) ? responseBody.data : responseBody;
+}
+
+function getHealthErrorMessage(responseBody) {
+  if (!isPlainObject(responseBody)) {
+    return "The health check returned an unexpected response.";
+  }
+
+  if (isPlainObject(responseBody.error)) {
+    const code = String(responseBody.error.code || "").trim();
+    const message = String(responseBody.error.message || "").trim();
+
+    if (code && message) {
+      return `${code}: ${message}`;
+    }
+    if (message) {
+      return message;
+    }
+    if (code) {
+      return `Apps Script returned ${code}.`;
+    }
+  }
+
+  return "Apps Script reported that the connection is not ready.";
+}
+
+function formatConnectionTimestamp(timestamp) {
+  if (!timestamp) {
+    return "Never";
+  }
+
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function setConnectionState(nextState) {
+  connectionState = {
+    ...connectionState,
+    ...nextState,
+  };
+  saveAppState();
+  renderConnectionState();
+}
+
+function renderConnectionState() {
+  appsScriptUrlInput.value = connectionState.appsScriptUrl;
+  testConnectionButton.disabled = connectionState.connectionStatus === connectionStatuses.checking;
+  saveConnectionButton.disabled = connectionState.connectionStatus === connectionStatuses.checking;
+
+  const statusClass = connectionState.connectionStatus === connectionStatuses.connected
+    ? "connected"
+    : connectionState.connectionStatus === connectionStatuses.error
+      ? "error"
+      : connectionState.connectionStatus === connectionStatuses.checking
+        ? "checking"
+        : "not-connected";
+
+  const details = [];
+  if (connectionState.spreadsheetName) {
+    details.push(`<li><strong>Spreadsheet:</strong> ${escapeHtml(connectionState.spreadsheetName)}</li>`);
+  }
+  if (connectionState.sheetName) {
+    details.push(`<li><strong>Sheet:</strong> ${escapeHtml(connectionState.sheetName)}</li>`);
+  }
+  if (connectionState.schemaVersion) {
+    details.push(`<li><strong>Schema version:</strong> ${escapeHtml(connectionState.schemaVersion)}</li>`);
+  }
+  if (connectionState.lastHealthCheckAt) {
+    details.push(`<li><strong>Last checked:</strong> ${escapeHtml(formatConnectionTimestamp(connectionState.lastHealthCheckAt))}</li>`);
+  }
+
+  connectionStatusArea.className = `connection-status is-${statusClass}`;
+  connectionStatusArea.innerHTML = `
+    <div class="connection-status-header">
+      <span class="connection-status-dot" aria-hidden="true"></span>
+      <strong>${escapeHtml(connectionState.connectionStatus)}</strong>
+    </div>
+    <p>${escapeHtml(connectionState.message || defaultConnectionState.message)}</p>
+    ${details.length ? `<ul>${details.join("")}</ul>` : ""}
+  `;
+}
+
+function saveConnectionFromInput() {
+  const appsScriptUrl = getConnectionInputUrl();
+
+  if (!appsScriptUrl) {
+    setConnectionState(cloneStateValue(defaultConnectionState));
+    return;
+  }
+
+  if (!parseAppsScriptUrl(appsScriptUrl)) {
+    setConnectionState({
+      appsScriptUrl,
+      connectionStatus: connectionStatuses.error,
+      lastHealthCheckAt: "",
+      spreadsheetName: "",
+      sheetName: "",
+      schemaVersion: "",
+      message: "Enter a valid http(s) Apps Script Web App URL.",
+    });
+    return;
+  }
+
+  const urlChanged = appsScriptUrl !== connectionState.appsScriptUrl;
+  setConnectionState({
+    appsScriptUrl,
+    connectionStatus: urlChanged ? connectionStatuses.notConnected : connectionState.connectionStatus,
+    lastHealthCheckAt: urlChanged ? "" : connectionState.lastHealthCheckAt,
+    spreadsheetName: urlChanged ? "" : connectionState.spreadsheetName,
+    sheetName: urlChanged ? "" : connectionState.sheetName,
+    schemaVersion: urlChanged ? "" : connectionState.schemaVersion,
+    message: urlChanged
+      ? "Connection saved locally. Run a health check before syncing in a future PR."
+      : "Connection saved locally.",
+  });
+}
+
+async function testConnection() {
+  const appsScriptUrl = getConnectionInputUrl();
+  const healthUrl = buildHealthCheckUrl(appsScriptUrl);
+
+  if (!appsScriptUrl || !healthUrl) {
+    setConnectionState({
+      appsScriptUrl,
+      connectionStatus: connectionStatuses.error,
+      lastHealthCheckAt: "",
+      spreadsheetName: "",
+      sheetName: "",
+      schemaVersion: "",
+      message: "Enter a valid http(s) Apps Script Web App URL before testing.",
+    });
+    return;
+  }
+
+  setConnectionState({
+    appsScriptUrl,
+    connectionStatus: connectionStatuses.checking,
+    message: "Checking the Apps Script health endpoint...",
+  });
+
+  try {
+    const response = await fetch(healthUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    let responseBody;
+    try {
+      responseBody = await response.json();
+    } catch {
+      setConnectionState({
+        connectionStatus: connectionStatuses.error,
+        lastHealthCheckAt: new Date().toISOString(),
+        spreadsheetName: "",
+        sheetName: "",
+        schemaVersion: "",
+        message: "The health check response was not valid JSON.",
+      });
+      return;
+    }
+
+    const healthData = getHealthData(responseBody);
+    if (!response.ok || !healthData) {
+      setConnectionState({
+        connectionStatus: connectionStatuses.error,
+        lastHealthCheckAt: new Date().toISOString(),
+        spreadsheetName: "",
+        sheetName: "",
+        schemaVersion: "",
+        message: getHealthErrorMessage(responseBody),
+      });
+      return;
+    }
+
+    setConnectionState({
+      connectionStatus: connectionStatuses.connected,
+      lastHealthCheckAt: new Date().toISOString(),
+      spreadsheetName: String(healthData.spreadsheetName || "Not provided"),
+      sheetName: String(healthData.sheetName || "Not provided"),
+      schemaVersion: String(healthData.schemaVersion || "Not provided"),
+      message: "Health check succeeded. Card loading and sync are not enabled yet.",
+    });
+  } catch {
+    setConnectionState({
+      connectionStatus: connectionStatuses.error,
+      lastHealthCheckAt: new Date().toISOString(),
+      spreadsheetName: "",
+      sheetName: "",
+      schemaVersion: "",
+      message: "Unable to reach the Apps Script URL. Check the URL, deployment access, and network connection.",
+    });
+  }
 }
 
 function getSortValue(card, mode) {
@@ -1249,6 +1521,8 @@ csvFileInput.addEventListener("change", (event) => {
   event.target.value = "";
 });
 exportCsvButton.addEventListener("click", exportCurrentCardsCsv);
+saveConnectionButton.addEventListener("click", saveConnectionFromInput);
+testConnectionButton.addEventListener("click", testConnection);
 fullscreenBarcode.addEventListener("click", (event) => {
   if (event.target === fullscreenBarcode) {
     closeFullscreenBarcode();
@@ -1306,6 +1580,7 @@ hideUsedCheckbox.checked = hideUsedCards;
 hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
 sortCardsSelect.value = sortMode;
 setRawDataLocked(true);
+renderConnectionState();
 refreshRawCardData("Loaded current session data into the textarea. Editing is locked.");
 renderApp();
 showPanel("list");

@@ -168,9 +168,35 @@
 
         <div class="data-layout">
           <p class="data-description">
-            Manage local CSV-style card data for schema testing before Google Sheets sync is implemented.
-            This prototype stores changes only in memory and does not connect to Google Sheets.
+            Manage local CSV-style card data for schema testing before full Google Sheets sync is implemented.
+            Card data remains local in this PR; the connection tools only run a health check.
           </p>
+
+          <div class="data-card connection-card">
+            <div class="data-card-heading">
+              <div>
+                <h3>Google Sheets Connection</h3>
+                <p>Enter your deployed Apps Script Web App URL. Testing only calls <code>?action=health</code>.</p>
+              </div>
+            </div>
+
+            <label class="connection-label" for="apps-script-url">Apps Script URL</label>
+            <input
+              id="apps-script-url"
+              class="connection-input"
+              type="url"
+              inputmode="url"
+              autocomplete="url"
+              placeholder="https://script.google.com/macros/s/.../exec"
+            />
+
+            <div class="connection-actions" aria-label="Connection actions">
+              <button id="save-connection" class="secondary-button" type="button">Save Connection</button>
+              <button id="test-connection" class="primary-button" type="button">Test Connection</button>
+            </div>
+
+            <div id="connection-status" class="connection-status" role="status" aria-live="polite"></div>
+          </div>
 
           <div class="data-card">
             <div class="data-card-heading">
@@ -206,7 +232,6 @@
               <button id="export-csv" class="danger-button" type="button">Export CSV</button>
             </div>
             <div class="data-action-row">
-              <button id="connect-sheets" class="secondary-button" type="button" disabled title="Google Sheets connection in development">Connect Sheets *</button>
               <button id="sync-sheets" class="secondary-button" type="button" disabled title="Google Sheets upload in development">Upload Sheets *</button>
             </div>
           </div>
