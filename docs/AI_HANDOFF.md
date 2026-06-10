@@ -120,7 +120,7 @@ Includes:
 
 Includes:
 
-- Manual test plan.
+- Manual test plan (`docs/MANUAL_TEST_PLAN.md`).
 - Setup validation.
 - Sync validation.
 - Offline validation.

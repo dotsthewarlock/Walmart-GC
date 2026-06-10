@@ -52,6 +52,7 @@ The primary goal is to make management of dozens of Walmart gift cards practical
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 - [Apps Script Setup](docs/APPS_SCRIPT_SETUP.md)
 - [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md)
+- [Manual Test Plan](docs/MANUAL_TEST_PLAN.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Current Status
