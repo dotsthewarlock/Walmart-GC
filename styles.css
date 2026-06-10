@@ -37,6 +37,10 @@ button:disabled {
   opacity: 0.55;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .container {
   width: min(100% - 2rem, 68rem);
   margin: 0 auto;
@@ -85,9 +89,45 @@ button:disabled {
   padding-bottom: 2rem;
 }
 
-.detail-stack {
+.top-nav {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  position: sticky;
+  top: 0.5rem;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+  padding: 0.35rem;
+  backdrop-filter: blur(14px);
+}
+
+.nav-button {
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-size: clamp(0.82rem, 3.2vw, 1rem);
+  font-weight: 800;
+  padding: 0.7rem 0.45rem;
+  text-align: center;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+.nav-button:hover,
+.nav-button:focus-visible,
+.nav-button.is-active {
+  border-color: rgba(0, 113, 220, 0.28);
+  background: var(--primary);
+  color: #ffffff;
+  outline: none;
+}
+
+.nav-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
 }
 
 .panel {
@@ -437,15 +477,6 @@ dd,
 }
 
 @media (max-width: 34rem) {
-  .detail-grid,
-  .action-row {
-    grid-template-columns: 1fr;
-  }
-
-  .action-row {
-    display: grid;
-  }
-
   .checkout-nav {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -458,18 +489,19 @@ dd,
   }
 }
 
-@media (min-width: 48rem) {
-  .app-shell {
-    grid-template-columns: minmax(18rem, 0.95fr) minmax(24rem, 1.25fr);
-    align-items: start;
+@media (max-width: 22rem) {
+  .detail-grid,
+  .action-row {
+    grid-template-columns: 1fr;
   }
 
+  .action-row {
+    display: grid;
+  }
+}
+
+@media (min-width: 48rem) {
   .panel {
     padding: 1.25rem;
-  }
-
-  .detail-stack {
-    position: sticky;
-    top: 1rem;
   }
 }
