@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.08 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.09 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.08";
+const DEBUG_VERSION_JS = "1.01.09";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -277,6 +277,7 @@ const directSheetsStatuses = {
 const directSheetsSchemaVersion = "1";
 const directSheetsCardsTab = "Cards";
 const directSheetsMetaTab = "_META";
+const directSheetsDefaultTab = "Sheet1";
 const directSheetsAppName = "Walmart-GC";
 
 const defaultDirectSheetsState = {
@@ -2134,7 +2135,11 @@ async function getDirectSpreadsheetMetadata() {
 }
 
 function getSheetProperties(metadata, title) {
-  return metadata?.sheets?.find((sheet) => sheet?.properties?.title === title)?.properties || null;
+  return getSheetByTitle(metadata, title)?.properties || null;
+}
+
+function getSheetByTitle(metadata, title) {
+  return metadata?.sheets?.find((sheet) => sheet?.properties?.title === title) || null;
 }
 
 async function readSheetValues(spreadsheetId, range) {
@@ -2159,13 +2164,71 @@ async function clearSheetValues(spreadsheetId, range) {
   });
 }
 
+function isSheetValuesEmpty(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return true;
+  }
+
+  return values.every((row) => {
+    if (!Array.isArray(row) || row.length === 0) {
+      return true;
+    }
+    return row.every((cell) => String(cell ?? "").trim() === "");
+  });
+}
+
+async function readSheetValuesForCleanup(spreadsheetId, sheetTitle) {
+  return readSheetValues(spreadsheetId, `'${sheetTitle}'!A1:Z1000`);
+}
+
+async function deleteEmptyDefaultSheetIfSafe(spreadsheetId, metadata) {
+  const sheets = Array.isArray(metadata?.sheets) ? metadata.sheets : [];
+  const cardsSheet = getSheetByTitle(metadata, directSheetsCardsTab);
+  const metaSheet = getSheetByTitle(metadata, directSheetsMetaTab);
+  const defaultSheet = getSheetByTitle(metadata, directSheetsDefaultTab);
+
+  const defaultSheetId = defaultSheet?.properties?.sheetId;
+  if (!cardsSheet || !metaSheet || !defaultSheet || sheets.length <= 1 || !Number.isInteger(defaultSheetId)) {
+    return false;
+  }
+
+  let defaultSheetValues;
+  try {
+    defaultSheetValues = await readSheetValuesForCleanup(spreadsheetId, directSheetsDefaultTab);
+  } catch (_) {
+    return false;
+  }
+
+  if (!isSheetValuesEmpty(defaultSheetValues)) {
+    return false;
+  }
+
+  try {
+    await sheetsFetch(`${spreadsheetId}:batchUpdate`, {
+      method: "POST",
+      body: JSON.stringify({
+        requests: [
+          { deleteSheet: { sheetId: defaultSheetId } },
+        ],
+      }),
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function cleanupDefaultSheetAfterInitialization(spreadsheetId, metadata) {
+  return deleteEmptyDefaultSheetIfSafe(spreadsheetId, metadata);
+}
+
 function areHeadersValid(row) {
   return csvHeaders.every((header, index) => String(row?.[index] || "").trim() === header);
 }
 
 async function ensureCardsSheet() {
   const spreadsheetId = directSheetsState.spreadsheetId;
-  const metadata = await getDirectSpreadsheetMetadata();
+  let metadata = await getDirectSpreadsheetMetadata();
   const requests = [];
   let cardsProperties = getSheetProperties(metadata, directSheetsCardsTab);
   let metaProperties = getSheetProperties(metadata, directSheetsMetaTab);
@@ -2184,9 +2247,9 @@ async function ensureCardsSheet() {
       method: "POST",
       body: JSON.stringify({ requests }),
     });
-    const updatedMetadata = await getDirectSpreadsheetMetadata();
-    cardsProperties = getSheetProperties(updatedMetadata, directSheetsCardsTab);
-    metaProperties = getSheetProperties(updatedMetadata, directSheetsMetaTab);
+    metadata = await getDirectSpreadsheetMetadata();
+    cardsProperties = getSheetProperties(metadata, directSheetsCardsTab);
+    metaProperties = getSheetProperties(metadata, directSheetsMetaTab);
   }
 
   const headerRows = await readSheetValues(spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
@@ -2200,6 +2263,8 @@ async function ensureCardsSheet() {
   if (!metaHeaderRows.length || metaHeaderRows[0][0] !== "key" || metaHeaderRows[0][1] !== "value") {
     await writeSheetValues(spreadsheetId, `${directSheetsMetaTab}!A1:B1`, [["key", "value"]]);
   }
+
+  await cleanupDefaultSheetAfterInitialization(spreadsheetId, metadata);
 
   return {
     spreadsheetName: String(metadata?.properties?.title || ""),
