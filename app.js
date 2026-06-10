@@ -1,8 +1,7 @@
-// Debug file fingerprint: app.js version 1.01.01 (cache/debug only, not a product release).
-const debugFileVersions = {
-  js: "1.01.01",
-  css: "1.01.00",
-};
+// Debug file fingerprint: app.js version 1.01.00 (cache/debug only, not a product release).
+// These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
+const DEBUG_VERSION_JS = "1.01.00";
+const DEBUG_VERSION_CSS = "1.01.00";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -12,7 +11,7 @@ function renderDebugVersionFingerprint() {
   }
 
   const htmlVersion = fingerprint.dataset.htmlVersion || "unknown";
-  fingerprint.textContent = `HTML ${htmlVersion} · JS ${debugFileVersions.js} · CSS ${debugFileVersions.css}`;
+  fingerprint.textContent = `HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
 }
 
 renderDebugVersionFingerprint();
