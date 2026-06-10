@@ -250,8 +250,8 @@ const defaultSyncState = {
   pendingOperation: null,
 };
 
-const embeddedGoogleOAuthClientId = "PASTE_REAL_CLIENT_ID_IN_CODEX_TASK_OR_REPLACE_PLACEHOLDER_BEFORE_COMMIT";
-const googleOAuthClientIdPlaceholder = "PASTE_REAL_CLIENT_ID_IN_CODEX_TASK_OR_REPLACE_PLACEHOLDER_BEFORE_COMMIT";
+const embeddedGoogleOAuthClientId = "1059771800951-kfcf0cd42u4c54dfcnhaa64pp3l8ah1h.apps.googleusercontent.com";
+const googleOAuthClientIdPlaceholder = "1059771800951-kfcf0cd42u4c54dfcnhaa64pp3l8ah1h.apps.googleusercontent.com";
 const googleOAuthScopes = "https://www.googleapis.com/auth/drive.file";
 const googleDriveSpreadsheetMimeType = "application/vnd.google-apps.spreadsheet";
 const walmartGcDataSheetName = "Walmart-GC Data";
