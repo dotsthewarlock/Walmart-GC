@@ -1,119 +1,88 @@
 # Troubleshooting
 
-This guide covers the active Phase 9 sync path: Google OAuth plus the direct Google Sheets API.
+This guide covers the active Phase 9.1 Google OAuth + `drive.file` sync path. Apps Script troubleshooting is preserved only in historical MVP documentation and does not apply to the active Phase 9 app.
 
-Apps Script troubleshooting is preserved only in historical MVP documentation and does not apply to the active Phase 9 app.
+## Connect Google Does Not Open
 
-## Quick Checks
+Check:
 
-1. Open the **Data** panel.
-2. Confirm **Google Account** shows connected.
-3. Confirm diagnostics show **Sheets scope available**.
-4. Confirm **Direct Google Sheet** has a saved Sheet ID.
-5. Confirm **Cards sheet initialized** is `yes`.
-6. Confirm local and remote `sheetVersion` values are visible after initialize/load/sync.
-7. Export a CSV backup before destructive recovery.
+1. The browser is online.
+2. Popups are allowed for the Walmart-GC site.
+3. The Google Identity Services script loaded.
+4. Diagnostics show **OAuth configured: Yes**.
 
-## Google Account Will Not Connect
+If OAuth is not configured, the deployed app still has the placeholder public OAuth Client ID and must be updated by the maintainer before deployment.
 
-Common causes:
+## Consent Is Denied or Closed
 
-- OAuth Client ID was not saved.
-- OAuth Client ID is for the wrong Google project or origin.
-- Browser popup, third-party script, or content-blocking policy interfered with Google Identity Services.
-- Network is offline.
+Walmart-GC keeps local cards available. Select **Connect Google** again and approve Google Drive file access when ready.
 
-Actions:
+## Google File Access Is Not Available
 
-1. Confirm the OAuth Web Client ID is pasted exactly.
-2. Confirm the deployed Walmart-GC URL is an authorized JavaScript origin for that OAuth client.
-3. Reload the page.
-4. Select **Connect Google** again.
-5. If diagnostics say the Google script did not load, check network/content blockers.
+Check diagnostics for **Google file access available**.
 
-## Sheets Scope Needs Reconnect
+Fix:
 
-Google access tokens stay in memory and expire. This is expected.
+1. Select **Disconnect**.
+2. Select **Connect Google**.
+3. Approve `drive.file` access.
+4. Confirm diagnostics show file access is available.
 
-Actions:
+## Walmart-GC Data Was Not Found or Created
 
-1. Select **Connect Google** again.
-2. Complete the consent flow.
-3. Retry **Load from Google Sheets**, **Initialize Sheet**, or **Sync Now**.
+Walmart-GC searches for an app-accessible Google spreadsheet named `Walmart-GC Data`. With `drive.file`, Google only exposes files this app created or that the user explicitly opened/authorized through the app.
 
-## Direct Sheet URL or ID Is Rejected
+Fix:
 
-Actions:
+1. Reconnect Google.
+2. Confirm the Google Drive API and Google Sheets API are enabled in the maintainer Google Cloud project.
+3. Confirm the signed-in account is allowed to use the OAuth app while it is in Testing.
+4. Try **Connect Google** again.
 
-1. Open the Sheet in Google Sheets.
-2. Copy the full browser URL or the spreadsheet ID between `/d/` and `/edit`.
-3. Paste it into **Google Sheet URL or ID**.
-4. Select **Save Sheet**.
+## Drive or Sheets API Error
 
-## Initialize Sheet Fails
+Typical causes:
 
-Common causes:
+- Google Drive API is disabled in the maintainer project.
+- Google Sheets API is disabled in the maintainer project.
+- OAuth testing mode does not include the signed-in Google account as a test user.
+- Browser/network/content blocker prevented Google API calls.
 
-- The Google account does not have edit access.
-- The Sheets API is not enabled for the OAuth project.
-- The workbook already contains incompatible data.
-- Google returned a temporary API error.
+Local data remains available after these failures.
 
-Actions:
+## Cards Headers Are Rejected
 
-1. Confirm the connected Google account can edit the Sheet.
-2. Confirm the Sheet is the intended workbook.
-3. If the workbook has useful data, inspect it before initializing.
-4. Retry after reconnecting Google.
+The `Cards` tab must use the approved schema exactly:
 
-## Load from Google Sheets Fails
+```csv
+cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
+```
 
-Common causes:
+Fix the header row in Google Sheets, then use **Load from Google Sheets** again.
 
-- Missing or modified `Cards` headers.
-- Duplicate `cardNumber` values.
-- Invalid balances or used values.
-- Google authorization expired.
+## Local Cards Were Not Uploaded Automatically
 
-Actions:
+This is intentional data safety behavior. If Walmart-GC connects to an empty Sheet while the browser already has local cards, it keeps the local cards unsynced until you explicitly select **Sync Now**.
 
-1. Open the `Cards` tab.
-2. Confirm the header row matches the approved schema.
-3. Remove duplicate card numbers.
-4. Fix invalid balances or `used` values.
-5. Reconnect Google and select **Load from Google Sheets** again.
+## Remote Cards Did Not Replace Local Cards Automatically
 
-## Sync Now or Completed-Action Sync Fails
+This is intentional data safety behavior. If Google Sheets has cards and the browser also has local cards, Walmart-GC does not silently replace local data. Use **Load from Google Sheets** only when you intentionally want the Sheet to replace the local session.
 
-Completed actions include balance save, used-state change, notes save, merchant change, new card save, and accepted CSV import.
+## Sync Conflict
 
-If sync fails:
+A conflict means `_META.sheetVersion` changed since the browser last loaded or synced.
 
-- Local data remains in the browser.
-- Unsynced state remains visible.
-- CSV export remains available.
-- The Sheet is not assumed updated unless Walmart-GC reports success.
+Options:
 
-Actions:
+1. Download a CSV backup.
+2. Use **Refresh from Sheets** to replace the local session with Google Sheets data.
+3. Use **Use Current Session to Overwrite Sheets** only after confirming the local browser session is the desired source of truth.
 
-1. Reconnect Google if Sheets scope is unavailable.
-2. Confirm a direct Sheet ID is configured.
-3. Confirm the Sheet was initialized or loaded so Walmart-GC has a safe local `sheetVersion`.
-4. Select **Sync Now**.
-5. If conflict appears, use conflict recovery instead of retrying repeatedly.
+## Offline or Disconnected
 
-## Conflict Detected
+When offline, disconnected, or expired:
 
-A conflict means the remote Sheet version changed since the current session last loaded or synced.
-
-Actions:
-
-1. Export a CSV backup of the current local session if needed.
-2. Choose **Refresh from Sheets** to replace local browser data with the remote Sheet.
-3. Or choose **Use Current Session to Overwrite Sheets** only when you intentionally want to replace all card rows in the configured Sheet.
-
-Walmart-GC does not automatically merge conflicts.
-
-## CSV Backup and Recovery
-
-Use CSV export before major changes, imports, or conflict recovery. CSV import updates the local browser session first; direct sync writes accepted imports only after authorization, configuration, and conflict checks succeed.
+- Local cards remain usable.
+- Completed actions are saved locally.
+- Unsynced guidance appears.
+- Reconnect Google and use **Sync Now** when ready.
