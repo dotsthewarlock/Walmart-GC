@@ -423,12 +423,12 @@ Completed:
 * Phase 4 – Mobile navigation workflow
 * Phase 5B – Data panel and checkout refinements
 * Phase 6 – Google Sheet schema, sync architecture, Apps Script API design
+* Phase 7 – Sync implementation
 
 Current:
 
-* Phase 7 – Sync implementation planning
+* Phase 8 – MVP hardening and deployment documentation
 
 Upcoming:
 
-* Phase 7 – Sync implementation
-* Phase 8 – MVP hardening and deployment documentation
+* Post-MVP enhancements only after MVP hardening

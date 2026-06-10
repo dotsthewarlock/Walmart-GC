@@ -32,18 +32,40 @@ Completed.
 ### Phase 4 – Mobile Navigation Workflow
 Completed.
 
-## Current Implementation Phase
-
 ### Phase 5B – Data Panel & Checkout Refinements
-In progress.
-
-## Current Architecture Focus
+Completed.
 
 ### Phase 6 – Google Sheet Schema & Apps Script API Design
-Architecture decisions are documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`. Phase 7 sync implementation remains upcoming and blocked until this Phase 6 consolidation is reviewed and merged.
-
-## Upcoming
+Completed. Architecture decisions are documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md` and remain the approved MVP baseline.
 
 ### Phase 7 – Sync Implementation
+Completed. Phase 7 implemented sync against the approved Phase 6 schema, endpoint strategy, connection model, and conflict strategy.
+
+Delivered areas include:
+
+- Frontend schema alignment with the approved MVP schema.
+- Local persistence for cards, settings, connection details, and sync state.
+- Apps Script API contract and connection health check.
+- Loading cards from Google Sheets.
+- Completed-action sync writes using `updateCard` for single-card actions.
+- Accepted import and bulk-action writes using `batchUpdate`.
+- Unsynced and conflict states with recovery workflow support.
+- CSV backup as the emergency recovery path.
+- Explicit `replaceAll` usage only for user-confirmed conflict recovery.
+
+## Current Implementation Phase
 
 ### Phase 8 – MVP Hardening & Deployment Documentation
+Current. Phase 8 is focused on hardening and documentation, not feature expansion or architecture changes.
+
+Focus areas:
+
+- Phase 8A – Deployment and setup documentation.
+- Phase 8B – Sync diagnostics and MVP troubleshooting guidance.
+- Phase 8C – Apps Script hardening.
+- Phase 8D – Manual end-to-end test plan and mobile checkout verification.
+- Production-readiness review.
+
+## Future
+
+Post-MVP enhancements should be considered only after MVP hardening is complete.
