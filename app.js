@@ -204,10 +204,17 @@ const defaultConnectionState = {
   message: "Enter and save an Apps Script URL, then test the connection.",
 };
 
+const syncStatuses = {
+  connected: "connected",
+  unsynced: "unsynced",
+  conflict: "conflict",
+};
+
 const defaultSyncState = {
-  status: "unsynced",
+  status: syncStatuses.unsynced,
   lastSyncTimestamp: "",
   lastKnownSheetVersion: "",
+  message: "Load from Sheets to enable completed-action sync writes.",
 };
 
 let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
@@ -408,10 +415,16 @@ function normalizeStoredSync(sync) {
     return cloneStateValue(defaultSyncState);
   }
 
+  const allowedStatuses = Object.values(syncStatuses);
+  const status = allowedStatuses.includes(sync.status)
+    ? sync.status
+    : defaultSyncState.status;
+
   return {
-    status: String(sync.status || defaultSyncState.status),
+    status,
     lastSyncTimestamp: String(sync.lastSyncTimestamp || ""),
     lastKnownSheetVersion: String(sync.lastKnownSheetVersion || ""),
+    message: String(sync.message || defaultSyncState.message),
   };
 }
 
@@ -473,7 +486,7 @@ function escapeCsvValue(value) {
   const text = String(value ?? "");
 
   if (/[",\n\r]/.test(text)) {
-    return `"${text.replaceAll('"', '""')}"`;
+    return `"${text.replace(/"/g, '""')}"`;
   }
 
   return text;
@@ -755,6 +768,11 @@ function updateRawCardData() {
     ? `Imported ${parsedCards.length} card${parsedCards.length === 1 ? "" : "s"}.`
     : `Imported ${parsedCards.length} card${parsedCards.length === 1 ? "" : "s"}. ${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`;
   renderValidationWarnings(warnings, summary);
+  postCompletedActionToSheets(
+    "batchUpdate",
+    { cards: cloneStateValue(parsedCards) },
+    `Saved ${parsedCards.length} imported card${parsedCards.length === 1 ? "" : "s"} to Sheets.`,
+  );
 }
 
 function importCsvFile(file) {
@@ -821,6 +839,14 @@ function buildLoadCardsUrl(rawUrl) {
   return buildAppsScriptActionUrl(rawUrl, "load");
 }
 
+function buildUpdateCardUrl(rawUrl) {
+  return buildAppsScriptActionUrl(rawUrl, "updateCard");
+}
+
+function buildBatchUpdateUrl(rawUrl) {
+  return buildAppsScriptActionUrl(rawUrl, "batchUpdate");
+}
+
 function getHealthData(responseBody) {
   if (!isPlainObject(responseBody)) {
     return null;
@@ -864,6 +890,44 @@ function getLoadErrorMessage(responseBody) {
   return getEnvelopeErrorMessage(responseBody, "Apps Script could not load cards from the Sheet.");
 }
 
+function getWriteErrorMessage(responseBody) {
+  return getEnvelopeErrorMessage(responseBody, "Apps Script could not save this change to Sheets.");
+}
+
+function getEnvelopeErrorCode(responseBody) {
+  if (!isPlainObject(responseBody) || !isPlainObject(responseBody.error)) {
+    return "";
+  }
+
+  return String(responseBody.error.code || "").trim();
+}
+
+function generateRequestId() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `wgc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function buildWriteEnvelope(payload) {
+  return {
+    requestId: generateRequestId(),
+    clientTimestamp: new Date().toISOString(),
+    lastKnownSheetVersion: syncState.lastKnownSheetVersion,
+    payload,
+  };
+}
+
+function setSyncState(nextState) {
+  syncState = {
+    ...syncState,
+    ...nextState,
+  };
+  saveAppState();
+  renderConnectionState();
+}
+
 function formatConnectionTimestamp(timestamp) {
   if (!timestamp) {
     return "Never";
@@ -887,6 +951,142 @@ function setConnectionState(nextState) {
   };
   saveAppState();
   renderConnectionState();
+}
+
+function getSyncStatusLabel() {
+  if (syncState.status === syncStatuses.connected) {
+    return "Connected/Synced";
+  }
+
+  if (syncState.status === syncStatuses.conflict) {
+    return "Conflict";
+  }
+
+  return "Unsynced";
+}
+
+function canAutoSyncToSheets() {
+  return Boolean(
+    connectionState.appsScriptUrl
+      && syncState.lastKnownSheetVersion
+      && syncState.status !== syncStatuses.conflict,
+  );
+}
+
+function updateCardsFromWriteResponse(responseBody) {
+  const returnedCard = responseBody?.data?.card;
+  const normalizedCard = normalizeStoredCard(returnedCard);
+
+  if (!normalizedCard) {
+    return;
+  }
+
+  const existingIndex = sampleGiftCards.findIndex((card) => card.cardNumber === normalizedCard.cardNumber);
+  if (existingIndex >= 0) {
+    sampleGiftCards[existingIndex] = normalizedCard;
+  } else {
+    sampleGiftCards.push(normalizedCard);
+  }
+}
+
+function handleSuccessfulWrite(responseBody, successMessage) {
+  const sheetVersion = String(responseBody?.meta?.sheetVersion || "").trim();
+  updateCardsFromWriteResponse(responseBody);
+
+  syncState = {
+    ...syncState,
+    status: syncStatuses.connected,
+    lastSyncTimestamp: new Date().toISOString(),
+    lastKnownSheetVersion: sheetVersion || syncState.lastKnownSheetVersion,
+    message: successMessage,
+  };
+  connectionState = {
+    ...connectionState,
+    connectionStatus: connectionStatuses.connected,
+    message: successMessage,
+  };
+  saveAppState();
+  renderConnectionState();
+  refreshRawCardData(successMessage);
+  renderApp(selectedCardIndex);
+}
+
+function handleFailedWrite(message, responseBody) {
+  const isConflict = getEnvelopeErrorCode(responseBody) === "SYNC_CONFLICT";
+  const nextStatus = isConflict ? syncStatuses.conflict : syncStatuses.unsynced;
+  const friendlyMessage = isConflict
+    ? "Sheets changed since your last load. Your local change is saved here, auto-sync is paused, and Sheets were not overwritten."
+    : message;
+
+  setSyncState({
+    status: nextStatus,
+    message: friendlyMessage,
+  });
+  connectionState = {
+    ...connectionState,
+    connectionStatus: isConflict ? connectionStatuses.error : connectionStatuses.connected,
+    message: friendlyMessage,
+  };
+  saveAppState();
+  renderConnectionState();
+}
+
+async function postCompletedActionToSheets(action, payload, successMessage) {
+  if (!canAutoSyncToSheets()) {
+    saveAppState();
+    renderConnectionState();
+    return;
+  }
+
+  const actionUrl = action === "batchUpdate"
+    ? buildBatchUpdateUrl(connectionState.appsScriptUrl)
+    : buildUpdateCardUrl(connectionState.appsScriptUrl);
+
+  if (!actionUrl) {
+    handleFailedWrite("Saved locally, but the Apps Script URL is not valid. Update the Data Panel connection before syncing.");
+    return;
+  }
+
+  const envelope = buildWriteEnvelope(payload);
+
+  try {
+    const response = await fetch(actionUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(envelope),
+    });
+
+    let responseBody;
+    try {
+      responseBody = await response.json();
+    } catch {
+      handleFailedWrite("Saved locally, but the Sheets save response was not valid JSON.");
+      return;
+    }
+
+    if (!isPlainObject(responseBody)) {
+      handleFailedWrite("Saved locally, but Apps Script returned an unexpected save response.");
+      return;
+    }
+
+    if (!response.ok || responseBody.ok !== true) {
+      handleFailedWrite(getWriteErrorMessage(responseBody), responseBody);
+      return;
+    }
+
+    const sheetVersion = String(responseBody.meta?.sheetVersion || "").trim();
+    if (!sheetVersion) {
+      handleFailedWrite("Saved locally, but Apps Script did not return an updated Sheet version.", responseBody);
+      return;
+    }
+
+    handleSuccessfulWrite(responseBody, successMessage);
+  } catch {
+    handleFailedWrite("Saved locally. Sheets sync will need attention when the network or Apps Script URL is reachable again.");
+  }
 }
 
 function renderConnectionState() {
@@ -917,20 +1117,24 @@ function renderConnectionState() {
   if (connectionState.lastHealthCheckAt) {
     details.push(`<li><strong>Last checked:</strong> ${escapeHtml(formatConnectionTimestamp(connectionState.lastHealthCheckAt))}</li>`);
   }
+  details.push(`<li><strong>Sync status:</strong> ${escapeHtml(getSyncStatusLabel())}</li>`);
   if (syncState.lastSyncTimestamp) {
-    details.push(`<li><strong>Last loaded:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncTimestamp))}</li>`);
+    details.push(`<li><strong>Last sync:</strong> ${escapeHtml(formatConnectionTimestamp(syncState.lastSyncTimestamp))}</li>`);
   }
   if (syncState.lastKnownSheetVersion) {
     details.push(`<li><strong>Sheet version:</strong> ${escapeHtml(syncState.lastKnownSheetVersion)}</li>`);
   }
 
-  connectionStatusArea.className = `connection-status is-${statusClass}`;
+  const syncClass = `sync-${syncState.status}`;
+  connectionStatusArea.className = `connection-status is-${statusClass} ${syncClass}`;
   connectionStatusArea.innerHTML = `
     <div class="connection-status-header">
       <span class="connection-status-dot" aria-hidden="true"></span>
       <strong>${escapeHtml(connectionState.connectionStatus)}</strong>
+      <span class="sync-badge">${escapeHtml(getSyncStatusLabel())}</span>
     </div>
     <p>${escapeHtml(connectionState.message || defaultConnectionState.message)}</p>
+    ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
     ${details.length ? `<ul>${details.join("")}</ul>` : ""}
   `;
 }
@@ -957,6 +1161,10 @@ function saveConnectionFromInput() {
   }
 
   const urlChanged = appsScriptUrl !== connectionState.appsScriptUrl;
+  if (urlChanged) {
+    syncState = cloneStateValue(defaultSyncState);
+  }
+
   setConnectionState({
     appsScriptUrl,
     connectionStatus: urlChanged ? connectionStatuses.notConnected : connectionState.connectionStatus,
@@ -1051,9 +1259,10 @@ async function loadCardsFromSheets() {
     detailNumberRevealed = false;
     syncState = {
       ...syncState,
-      status: "connected",
+      status: syncStatuses.connected,
       lastSyncTimestamp: new Date().toISOString(),
       lastKnownSheetVersion: loadedEnvelope.sheetVersion,
+      message: "Loaded from Sheets. Completed actions will now auto-sync.",
     };
     connectionState = {
       ...connectionState,
@@ -1395,6 +1604,7 @@ function toggleSelectedUsed() {
 
   card.used = !card.used;
   card.dateUsed = card.used ? todayString() : "";
+  const updatedCard = cloneStateValue(card);
   saveAppState();
 
   if (card.used && advanceOnMarkUsed) {
@@ -1402,22 +1612,29 @@ function toggleSelectedUsed() {
       ?? visibleIndexesBefore[visiblePositionBefore - 1]
       ?? selectedCardIndex;
     renderApp(nextPreferredIndex);
-    return;
+  } else {
+    renderApp(selectedCardIndex);
   }
 
-  renderApp(selectedCardIndex);
+  postCompletedActionToSheets(
+    "updateCard",
+    { card: updatedCard },
+    `Saved ${updatedCard.used ? "used" : "unused"} status to Sheets.`,
+  );
 }
 
 function updateSelectedBalance(balance) {
   if (selectedCardIndex < 0) {
-    return;
+    return null;
   }
 
   const card = sampleGiftCards[selectedCardIndex];
   card.currentBalance = normalizeMoney(balance);
   card.dateUpdated = todayString();
+  const updatedCard = cloneStateValue(card);
   saveAppState();
   renderApp(selectedCardIndex);
+  return updatedCard;
 }
 
 function openBalanceModal() {
@@ -1532,8 +1749,16 @@ function saveBalanceUpdate() {
     return;
   }
 
-  updateSelectedBalance(nextBalance);
+  const updatedCard = updateSelectedBalance(nextBalance);
   closeBalanceModal();
+
+  if (updatedCard) {
+    postCompletedActionToSheets(
+      "updateCard",
+      { card: updatedCard },
+      "Saved balance update to Sheets.",
+    );
+  }
 }
 
 function getZeroBalanceCardIndexes() {
@@ -1564,14 +1789,23 @@ function closeConfirmModal() {
 }
 
 function markZeroBalanceCardsUsed() {
-  getZeroBalanceCardIndexes().forEach((cardIndex) => {
+  const updatedCards = getZeroBalanceCardIndexes().map((cardIndex) => {
     sampleGiftCards[cardIndex].used = true;
     sampleGiftCards[cardIndex].dateUsed = todayString();
+    return cloneStateValue(sampleGiftCards[cardIndex]);
   });
 
   saveAppState();
   closeConfirmModal();
   renderApp(selectedCardIndex);
+
+  if (updatedCards.length > 0) {
+    postCompletedActionToSheets(
+      "batchUpdate",
+      { cards: updatedCards },
+      `Saved ${updatedCards.length} zero-balance card${updatedCards.length === 1 ? "" : "s"} as used to Sheets.`,
+    );
+  }
 }
 
 async function requestCheckoutWakeLock() {
