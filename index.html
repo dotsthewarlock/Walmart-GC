@@ -12,15 +12,21 @@
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Phase 3 refines the
-          sample-data UX for used flags, balance updates, filtering, and sorting;
-          Google Sheet sync will be added later.
+          Mobile-first checkout access for Walmart gift cards. Phase 4 refines the
+          sample-data UX with top navigation, focused panels, and compact mobile
+          card details; Google Sheet sync will be added later.
         </p>
       </div>
     </header>
 
     <main class="container app-shell" aria-live="polite">
-      <section class="panel list-panel" aria-labelledby="card-list-heading">
+      <nav class="top-nav" aria-label="Panel navigation">
+        <button id="nav-list" class="nav-button" type="button" data-panel="list" aria-pressed="true">Card List</button>
+        <button id="nav-detail" class="nav-button" type="button" data-panel="detail" aria-pressed="false">Card Detail</button>
+        <button id="nav-settings" class="nav-button" type="button" data-panel="settings" aria-pressed="false">Settings</button>
+      </nav>
+
+      <section id="list-panel" class="panel list-panel" aria-labelledby="card-list-heading" data-panel-name="list">
         <div class="section-heading">
           <div>
             <p class="eyebrow">Cards</p>
@@ -32,14 +38,14 @@
         <div id="card-list" class="card-list"></div>
       </section>
 
-      <section class="detail-stack" aria-label="Selected gift card and settings">
-        <section class="panel detail-panel" aria-labelledby="card-detail-heading">
+
+      <section id="detail-panel" class="panel detail-panel" aria-labelledby="card-detail-heading" data-panel-name="detail" hidden>
           <div class="section-heading">
             <div>
               <p class="eyebrow">Selected card</p>
               <h2 id="card-detail-heading">Card detail</h2>
             </div>
-            <span id="detail-status" class="status-badge">Used: false</span>
+            <span id="detail-status" class="status-badge" hidden></span>
           </div>
 
           <article id="card-detail" class="card-detail">
@@ -90,9 +96,9 @@
               <p id="detail-notes">Select a card to view notes.</p>
             </div>
           </article>
-        </section>
+      </section>
 
-        <section class="panel settings-panel" aria-labelledby="settings-heading">
+      <section id="settings-panel" class="panel settings-panel" aria-labelledby="settings-heading" data-panel-name="settings" hidden>
           <div class="section-heading compact-heading">
             <div>
               <p class="eyebrow">Prototype settings</p>
@@ -128,15 +134,15 @@
             <label class="setting-row setting-row-stacked" for="sort-cards">
               <span>
                 <strong>Sort Cards</strong>
-                <small>Sorting affects the list and Previous / Next navigation.</small>
+                <small>Affects list and Prev / Next navigation.</small>
               </span>
               <select id="sort-cards">
-                <option value="balance-desc">Balance (High → Low)</option>
                 <option value="balance-asc">Balance (Low → High)</option>
-                <option value="date-added-desc">Date Added (Newest First)</option>
+                <option value="balance-desc">Balance (High → Low)</option>
                 <option value="date-added-asc">Date Added (Oldest First)</option>
-                <option value="date-updated-desc">Date Updated (Newest First)</option>
+                <option value="date-added-desc">Date Added (Newest First)</option>
                 <option value="date-updated-asc">Date Updated (Oldest First)</option>
+                <option value="date-updated-desc">Date Updated (Newest First)</option>
                 <option value="card-number">Card Number</option>
               </select>
             </label>
@@ -149,7 +155,6 @@
               <button id="mark-zero-used" class="secondary-button" type="button">Mark All $0 Cards as Used</button>
             </div>
           </div>
-        </section>
       </section>
     </main>
 

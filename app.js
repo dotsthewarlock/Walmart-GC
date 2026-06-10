@@ -68,6 +68,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
+const navButtons = document.querySelectorAll(".nav-button");
+const panelSections = document.querySelectorAll("[data-panel-name]");
 const cardList = document.querySelector("#card-list");
 const cardCount = document.querySelector("#card-count");
 const advanceOnUsedCheckbox = document.querySelector("#advance-on-used");
@@ -107,11 +109,11 @@ const barcodeCloseButton = document.querySelector("#barcode-close");
 const fullscreenCardNumber = document.querySelector("#fullscreen-card-number");
 const cardDetail = document.querySelector("#card-detail");
 
-let selectedCardIndex = 0;
+let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
 let hideUsedCards = true;
 let hideZeroBalanceCards = false;
-let sortMode = "balance-desc";
+let sortMode = "balance-asc";
 let amountUsedEditedLast = false;
 let touchStartX = 0;
 let touchStartY = 0;
@@ -205,6 +207,34 @@ function ensureVisibleSelection(preferredIndex = selectedCardIndex) {
   selectedCardIndex = visibleIndexes[0];
 }
 
+function showPanel(panelName, options = {}) {
+  if (panelName === "detail" && options.selectFirstVisible) {
+    const firstVisibleIndex = getVisibleCardIndexes()[0];
+
+    if (firstVisibleIndex !== undefined) {
+      selectedCardIndex = firstVisibleIndex;
+    }
+  }
+
+  panelSections.forEach((panel) => {
+    panel.hidden = panel.dataset.panelName !== panelName;
+  });
+
+  navButtons.forEach((button) => {
+    const isActive = button.dataset.panel === panelName;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+
+  if (panelName === "detail") {
+    renderCardDetail();
+  }
+}
+
+function renderUsedIndicator(card) {
+  return card.used ? '<span class="status-badge" data-used="true">Used</span>' : "";
+}
+
 function renderCardList() {
   const visibleIndexes = getVisibleCardIndexes();
   const hiddenCount = sampleGiftCards.length - visibleIndexes.length;
@@ -231,7 +261,7 @@ function renderCardList() {
     cardButton.innerHTML = `
       <div class="card-row-top">
         <span class="card-number">${card.cardNumber}</span>
-        <span class="status-badge" data-used="${card.used}">Used: ${card.used}</span>
+        ${renderUsedIndicator(card)}
       </div>
       <div class="card-row-bottom">
         <span class="card-note">Current balance</span>
@@ -244,8 +274,9 @@ function renderCardList() {
 }
 
 function clearCardDetail() {
-  detailStatus.textContent = "No cards";
+  detailStatus.textContent = "";
   detailStatus.dataset.used = "";
+  detailStatus.hidden = true;
   detailNumber.textContent = "—";
   detailPin.textContent = "—";
   detailStartingBalance.textContent = "—";
@@ -275,8 +306,9 @@ function renderCardDetail() {
   const card = sampleGiftCards[selectedCardIndex];
   const visiblePosition = getSelectedVisiblePosition();
 
-  detailStatus.textContent = `Used: ${card.used}`;
+  detailStatus.textContent = card.used ? "Used" : "";
   detailStatus.dataset.used = String(card.used);
+  detailStatus.hidden = !card.used;
   detailNumber.textContent = card.cardNumber;
   detailPin.textContent = card.pin;
   detailStartingBalance.textContent = formatBalance(card.startingBalance);
@@ -305,6 +337,7 @@ function renderApp(preferredIndex) {
 function selectCard(index) {
   selectedCardIndex = index;
   renderApp(index);
+  showPanel("detail");
 }
 
 function moveSelection(direction) {
@@ -521,6 +554,12 @@ function closeFullscreenBarcode() {
   barcodeOpenButton.focus();
 }
 
+navButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    showPanel(button.dataset.panel, { selectFirstVisible: button.dataset.panel === "detail" });
+  });
+});
+
 previousButton.addEventListener("click", () => moveSelection(-1));
 nextButton.addEventListener("click", () => moveSelection(1));
 advanceOnUsedCheckbox.addEventListener("change", (event) => {
@@ -601,3 +640,4 @@ hideUsedCheckbox.checked = hideUsedCards;
 hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
 sortCardsSelect.value = sortMode;
 renderApp();
+showPanel("list");
