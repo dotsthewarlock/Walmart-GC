@@ -1,6 +1,6 @@
 const sampleGiftCards = [
   {
-    cardNumber: "•••• •••• •••• 1042",
+    cardNumber: "6045782190348765",
     pin: "4821",
     startingBalance: 50,
     currentBalance: 50,
@@ -11,7 +11,7 @@ const sampleGiftCards = [
     notes: "Sample card ready for checkout testing.",
   },
   {
-    cardNumber: "•••• •••• •••• 2388",
+    cardNumber: "6045789317522388",
     pin: "9064",
     startingBalance: 100,
     currentBalance: 37.42,
@@ -22,7 +22,7 @@ const sampleGiftCards = [
     notes: "Partially used sample card with a remaining balance.",
   },
   {
-    cardNumber: "•••• •••• •••• 7715",
+    cardNumber: "6045780642197715",
     pin: "1138",
     startingBalance: 25,
     currentBalance: 0,
@@ -33,7 +33,7 @@ const sampleGiftCards = [
     notes: "Zero-balance sample card retained for used flag visibility.",
   },
   {
-    cardNumber: "•••• •••• •••• 4490",
+    cardNumber: "6045787063154490",
     pin: "7205",
     startingBalance: 75,
     currentBalance: 18.25,
@@ -44,7 +44,7 @@ const sampleGiftCards = [
     notes: "Used flag is independent of balance so this card keeps its remaining value.",
   },
   {
-    cardNumber: "•••• •••• •••• 8824",
+    cardNumber: "6045784926808824",
     pin: "3349",
     startingBalance: 10,
     currentBalance: 0,
@@ -107,14 +107,22 @@ const barcodeOpenButton = document.querySelector("#barcode-open");
 const fullscreenBarcode = document.querySelector("#fullscreen-barcode");
 const barcodeCloseButton = document.querySelector("#barcode-close");
 const fullscreenCardNumber = document.querySelector("#fullscreen-card-number");
+const fullscreenPin = document.querySelector("#fullscreen-pin");
+const fullscreenPosition = document.querySelector("#fullscreen-position");
+const fullscreenPreviousButton = document.querySelector("#fullscreen-prev");
+const fullscreenNextButton = document.querySelector("#fullscreen-next");
+const fullscreenMarkUsedButton = document.querySelector("#fullscreen-mark-used");
+const fullscreenUpdateBalanceButton = document.querySelector("#fullscreen-update-balance");
 const cardDetail = document.querySelector("#card-detail");
 const rawDataInput = document.querySelector("#raw-data-input");
 const toggleDataLockButton = document.querySelector("#toggle-data-lock");
-const loadCardDataButton = document.querySelector("#load-card-data");
+const refreshCardDataButton = document.querySelector("#refresh-card-data");
+const updateCardDataButton = document.querySelector("#update-card-data");
 const importCsvButton = document.querySelector("#import-csv");
 const exportCsvButton = document.querySelector("#export-csv");
 const csvFileInput = document.querySelector("#csv-file-input");
 const dataValidationWarnings = document.querySelector("#data-validation-warnings");
+const dataCountSummary = document.querySelector("#data-count-summary");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -124,8 +132,11 @@ let sortMode = "balance-asc";
 let amountUsedEditedLast = false;
 let touchStartX = 0;
 let touchStartY = 0;
-let rawDataLocked = true;
+let rawDataLocked = false;
+let detailNumberRevealed = false;
+let wakeLock = null;
 
+const dataPanelRowLimit = 100;
 const csvHeaders = [
   "cardNumber",
   "pin",
@@ -173,8 +184,31 @@ function cardToCsvRow(card) {
     .join(",");
 }
 
-function cardsToCsv(cards) {
-  return [csvHeaders.join(","), ...cards.map(cardToCsvRow)].join("\n");
+function cardsToCsv(cards, limit = cards.length) {
+  return [csvHeaders.join(","), ...cards.slice(0, limit).map(cardToCsvRow)].join("\n");
+}
+
+function groupCardNumber(cardNumber) {
+  return String(cardNumber ?? "").replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim();
+}
+
+function maskCardNumber(cardNumber) {
+  const digits = String(cardNumber ?? "").replace(/\D/g, "");
+  if (!digits) {
+    return "—";
+  }
+
+  const lastFour = digits.slice(-4);
+  const maskedDigits = `${"•".repeat(Math.max(digits.length - 4, 0))}${lastFour}`;
+  return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function getDataRowCount(rawCsv) {
+  return normalizeCsvRows(rawCsv).length;
+}
+
+function updateDataCountSummary(displayedCount = 0) {
+  dataCountSummary.textContent = `Total cards: ${sampleGiftCards.length} · Displayed: ${displayedCount}`;
 }
 
 function parseCsvLine(line) {
@@ -242,21 +276,16 @@ function setRawDataLocked(isLocked) {
   toggleDataLockButton.textContent = rawDataLocked ? "Unlock Editing" : "Lock Editing";
 }
 
-function renderValidationWarnings(warnings, loadedCount = null) {
+function renderValidationWarnings(warnings, summary = "No validation run yet.") {
   dataValidationWarnings.innerHTML = "";
 
+  const summaryElement = document.createElement("p");
+  summaryElement.textContent = summary;
+  dataValidationWarnings.append(summaryElement);
+
   if (warnings.length === 0) {
-    dataValidationWarnings.textContent = loadedCount === null
-      ? "No validation run yet."
-      : `Loaded ${loadedCount} valid card${loadedCount === 1 ? "" : "s"} with no warnings.`;
     return;
   }
-
-  const summary = document.createElement("p");
-  summary.textContent = loadedCount === null
-    ? `${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`
-    : `Loaded ${loadedCount} valid card${loadedCount === 1 ? "" : "s"}; ${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`;
-  dataValidationWarnings.append(summary);
 
   const warningList = document.createElement("ul");
   warnings.forEach((warning) => {
@@ -313,6 +342,9 @@ function parseRawCardData(rawCsv) {
     if (!cardNumber) {
       warnings.push(`Row ${displayRow}: missing card number.`);
       hasError = true;
+    } else if (!/^\d+$/.test(cardNumber)) {
+      warnings.push(`Row ${displayRow}: card number must contain contiguous digits only.`);
+      hasError = true;
     } else if (seenCardNumbers.has(cardNumber)) {
       warnings.push(`Row ${displayRow}: duplicate card number ${cardNumber}.`);
       hasError = true;
@@ -367,13 +399,41 @@ function parseRawCardData(rawCsv) {
   return { parsedCards, warnings };
 }
 
-function loadRawCardData() {
+function refreshRawCardData() {
+  const displayedCount = Math.min(sampleGiftCards.length, dataPanelRowLimit);
+  rawDataInput.value = cardsToCsv(sampleGiftCards, dataPanelRowLimit);
+  updateDataCountSummary(displayedCount);
+
+  const warnings = sampleGiftCards.length > dataPanelRowLimit
+    ? [`Displaying first ${dataPanelRowLimit} cards only. Export CSV includes all ${sampleGiftCards.length} cards.`]
+    : [];
+  renderValidationWarnings(warnings, `Refreshed ${displayedCount} of ${sampleGiftCards.length} cards into the textarea.`);
+}
+
+function updateRawCardData() {
+  const suppliedRows = getDataRowCount(rawDataInput.value);
+
+  if (suppliedRows > dataPanelRowLimit) {
+    renderValidationWarnings(
+      ["Data panel update is limited to 100 card rows. Use CSV export/import for larger datasets."],
+      `Update rejected: ${suppliedRows} rows supplied; maximum is ${dataPanelRowLimit}.`,
+    );
+    updateDataCountSummary(Math.min(sampleGiftCards.length, dataPanelRowLimit));
+    return;
+  }
+
   const { parsedCards, warnings } = parseRawCardData(rawDataInput.value);
 
   sampleGiftCards.splice(0, sampleGiftCards.length, ...parsedCards);
   selectedCardIndex = parsedCards.length > 0 ? 0 : -1;
+  detailNumberRevealed = false;
   renderApp(selectedCardIndex);
-  renderValidationWarnings(warnings, parsedCards.length);
+  updateDataCountSummary(Math.min(parsedCards.length, dataPanelRowLimit));
+
+  const summary = warnings.length === 0
+    ? `Imported ${parsedCards.length} card${parsedCards.length === 1 ? "" : "s"}.`
+    : `Imported ${parsedCards.length} card${parsedCards.length === 1 ? "" : "s"}. ${warnings.length} warning${warnings.length === 1 ? "" : "s"}.`;
+  renderValidationWarnings(warnings, summary);
 }
 
 function importCsvFile(file) {
@@ -384,10 +444,10 @@ function importCsvFile(file) {
   const reader = new FileReader();
   reader.addEventListener("load", () => {
     rawDataInput.value = String(reader.result ?? "");
-    renderValidationWarnings(["CSV imported into the raw data area. Press Load / Refresh Card Data to validate and load it."], null);
+    renderValidationWarnings([], "CSV imported into the raw data area. Press Update Data to validate and load it into this session.");
   });
   reader.addEventListener("error", () => {
-    renderValidationWarnings(["Unable to read the selected CSV file."], null);
+    renderValidationWarnings(["Unable to read the selected CSV file."], "CSV import failed.");
   });
   reader.readAsText(file);
 }
@@ -528,7 +588,7 @@ function renderCardList() {
 
     cardButton.innerHTML = `
       <div class="card-row-top">
-        <span class="card-number">${card.cardNumber}</span>
+        <span class="card-number">${maskCardNumber(card.cardNumber)}</span>
         ${renderUsedIndicator(card)}
       </div>
       <div class="card-row-bottom">
@@ -546,6 +606,8 @@ function clearCardDetail() {
   detailStatus.dataset.used = "";
   detailStatus.hidden = true;
   detailNumber.textContent = "—";
+  detailNumber.disabled = true;
+  detailNumber.setAttribute("aria-label", "No card number selected");
   detailPin.textContent = "—";
   detailStartingBalance.textContent = "—";
   detailCurrentBalance.textContent = "—";
@@ -561,6 +623,12 @@ function clearCardDetail() {
   openBalanceModalButton.disabled = true;
   barcodeOpenButton.disabled = true;
   fullscreenCardNumber.textContent = "—";
+  fullscreenPin.textContent = "—";
+  fullscreenPosition.textContent = "Card 0 of 0";
+  fullscreenPreviousButton.disabled = true;
+  fullscreenNextButton.disabled = true;
+  fullscreenMarkUsedButton.disabled = true;
+  fullscreenUpdateBalanceButton.disabled = true;
 }
 
 function renderCardDetail() {
@@ -577,7 +645,10 @@ function renderCardDetail() {
   detailStatus.textContent = card.used ? "Used" : "";
   detailStatus.dataset.used = String(card.used);
   detailStatus.hidden = !card.used;
-  detailNumber.textContent = card.cardNumber;
+  detailNumber.textContent = detailNumberRevealed ? groupCardNumber(card.cardNumber) : maskCardNumber(card.cardNumber);
+  detailNumber.disabled = false;
+  detailNumber.setAttribute("aria-label", detailNumberRevealed ? "Mask card number" : "Reveal full card number");
+  detailNumber.title = detailNumberRevealed ? "Tap to mask card number" : "Tap to reveal full card number";
   detailPin.textContent = card.pin;
   detailStartingBalance.textContent = formatBalance(card.startingBalance);
   detailCurrentBalance.textContent = formatBalance(card.currentBalance);
@@ -593,8 +664,15 @@ function renderCardDetail() {
   markUsedButton.textContent = card.used ? "Unmark Used" : "Mark Used";
   openBalanceModalButton.disabled = false;
   barcodeOpenButton.disabled = false;
-  fullscreenCardNumber.textContent = card.cardNumber;
+  fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
+  fullscreenCardNumber.textContent = groupCardNumber(card.cardNumber);
+  fullscreenPin.textContent = card.pin;
+  fullscreenPreviousButton.disabled = visiblePosition <= 0;
+  fullscreenNextButton.disabled = visiblePosition === visibleIndexes.length - 1;
+  fullscreenMarkUsedButton.disabled = false;
+  fullscreenUpdateBalanceButton.disabled = false;
 }
+
 
 function renderApp(preferredIndex) {
   ensureVisibleSelection(preferredIndex);
@@ -603,6 +681,7 @@ function renderApp(preferredIndex) {
 }
 
 function selectCard(index) {
+  detailNumberRevealed = false;
   selectedCardIndex = index;
   renderApp(index);
   showPanel("detail");
@@ -798,18 +877,72 @@ function markZeroBalanceCardsUsed() {
   renderApp(selectedCardIndex);
 }
 
+async function requestCheckoutWakeLock() {
+  if (!("wakeLock" in navigator)) {
+    return;
+  }
+
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+  } catch {
+    wakeLock = null;
+  }
+}
+
+function releaseCheckoutWakeLock() {
+  if (!wakeLock) {
+    return;
+  }
+
+  wakeLock.release().catch(() => {});
+  wakeLock = null;
+}
+
 function openFullscreenBarcode() {
   if (selectedCardIndex < 0) {
     return;
   }
 
+  renderCardDetail();
   fullscreenBarcode.hidden = false;
+  requestCheckoutWakeLock();
   barcodeCloseButton.focus();
 }
 
 function closeFullscreenBarcode() {
   fullscreenBarcode.hidden = true;
+  releaseCheckoutWakeLock();
   barcodeOpenButton.focus();
+}
+
+function markUsedFromCheckout() {
+  if (selectedCardIndex < 0) {
+    return;
+  }
+
+  closeFullscreenBarcode();
+  if (!sampleGiftCards[selectedCardIndex].used) {
+    toggleSelectedUsed();
+  }
+  showPanel("detail", { selectFirstVisible: true });
+}
+
+function updateBalanceFromCheckout() {
+  closeFullscreenBarcode();
+  showPanel("detail", { selectFirstVisible: true });
+  openBalanceModal();
+}
+
+function handleSwipeEnd(event, action) {
+  const touch = event.changedTouches[0];
+  const deltaX = touch.screenX - touchStartX;
+  const deltaY = touch.screenY - touchStartY;
+
+  if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) {
+    return;
+  }
+
+  action(deltaX < 0 ? 1 : -1);
 }
 
 navButtons.forEach((button) => {
@@ -820,6 +953,8 @@ navButtons.forEach((button) => {
 
 previousButton.addEventListener("click", () => moveSelection(-1));
 nextButton.addEventListener("click", () => moveSelection(1));
+fullscreenPreviousButton.addEventListener("click", () => moveSelection(-1));
+fullscreenNextButton.addEventListener("click", () => moveSelection(1));
 advanceOnUsedCheckbox.addEventListener("change", (event) => {
   advanceOnMarkUsed = event.target.checked;
 });
@@ -837,6 +972,15 @@ sortCardsSelect.addEventListener("change", (event) => {
 });
 markUsedButton.addEventListener("click", toggleSelectedUsed);
 openBalanceModalButton.addEventListener("click", openBalanceModal);
+detailNumber.addEventListener("click", () => {
+  if (selectedCardIndex < 0) {
+    return;
+  }
+  detailNumberRevealed = !detailNumberRevealed;
+  renderCardDetail();
+});
+fullscreenMarkUsedButton.addEventListener("click", markUsedFromCheckout);
+fullscreenUpdateBalanceButton.addEventListener("click", updateBalanceFromCheckout);
 amountUsedInput.addEventListener("input", () => calculateModalCounterpart("amount-used"));
 remainingBalanceInput.addEventListener("input", () => calculateModalCounterpart("remaining-balance"));
 cancelBalanceUpdateButton.addEventListener("click", closeBalanceModal);
@@ -847,7 +991,8 @@ confirmZeroUsedButton.addEventListener("click", markZeroBalanceCardsUsed);
 barcodeOpenButton.addEventListener("click", openFullscreenBarcode);
 barcodeCloseButton.addEventListener("click", closeFullscreenBarcode);
 toggleDataLockButton.addEventListener("click", () => setRawDataLocked(!rawDataLocked));
-loadCardDataButton.addEventListener("click", loadRawCardData);
+refreshCardDataButton.addEventListener("click", refreshRawCardData);
+updateCardDataButton.addEventListener("click", updateRawCardData);
 importCsvButton.addEventListener("click", () => csvFileInput.click());
 csvFileInput.addEventListener("change", (event) => {
   importCsvFile(event.target.files[0]);
@@ -891,21 +1036,24 @@ cardDetail.addEventListener("touchstart", (event) => {
 }, { passive: true });
 
 cardDetail.addEventListener("touchend", (event) => {
+  handleSwipeEnd(event, moveSelection);
+}, { passive: true });
+
+fullscreenBarcode.addEventListener("touchstart", (event) => {
   const touch = event.changedTouches[0];
-  const deltaX = touch.screenX - touchStartX;
-  const deltaY = touch.screenY - touchStartY;
+  touchStartX = touch.screenX;
+  touchStartY = touch.screenY;
+}, { passive: true });
 
-  if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) {
-    return;
-  }
-
-  moveSelection(deltaX < 0 ? 1 : -1);
+fullscreenBarcode.addEventListener("touchend", (event) => {
+  handleSwipeEnd(event, moveSelection);
 }, { passive: true });
 
 hideUsedCheckbox.checked = hideUsedCards;
 hideZeroBalanceCheckbox.checked = hideZeroBalanceCards;
 sortCardsSelect.value = sortMode;
-rawDataInput.value = cardsToCsv(sampleGiftCards);
-setRawDataLocked(true);
+rawDataInput.value = "";
+setRawDataLocked(false);
+updateDataCountSummary(0);
 renderApp();
 showPanel("list");
