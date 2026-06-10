@@ -25,7 +25,7 @@ Walmart-GC is a mobile-first gift card management application for users managing
 
 User Google Sheet ↔ Google Apps Script ↔ Walmart-GC
 
-Phase 7 sync implementation is complete. The current application uses the approved Google Sheet ↔ Apps Script ↔ Walmart-GC architecture, with Phase 8 focused on MVP hardening and deployment documentation.
+Phase 7 sync implementation is complete. The current application uses the approved Google Sheet ↔ Apps Script ↔ Walmart-GC architecture, with Phase 8 focused on MVP hardening, deployment, documentation, verification, troubleshooting, diagnostics, and setup guidance.
 
 ## Current Data Model
 
@@ -73,13 +73,17 @@ Assumptions:
 
 ## Current Implementation Phase
 
-- Phase 8 – MVP Hardening & Deployment Documentation
+- Phase 8 – MVP Hardening & Deployment
 
 ## Architecture Baseline
 
 - The approved Phase 6 architecture summary is documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
 - Treat Phase 6 as the current architecture baseline and historical decision record.
 - Do not change schema, Apps Script APIs, sync behavior, connection model, metadata architecture, or conflict handling without explicit discussion and approval.
+- The MVP architecture is complete.
+- Phase 8 is not an architecture phase.
+- Do not propose architecture redesigns unless a concrete MVP blocker exists.
+- Resolve minor implementation questions using the approved Phase 6 decisions and current repository documentation.
 
 ## Phase 7 Delivered Summary
 
@@ -101,17 +105,50 @@ Phase 7 completed the MVP sync implementation while preserving the approved Phas
 
 ## Phase 8 Focus
 
-Phase 8 is hardening and documentation work, not new feature expansion. Focus areas are:
+Phase 8 is hardening and deployment work, not new feature expansion and not architecture redesign.
 
-- Deployment/setup documentation.
+### Phase 8A – Documentation & Onboarding
+
+Includes:
+
+- Deployment documentation.
 - Apps Script setup guide.
 - Google Sheet setup guide.
-- Sync diagnostics.
+- Troubleshooting guide.
+
+### Phase 8B – Verification & Testing
+
+Includes:
+
+- Manual test plan.
+- Setup validation.
+- Sync validation.
+- Offline validation.
+- Conflict validation.
+
+### Phase 8C – Hardening & Diagnostics
+
+Includes:
+
+- Diagnostics improvements.
+- Validation review.
+- Edge-case handling.
 - Apps Script hardening.
-- Manual end-to-end test plan.
-- Mobile checkout verification.
-- MVP troubleshooting guidance.
-- Production-readiness review.
+- Large-sheet review.
+
+## Sync Provider Direction
+
+Google Apps Script is the approved MVP sync provider. Future versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is a post-MVP enhancement. OAuth work is not part of Phase 8, no OAuth setup or implementation tasks should be added for Phase 8, and contributors should not redesign the MVP around OAuth.
+
+## Sheet Sharing and Collaboration Scope
+
+Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions. Google Sheets controls sharing and access. Shared Sheets are allowed when Google Sheets grants the relevant access.
+
+The MVP is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. The approved sync and conflict-handling mechanisms remain the project solution when Sheet data changes independently.
+
+## Phase 8 PR Philosophy
+
+Prefer coherent PRs over micro-PRs. Related documentation should be completed together, repeated PRs that touch the same documentation files should be avoided, and each Phase 8 PR should be logically complete while remaining reviewable.
 
 ## Verification Rules
 

@@ -47,6 +47,18 @@ Google Sheet ↔ Google Apps Script ↔ Walmart-GC
 
 The primary goal is to make management of dozens of Walmart gift cards practical on mobile devices while keeping Google Sheets as the source of truth.
 
-## Status
+## Current Status
 
-Planning / MVP Design
+Phase 8 — MVP Hardening & Deployment.
+
+The MVP architecture is complete. Phase 8 is focused on documentation, deployment guidance, setup guidance, testing, troubleshooting, diagnostics, and hardening. It is not an architecture phase.
+
+## MVP Sync Provider
+
+Google Apps Script is the approved MVP sync provider between Walmart-GC and the user-owned Google Sheet. Future post-MVP versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is not part of Phase 8 and the MVP should not be redesigned around OAuth.
+
+## Sheet Sharing
+
+Walmart-GC operates against a Google Sheet. It does not manage users, roles, or permissions; Google Sheets controls sharing and access. Shared Sheets are allowed when the relevant users have Google Sheet access.
+
+The MVP is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. The approved sync and conflict-handling mechanisms are the MVP solution when underlying Sheet data changes independently.

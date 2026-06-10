@@ -1,8 +1,8 @@
 # Phase 6 – Schema & API Decisions
 
-Status: Phase 6 approved MVP architecture consolidated; not yet implemented.
+Status: Phase 6 approved MVP architecture consolidated. Phase 7 implemented sync against this baseline.
 
-This document records approved Phase 6 decisions before Phase 7 sync implementation.
+This document records approved Phase 6 decisions that remain the MVP architecture baseline.
 
 For full project instructions, workflow rules, and governance, see AGENTS.md.
 
@@ -30,7 +30,9 @@ Do not implement in Phase 6:
 - data migrations
 - dependencies or build tooling
 
-Phase 7 implementation must follow this document. Exact implementation details that remain deferred are listed in the Open / Deferred section.
+Phase 7 implementation followed this document. Exact implementation details that remain deferred are listed in the Open / Deferred section.
+
+The MVP architecture is complete. Phase 8 is focused on documentation, deployment, setup guidance, testing, troubleshooting, diagnostics, and hardening; it is not an architecture phase. Do not reinterpret deferred post-MVP possibilities as Phase 8 implementation work.
 
 Current application architecture remains:
 
@@ -64,7 +66,11 @@ MVP access is limited to:
 - Google Sheet owner
 - Invited Google Sheet editors
 
+Shared Google Sheets are allowed when Google Sheets grants access. Walmart-GC does not manage users, roles, or permissions; Google Sheets controls sharing and access.
+
 Do not support public unauthenticated access for MVP. View-only shared users are not part of MVP sync behavior. Broader sharing and role models are future scope.
+
+The MVP is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. The approved sync and conflict-handling mechanisms remain the MVP solution when Sheet data changes independently.
 
 ### 2. Metadata & Sheet Discovery Model
 
@@ -111,6 +117,8 @@ Deferred endpoints/features:
 - Google Picker
 - table editor
 - OAuth picker
+- direct Google OAuth + Google Sheets API access
+- additional sync providers
 
 ### 4. API Request / Response Envelope
 
@@ -621,6 +629,7 @@ Access goals:
 - The same Sheet/App Script connection can be used from desktop and mobile.
 - The same authorized user can connect from multiple devices.
 - Authorized/shared users can access if granted Google access.
+- Google Sheets owns sharing and permission management; Walmart-GC does not manage users, roles, or permissions.
 - Avoid public unauthenticated Sheet access for MVP.
 
 Sheet creation direction:
@@ -639,6 +648,7 @@ Rationale:
 
 - A user-provided Apps Script Web App URL keeps the frontend static and GitHub Pages-compatible.
 - Google permissions provide access control without adding Walmart-GC accounts.
+- Keeping Apps Script as the MVP sync provider avoids adding OAuth implementation and setup burden to Phase 8.
 - Avoiding frontend-created Sheets reduces MVP scope and support burden.
 
 Risks:
@@ -652,6 +662,7 @@ Implementation notes:
 - Apps Script deployment instructions remain open.
 - Frontend storage of the Apps Script URL must be designed later with security and privacy tradeoffs in mind.
 - Do not write Apps Script code in this documentation phase.
+- Do not add OAuth setup or implementation tasks for Phase 8.
 
 ### 2026-06-10 – Data panel setup and MVP data tooling direction
 
@@ -762,4 +773,6 @@ Implementation notes:
 - Record approvals before implementation.
 - Keep Current Balance authoritative unless a future approved decision changes that.
 - Keep Used as an independent boolean unless a future approved decision changes that.
-- The Phase 6 MVP architecture is approved for planning, but sync implementation must wait for Phase 7 and follow this document.
+- The Phase 6 MVP architecture is complete and remains the baseline after Phase 7 sync implementation.
+- Phase 8 must focus on documentation, deployment, verification, troubleshooting, diagnostics, and hardening, not architecture redesign.
+- OAuth and alternate sync providers are post-MVP possibilities, not Phase 8 objectives.

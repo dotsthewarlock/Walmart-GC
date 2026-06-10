@@ -127,6 +127,10 @@ docs/PHASE_6_SCHEMA_API_DECISIONS.md
 
 Do not redesign approved decisions without discussion.
 
+MVP architecture is complete. Phase 8 is a hardening, documentation, deployment, verification, and diagnostics phase; it is not an architecture phase. Do not propose architecture redesigns during Phase 8 unless a concrete MVP blocker exists. Resolve minor implementation questions by applying the approved Phase 6 decisions and current repository documentation.
+
+Google Apps Script is the approved MVP sync provider. Future post-MVP versions may evaluate direct Google OAuth + Google Sheets API access or additional sync providers, but OAuth is not part of Phase 8 and contributors must not redesign the MVP around OAuth.
+
 Changes affecting:
 
 * Google Sheet schema
@@ -161,7 +165,11 @@ Required:
 Do not prioritize:
 
 * User accounts
-* Multi-user collaboration beyond shared sheet editors
+* Real-time collaboration workflows
+* Live multi-client synchronization
+* Presence indicators
+* Activity history
+* Collaboration tooling beyond Google Sheet sharing
 * Shared databases
 * Subscription systems
 * Complex analytics
@@ -171,6 +179,8 @@ Do not prioritize:
 * Native mobile apps
 
 These may be future enhancements.
+
+Shared Google Sheets are allowed when Google Sheets grants access. Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions; Google Sheets remains responsible for sharing and access control. The approved sync and conflict-handling model remains the MVP solution when Sheet data changes independently.
 
 ---
 
@@ -215,6 +225,8 @@ Before committing, pushing, or opening a PR:
 8. Open one PR.
 
 Avoid repeated small pushes unless fixing review feedback or failed verification.
+
+Phase 8 should prefer coherent PRs over micro-PRs. Complete related documentation updates together, avoid multiple PRs that repeatedly touch the same documentation files, and keep each PR sized for review while remaining logically complete.
 
 ---
 
@@ -428,6 +440,9 @@ Completed:
 Current:
 
 * Phase 8 – MVP hardening and deployment documentation
+  * Phase 8A – Documentation & Onboarding
+  * Phase 8B – Verification & Testing
+  * Phase 8C – Hardening & Diagnostics
 
 Upcoming:
 
