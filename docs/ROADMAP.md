@@ -15,19 +15,19 @@ The application is designed around:
 - Google Sheets as the source of truth.
 - CSV backup and recovery.
 
-## Current Phase 9 Architecture
+## Current Phase 10 Auth Architecture
 
 ```text
 User Google Account
         ↕
-Google OAuth (`drive.file`)
-        ↕
-Google Drive API + Google Sheets API
+Cloudflare Worker OAuth session (`drive.file`)
         ↕
 Walmart-GC Web App
+        ↕
+Local browser storage / CSV backup
 ```
 
-Apps Script remains preserved on `main` as the known-good MVP baseline and in historical documentation. It is not an active sync provider on the Phase 9 OAuth branch.
+Apps Script remains preserved on `main` as the known-good MVP baseline and in historical documentation. Google account connection now uses the Cloudflare Worker session backend; the frontend no longer stores tokens or session IDs. Worker Sheets proxy endpoints remain future work before durable Sheet sync is complete.
 
 ## Completed
 

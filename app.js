@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.10 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.11 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.10";
+const DEBUG_VERSION_JS = "1.01.11";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -154,8 +154,6 @@ const csvFileInput = document.querySelector("#csv-file-input");
 const dataValidationWarnings = document.querySelector("#data-validation-warnings");
 const dataCountSummary = document.querySelector("#data-count-summary");
 const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
-const googleOAuthClientIdInput = document.querySelector("#google-oauth-client-id");
-const saveGoogleOAuthClientButton = document.querySelector("#save-google-oauth-client");
 const connectGoogleButton = document.querySelector("#connect-google");
 const disconnectGoogleButton = document.querySelector("#disconnect-google");
 const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
@@ -250,18 +248,18 @@ const defaultSyncState = {
   pendingOperation: null,
 };
 
+const WORKER_BASE_URL = "https://walmart-gc-oauth.dotsthewarlock.workers.dev";
 const embeddedGoogleOAuthClientId = "1059771800951-kfcf0cd42u4c54dfcnhaa64pp3l8ah1h.apps.googleusercontent.com";
-const googleOAuthClientIdPlaceholder = "PASTE_REAL_CLIENT_ID_IN_CODEX_TASK_OR_REPLACE_PLACEHOLDER_BEFORE_COMMIT";
 const googleOAuthScopes = "https://www.googleapis.com/auth/drive.file";
 const googleDriveSpreadsheetMimeType = "application/vnd.google-apps.spreadsheet";
 const walmartGcDataSheetName = "Walmart-GC Data";
 const googleOAuthStatuses = {
   disconnected: "Disconnected",
-  connecting: "Connecting",
-  restoring: "Restoring connection",
+  connecting: "Checking connection",
+  restoring: "Checking connection",
   connected: "Connected",
-  needsReconnect: "Needs reconnect",
-  error: "Connection Error",
+  needsReconnect: "Disconnected",
+  error: "Connection unavailable",
 };
 
 
@@ -304,7 +302,7 @@ const defaultGoogleOAuthState = {
   lastAuthorizedAt: "",
   tokenExpiresAt: "",
   userDisconnectedGoogle: false,
-  message: "Connect Google to authorize Google file access. Local cards remain usable without Google.",
+  message: "Checking Google account connection. Local cards remain usable without Google.",
   lastErrorMessage: "",
 };
 
@@ -312,15 +310,6 @@ let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
 let syncState = cloneStateValue(defaultSyncState);
 let googleOAuthState = cloneStateValue(defaultGoogleOAuthState);
 let directSheetsState = cloneStateValue(defaultDirectSheetsState);
-let googleTokenClient = null;
-let googleAccessToken = "";
-let googleTokenExpiryTimeout = null;
-let googleTokenRequestMode = "connect";
-let pendingGoogleTokenRequest = null;
-let silentTokenRestoreAttempted = false;
-let silentTokenRestoreInProgress = false;
-let silentTokenRestoreResult = "Not attempted";
-let pendingGoogleActionAfterToken = "";
 let loadedCardsFromStorage = false;
 
 function formatBalance(balance) {
@@ -1214,17 +1203,16 @@ function renderDiagnosticRow(label, value) {
     </li>`;
 }
 
-function getGoogleOAuthClientId() {
-  return String(googleOAuthState.clientId || "").trim();
-}
-
 function isGoogleOAuthConfigured() {
-  const clientId = getGoogleOAuthClientId();
-  return Boolean(clientId && clientId !== googleOAuthClientIdPlaceholder);
+  return Boolean(WORKER_BASE_URL);
 }
 
 function hasGoogleIdentityScript() {
   return Boolean(window.google?.accounts?.oauth2);
+}
+
+function hasWorkerGoogleSession() {
+  return googleOAuthState.status === googleOAuthStatuses.connected;
 }
 
 function setGoogleOAuthState(nextState) {
@@ -1269,7 +1257,7 @@ function getDirectSheetsStatusClass() {
 }
 
 function hasGoogleFileAccessInMemory() {
-  return Boolean(googleAccessToken && googleOAuthState.status === googleOAuthStatuses.connected);
+  return false;
 }
 
 function getDirectSheetsDisplayUrl() {
@@ -1300,15 +1288,12 @@ function renderDirectSheetsState() {
   syncDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
 
   const details = [
-    renderDiagnosticRow("OAuth configured", isGoogleOAuthConfigured() ? "Yes" : "No"),
-    renderDiagnosticRow("Google script loaded", hasGoogleIdentityScript() || googleOAuthState.scriptLoaded ? "Yes" : "No"),
+    renderDiagnosticRow("Worker session backend", WORKER_BASE_URL),
     renderDiagnosticRow("Google connection", googleOAuthState.status),
-    renderDiagnosticRow("Account remembered", hasRememberedGoogleContext() && !googleOAuthState.userDisconnectedGoogle ? "Yes" : "No"),
-    renderDiagnosticRow("Access token in memory", googleAccessToken ? "Yes" : "No"),
-    renderDiagnosticRow("Silent restore attempted", silentTokenRestoreAttempted ? "Yes" : "No"),
-    renderDiagnosticRow("Silent restore result", silentTokenRestoreInProgress ? "In progress" : silentTokenRestoreResult),
-    renderDiagnosticRow("User disconnected", googleOAuthState.userDisconnectedGoogle ? "Yes" : "No"),
-    renderDiagnosticRow("Google file access available", hasGoogleFileAccessInMemory() ? "Yes" : "Needs reconnect"),
+    renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
+    renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
+    renderDiagnosticRow("Frontend token storage", "None"),
+    renderDiagnosticRow("Sheet sync proxy", "Not enabled in this build"),
     renderDiagnosticRow("Active sheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
     renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
     renderDiagnosticRow("Active sheet name", valueOrFallback(directSheetsState.spreadsheetName)),
@@ -1337,39 +1322,6 @@ function renderDirectSheetsState() {
   `;
 }
 
-function clearGoogleTokenExpiryTimer() {
-  if (!googleTokenExpiryTimeout) {
-    return;
-  }
-
-  window.clearTimeout(googleTokenExpiryTimeout);
-  googleTokenExpiryTimeout = null;
-}
-
-function scheduleGoogleTokenExpiry(expiresAt) {
-  clearGoogleTokenExpiryTimer();
-  const expiresAtMs = new Date(expiresAt).getTime();
-  const timeoutMs = expiresAtMs - Date.now();
-
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    markGoogleTokenExpired();
-    return;
-  }
-
-  googleTokenExpiryTimeout = window.setTimeout(markGoogleTokenExpired, Math.min(timeoutMs, 2147483647));
-}
-
-function markGoogleTokenExpired() {
-  googleAccessToken = "";
-  googleTokenClient = null;
-  setGoogleOAuthState({
-    status: googleOAuthStatuses.needsReconnect,
-    tokenExpiresAt: "",
-    message: "Google access expired. Reconnect Google before Google Sheets sync.",
-    lastErrorMessage: "Token expired.",
-  });
-}
-
 function getGoogleOAuthStatusClass() {
   if (googleOAuthState.status === googleOAuthStatuses.connected) {
     return "connected";
@@ -1395,32 +1347,20 @@ function renderGoogleOAuthState() {
     return;
   }
 
-  if (googleOAuthClientIdInput) {
-    googleOAuthClientIdInput.value = googleOAuthState.clientId;
-  }
-  const configured = isGoogleOAuthConfigured();
-  const scriptLoaded = hasGoogleIdentityScript() || Boolean(window.walmartGcGoogleIdentityLoaded);
   const isBusy = [googleOAuthStatuses.connecting, googleOAuthStatuses.restoring].includes(googleOAuthState.status);
-  if (saveGoogleOAuthClientButton) {
-    saveGoogleOAuthClientButton.disabled = isBusy;
-  }
   connectGoogleButton.disabled = isBusy;
-  disconnectGoogleButton.disabled = isBusy && !googleAccessToken;
+  disconnectGoogleButton.disabled = isBusy;
   disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
 
   const details = [
-    renderDiagnosticRow("OAuth configured", configured ? "Yes" : "No"),
-    renderDiagnosticRow("Google script loaded", scriptLoaded ? "Yes" : "No"),
+    renderDiagnosticRow("Worker session backend", WORKER_BASE_URL),
     renderDiagnosticRow("Connection state", googleOAuthState.status),
-    renderDiagnosticRow("Account remembered", hasRememberedGoogleContext() && !googleOAuthState.userDisconnectedGoogle ? "Yes" : "No"),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Access token in memory", googleAccessToken ? "Yes" : "No"),
-    renderDiagnosticRow("Silent restore attempted", silentTokenRestoreAttempted ? "Yes" : "No"),
-    renderDiagnosticRow("Silent restore result", silentTokenRestoreInProgress ? "In progress" : silentTokenRestoreResult),
-    renderDiagnosticRow("User disconnected", googleOAuthState.userDisconnectedGoogle ? "Yes" : "No"),
-    renderDiagnosticRow("Google file access available", hasGoogleFileAccessInMemory() ? "Yes" : "Needs reconnect"),
-    renderDiagnosticRow("Token expires", formatConnectionTimestamp(googleOAuthState.tokenExpiresAt)),
-    renderDiagnosticRow("Last OAuth error", valueOrFallback(googleOAuthState.lastErrorMessage)),
+    renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
+    renderDiagnosticRow("Frontend token storage", "None"),
+    renderDiagnosticRow("Session ID storage", "Cookie only"),
+    renderDiagnosticRow("Sheet sync proxy", "Not enabled in this build"),
+    renderDiagnosticRow("Last connection error", valueOrFallback(googleOAuthState.lastErrorMessage)),
   ];
 
   googleOAuthStatusArea.className = `connection-status oauth-status is-${getGoogleOAuthStatusClass()}`;
@@ -1434,402 +1374,155 @@ function renderGoogleOAuthState() {
   `;
 }
 
-function saveGoogleOAuthClientFromInput() {
-  if (googleOAuthState.clientId !== embeddedGoogleOAuthClientId) {
-    setGoogleOAuthState({ clientId: embeddedGoogleOAuthClientId });
-  }
-
-  if (!isGoogleOAuthConfigured()) {
-    googleAccessToken = "";
-    googleTokenClient = null;
-    clearGoogleTokenExpiryTimer();
-    setGoogleOAuthState({
-      status: googleOAuthStatuses.error,
-      tokenExpiresAt: "",
-      message: "Google OAuth is not configured for this deployment. The maintainer must embed the public OAuth Client ID before users can connect.",
-      lastErrorMessage: "Missing embedded OAuth Client ID.",
-    });
-  }
+function getWorkerApiUrl(path) {
+  return `${WORKER_BASE_URL}${path}`;
 }
 
-function getGoogleOAuthFriendlyError(response) {
-  const error = String(response?.error || response?.type || "").trim();
-  const description = String(response?.error_description || response?.message || "").trim();
-  const combined = [error, description].filter(Boolean).join(": ");
-
-  if (error === "popup_failed_to_open" || error === "popup_closed") {
-    return "Google sign-in popup was blocked or closed before authorization finished.";
-  }
-
-  if (error === "access_denied") {
-    return "Google sign-in was denied. You can keep using local cards and try again later.";
-  }
-
-  return combined || "Google sign-in could not be completed.";
-}
-
-function hasRememberedGoogleContext() {
-  return Boolean(
-    googleOAuthState.connectedEmail
-      || googleOAuthState.connectedName
-      || googleOAuthState.connectedAt
-      || directSheetsState.spreadsheetId,
-  );
-}
-
-function getRememberedGoogleAccountLabel() {
-  return googleOAuthState.connectedEmail
-    || googleOAuthState.connectedName
-    || (hasRememberedGoogleContext() ? "this Google account" : "Google");
-}
-
-function settlePendingGoogleTokenRequest(error, accessToken = "") {
-  const pendingRequest = pendingGoogleTokenRequest;
-  pendingGoogleTokenRequest = null;
-
-  if (!pendingRequest) {
-    return;
-  }
-
-  if (error) {
-    pendingRequest.reject(error);
-    return;
-  }
-
-  pendingRequest.resolve(accessToken);
-}
-
-async function handleGoogleOAuthTokenResponse(tokenResponse) {
-  const mode = googleTokenRequestMode || "connect";
-  const isSilentMode = mode === "silent-restore" || mode !== "connect";
-
-  if (tokenResponse?.error) {
-    const message = getGoogleOAuthFriendlyError(tokenResponse);
-    googleAccessToken = "";
-    clearGoogleTokenExpiryTimer();
-    if (mode === "silent-restore") {
-      silentTokenRestoreResult = "Failed";
-      setGoogleOAuthState({
-        status: googleOAuthStatuses.needsReconnect,
-        tokenExpiresAt: "",
-        message: `Previously connected as ${getRememberedGoogleAccountLabel()}. Reconnect Google to sync.`,
-        lastErrorMessage: "",
-      });
-    } else if (isSilentMode) {
-      setGoogleOAuthState({
-        status: googleOAuthStatuses.needsReconnect,
-        tokenExpiresAt: "",
-        message: `Reconnect Google to continue ${pendingGoogleActionAfterToken || "this Google action"}. Local cards remain available.`,
-        lastErrorMessage: "",
-      });
-    } else {
-      setGoogleOAuthState({
-        status: googleOAuthStatuses.error,
-        tokenExpiresAt: "",
-        message,
-        lastErrorMessage: message,
-      });
-    }
-    settlePendingGoogleTokenRequest(new Error(message));
-    return;
-  }
-
-  const accessToken = String(tokenResponse?.access_token || "").trim();
-  if (!accessToken) {
-    const message = "Google did not return file access. Reconnect Google when you are ready to sync.";
-    googleAccessToken = "";
-    clearGoogleTokenExpiryTimer();
-    setGoogleOAuthState({
-      status: isSilentMode ? googleOAuthStatuses.needsReconnect : googleOAuthStatuses.error,
-      tokenExpiresAt: "",
-      message: isSilentMode
-        ? `Previously connected as ${getRememberedGoogleAccountLabel()}. Reconnect Google to sync.`
-        : "Google sign-in did not return file access. Try connecting again.",
-      lastErrorMessage: isSilentMode ? "" : message,
-    });
-    if (mode === "silent-restore") {
-      silentTokenRestoreResult = "Failed";
-    }
-    settlePendingGoogleTokenRequest(new Error(message));
-    return;
-  }
-
-  const grantedScopes = String(tokenResponse?.scope || "").split(/\s+/).filter(Boolean);
-  if (grantedScopes.length && !grantedScopes.includes(googleOAuthScopes)) {
-    const message = "Google did not grant Walmart-GC file access. Reconnect and approve Google Drive file access.";
-    googleAccessToken = "";
-    clearGoogleTokenExpiryTimer();
-    setGoogleOAuthState({
-      status: googleOAuthStatuses.error,
-      tokenExpiresAt: "",
-      message,
-      lastErrorMessage: "drive.file scope was not granted.",
-    });
-    if (mode === "silent-restore") {
-      silentTokenRestoreResult = "Failed";
-    }
-    settlePendingGoogleTokenRequest(new Error(message));
-    return;
-  }
-
-  googleAccessToken = accessToken;
-  const now = new Date().toISOString();
-  const expiresInSeconds = Number(tokenResponse.expires_in || 0);
-  const tokenExpiresAt = expiresInSeconds > 0
-    ? new Date(Date.now() + expiresInSeconds * 1000).toISOString()
-    : "";
-  if (tokenExpiresAt) {
-    scheduleGoogleTokenExpiry(tokenExpiresAt);
-  }
-
-  if (mode === "silent-restore") {
-    silentTokenRestoreResult = "Success";
-  }
-
-  setGoogleOAuthState({
-    status: googleOAuthStatuses.connected,
-    connectedName: googleOAuthState.connectedName || "Google account",
-    connectedAt: googleOAuthState.connectedAt || now,
-    lastAuthorizedAt: now,
-    tokenExpiresAt,
-    userDisconnectedGoogle: false,
-    message: mode === "silent-restore"
-      ? `Connected as ${getRememberedGoogleAccountLabel()}.`
-      : "Connected to Google.",
-    lastErrorMessage: "",
+async function fetchWorkerJson(path, options = {}) {
+  const response = await fetch(getWorkerApiUrl(path), {
+    ...options,
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+    },
   });
 
-  settlePendingGoogleTokenRequest(null, accessToken);
-
-  if (mode === "connect") {
-    if (directSheetsState.spreadsheetId) {
-      setDirectSheetsState({
-        status: directSheetsStatuses.ready,
-        message: `Reconnected Google. Using saved Sheet ${directSheetsState.spreadsheetName || directSheetsState.spreadsheetId}.`,
-        lastErrorMessage: "",
-      });
-      return;
-    }
-
-    await connectGoogleAndPrepareSheet();
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof payload.message === "string" && payload.message.trim()
+      ? payload.message.trim()
+      : `Worker request failed (${response.status}).`;
+    throw new Error(message);
   }
+
+  return payload;
 }
 
-function initializeGoogleTokenClient() {
-  if (!hasGoogleIdentityScript()) {
+function consumeAuthReturnQuery() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("auth") !== "connected") {
     return false;
   }
 
-  if (googleTokenClient && googleTokenClient.__clientId === embeddedGoogleOAuthClientId) {
-    return true;
-  }
-
-  googleTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: embeddedGoogleOAuthClientId,
-    scope: googleOAuthScopes,
-    callback: handleGoogleOAuthTokenResponse,
-    error_callback: (response) => {
-      const mode = googleTokenRequestMode || "connect";
-      const message = getGoogleOAuthFriendlyError(response);
-      googleAccessToken = "";
-      clearGoogleTokenExpiryTimer();
-      if (mode === "silent-restore") {
-        silentTokenRestoreResult = "Failed";
-        setGoogleOAuthState({
-          status: googleOAuthStatuses.needsReconnect,
-          tokenExpiresAt: "",
-          message: `Previously connected as ${getRememberedGoogleAccountLabel()}. Reconnect Google to sync.`,
-          lastErrorMessage: "",
-        });
-      } else if (mode !== "connect") {
-        setGoogleOAuthState({
-          status: googleOAuthStatuses.needsReconnect,
-          tokenExpiresAt: "",
-          message: `Reconnect Google to continue ${pendingGoogleActionAfterToken || "this Google action"}. Local cards remain available.`,
-          lastErrorMessage: "",
-        });
-      } else {
-        setGoogleOAuthState({
-          status: googleOAuthStatuses.error,
-          message,
-          lastErrorMessage: message,
-        });
-      }
-      settlePendingGoogleTokenRequest(new Error(message));
-    },
-  });
-  googleTokenClient.__clientId = embeddedGoogleOAuthClientId;
+  url.searchParams.delete("auth");
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(window.history.state, document.title, nextUrl);
   return true;
 }
 
-function requestGoogleAccessToken(mode = "connect", options = {}) {
-  if (!initializeGoogleTokenClient()) {
-    return Promise.reject(new Error("Google Identity Services did not load. Check your network or content blocker, then reconnect Google."));
-  }
-
-  if (pendingGoogleTokenRequest) {
-    return pendingGoogleTokenRequest.promise;
-  }
-
-  googleTokenRequestMode = mode;
-  pendingGoogleActionAfterToken = options.actionLabel || "";
-  const prompt = Object.prototype.hasOwnProperty.call(options, "prompt") ? options.prompt : "";
-
-  const promise = new Promise((resolve, reject) => {
-    pendingGoogleTokenRequest = { promise: null, resolve, reject };
+async function refreshWorkerSessionStatus(options = {}) {
+  const isAuthReturn = options.authReturn === true;
+  setGoogleOAuthState({
+    status: googleOAuthStatuses.connecting,
+    userDisconnectedGoogle: false,
+    message: isAuthReturn ? "Finishing Google connection..." : "Checking connection...",
+    lastErrorMessage: "",
   });
-  pendingGoogleTokenRequest.promise = promise;
+
   try {
-    googleTokenClient.requestAccessToken({ prompt });
-  } catch (error) {
-    pendingGoogleTokenRequest = null;
-    return Promise.reject(error);
-  }
-
-  return promise.finally(() => {
-    if (googleTokenRequestMode === mode) {
-      googleTokenRequestMode = "connect";
+    const status = await fetchWorkerJson("/api/status");
+    if (status.authenticated) {
+      const now = new Date().toISOString();
+      const returnedSheetId = String(status.sheetId || "").trim();
+      if (returnedSheetId && !directSheetsState.spreadsheetId) {
+        setDirectSheetsState({
+          spreadsheetId: returnedSheetId,
+          spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${returnedSheetId}/edit`,
+          spreadsheetName: String(status.sheetName || directSheetsState.spreadsheetName || walmartGcDataSheetName),
+          status: directSheetsStatuses.ready,
+          message: "Saved Sheet metadata restored from the durable Google session. Sheet sync proxy is not yet enabled in this build.",
+          lastErrorMessage: "",
+        });
+      }
+      setGoogleOAuthState({
+        status: googleOAuthStatuses.connected,
+        connectedEmail: String(status.email || googleOAuthState.connectedEmail || ""),
+        connectedName: String(status.name || googleOAuthState.connectedName || "Google account"),
+        connectedAt: googleOAuthState.connectedAt || now,
+        lastAuthorizedAt: now,
+        tokenExpiresAt: "",
+        userDisconnectedGoogle: false,
+        message: status.email || status.name
+          ? `Connected as ${status.email || status.name}.`
+          : "Connected. Durable Google session is active.",
+        lastErrorMessage: "",
+      });
+      return true;
     }
-    pendingGoogleActionAfterToken = "";
-  });
-}
 
-async function trySilentTokenRestore(options = {}) {
-  if (googleAccessToken && googleOAuthState.status === googleOAuthStatuses.connected) {
-    return true;
-  }
-
-  if (!isGoogleOAuthConfigured() || navigator.onLine === false || !hasGoogleIdentityScript()) {
-    return false;
-  }
-
-  const isStartupRestore = options.startup === true;
-  if (isStartupRestore) {
-    if (silentTokenRestoreAttempted || silentTokenRestoreInProgress || googleOAuthState.userDisconnectedGoogle || !hasRememberedGoogleContext()) {
-      return false;
-    }
-    silentTokenRestoreAttempted = true;
-    silentTokenRestoreResult = "Not attempted";
     setGoogleOAuthState({
-      status: googleOAuthStatuses.restoring,
-      message: "Restoring Google connection...",
+      status: googleOAuthStatuses.disconnected,
+      connectedEmail: "",
+      connectedName: "",
+      connectedAt: "",
+      lastAuthorizedAt: "",
+      tokenExpiresAt: "",
+      userDisconnectedGoogle: false,
+      message: "Connect Google to enable durable sync.",
       lastErrorMessage: "",
     });
-  }
-
-  silentTokenRestoreInProgress = true;
-  try {
-    await requestGoogleAccessToken(isStartupRestore ? "silent-restore" : (options.mode || "silent-action"), {
-      prompt: "",
-      actionLabel: options.actionLabel || "this Google action",
-    });
-    if (!isStartupRestore) {
-      silentTokenRestoreResult = "Success";
-    }
-    return true;
-  } catch (error) {
-    if (!isStartupRestore) {
-      silentTokenRestoreResult = "Failed";
-    }
     return false;
-  } finally {
-    silentTokenRestoreInProgress = false;
-    renderGoogleOAuthState();
-    renderDirectSheetsState();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Worker session status is unavailable.";
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      tokenExpiresAt: "",
+      message: "Connection unavailable. Local data remains available.",
+      lastErrorMessage: message,
+    });
+    return false;
   }
-}
-
-function maybeStartSilentTokenRestore() {
-  if (googleOAuthState.userDisconnectedGoogle || !hasRememberedGoogleContext() || googleAccessToken) {
-    return;
-  }
-
-  if (googleOAuthState.status === googleOAuthStatuses.disconnected && !directSheetsState.spreadsheetId) {
-    return;
-  }
-
-  void trySilentTokenRestore({ startup: true });
 }
 
 function connectGoogleAccount() {
-  saveGoogleOAuthClientFromInput();
-
-  if (!isGoogleOAuthConfigured()) {
-    return;
-  }
-
   if (navigator.onLine === false) {
     setGoogleOAuthState({
       status: googleOAuthStatuses.error,
-      message: "Google sign-in is unavailable while offline. Local card data remains usable.",
+      message: "Connection unavailable. Local data remains available.",
       lastErrorMessage: "Browser is offline.",
     });
-    return;
-  }
-
-  if (!hasGoogleIdentityScript()) {
-    setGoogleOAuthState({
-      status: googleOAuthStatuses.error,
-      message: "Google Identity Services did not load. Check your network, content blocker, or try again later.",
-      lastErrorMessage: window.walmartGcGoogleIdentityLoadFailed
-        ? "Google Identity Services script failed to load."
-        : "Google Identity Services script is not available.",
-    });
-    return;
-  }
-
-  if (!initializeGoogleTokenClient()) {
     return;
   }
 
   setGoogleOAuthState({
     status: googleOAuthStatuses.connecting,
     userDisconnectedGoogle: false,
-    message: "Opening Google sign-in. If no popup appears, allow popups for this site and try again.",
+    message: "Redirecting to Google sign-in...",
     lastErrorMessage: "",
   });
-  void requestGoogleAccessToken("connect", { prompt: "consent" }).catch(() => {});
+  window.location.href = getWorkerApiUrl("/auth/init");
 }
 
-function disconnectGoogleAccount() {
-  const tokenToRevoke = googleAccessToken;
-  googleAccessToken = "";
-  googleTokenClient = null;
-  clearGoogleTokenExpiryTimer();
+async function disconnectGoogleAccount() {
+  setGoogleOAuthState({
+    status: googleOAuthStatuses.connecting,
+    message: "Disconnecting Google...",
+    lastErrorMessage: "",
+  });
 
-  if (tokenToRevoke && hasGoogleIdentityScript()) {
-    google.accounts.oauth2.revoke(tokenToRevoke, () => {});
+  try {
+    await fetchWorkerJson("/api/logout", { method: "POST" });
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.disconnected,
+      connectedEmail: "",
+      connectedName: "",
+      connectedAt: "",
+      lastAuthorizedAt: "",
+      tokenExpiresAt: "",
+      userDisconnectedGoogle: true,
+      message: "Google account disconnected. Local cards and saved Sheet settings were not changed.",
+      lastErrorMessage: "",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Worker logout is unavailable.";
+    setGoogleOAuthState({
+      status: googleOAuthStatuses.error,
+      message: "Connection unavailable. Local data remains available.",
+      lastErrorMessage: message,
+    });
   }
-
-  setGoogleOAuthState({
-    status: googleOAuthStatuses.disconnected,
-    connectedEmail: "",
-    connectedName: "",
-    connectedAt: "",
-    tokenExpiresAt: "",
-    userDisconnectedGoogle: true,
-    message: "Google account disconnected. Local cards and saved Sheet settings were not changed.",
-    lastErrorMessage: "",
-  });
-}
-
-function handleGoogleIdentityLoaded() {
-  setGoogleOAuthState({
-    scriptLoaded: true,
-    message: googleOAuthState.message || defaultGoogleOAuthState.message,
-  });
-  maybeStartSilentTokenRestore();
-}
-
-function handleGoogleIdentityFailed() {
-  setGoogleOAuthState({
-    scriptLoaded: false,
-    status: googleOAuthState.status === googleOAuthStatuses.connected
-      ? googleOAuthStatuses.needsReconnect
-      : googleOAuthState.status,
-    message: "Google Identity Services did not load. Local card data remains usable.",
-    lastErrorMessage: "Google Identity Services script failed to load.",
-  });
 }
 
 function getSyncStatusLabel() {
@@ -1867,22 +1560,13 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
     description: action === "batchUpdate" ? "local card updates" : "card update",
   });
 
-  if (isDirectSheetsConfigured()
-    && !hasGoogleFileAccessInMemory()
-    && syncState.lastKnownSheetVersion
-    && syncState.status !== syncStatuses.conflict
-  ) {
-    await trySilentTokenRestore({
-      mode: "completed-action",
-      actionLabel: "completed-action sync",
-    });
-  }
-
   if (!canAutoSyncToSheets()) {
     const message = options.noAutoSyncMessage
       || (isDirectSheetsConfigured()
-        ? "Saved locally. Reconnect Google and load or initialize Walmart-GC Data before syncing."
-        : "Saved locally. Connect Google to create or locate Walmart-GC Data before syncing.");
+        ? (hasWorkerGoogleSession()
+          ? "Saved locally. Durable Google session is connected. Sheet sync proxy is not yet enabled in this build."
+          : "Saved locally. Connect Google to enable durable sync before syncing.")
+        : "Saved locally. Connect Google to enable durable sync before syncing.");
     setSyncState({
       status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
@@ -1912,7 +1596,9 @@ function getRecoveryUnavailableMessage() {
   }
 
   if (!hasGoogleFileAccessInMemory()) {
-    return "Reconnect Google with file access before using Google Sheets recovery actions.";
+    return hasWorkerGoogleSession()
+      ? "Durable Google session is connected. Sheet sync proxy is not yet enabled in this build."
+      : "Connect Google to enable durable sync before using Google Sheets recovery actions.";
   }
 
   return "";
@@ -2071,27 +1757,9 @@ async function getGoogleAccessTokenForDriveFile() {
     throw makeDirectSheetsError("Google sync is unavailable while offline. Local data remains saved in this browser.");
   }
 
-  if (!hasGoogleIdentityScript()) {
-    throw makeDirectSheetsError("Google Identity Services did not load. Check your network or content blocker, then reconnect Google.");
-  }
-
-  if (!googleAccessToken || googleOAuthState.status !== googleOAuthStatuses.connected) {
-    const restored = await trySilentTokenRestore({
-      mode: googleTokenRequestMode === "connect" ? "action" : googleTokenRequestMode,
-      actionLabel: pendingGoogleActionAfterToken || "this Google action",
-    });
-
-    if (!restored || !googleAccessToken || googleOAuthState.status !== googleOAuthStatuses.connected) {
-      setGoogleOAuthState({
-        status: googleOAuthStatuses.needsReconnect,
-        message: `Previously connected as ${getRememberedGoogleAccountLabel()}. Reconnect Google to sync.`,
-        lastErrorMessage: "",
-      });
-      throw makeDirectSheetsError("Reconnect Google with file access before using sync.");
-    }
-  }
-
-  return googleAccessToken;
+  throw makeDirectSheetsError(hasWorkerGoogleSession()
+    ? "Durable Google session is connected. Sheet sync proxy is not yet enabled in this build."
+    : "Connect Google to enable durable sync before using sync.");
 }
 
 async function sheetsFetch(path, options = {}) {
@@ -3493,13 +3161,8 @@ if (openDirectSheetButton) {
 }
 loadDirectSheetButton.addEventListener("click", loadCardsFromDirectSheets);
 syncDirectSheetButton.addEventListener("click", retrySyncCurrentSession);
-if (saveGoogleOAuthClientButton) {
-  saveGoogleOAuthClientButton.addEventListener("click", saveGoogleOAuthClientFromInput);
-}
 connectGoogleButton.addEventListener("click", connectGoogleAccount);
 disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
-window.addEventListener("walmart-gc-google-identity-loaded", handleGoogleIdentityLoaded);
-window.addEventListener("walmart-gc-google-identity-failed", handleGoogleIdentityFailed);
 syncRecoveryActions.addEventListener("click", (event) => {
   const recoveryButton = event.target.closest("[data-sync-recovery]");
   if (!recoveryButton) {
@@ -3568,17 +3231,8 @@ setRawDataLocked(true);
 renderConnectionState();
 renderGoogleOAuthState();
 renderDirectSheetsState();
-if (window.walmartGcGoogleIdentityLoaded || hasGoogleIdentityScript()) {
-  handleGoogleIdentityLoaded();
-} else if (window.walmartGcGoogleIdentityLoadFailed) {
-  handleGoogleIdentityFailed();
-} else {
-  window.setTimeout(() => {
-    if (!hasGoogleIdentityScript() && !window.walmartGcGoogleIdentityLoaded) {
-      handleGoogleIdentityFailed();
-    }
-  }, 8000);
-}
+const authReturnDetected = consumeAuthReturnQuery();
+void refreshWorkerSessionStatus({ authReturn: authReturnDetected });
 refreshRawCardData("Loaded current session data into the textarea. Editing is locked.");
 renderApp();
 showPanel("list");

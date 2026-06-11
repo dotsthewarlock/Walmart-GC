@@ -4,14 +4,12 @@
 
 Walmart-GC uses a lightweight static-web architecture that avoids dedicated servers and databases.
 
-## Current Phase 9 Sync Architecture
+## Current Phase 10 Auth Architecture
 
 ```text
 User Google Account
         ↕
-Google OAuth
-        ↕
-Google Sheets API
+Cloudflare Worker OAuth session
         ↕
 Walmart-GC Web App
         ↕
@@ -29,11 +27,11 @@ The user-owned Google Sheet is the online source of truth. The active workbook c
 
 ### Google OAuth
 
-The browser uses a user-provided Google OAuth Web Client ID to request Google Sheets access. Access tokens stay in memory and are not saved to local storage.
+Google account connection now uses the Cloudflare Worker session backend. The frontend redirects to the Worker for OAuth, checks `/api/status` with credentials included, and no longer stores tokens or session IDs.
 
 ### Google Sheets API
 
-Walmart-GC reads, initializes, and writes the configured Google Sheet directly through the Google Sheets API. Completed card actions sync after explicit saves, not on every keystroke.
+The previous direct browser Google Sheets code remains in the frontend as legacy code, but durable Worker session auth is now the source of truth. A Worker Sheets proxy is still required before Sheet load/save/sync can use the durable session.
 
 ### Walmart-GC Web App
 

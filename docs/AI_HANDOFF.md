@@ -4,18 +4,16 @@
 
 Active branch: `phase-9-oauth`.
 
-Current implementation phase: Phase 9.1 — low-friction OAuth and automatic `Walmart-GC Data` Sheet lifecycle.
+Current implementation phase: Phase 10B — frontend auth/session UX migration to the Cloudflare Worker session backend.
 
-The preserved `main` branch remains the known-good Apps Script MVP. Phase 9 work uses Google OAuth with `drive.file`, Google Drive file lifecycle calls, and the direct Google Sheets API as the only online sync path.
+The preserved `main` branch remains the known-good Apps Script MVP. Google account connection now redirects through the Worker OAuth session backend; the frontend no longer stores tokens or session IDs. Worker Sheets proxy endpoints remain future work before durable Sheet sync is complete.
 
 ## Current Architecture
 
 ```text
 User Google Account
         ↕
-Google OAuth (`drive.file`)
-        ↕
-Google Drive API + Google Sheets API
+Cloudflare Worker OAuth session (`drive.file`)
         ↕
 Walmart-GC Web App
         ↕
@@ -32,7 +30,7 @@ Required capabilities remain:
 - PIN display.
 - Remaining balance tracking.
 - Used flag tracking.
-- Google Sheet synchronization through direct Google Sheets API.
+- Google Sheet synchronization once Worker Sheets proxy endpoints are added; local/CSV flows remain available meanwhile.
 - Mobile-friendly interface.
 - Desktop-friendly interface.
 - CSV backup and recovery.
@@ -66,11 +64,13 @@ Rules:
 
 ## Active Sync Behavior
 
-Online sync path:
+Online auth path:
 
 ```text
-Google OAuth `drive.file` + Google Drive API + Direct Google Sheets API only
+Cloudflare Worker OAuth session + HttpOnly `walmart_gc_session` cookie
 ```
+
+The legacy direct browser Sheets code remains present but must not trigger Google Identity Services popups. Until Worker Sheets proxy endpoints are implemented, Google Sheet sync actions should explain that the durable session is connected but the Sheet sync proxy is not enabled in this build.
 
 Completed actions should sync after:
 

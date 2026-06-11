@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.06 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.07 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.06"
+          data-html-version="1.01.07"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.06 · JS loading · CSS 1.01.03
+          HTML 1.01.07 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -185,7 +185,7 @@
             <div class="data-card-heading">
               <div>
                 <h3>Google Account</h3>
-                <p>Connect Google to create or locate your dedicated Walmart-GC Data spreadsheet. Tokens stay in memory and are not saved.</p>
+                <p>Connect Google through the durable Cloudflare Worker session backend. The frontend does not store tokens or session IDs.</p>
               </div>
             </div>
 
@@ -327,13 +327,6 @@
       </div>
     </div>
 
-    <script
-      src="https://accounts.google.com/gsi/client"
-      async
-      defer
-      onload="window.walmartGcGoogleIdentityLoaded = true; window.dispatchEvent(new Event('walmart-gc-google-identity-loaded'));"
-      onerror="window.walmartGcGoogleIdentityLoadFailed = true; window.dispatchEvent(new Event('walmart-gc-google-identity-failed'));"
-    ></script>
     <script src="app.js"></script>
   </body>
 </html>
