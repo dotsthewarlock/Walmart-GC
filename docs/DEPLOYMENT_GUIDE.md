@@ -2,34 +2,34 @@
 
 Walmart-GC is a static GitHub Pages app. It uses plain HTML, CSS, and JavaScript with no build step, backend server, database, framework, or npm dependency.
 
-## Active Phase 9.1 Deployment Model
+## Active Phase 10B Deployment Model
 
 ```text
-GitHub Pages static app
+Custom-domain GitHub Pages static app
         ↕
-Google Identity Services OAuth
+Cloudflare Worker OAuth session
         ↕
-Google Drive API + Google Sheets API
+Google Drive API using drive.file
         ↕
 User-owned Walmart-GC Data spreadsheet
 ```
 
-Normal users should only need to open the app, select **Connect Google**, approve access, and use Walmart-GC.
+Normal users should only need to open the custom-domain app, select **Connect Google**, approve access, and return to Walmart-GC with a durable HttpOnly Worker session cookie.
 
 ## Maintainer OAuth Setup
 
-The public OAuth Client ID must be embedded in `app.js` before deployment. It is browser configuration, not a client secret.
+The OAuth client secret stays in the Cloudflare Worker secret store. Do not add OAuth client secrets or Google access/refresh tokens to the frontend.
 
 Required Google Cloud settings:
 
 - OAuth app audience: External.
 - OAuth status may be Testing while limited to configured test users.
 - Enabled APIs: Google Drive API and Google Sheets API.
-- Authorized JavaScript origin: `https://dotsthewarlock.github.io`.
-- Authorized redirect URI: `https://dotsthewarlock.github.io/Walmart-GC/`.
+- Authorized JavaScript origin: `https://walmart-gc.dotsthewarlock.com`.
+- Authorized redirect URI: `https://walmart-gc-oauth.dotsthewarlock.com/auth/callback`.
 - Scope used by the app: `https://www.googleapis.com/auth/drive.file`.
 
-Do not add an OAuth client secret to the frontend.
+The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and carries the session only in the `walmart_gc_session` HttpOnly cookie.
 
 ## Static Files
 
@@ -64,7 +64,9 @@ Also confirm:
 2. Confirm the debug fingerprint.
 3. Open the **Data** panel.
 4. Select **Connect Google**.
-5. Confirm consent requests `drive.file`.
-6. Confirm Walmart-GC locates or creates `Walmart-GC Data`.
-7. Confirm **Open Sheet** opens the active spreadsheet.
-8. Confirm local/offline data remains available if Google setup fails.
+5. Confirm consent requests only `drive.file`.
+6. Confirm the return URL is `https://walmart-gc.dotsthewarlock.com/?auth=connected`, then cleans itself without a `session_id`.
+7. Confirm the Worker session cookie exists on `walmart-gc-oauth.dotsthewarlock.com` and refresh keeps the connection.
+8. Confirm Walmart-GC locates or creates `Walmart-GC Data` once Worker Sheet proxy support is enabled.
+9. Confirm **Open Sheet** opens the active spreadsheet when a Sheet is configured.
+10. Confirm local/offline data remains available if Google setup fails.

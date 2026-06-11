@@ -5,7 +5,7 @@ const SESSION_COOKIE = "walmart_gc_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const OAUTH_STATE_TTL_SECONDS = 60 * 5;
 const DEFAULT_SHEET_NAME = "Walmart-GC Data";
-const FRONTEND_CONNECTED_PATH = "/Walmart-GC/?auth=connected";
+const FRONTEND_CONNECTED_PATH = "/?auth=connected";
 
 export default {
   async fetch(request, env) {
@@ -261,7 +261,7 @@ async function sessionKey(env, sessionId) {
 }
 
 function buildSessionCookie(value, maxAge) {
-  return `${SESSION_COOKIE}=${value}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${maxAge}`;
+  return `${SESSION_COOKIE}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 }
 
 function readCookie(header, name) {
@@ -273,7 +273,7 @@ function readCookie(header, name) {
 }
 
 function getFrontendOrigin(env) {
-  return env.FRONTEND_ORIGIN || "https://dotsthewarlock.github.io";
+  return env.FRONTEND_ORIGIN || "https://walmart-gc.dotsthewarlock.com";
 }
 
 function appendVary(existing, value) {
