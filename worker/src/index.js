@@ -5,6 +5,7 @@ const SESSION_COOKIE = "walmart_gc_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const OAUTH_STATE_TTL_SECONDS = 60 * 5;
 const DEFAULT_SHEET_NAME = "Walmart-GC Data";
+const FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
 
 export default {
@@ -142,7 +143,7 @@ async function handleAuthCallback(request, env) {
     expirationTtl: SESSION_TTL_SECONDS,
   });
 
-  const redirectTo = `${getFrontendOrigin(env)}${FRONTEND_CONNECTED_PATH}`;
+  const redirectTo = `${FRONTEND_ORIGIN}${FRONTEND_CONNECTED_PATH}`;
   return new Response(null, {
     status: 302,
     headers: {
@@ -195,7 +196,7 @@ function handleOptions(request, env) {
 
 function withCors(request, response, env) {
   const origin = request.headers.get("Origin") || "";
-  if (origin !== getFrontendOrigin(env)) {
+  if (origin !== FRONTEND_ORIGIN) {
     return response;
   }
 
@@ -272,9 +273,6 @@ function readCookie(header, name) {
     .find(([key]) => key === name)?.slice(1).join("=") || "";
 }
 
-function getFrontendOrigin(env) {
-  return env.FRONTEND_ORIGIN || "https://walmart-gc.dotsthewarlock.com";
-}
 
 function appendVary(existing, value) {
   if (!existing) {
