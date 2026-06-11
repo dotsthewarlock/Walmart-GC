@@ -54,6 +54,16 @@ The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?a
 
 Do not configure or recommend localhost OAuth, alternate development origins, `/Walmart-GC/` callback paths, session IDs in query parameters, OAuth Client ID inputs for normal users, Google Identity Services browser token flow, direct browser Drive API calls, or direct browser Sheets API calls.
 
+
+## Cloudflare Worker KV Bindings
+
+The Worker requires two KV bindings with exact binding names used by `worker/src/index.js`:
+
+- `SESSIONS` — durable server-side session records and refresh tokens.
+- `OAUTH_STATE` — short-lived OAuth state and PKCE verifier records.
+
+The repository's `worker/wrangler.toml` intentionally contains placeholder KV namespace IDs. Real Cloudflare KV namespace IDs should not be invented or exposed in documentation. Before deploying with Wrangler, replace the placeholders with the real namespace IDs for the target Cloudflare account, or configure equivalent bindings in the Cloudflare dashboard/deployment pipeline. A deployment that leaves `REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID` or `REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID` unchanged is not ready for production.
+
 ## Worker Source of Truth
 
 The Worker code in this repository is the source of truth for `https://walmart-gc-oauth.dotsthewarlock.com`. Avoid Cloudflare Web IDE edits because they can drift from reviewable source control. Use Web IDE changes only for emergency fixes, then immediately backport the exact change into `worker/src/index.js`, run verification, and redeploy from the repository.
@@ -64,6 +74,7 @@ Worker contract checks:
 - Callback does not append `/Walmart-GC/` or any `session_id` query parameter.
 - Session cookie is host-only: `walmart_gc_session=<id>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`.
 - The cookie does not set `Domain=`.
+- `/api/status` clears that same host-only cookie if the browser presents a stale session whose KV record is missing, expired, invalid, or otherwise unusable.
 - Credentialed CORS allows exactly `https://walmart-gc.dotsthewarlock.com`.
 - OAuth scope remains `https://www.googleapis.com/auth/drive.file`.
 

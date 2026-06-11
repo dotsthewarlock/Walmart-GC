@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.17 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.18 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.17";
+const DEBUG_VERSION_JS = "1.01.18";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -1711,120 +1711,9 @@ async function ensureWalmartGcDataSheet() {
   };
 }
 
-function hasMeaningfulLocalCards() {
-  if (sampleGiftCards.length === 0) {
-    return false;
-  }
-  if (loadedCardsFromStorage) {
-    return true;
-  }
-  return JSON.stringify(sampleGiftCards) !== JSON.stringify(bundledSampleGiftCards);
-}
-
-async function connectGoogleAndPrepareSheet() {
-  try {
-    const file = await ensureWalmartGcDataSheet();
-    const loadResult = await fetchWorkerJson("/api/cards/load");
-    const loadedCards = normalizeStoredCards(loadResult.cards || []);
-    const localHasCards = hasMeaningfulLocalCards();
-    const now = new Date().toISOString();
-    const sheetVersion = String(loadResult.sheetVersion || file.sheetVersion || "");
-
-    if (loadedCards.length > 0 && localHasCards) {
-      syncState = {
-        ...syncState,
-        status: syncStatuses.unsynced,
-        lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: sheetVersion,
-        message: "Connected to Walmart-GC Data. Remote cards were found; press Load from Google Sheets to replace this local session, or Sync Now to save local cards after reviewing.",
-        lastErrorMessage: "",
-      };
-      setDirectSheetsState({
-        spreadsheetId: String(loadResult.sheetId || file.id),
-        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${String(loadResult.sheetId || file.id)}/edit`,
-        spreadsheetName: String(loadResult.sheetName || file.name || walmartGcDataSheetName),
-        status: directSheetsStatuses.ready,
-        cardsSheetInitialized: "yes",
-        remoteSheetVersion: sheetVersion,
-        pendingUnsynced: true,
-        message: "Connected. Remote cards exist, so Walmart-GC did not replace local cards automatically.",
-        lastErrorMessage: "",
-      });
-      return;
-    }
-
-    if (loadedCards.length === 0 && localHasCards) {
-      syncState = {
-        ...syncState,
-        status: syncStatuses.unsynced,
-        lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: sheetVersion,
-        message: "Connected to an empty Walmart-GC Data Sheet. Local cards were kept in this browser; press Sync Now to copy them to Google Sheets.",
-        lastErrorMessage: "",
-      };
-      setDirectSheetsState({
-        spreadsheetId: String(loadResult.sheetId || file.id),
-        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${String(loadResult.sheetId || file.id)}/edit`,
-        spreadsheetName: String(loadResult.sheetName || file.name || walmartGcDataSheetName),
-        status: directSheetsStatuses.ready,
-        cardsSheetInitialized: "yes",
-        remoteSheetVersion: sheetVersion,
-        pendingUnsynced: true,
-        message: "Connected to an empty Sheet. Local cards were not uploaded automatically.",
-        lastErrorMessage: "",
-      });
-      return;
-    }
-
-    sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedCards);
-    loadedCardsFromStorage = true;
-    selectedCardIndex = loadedCards.length > 0 ? 0 : -1;
-    detailNumberRevealed = false;
-    syncState = {
-      ...syncState,
-      status: syncStatuses.connected,
-      lastSyncTimestamp: now,
-      lastSyncAttemptTimestamp: now,
-      lastKnownSheetVersion: sheetVersion,
-      message: loadedCards.length
-        ? "Loaded cards from Walmart-GC Data. Completed actions will now sync through the Worker."
-        : "Connected to a blank Walmart-GC Data Sheet. Add or import cards when ready.",
-      lastErrorMessage: "",
-      pendingOperation: null,
-    };
-    setDirectSheetsState({
-      spreadsheetId: String(loadResult.sheetId || file.id),
-      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${String(loadResult.sheetId || file.id)}/edit`,
-      spreadsheetName: String(loadResult.sheetName || file.name || walmartGcDataSheetName),
-      status: directSheetsStatuses.ready,
-      cardsSheetInitialized: "yes",
-      remoteSheetVersion: sheetVersion,
-      lastSuccessfulSyncAt: now,
-      pendingUnsynced: false,
-      message: loadedCards.length
-        ? `Connected and loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data.`
-        : "Connected and initialized Walmart-GC Data. The Sheet is ready for cards.",
-      lastErrorMessage: "",
-    });
-    saveAppState();
-    refreshRawCardData(loadedCards.length
-      ? `Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data into this session.`
-      : "Connected to a blank Walmart-GC Data Sheet. The local card list is empty and ready.");
-    renderApp(selectedCardIndex);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Google Sheet setup failed.";
-    setDirectSheetsState({
-      status: directSheetsStatuses.error,
-      message: message === "Not authenticated" ? "Connect Google to sync." : message,
-      lastErrorMessage: message,
-    });
-    setSyncState({
-      status: syncStatuses.unsynced,
-      lastErrorMessage: message,
-      message: "Google setup failed. Local cards remain available in this browser.",
-    });
-  }
-}
+// Post-connect Sheet setup intentionally remains user-directed during Phase 11:
+// after OAuth returns, users choose Ensure Sheet, Load from Google Sheets, or Sync Now so
+// local cards are never replaced or uploaded automatically.
 
 function openActiveGoogleSheet() {
   const sheetUrl = getDirectSheetsDisplayUrl();
