@@ -4,7 +4,7 @@
 
 Active branch: `phase-9-oauth`.
 
-Current implementation phase: Phase 10D — Worker-only durable sync with the legacy browser Google API path retired.
+Current implementation phase: Phase 10E — final OAuth/sync hardening and documentation alignment after Worker-only durable sync.
 
 The preserved `main` branch remains the known-good Apps Script MVP. Google account connection and Sheet sync run through the Worker backend; the frontend no longer stores Google tokens or session IDs.
 
@@ -124,8 +124,9 @@ Diagnostics should focus on:
 - Sync state.
 - Unsynced changes.
 - Last successful sync.
-- Last Google API error.
+- Last Worker/API error.
 - Local card count where useful.
+- Offline/local availability.
 
 ## Historical MVP References
 
@@ -147,7 +148,8 @@ Do not add:
 Preferred verification:
 
 - `node --check app.js`.
+- `node --check worker/src/index.js`.
 - `git diff --check`.
 - Conflict-marker scan.
-- Static UI/copy searches.
+- Static UI/copy searches for retired browser-token/OAuth Client ID/active Apps Script copy.
 - Local HTTP server + curl smoke test when useful.

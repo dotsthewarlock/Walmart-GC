@@ -2,7 +2,7 @@
 
 Mobile-first Walmart gift card manager.
 
-Walmart-GC is a static web application that helps users manage large numbers of Walmart gift cards with barcode access, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, and direct Google Sheets sync.
+Walmart-GC is a static web application that helps users manage large numbers of Walmart gift cards with barcode access, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, and Worker-backed Google Sheets sync.
 
 ## Features
 
@@ -25,16 +25,22 @@ User-owned Google Sheet
 Online sync path:
 
 ```text
-Google Account ↔ Google OAuth drive.file ↔ Google Drive/Sheets APIs ↔ Walmart-GC Web App
+GitHub Pages frontend ↔ Cloudflare Worker session/API ↔ Google Drive/Sheets APIs ↔ Walmart-GC Data Sheet
 ```
 
 Frontend:
 
 ```text
-GitHub Pages static website
+GitHub Pages static website at https://walmart-gc.dotsthewarlock.com/
 ```
 
-Walmart-GC does not require a dedicated server, database, build step, framework, or app-managed user account system.
+Backend Worker:
+
+```text
+Cloudflare Worker at https://walmart-gc-oauth.dotsthewarlock.com
+```
+
+Walmart-GC does not require a database, build step, framework, VPS, or app-managed user account system. The only backend component is the Cloudflare Worker that owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
 
 ## Technology
 
@@ -57,9 +63,9 @@ Walmart-GC does not require a dedicated server, database, build step, framework,
 
 ## Current Status
 
-Phase 10D — Worker-backed durable Google session and Worker-only Sheet sync.
+Phase 10E — final Worker-backed OAuth/sync hardening and documentation alignment.
 
-The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses a Cloudflare Worker for OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets API calls. The frontend never stores Google tokens or session IDs. Apps Script is retained only as historical MVP reference material.
+The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses a Cloudflare Worker for OAuth, refresh tokens, the HttpOnly host-only session cookie, and server-side Drive/Sheets API calls using only `drive.file`. The frontend never stores Google tokens or session IDs. Apps Script is retained only as historical MVP reference material.
 
 ## Sheet Sharing
 
