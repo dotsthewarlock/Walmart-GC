@@ -7,8 +7,8 @@ compatibility_date = "2026-06-11"
 # - GOOGLE_CLIENT_SECRET
 # - SESSION_SECRET
 [vars]
-FRONTEND_ORIGIN = "https://dotsthewarlock.github.io"
-REDIRECT_URI = "https://walmart-gc-oauth.dotsthewarlock.workers.dev/auth/callback"
+FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com"
+REDIRECT_URI = "https://walmart-gc-oauth.dotsthewarlock.com/auth/callback"
 
 [[kv_namespaces]]
 binding = "SESSIONS"

@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.11 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.12 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.11";
+const DEBUG_VERSION_JS = "1.01.12";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -1439,14 +1439,14 @@ async function refreshWorkerSessionStatus(options = {}) {
       setGoogleOAuthState({
         status: googleOAuthStatuses.connected,
         connectedEmail: String(status.email || googleOAuthState.connectedEmail || ""),
-        connectedName: String(status.name || googleOAuthState.connectedName || "Google account"),
+        connectedName: String(status.name || googleOAuthState.connectedName || ""),
         connectedAt: googleOAuthState.connectedAt || now,
         lastAuthorizedAt: now,
         tokenExpiresAt: "",
         userDisconnectedGoogle: false,
         message: status.email || status.name
           ? `Connected as ${status.email || status.name}.`
-          : "Connected. Durable Google session is active.",
+          : "Google connected",
         lastErrorMessage: "",
       });
       return true;
