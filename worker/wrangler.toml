@@ -1,0 +1,19 @@
+name = "walmart-gc-oauth"
+main = "src/index.js"
+compatibility_date = "2026-06-11"
+
+# Secrets must be configured with `wrangler secret put` or in the Cloudflare dashboard:
+# - GOOGLE_CLIENT_ID
+# - GOOGLE_CLIENT_SECRET
+# - SESSION_SECRET
+[vars]
+FRONTEND_ORIGIN = "https://dotsthewarlock.github.io"
+REDIRECT_URI = "https://walmart-gc-oauth.dotsthewarlock.workers.dev/auth/callback"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID"
+
+[[kv_namespaces]]
+binding = "OAUTH_STATE"
+id = "REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID"
