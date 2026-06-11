@@ -248,7 +248,7 @@ const defaultSyncState = {
   pendingOperation: null,
 };
 
-const WORKER_BASE_URL = "https://walmart-gc-oauth.dotsthewarlock.workers.dev";
+const WORKER_BASE_URL = "https://walmart-gc-oauth.dotsthewarlock.com";
 const embeddedGoogleOAuthClientId = "1059771800951-kfcf0cd42u4c54dfcnhaa64pp3l8ah1h.apps.googleusercontent.com";
 const googleOAuthScopes = "https://www.googleapis.com/auth/drive.file";
 const googleDriveSpreadsheetMimeType = "application/vnd.google-apps.spreadsheet";
