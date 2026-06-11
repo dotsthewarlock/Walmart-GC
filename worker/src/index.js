@@ -33,45 +33,15 @@ const FRONTEND_CONNECTED_PATH = "/?auth=connected";
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const pathname = normalizePathname(url.pathname);
 
     if (request.method === "OPTIONS") {
       return handleOptions(request, env);
     }
 
     try {
-      if (request.method === "GET" && url.pathname === "/") {
-        return withCors(request, jsonResponse({ ok: true, service: "walmart-gc-oauth" }), env);
-      }
-
-      if (request.method === "GET" && url.pathname === "/auth/init") {
-        return handleAuthInit(request, env);
-      }
-
-      if (request.method === "GET" && url.pathname === "/auth/callback") {
-        return handleAuthCallback(request, env);
-      }
-
-      if (request.method === "GET" && url.pathname === "/api/status") {
-        return withCors(request, await handleStatus(request, env), env);
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/logout") {
-        return withCors(request, await handleLogout(request, env), env);
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/sheet/ensure") {
-        return withCors(request, await handleSheetEnsure(request, env), env);
-      }
-
-      if (request.method === "GET" && url.pathname === "/api/cards/load") {
-        return withCors(request, await handleCardsLoad(request, env), env);
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/cards/save") {
-        return withCors(request, await handleCardsSave(request, env), env);
-      }
-
-      return withCors(request, jsonResponse({ error: "not_found" }, 404), env);
+      const response = await routeRequest(request, env, pathname);
+      return withCors(request, response, env);
     } catch (error) {
       if (error instanceof HttpError) {
         return withCors(request, jsonResponse(error.body, error.status), env);
@@ -80,6 +50,80 @@ export default {
     }
   },
 };
+
+async function routeRequest(request, env, pathname) {
+  if (pathname === "/") {
+    return routeHealthRequest(request);
+  }
+
+  if (pathname.startsWith("/auth/")) {
+    return routeAuthRequest(request, env, pathname);
+  }
+
+  if (pathname.startsWith("/api/")) {
+    return routeApiRequest(request, env, pathname);
+  }
+
+  return jsonResponse({ error: "not_found" }, 404);
+}
+
+function routeHealthRequest(request) {
+  if (request.method !== "GET") {
+    return methodNotAllowed(["GET"]);
+  }
+  return jsonResponse({ ok: true, service: "walmart-gc-oauth" });
+}
+
+async function routeAuthRequest(request, env, pathname) {
+  if (request.method === "GET" && pathname === "/auth/init") {
+    return handleAuthInit(request, env);
+  }
+
+  if (request.method === "GET" && pathname === "/auth/callback") {
+    return handleAuthCallback(request, env);
+  }
+
+  return jsonResponse({ error: "not_found" }, 404);
+}
+
+async function routeApiRequest(request, env, pathname) {
+  if (request.method === "GET" && pathname === "/api/status") {
+    return handleStatus(request, env);
+  }
+
+  if (request.method === "POST" && pathname === "/api/logout") {
+    return handleLogout(request, env);
+  }
+
+  if (request.method === "POST" && pathname === "/api/sheet/ensure") {
+    return handleSheetEnsure(request, env);
+  }
+
+  if (request.method === "GET" && pathname === "/api/cards/load") {
+    return handleCardsLoad(request, env);
+  }
+
+  if (request.method === "POST" && pathname === "/api/cards/save") {
+    return handleCardsSave(request, env);
+  }
+
+  return jsonResponse({ error: "not_found" }, 404);
+}
+
+function normalizePathname(pathname) {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
+function methodNotAllowed(allowedMethods) {
+  return jsonResponse(
+    { error: "method_not_allowed" },
+    405,
+    { Allow: allowedMethods.join(", ") },
+  );
+}
 
 async function handleAuthInit(request, env) {
   assertOAuthConfig(env);
