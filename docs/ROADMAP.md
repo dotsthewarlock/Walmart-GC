@@ -1,113 +1,161 @@
-# Walmart-GC Roadmap
+# Roadmap
 
-> For full project instructions and governance, see AGENTS.md.
+## Current Phase
 
-## Product Vision
+Phase 11 is the only active development phase.
 
-Walmart-GC is a mobile-first gift card management application for users managing dozens of Walmart gift cards.
+Active branch:
 
-The application is designed around:
+```text
+phase-11
+```
 
-- Fast in-store checkout.
-- Barcode access.
-- Balance tracking.
-- Mobile usability.
-- Google Sheets as the source of truth.
-- CSV backup and recovery.
+Protected branch:
 
-## Current Phase 10 Auth Architecture
+```text
+main
+```
+
+Phase 11 goal:
+
+```text
+Fix OAuth/session flow until fully functional and durable.
+```
+
+Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Do not redesign the product during Phase 11.
+
+## Current Phase 11 Architecture
 
 ```text
 User Google Account
         ↕
-Cloudflare Worker OAuth session (`drive.file`)
+Google OAuth
+        ↕
+Cloudflare Worker
+        ↕
+Google Drive API / Google Sheets API
         ↕
 Walmart-GC Web App
-        ↕
-Local browser storage / CSV backup
 ```
 
-Apps Script remains preserved on `main` as the known-good MVP baseline and in historical documentation. Google account connection and online Sheet sync now use the Cloudflare Worker session backend; the frontend never stores Google tokens or session IDs.
+Frontend:
 
-## Completed
+- `https://walmart-gc.dotsthewarlock.com`
+- GitHub Pages
+- HTML, CSS, JavaScript
+- No framework
+- No build system
 
-### Phase 1 – Static App Foundation
+Backend:
 
-Completed.
+- `https://walmart-gc-oauth.dotsthewarlock.com`
+- Cloudflare Worker
+- Workers KV
 
-### Phase 2 – Checkout Workflow Improvements
+Do not introduce or recommend a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, new hosting, localhost OAuth, alternate OAuth origins, `/Walmart-GC/`, or session IDs in query parameters.
 
-Completed.
+## Phase 11 Success Criteria
 
-### Phase 3 – Used Flag Model
+OAuth is fixed when:
 
-Completed.
+- Connect Google starts OAuth.
+- Consent requests only `drive.file`.
+- Callback succeeds.
+- Worker sets the session cookie.
+- `/api/status` reports connected.
+- Refresh preserves login.
+- Browser restart preserves login while session is valid.
+- Logout clears session.
+- Reconnect works.
+- Ensure Sheet works.
+- Load from Google Sheets works.
+- Save/sync works.
+- Offline behavior remains usable.
+- CSV backup/recovery remains available.
 
-### Phase 4 – Mobile Navigation Workflow
+## Preserved Constraints
 
-Completed.
+- OAuth scope remains `https://www.googleapis.com/auth/drive.file`.
+- Frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
+- Frontend auth state comes from `/api/status`.
+- Logout uses `/api/logout`.
+- Worker API calls use `credentials: "include"`.
+- Session cookie is HttpOnly, Secure, SameSite=Lax, and host-only.
+- Google Sheet schema remains unchanged.
+- Worker owns sheet discovery, creation, initialization, metadata, and Google API access.
+- Offline usability and CSV backup/recovery remain available.
 
-### Phase 5B – Data Panel & Checkout Refinements
+## Sheet Model
 
-Completed.
+Spreadsheet:
 
-### Phase 6 – Google Sheet Schema & Apps Script API Design
+```text
+Walmart-GC Data
+```
 
-Completed for the MVP baseline. Historical architecture decisions are documented in `docs/PHASE_6_SCHEMA_API_DECISIONS.md`.
+Tabs:
 
-### Phase 7 – Apps Script Sync Implementation
+```text
+Cards
+_META
+```
 
-Completed on the MVP line. The preserved `main` branch remains the known-good Apps Script MVP.
+Approved schema:
 
-### Phase 8 – Stable MVP Hardening
+```text
+cardNumber
+pin
+merchant
+startingBalance
+currentBalance
+dateAdded
+dateUpdated
+dateUsed
+used
+notes
+```
 
-Completed on the MVP line. Phase 8 focused on documentation, setup guidance, testing, troubleshooting, diagnostics, Apps Script hardening, CSV import sync reliability, and final MVP cleanup.
+Barcode payload is derived only and must not be stored:
 
-### Phase 8.5 – Barcode Rendering & Checkout Validation
+```text
+79936686504000 + cardNumber
+```
 
-Completed. Walmart Canada checkout barcodes are generated in the frontend from the existing `merchant` and `cardNumber` fields. No Sheet schema or CSV header change was required because the barcode payload is derived at render time.
+## Sync Model
 
-### Phase 9A – Google OAuth Foundation
+Worker-backed sync only. Completed actions sync after:
 
-Completed on `phase-9-oauth`. Added Google Account setup, OAuth Client ID storage, Google Identity Services loading/status, and in-memory access token handling.
+- Balance save.
+- Used state change.
+- Notes save.
+- Merchant change.
+- New card save.
+- Accepted CSV import.
 
-### Phase 9B – Browser Direct Google Sheets Sync (retired)
+Do not sync every keystroke.
 
-Completed on `phase-9-oauth` and later retired from the active frontend path. Its `_META.sheetVersion` conflict model remains preserved through Worker-backed sync.
+Conflict model:
 
-## Current Implementation Phase
+- Sheet-level optimistic concurrency via `_META.sheetVersion`.
+- No silent overwrite.
+- No automatic merge.
+- User chooses recovery.
+- CSV backup before destructive recovery.
 
-### Phase 10E – Final OAuth/Sync Hardening & Documentation
+## Historical Phases
 
-Current. Walmart-GC uses a Cloudflare Worker session with `drive.file`; the Worker owns OAuth, refresh tokens, and server-side Drive/Sheets API calls. The frontend syncs only through Worker endpoints. Phase 10E is limited to reliability polish, diagnostics, source-of-truth cleanup, and concise documentation alignment; it is not a feature or architecture redesign phase.
+The following are historical context only and are not the active development phase:
 
-Phase 10 goals:
+- Phase 1 — Static app foundation.
+- Phase 2 — Checkout workflow improvements.
+- Phase 3 — Used flag model and settings.
+- Phase 4 — Mobile navigation workflow.
+- Phase 5B — Data panel and checkout refinements.
+- Phase 6 — Google Sheet schema and Apps Script API design for the historical MVP.
+- Phase 7 — Apps Script sync implementation for the historical MVP.
+- Phase 8 — MVP cleanup, diagnostics, setup guidance, and verification.
+- Phase 9 / phase-9-oauth — OAuth exploration and transition work.
+- Phase 10 / Phase 10E — Worker-backed OAuth/sync hardening before Phase 11.
+- Apps Script MVP — preserved historical reference only; Apps Script sync is retired from the active architecture.
 
-- Keep normal users away from OAuth Client ID setup.
-- Replace manual first-run Sheet URL/ID setup with automatic Worker-backed `Walmart-GC Data` find/create.
-- Use Google Drive `drive.file` access instead of broad Sheets or Drive scopes.
-- Route online load/save sync only through Worker endpoints while preserving conflict handling, local persistence, and CSV backup/recovery.
-- Keep `main` preserved as the known-good Apps Script MVP.
-- Keep Apps Script docs/code only as historical MVP reference material unless separately archived.
-- Treat `worker/src/index.js` as the source of truth for the Cloudflare Worker and avoid Cloudflare Web IDE drift except emergency fixes.
-
-## Active Sync Notes
-
-- The approved card schema remains unchanged.
-- `cardNumber` remains the unique ID.
-- `currentBalance` remains authoritative.
-- `used` remains independent of balance.
-- Direct sync writes completed actions only, not every keystroke.
-- `_META.sheetVersion` provides sheet-level optimistic conflict detection.
-- Conflicts require explicit user recovery; there is no automatic merge or silent overwrite.
-- CSV export/import remains the backup and recovery path.
-
-## Debug File Version Protocol
-
-`index.html`, `app.js`, and `styles.css` each have independent manual debug versions. Increment only the changed core files in a PR, and leave unchanged core-file versions unchanged. Codex final summaries for changes touching any core file must end with a `LIVE VERSION CHECK` block listing HTML, JS, and CSS values.
-
-## Sharing and Access Position
-
-Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions. Google Sheets controls sharing and access, and shared Sheets are allowed when users have the necessary Google access.
-
-The app is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. Sheet-level optimistic conflict handling remains the project solution when Sheet data changes independently.
+Historical docs may remain when clearly labeled historical. They must not be read as active Phase 11 setup or sync guidance.

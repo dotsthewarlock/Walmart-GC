@@ -2,23 +2,47 @@
 
 ## Current Branch Context
 
-Active branch: `phase-9-oauth`.
+Active branch: `phase-11`.
 
-Current implementation phase: Phase 10E — final OAuth/sync hardening and documentation alignment after Worker-only durable sync.
+Protected branch: `main`.
 
-The preserved `main` branch remains the known-good Apps Script MVP. Google account connection and Sheet sync run through the Worker backend; the frontend no longer stores Google tokens or session IDs.
+Current implementation phase: Phase 11 — OAuth/session durability and Google Sheets access hardening.
+
+Phase 11 goal:
+
+```text
+Fix OAuth/session flow until fully functional and durable.
+```
+
+Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only. Do not treat them as the active development phase or active sync architecture.
 
 ## Current Architecture
 
 ```text
 User Google Account
         ↕
-Cloudflare Worker OAuth session (`drive.file`)
+Google OAuth
+        ↕
+Cloudflare Worker
+        ↕
+Google Drive API / Google Sheets API
         ↕
 Walmart-GC Web App
-        ↕
-Local browser storage / CSV backup
 ```
+
+Frontend:
+
+- GitHub Pages at `https://walmart-gc.dotsthewarlock.com`.
+- Plain HTML, CSS, and JavaScript.
+- No framework and no build system.
+
+Backend:
+
+- Cloudflare Worker at `https://walmart-gc-oauth.dotsthewarlock.com`.
+- Workers KV for OAuth state and sessions.
+- Worker owns Google OAuth, refresh tokens, session cookie, sheet discovery, sheet creation, schema initialization, metadata, and Google API calls.
+
+Do not introduce or recommend a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, or new hosting.
 
 ## Active Product Scope
 
@@ -30,13 +54,72 @@ Required capabilities remain:
 - PIN display.
 - Remaining balance tracking.
 - Used flag tracking.
-- Google Sheet synchronization through Worker `/api/sheet/ensure`, `/api/cards/load`, and `/api/cards/save`; local/CSV flows remain available.
+- Google Sheet synchronization through Worker endpoints; local/CSV flows remain available.
 - Mobile-friendly interface.
 - Desktop-friendly interface.
 - CSV backup and recovery.
 - Offline/local browser usability.
 
+Core application functionality should not be redesigned during Phase 11 unless it directly blocks OAuth, session management, Google Sheets access, or sync.
+
+## OAuth and Session Rules
+
+Authentication is Worker-managed Google OAuth.
+
+- Frontend auth state comes from `GET /api/status`.
+- Logout uses `POST /api/logout`.
+- Worker API calls must use `credentials: "include"`.
+- OAuth scope must remain `https://www.googleapis.com/auth/drive.file`.
+- The frontend must never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
+- The session model is an HttpOnly, Secure, SameSite=Lax, host-only cookie.
+- Do not use browser-side Google Identity Services token flow, direct browser Drive API calls, or direct browser Sheets API calls.
+
+## Cloud-Only OAuth Deployment
+
+Use only this frontend origin for production, development, and testing:
+
+```text
+https://walmart-gc.dotsthewarlock.com
+```
+
+Worker backend:
+
+```text
+https://walmart-gc-oauth.dotsthewarlock.com
+```
+
+Google Cloud settings:
+
+```text
+Authorized JavaScript origin:
+https://walmart-gc.dotsthewarlock.com
+
+Authorized redirect URI:
+https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+```
+
+Worker callback must return to:
+
+```text
+https://walmart-gc.dotsthewarlock.com/?auth=connected
+```
+
+Never document or recommend `/Walmart-GC/`, session IDs in query parameters, localhost OAuth, or alternate OAuth origins.
+
 ## Active Data Model
+
+Spreadsheet name:
+
+```text
+Walmart-GC Data
+```
+
+Tabs:
+
+```text
+Cards
+_META
+```
 
 Do not change the card schema without explicit approval:
 
@@ -61,16 +144,11 @@ Rules:
 - `startingBalance` is historical.
 - `used` is independent of balance.
 - Sort order is frontend-managed.
+- Barcode payload is derived only and must not be stored: `79936686504000 + cardNumber`.
 
 ## Active Sync Behavior
 
-Online auth path:
-
-```text
-Cloudflare Worker OAuth session + HttpOnly `walmart_gc_session` cookie
-```
-
-The active frontend must not use Google Identity Services popup token flow, browser-side access tokens, or direct browser Drive/Sheets API calls. Online sync uses Worker endpoints with credentials included; the Worker owns OAuth, refresh tokens, and Drive/Sheets calls.
+Worker-backed sync only.
 
 Completed actions should sync after:
 
@@ -90,66 +168,59 @@ If Walmart-GC Data is not configured yet, Google is disconnected, or the browser
 - Mark unsynced where appropriate.
 - Show readable setup/reconnect guidance.
 - Do not erase data.
+- Keep CSV backup/recovery available.
 
 ## Conflict Handling
 
-Preserve Phase 9B conflict behavior:
+Preserve sheet-level optimistic concurrency through `_META.sheetVersion`:
 
-- Sheet-level optimistic concurrency through `_META.sheetVersion`.
 - No silent overwrites.
 - No automatic merge.
 - User chooses recovery.
+- CSV backup before destructive recovery.
 - Remote load and local overwrite remain explicit actions.
 
-## Current Data Panel Direction
+## Phase 11 Success Criteria
 
-Preferred order:
+OAuth is fixed when:
 
-1. Google Account.
-2. Google Sheet.
-3. CSV Backup & Recovery.
-4. Diagnostics/status output.
+- Connect Google starts OAuth.
+- Consent requests only `drive.file`.
+- Callback succeeds.
+- Worker sets the session cookie.
+- `/api/status` reports connected.
+- Refresh preserves login.
+- Browser restart preserves login while the session is valid.
+- Logout clears the session.
+- Reconnect works.
+- Ensure Sheet works.
+- Load from Google Sheets works.
+- Save/sync works.
+- Offline behavior remains usable.
+- CSV backup/recovery remains available.
 
-Apps Script must not appear as an active setup, sync, diagnostic, or user-facing option on the Phase 9 OAuth branch.
+## Retired/Historical Paths
 
-Diagnostics should focus on:
+Apps Script materials may remain only as historical MVP references, including `apps-script/Code.gs`, `docs/APPS_SCRIPT_SETUP.md`, and `docs/PHASE_6_SCHEMA_API_DECISIONS.md`. Apps Script must not appear as an active setup, sync, diagnostic, or user-facing option in Phase 11.
 
-- Worker backend configured.
-- Google connection state.
-- Worker session connected / disconnected.
-- Active Sheet ID configured.
-- Cards sheet initialized.
-- Local sheetVersion.
-- Remote sheetVersion.
-- Sync state.
-- Unsynced changes.
-- Last successful sync.
-- Last Worker/API error.
-- Local card count where useful.
-- Offline/local availability.
+Do not reintroduce:
 
-## Historical MVP References
+- Apps Script sync.
+- OAuth Client ID input for normal users.
+- Browser-stored Google tokens.
+- Browser-stored session IDs.
+- Google Identity Services browser token flow.
+- Direct browser Drive API access.
+- Direct browser Sheets API access.
+- Localhost OAuth.
+- Alternate development origins.
 
-Historical Apps Script materials may remain for the preserved MVP baseline, including `apps-script/Code.gs`, `docs/APPS_SCRIPT_SETUP.md`, and `docs/PHASE_6_SCHEMA_API_DECISIONS.md`. Treat them as historical unless the user explicitly asks for MVP Apps Script maintenance.
+## Verification Guidance
 
-## Constraints
+For documentation-only changes, prefer:
 
-Do not add:
-
-- Frameworks.
-- Build tools.
-- Databases.
-- Dedicated backend services.
-- App-managed user accounts.
-- Schema changes.
-- Real-time collaboration features.
-- Migration wizard.
-
-Preferred verification:
-
-- `node --check app.js`.
-- `node --check worker/src/index.js`.
+- Stale-reference search and review.
 - `git diff --check`.
 - Conflict-marker scan.
-- Static UI/copy searches for retired browser-token/OAuth Client ID/active Apps Script copy.
-- Local HTTP server + curl smoke test when useful.
+
+Run code validation only if code is touched.

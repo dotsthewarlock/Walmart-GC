@@ -1,8 +1,10 @@
-> Historical MVP reference: this document describes the preserved Apps Script MVP on `main`. It is not the active Phase 9 OAuth sync path.
+> Historical reference only: this file records Phase 6 MVP schema/API decisions for the retired Apps Script path. Phase 11 is active on `phase-11`; active sync is Worker-managed Google OAuth, Drive API, and Sheets API. Apps Script references below are historical and must not be used as active Phase 11 setup or sync guidance.
+
+> Historical MVP reference: this document describes the retired Apps Script MVP. It is not the active Phase 11 OAuth/session or sync path.
 
 # Phase 6 – Schema & API Decisions
 
-Status: Phase 6 approved MVP architecture consolidated. Phase 7 implemented sync against this baseline, and Phase 8 validation has confirmed the MVP architecture is complete and functional.
+Status: Historical Phase 6 approved MVP architecture consolidated. Phase 7 implemented Apps Script sync against this historical baseline, and Phase 8 validation confirmed the retired MVP architecture was complete and functional before the Worker-managed OAuth path became authoritative.
 
 This document records approved Phase 6 decisions that remain the MVP architecture baseline.
 
@@ -793,9 +795,9 @@ Implementation notes:
 - Record approvals before implementation.
 - Keep Current Balance authoritative unless a future approved decision changes that.
 - Keep Used as an independent boolean unless a future approved decision changes that.
-- The Phase 6 MVP architecture is complete, functional, and remains the baseline after Phase 7 sync implementation and Phase 8 validation.
-- Phase 8 must focus on documentation, deployment, verification, troubleshooting, diagnostics, hardening, and final UI/UX cleanup, not architecture redesign.
+- Historical status: the Phase 6 MVP architecture was completed for the retired Apps Script MVP path.
+- Historical status: Phase 8 focused on documentation, deployment, verification, troubleshooting, diagnostics, hardening, and final UI/UX cleanup, not architecture redesign.
 - For core-file changes, `index.html`, `app.js`, and `styles.css` use independent manual debug versions; increment only changed core files and end Codex final summaries with `LIVE VERSION CHECK`.
-- OAuth is a future Phase 9 direction only and is not started.
-- Before future OAuth work begins, tag the stable MVP, likely as `mvp-apps-script-final`; preserve `main` as the known-good Apps Script MVP; and create a dedicated `phase-9-oauth` branch.
-- Future OAuth should move 100% to direct Google OAuth + Google Sheets API access. Apps Script has no long-term support requirement after the MVP is preserved. No migration guarantee is required; CSV export/import is an acceptable fallback path.
+- Current status: Phase 11 is active on `phase-11`; Worker-managed Google OAuth/session and Drive/Sheets API sync are now authoritative.
+- Historical note: Phase 9 / `phase-9-oauth`, Phase 10, Phase 10E, and the Apps Script MVP are historical context only.
+- Current OAuth/sync direction: use Cloudflare Worker-managed Google OAuth with `drive.file`; Apps Script has no active Phase 11 support role. CSV export/import remains the fallback path.
