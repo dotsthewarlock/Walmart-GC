@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.07 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.08 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.07"
+          data-html-version="1.01.08"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.07 · JS loading · CSS 1.01.03
+          HTML 1.01.08 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -178,14 +178,14 @@
         <div class="data-layout">
           <p class="data-description">
             Manage Google Sheets sync separately from local CSV backup and recovery tools.
-            Direct Google Sheets is the only online sync path in Phase 9. CSV remains available for local backup and recovery.
+            Worker-backed Google Sheets sync is the only online sync path. CSV remains available for local backup and recovery.
           </p>
 
           <div class="data-card oauth-card">
             <div class="data-card-heading">
               <div>
                 <h3>Google Account</h3>
-                <p>Connect Google through the durable Cloudflare Worker session backend. The frontend does not store tokens or session IDs.</p>
+                <p>Worker-backed durable Google session. The frontend does not store Google tokens or session IDs.</p>
               </div>
             </div>
 
@@ -201,11 +201,12 @@
             <div class="data-card-heading">
               <div>
                 <h3>Google Sheet</h3>
-                <p>Walmart-GC automatically finds or creates one dedicated spreadsheet named <code>Walmart-GC Data</code>, then prepares the <code>Cards</code> and <code>_META</code> tabs.</p>
+                <p><code>Walmart-GC Data</code> syncs through the secure Worker backend. Walmart-GC finds or creates the dedicated spreadsheet and prepares the <code>Cards</code> and <code>_META</code> tabs.</p>
               </div>
             </div>
 
             <div class="connection-actions" aria-label="Google Sheets actions">
+              <button id="initialize-direct-sheet" class="secondary-button" type="button">Ensure Sheet</button>
               <button id="open-direct-sheet" class="secondary-button" type="button">Open Sheet</button>
               <button id="load-direct-sheet" class="primary-button" type="button">Load from Google Sheets</button>
               <button id="sync-direct-sheet" class="secondary-button" type="button">Sync Now</button>

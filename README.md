@@ -57,9 +57,9 @@ Walmart-GC does not require a dedicated server, database, build step, framework,
 
 ## Current Status
 
-Phase 9.1 — low-friction OAuth and automatic `Walmart-GC Data` Sheet lifecycle.
+Phase 10D — Worker-backed durable Google session and Worker-only Sheet sync.
 
-The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses Google OAuth with `drive.file`, the Google Drive API for Sheet lifecycle, and the Google Sheets API for data sync. Apps Script is retained only as historical MVP reference material.
+The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses a Cloudflare Worker for OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets API calls. The frontend never stores Google tokens or session IDs. Apps Script is retained only as historical MVP reference material.
 
 ## Sheet Sharing
 

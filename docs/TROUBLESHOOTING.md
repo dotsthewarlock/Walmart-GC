@@ -1,17 +1,16 @@
 # Troubleshooting
 
-This guide covers the active Phase 9.1 Google OAuth + `drive.file` sync path. Apps Script troubleshooting is preserved only in historical MVP documentation and does not apply to the active Phase 9 app.
+This guide covers the active Worker-backed Google OAuth + `drive.file` sync path. Apps Script troubleshooting is preserved only in historical MVP documentation and does not apply to the active Phase 9 app.
 
 ## Connect Google Does Not Open
 
 Check:
 
 1. The browser is online.
-2. Popups are allowed for the Walmart-GC site.
-3. The Google Identity Services script loaded.
-4. Diagnostics show **OAuth configured: Yes**.
+2. The Worker backend is reachable.
+3. Diagnostics show the Worker session as **Connected**, **Disconnected**, or **Connection unavailable**.
 
-If OAuth is not configured, the deployed app still has the placeholder public OAuth Client ID and must be updated by the maintainer before deployment.
+If connection is unavailable, verify the Cloudflare Worker deployment and OAuth environment/secrets before retrying.
 
 ## Consent Is Denied or Closed
 
@@ -19,14 +18,14 @@ Walmart-GC keeps local cards available. Select **Connect Google** again and appr
 
 ## Google File Access Is Not Available
 
-Check diagnostics for **Google file access available**.
+Check diagnostics for **Worker session** and **Worker sync backend**.
 
 Fix:
 
 1. Select **Disconnect**.
 2. Select **Connect Google**.
 3. Approve `drive.file` access.
-4. Confirm diagnostics show file access is available.
+4. Confirm diagnostics show the Worker session is connected.
 
 ## Walmart-GC Data Was Not Found or Created
 
@@ -37,7 +36,7 @@ Fix:
 1. Reconnect Google.
 2. Confirm the Google Drive API and Google Sheets API are enabled in the maintainer Google Cloud project.
 3. Confirm the signed-in account is allowed to use the OAuth app while it is in Testing.
-4. Try **Connect Google** again.
+4. Try **Ensure Sheet** after reconnecting Google.
 
 ## Drive or Sheets API Error
 

@@ -4,9 +4,9 @@
 
 Active branch: `phase-9-oauth`.
 
-Current implementation phase: Phase 10B — frontend auth/session UX migration to the Cloudflare Worker session backend.
+Current implementation phase: Phase 10D — Worker-only durable sync with the legacy browser Google API path retired.
 
-The preserved `main` branch remains the known-good Apps Script MVP. Google account connection now redirects through the Worker OAuth session backend; the frontend no longer stores tokens or session IDs. Worker Sheets proxy endpoints remain future work before durable Sheet sync is complete.
+The preserved `main` branch remains the known-good Apps Script MVP. Google account connection and Sheet sync run through the Worker backend; the frontend no longer stores Google tokens or session IDs.
 
 ## Current Architecture
 
@@ -30,7 +30,7 @@ Required capabilities remain:
 - PIN display.
 - Remaining balance tracking.
 - Used flag tracking.
-- Google Sheet synchronization once Worker Sheets proxy endpoints are added; local/CSV flows remain available meanwhile.
+- Google Sheet synchronization through Worker `/api/sheet/ensure`, `/api/cards/load`, and `/api/cards/save`; local/CSV flows remain available.
 - Mobile-friendly interface.
 - Desktop-friendly interface.
 - CSV backup and recovery.
@@ -70,7 +70,7 @@ Online auth path:
 Cloudflare Worker OAuth session + HttpOnly `walmart_gc_session` cookie
 ```
 
-The legacy direct browser Sheets code remains present but must not trigger Google Identity Services popups. Until Worker Sheets proxy endpoints are implemented, Google Sheet sync actions should explain that the durable session is connected but the Sheet sync proxy is not enabled in this build.
+The active frontend must not use Google Identity Services popup token flow, browser-side access tokens, or direct browser Drive/Sheets API calls. Online sync uses Worker endpoints with credentials included; the Worker owns OAuth, refresh tokens, and Drive/Sheets calls.
 
 Completed actions should sync after:
 
@@ -114,10 +114,9 @@ Apps Script must not appear as an active setup, sync, diagnostic, or user-facing
 
 Diagnostics should focus on:
 
-- OAuth configured.
-- Google script loaded.
+- Worker backend configured.
 - Google connection state.
-- Google file access available / needs reconnect.
+- Worker session connected / disconnected.
 - Active Sheet ID configured.
 - Cards sheet initialized.
 - Local sheetVersion.

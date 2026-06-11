@@ -27,7 +27,7 @@ Walmart-GC Web App
 Local browser storage / CSV backup
 ```
 
-Apps Script remains preserved on `main` as the known-good MVP baseline and in historical documentation. Google account connection now uses the Cloudflare Worker session backend; the frontend no longer stores tokens or session IDs. Worker Sheets proxy endpoints remain future work before durable Sheet sync is complete.
+Apps Script remains preserved on `main` as the known-good MVP baseline and in historical documentation. Google account connection and online Sheet sync now use the Cloudflare Worker session backend; the frontend never stores Google tokens or session IDs.
 
 ## Completed
 
@@ -71,22 +71,22 @@ Completed. Walmart Canada checkout barcodes are generated in the frontend from t
 
 Completed on `phase-9-oauth`. Added Google Account setup, OAuth Client ID storage, Google Identity Services loading/status, and in-memory access token handling.
 
-### Phase 9B – Direct Google Sheets Sync
+### Phase 9B – Browser Direct Google Sheets Sync (retired)
 
-Completed on `phase-9-oauth`. Added direct Sheet URL/ID setup, Sheet initialization, load, sync, `_META.sheetVersion`, and optimistic conflict detection while Apps Script remained as a temporary legacy fallback.
+Completed on `phase-9-oauth` and later retired from the active frontend path. Its `_META.sheetVersion` conflict model remains preserved through Worker-backed sync.
 
 ## Current Implementation Phase
 
-### Phase 9.1 – Low-Friction OAuth + Sheet Lifecycle
+### Phase 10D – Worker-Only Durable Sync
 
-Current. Walmart-GC uses Google OAuth with `drive.file`, the Google Drive API to find/create `Walmart-GC Data`, and the direct Google Sheets API as the only online sync path.
+Current. Walmart-GC uses a Cloudflare Worker session with `drive.file`; the Worker owns OAuth, refresh tokens, and server-side Drive/Sheets API calls. The frontend syncs only through Worker endpoints.
 
-Phase 9.1 goals:
+Phase 10 goals:
 
-- Remove normal-user OAuth Client ID setup.
-- Replace manual first-run Sheet URL/ID setup with automatic `Walmart-GC Data` find/create.
+- Keep normal users away from OAuth Client ID setup.
+- Replace manual first-run Sheet URL/ID setup with automatic Worker-backed `Walmart-GC Data` find/create.
 - Use Google Drive `drive.file` access instead of broad Sheets or Drive scopes.
-- Keep direct Google Sheets sync, conflict handling, local persistence, and CSV backup/recovery intact.
+- Route online load/save sync only through Worker endpoints while preserving conflict handling, local persistence, and CSV backup/recovery.
 - Keep `main` preserved as the known-good Apps Script MVP.
 - Keep Apps Script docs/code only as historical MVP reference material unless separately archived.
 

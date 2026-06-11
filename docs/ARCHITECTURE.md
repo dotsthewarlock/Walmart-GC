@@ -27,11 +27,11 @@ The user-owned Google Sheet is the online source of truth. The active workbook c
 
 ### Google OAuth
 
-Google account connection now uses the Cloudflare Worker session backend. The frontend redirects to the Worker for OAuth, checks `/api/status` with credentials included, and no longer stores tokens or session IDs.
+Google account connection uses the Cloudflare Worker session backend. The frontend redirects to the Worker for OAuth, checks `/api/status` with credentials included, and never stores Google tokens or session IDs. The Worker owns OAuth, refresh tokens, and the HttpOnly session cookie.
 
 ### Google Sheets API
 
-The previous direct browser Google Sheets code remains in the frontend as legacy code, but durable Worker session auth is now the source of truth. A Worker Sheets proxy is still required before Sheet load/save/sync can use the durable session.
+The frontend loads, ensures, and saves Sheets data only through Worker endpoints. The Worker performs the server-side Drive and Sheets API calls, including `_META.sheetVersion` conflict checks.
 
 ### Walmart-GC Web App
 
@@ -41,7 +41,7 @@ The static frontend provides:
 - Card details.
 - Barcode display.
 - Balance, used-state, notes, and merchant edits.
-- Direct Google Sheet setup and sync controls.
+- Worker-backed Google Sheet sync controls.
 - CSV backup and recovery.
 - Offline/local browser usability.
 
