@@ -1,87 +1,139 @@
 # Troubleshooting
 
-This guide covers the active Worker-backed Google OAuth + `drive.file` sync path. Apps Script troubleshooting is preserved only in historical MVP documentation and does not apply to the active Phase 9 app.
+This guide covers the active Phase 11 Worker-backed Google OAuth + `drive.file` sync path. Apps Script troubleshooting is historical only and does not apply to the active Phase 11 app.
 
-## Connect Google Does Not Open
+## Active URLs
+
+Frontend production/development/testing URL:
+
+```text
+https://walmart-gc.dotsthewarlock.com
+```
+
+Backend Worker:
+
+```text
+https://walmart-gc-oauth.dotsthewarlock.com
+```
+
+Do not use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
+
+## Connect Google Does Not Start OAuth
 
 Check:
 
-1. The browser is online.
-2. The Worker backend is reachable.
-3. Diagnostics show the Worker session as **Connected**, **Disconnected**, or **Connection unavailable**.
+- The app is opened from `https://walmart-gc.dotsthewarlock.com`.
+- The Worker URL is reachable.
+- The Connect Google action points to the Worker OAuth init endpoint.
+- No browser extension is blocking redirects or third-party authentication.
 
-If connection is unavailable, verify the Cloudflare Worker deployment and OAuth environment/secrets before retrying.
+## Google Consent Shows the Wrong Scope
 
-## Consent Is Denied or Closed
+Expected scope:
 
-Walmart-GC keeps local cards available. Select **Connect Google** again and approve Google Drive file access when ready.
-
-## Google File Access Is Not Available
-
-Check diagnostics for **Worker session** and **Worker sync backend**.
-
-Fix:
-
-1. Select **Disconnect**.
-2. Select **Connect Google**.
-3. Approve `drive.file` access.
-4. Confirm diagnostics show the Worker session is connected.
-
-## Walmart-GC Data Was Not Found or Created
-
-Walmart-GC searches for an app-accessible Google spreadsheet named `Walmart-GC Data`. With `drive.file`, Google only exposes files this app created or that the user explicitly opened/authorized through the app.
-
-Fix:
-
-1. Reconnect Google.
-2. Confirm the Google Drive API and Google Sheets API are enabled in the maintainer Google Cloud project.
-3. Confirm the signed-in account is allowed to use the OAuth app while it is in Testing.
-4. Try **Ensure Sheet** after reconnecting Google.
-
-## Drive or Sheets API Error
-
-Typical causes:
-
-- Google Drive API is disabled in the maintainer project.
-- Google Sheets API is disabled in the maintainer project.
-- OAuth testing mode does not include the signed-in Google account as a test user.
-- Browser/network/content blocker prevented Google API calls.
-
-Local data remains available after these failures.
-
-## Cards Headers Are Rejected
-
-The `Cards` tab must use the approved schema exactly:
-
-```csv
-cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
+```text
+https://www.googleapis.com/auth/drive.file
 ```
 
-Fix the header row in Google Sheets, then use **Load from Google Sheets** again.
+If consent requests broader Drive or Sheets scopes, stop and fix the Worker OAuth configuration before continuing.
 
-## Local Cards Were Not Uploaded Automatically
+## Callback Fails
 
-This is intentional data safety behavior. If Walmart-GC connects to an empty Sheet while the browser already has local cards, it keeps the local cards unsynced until you explicitly select **Sync Now**.
+Required Google Cloud settings:
 
-## Remote Cards Did Not Replace Local Cards Automatically
+```text
+Authorized JavaScript origin:
+https://walmart-gc.dotsthewarlock.com
 
-This is intentional data safety behavior. If Google Sheets has cards and the browser also has local cards, Walmart-GC does not silently replace local data. Use **Load from Google Sheets** only when you intentionally want the Sheet to replace the local session.
+Authorized redirect URI:
+https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+```
 
-## Sync Conflict
+Expected callback return:
 
-A conflict means `_META.sheetVersion` changed since the browser last loaded or synced.
+```text
+https://walmart-gc.dotsthewarlock.com/?auth=connected
+```
 
-Options:
+The callback must not return to `/Walmart-GC/` and must not include a `session_id` query parameter.
 
-1. Download a CSV backup.
-2. Use **Refresh from Sheets** to replace the local session with Google Sheets data.
-3. Use **Use Current Session to Overwrite Sheets** only after confirming the local browser session is the desired source of truth.
+## Connected State Does Not Persist After Refresh
 
-## Offline or Disconnected
+Check:
 
-When offline, disconnected, or expired:
+- Worker callback set `walmart_gc_session`.
+- Cookie is HttpOnly, Secure, SameSite=Lax, host-only, and has `Path=/`.
+- Cookie does not set `Domain=`.
+- Frontend calls `/api/status` with `credentials: "include"`.
+- Credentialed CORS allows exactly `https://walmart-gc.dotsthewarlock.com`.
+- Browser settings are not blocking required cookies.
 
-- Local cards remain usable.
-- Completed actions are saved locally.
-- Unsynced guidance appears.
-- Reconnect Google and use **Sync Now** when ready.
+The frontend should never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials. Do not work around cookie/session issues by adding browser token storage.
+
+## Logout Does Not Clear Session
+
+Expected endpoint:
+
+```text
+POST /api/logout
+```
+
+Check:
+
+- Request uses `credentials: "include"`.
+- Worker deletes the KV session when present.
+- Worker clears the `walmart_gc_session` cookie.
+- `/api/status` reports disconnected after logout.
+- Reconnect starts a fresh OAuth flow and returns to the app.
+
+## Ensure Sheet Fails
+
+Expected Worker behavior:
+
+- Use `drive.file` only.
+- Search for an app-accessible spreadsheet named `Walmart-GC Data`.
+- Create it if missing.
+- Initialize `Cards` and `_META`.
+- Return Sheet metadata.
+
+Check that Google Drive API and Google Sheets API are enabled for the OAuth project.
+
+## Load from Google Sheets Fails
+
+Check:
+
+- `/api/status` reports connected.
+- The active Sheet ID refers to `Walmart-GC Data`.
+- `Cards` exists with the approved schema.
+- `_META.sheetVersion` exists.
+- Worker API calls include credentials.
+- Offline mode is not active.
+
+## Save/Sync Fails
+
+Expected sync model:
+
+- Worker-backed sync only.
+- Completed-action sync only.
+- No sync on every keystroke.
+- Conflict detection through `_META.sheetVersion`.
+
+If a conflict is reported:
+
+- Do not silently overwrite.
+- Do not auto-merge.
+- Export a CSV backup before destructive recovery.
+- Let the user choose recovery.
+
+## Offline or Disconnected Use
+
+Offline behavior remains supported:
+
+- Local cards remain available.
+- CSV export/import remains available.
+- Unsynced changes remain local until reconnection.
+- Google sync actions should show readable reconnect/setup guidance rather than erasing data.
+
+## Historical Apps Script Notes
+
+Apps Script was part of the historical MVP and may appear in historical reference files. It is retired from the active Phase 11 architecture and should not be presented as an active setup, diagnostic, or sync path.

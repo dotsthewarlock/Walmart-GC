@@ -1,4 +1,6 @@
-> Historical MVP reference: this document describes the preserved Apps Script MVP on `main`. It is not the active Phase 9 OAuth sync path.
+> Historical reference only: Apps Script belonged to the retired MVP path. It is not part of the active Phase 11 architecture, sync path, setup flow, diagnostics, or user-facing guidance. Active Phase 11 sync is Worker-managed Google OAuth through `https://walmart-gc-oauth.dotsthewarlock.com` from `https://walmart-gc.dotsthewarlock.com` only.
+
+> Historical MVP reference: this document describes the retired Apps Script MVP. It is not the active Phase 11 OAuth/session or sync path.
 
 # Apps Script Setup
 

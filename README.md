@@ -2,7 +2,19 @@
 
 Mobile-first Walmart gift card manager.
 
-Walmart-GC is a static web application that helps users manage large numbers of Walmart gift cards with barcode access, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, and Worker-backed Google Sheets sync.
+Walmart-GC is a static web application that helps users manage large numbers of Walmart gift cards with barcode access, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, offline usability, and Worker-backed Google Sheets sync.
+
+## Current Status
+
+Phase 11 is the active development phase on the `phase-11` branch. The protected branch is `main`.
+
+Phase 11 focus:
+
+```text
+Fix OAuth/session flow until fully functional and durable.
+```
+
+Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only.
 
 ## Features
 
@@ -16,56 +28,74 @@ Walmart-GC is a static web application that helps users manage large numbers of 
 
 ## Architecture
 
-Source of truth:
+Current active architecture:
 
 ```text
-User-owned Google Sheet
-```
-
-Online sync path:
-
-```text
-GitHub Pages frontend ↔ Cloudflare Worker session/API ↔ Google Drive/Sheets APIs ↔ Walmart-GC Data Sheet
+User Google Account
+        ↕
+Google OAuth
+        ↕
+Cloudflare Worker
+        ↕
+Google Drive API / Google Sheets API
+        ↕
+Walmart-GC Web App
 ```
 
 Frontend:
 
 ```text
 GitHub Pages static website at https://walmart-gc.dotsthewarlock.com/
+HTML + CSS + JavaScript
+No framework
+No build system
 ```
 
 Backend Worker:
 
 ```text
 Cloudflare Worker at https://walmart-gc-oauth.dotsthewarlock.com
+Workers KV
 ```
 
-Walmart-GC does not require a database, build step, framework, VPS, or app-managed user account system. The only backend component is the Cloudflare Worker that owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
+Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, new hosting, VPS, or app-managed user account system. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
 
-## Technology
+## OAuth and Session Contract
 
-- HTML
-- CSS
-- JavaScript
-- GitHub Pages
-- Google OAuth
-- Google Drive API
-- Google Sheets API
-- Google Sheets
+- Authentication is Worker-managed Google OAuth.
+- The only OAuth scope is `https://www.googleapis.com/auth/drive.file`.
+- The frontend never stores access tokens, refresh tokens, session IDs, or OAuth secrets.
+- Frontend auth state comes from `GET /api/status`.
+- Logout uses `POST /api/logout`.
+- Worker API calls from the frontend use `credentials: "include"`.
+- Session cookies are HttpOnly, Secure, SameSite=Lax, host-only cookies.
+
+## URLs and Testing
+
+Production and development/testing use the same cloud URL:
+
+```text
+https://walmart-gc.dotsthewarlock.com
+```
+
+Backend Worker:
+
+```text
+https://walmart-gc-oauth.dotsthewarlock.com
+```
+
+OAuth testing is cloud-only. Do not document or use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
 
 ## Documentation
 
+- [Architecture](docs/ARCHITECTURE.md)
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 - [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md)
 - [Manual Test Plan](docs/MANUAL_TEST_PLAN.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Roadmap](docs/ROADMAP.md)
+- [AI Handoff](docs/AI_HANDOFF.md)
 - [Historical Apps Script Setup](docs/APPS_SCRIPT_SETUP.md)
-
-## Current Status
-
-Phase 10E — final Worker-backed OAuth/sync hardening and documentation alignment.
-
-The preserved `main` branch remains the known-good Apps Script MVP. The `phase-9-oauth` branch uses a Cloudflare Worker for OAuth, refresh tokens, the HttpOnly host-only session cookie, and server-side Drive/Sheets API calls using only `drive.file`. The frontend never stores Google tokens or session IDs. Apps Script is retained only as historical MVP reference material.
 
 ## Sheet Sharing
 

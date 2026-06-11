@@ -22,59 +22,250 @@ This is a gift card management system, not merely a barcode generator.
 
 ---
 
-## Architecture
+## Current Phase 11 Context
 
-Source of Truth:
+Phase 11 is the only active development phase.
 
-* User-owned Google Sheet
-
-Integration Layer:
-
-* Google Apps Script Web App
-
-Frontend:
-
-* GitHub Pages static website
-
-Data Flow:
+Active branch:
 
 ```text
-User Google Sheet ↔ Google Apps Script ↔ Walmart-GC Web App
+phase-11
 ```
 
-The application should never require a dedicated server.
+Protected branch:
 
-Prefer simple, low-maintenance solutions compatible with GitHub Pages.
+```text
+main
+```
+
+Current goal:
+
+```text
+Fix OAuth/session flow until fully functional and durable.
+```
+
+Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Do not redesign the product during Phase 11.
+
+Historical references to Phase 9, `phase-9-oauth`, Phase 10, Phase 10E, and the Apps Script MVP are historical only.
 
 ---
 
-## Tech Stack
+## Current Architecture
+
+```text
+User Google Account
+        ↕
+Google OAuth
+        ↕
+Cloudflare Worker
+        ↕
+Google Drive API / Google Sheets API
+        ↕
+Walmart-GC Web App
+```
 
 Frontend:
 
-* Plain HTML
+* GitHub Pages
+* HTML
 * CSS
 * JavaScript
+* No framework
+* No build system
+* Production and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 
-Hosting:
+Backend:
 
-* GitHub Pages
+* Cloudflare Worker: `https://walmart-gc-oauth.dotsthewarlock.com`
+* Workers KV
 
-Deployment:
+Do not introduce or recommend:
+
+* Database
+* Firebase
+* Cloud Functions
+* Apps Script sync
+* Node backend
+* Framework
+* Build step
+* New hosting
+
+---
+
+## OAuth Architecture
+
+Authentication is Worker-managed Google OAuth.
+
+Frontend must never store:
+
+* Access tokens
+* Refresh tokens
+* Session IDs
+* OAuth secrets
+* Google API credentials
+
+Session model:
+
+* HttpOnly cookie
+* Secure
+* SameSite=Lax
+* Host-only
+
+Frontend auth state comes from:
 
 ```text
-GitHub repository → main branch → GitHub Pages
+/api/status
 ```
 
-Do not introduce:
+Logout endpoint:
 
-* Frameworks
-* Build tools
-* Databases
-* Dedicated backend infrastructure
-* User accounts
+```text
+/api/logout
+```
 
-unless explicitly approved.
+OAuth scope:
+
+```text
+https://www.googleapis.com/auth/drive.file
+```
+
+Do not broaden scope.
+
+Worker API calls must use:
+
+```js
+credentials: "include"
+```
+
+---
+
+## OAuth Deployment Rules
+
+Use only:
+
+```text
+https://walmart-gc.dotsthewarlock.com
+```
+
+for production and development testing.
+
+No localhost OAuth. No alternate development origin.
+
+Google Cloud settings:
+
+```text
+Authorized JavaScript origin:
+https://walmart-gc.dotsthewarlock.com
+
+Authorized redirect URI:
+https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+```
+
+Worker callback must return to:
+
+```text
+https://walmart-gc.dotsthewarlock.com/?auth=connected
+```
+
+Never document or recommend:
+
+* `/Walmart-GC/`
+* `session_id` query parameters
+* localhost OAuth
+* alternate OAuth origins
+
+---
+
+## Google Sheet Model
+
+Spreadsheet:
+
+```text
+Walmart-GC Data
+```
+
+Tabs:
+
+```text
+Cards
+_META
+```
+
+Approved schema:
+
+```text
+cardNumber
+pin
+merchant
+startingBalance
+currentBalance
+dateAdded
+dateUpdated
+dateUsed
+used
+notes
+```
+
+Do not change schema.
+
+Worker owns sheet discovery, creation, initialization, metadata, and Google API access.
+
+Barcode payload is derived only and must not be stored:
+
+```text
+79936686504000 + cardNumber
+```
+
+---
+
+## Sync Model to Preserve
+
+Worker-backed sync only.
+
+Completed-action sync only:
+
+* Balance save
+* Used state change
+* Notes save
+* Merchant change
+* New card save
+* Accepted CSV import
+
+Do not sync every keystroke.
+
+Conflict model:
+
+```text
+Sheet-level optimistic concurrency via _META.sheetVersion
+```
+
+Rules:
+
+* No silent overwrite
+* No automatic merge
+* User chooses recovery
+* CSV backup before destructive recovery
+
+---
+
+## Phase 11 Success Criteria
+
+OAuth is fixed when:
+
+* Connect Google starts OAuth
+* Consent requests only `drive.file`
+* Callback succeeds
+* Worker sets session cookie
+* `/api/status` reports connected
+* Refresh preserves login
+* Browser restart preserves login while session is valid
+* Logout clears session
+* Reconnect works
+* Ensure Sheet works
+* Load from Google Sheets works
+* Save/sync works
+* Offline behavior remains usable
+* CSV backup/recovery remains available
 
 ---
 
@@ -83,17 +274,12 @@ unless explicitly approved.
 Before recommending architecture, schema, sync, onboarding, or implementation changes, review:
 
 1. `AGENTS.md`
-2. `docs/PHASE_6_SCHEMA_API_DECISIONS.md`
-3. `docs/ROADMAP.md`
-4. `docs/AI_HANDOFF.md`
+2. `docs/AI_HANDOFF.md`
+3. `docs/ARCHITECTURE.md`
+4. `docs/ROADMAP.md`
+5. `docs/PHASE_6_SCHEMA_API_DECISIONS.md` for historical MVP schema/API decisions only
 
-Treat approved decisions in:
-
-```text
-docs/PHASE_6_SCHEMA_API_DECISIONS.md
-```
-
-as the current architecture baseline.
+Historical Apps Script docs may remain, but they must clearly say they are historical and not part of the active Phase 11 architecture.
 
 ---
 
@@ -117,33 +303,6 @@ Codex writes code, edits repository files, runs checks, reviews diffs, and prepa
 
 ---
 
-## Approved Phase 6 Architecture
-
-The approved MVP architecture is documented in:
-
-```text
-docs/PHASE_6_SCHEMA_API_DECISIONS.md
-```
-
-Do not redesign approved decisions without discussion.
-
-MVP architecture is complete and functional. Current activity is final Phase 8 UI/UX cleanup and documentation cleanup for a stable MVP baseline; Phase 8 remains a hardening, documentation, deployment, verification, diagnostics, and setup-guidance phase, not an architecture phase. Do not propose architecture redesigns during Phase 8 unless a concrete MVP blocker exists. Resolve minor implementation questions by applying the approved Phase 6 decisions and current repository documentation.
-
-Google Apps Script is the approved MVP sync provider. Future post-MVP versions may evaluate direct Google OAuth + Google Sheets API access, but OAuth is not part of Phase 8 and contributors must not redesign the MVP around OAuth. Apps Script is the stable MVP provider; future OAuth work should be treated as a separate post-MVP branch with no requirement to preserve Apps Script as a long-term provider.
-
-Changes affecting:
-
-* Google Sheet schema
-* Apps Script APIs
-* Sync behavior
-* Conflict handling
-* Connection model
-* Metadata architecture
-
-are Major Changes.
-
----
-
 ## MVP Scope
 
 Required:
@@ -157,14 +316,16 @@ Required:
 * Google Sheet synchronization
 * Mobile-friendly interface
 * Desktop-friendly interface
+* Offline usability
+* CSV backup/recovery
 
 ---
 
-## Non-Goals (v1)
+## Non-Goals
 
 Do not prioritize:
 
-* User accounts
+* User accounts managed by Walmart-GC
 * Real-time collaboration workflows
 * Live multi-client synchronization
 * Presence indicators
@@ -178,55 +339,21 @@ Do not prioritize:
 * Automated balance checks
 * Native mobile apps
 
-These may be future enhancements.
-
-Shared Google Sheets are allowed when Google Sheets grants access. Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions; Google Sheets remains responsible for sharing and access control. The approved sync and conflict-handling model remains the MVP solution when Sheet data changes independently.
+Shared Google Sheets are allowed when Google Sheets grants access. Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions; Google Sheets remains responsible for sharing and access control.
 
 ---
 
 ## Development Rules
 
-* ChatGPT creates product logic, specifications, architecture guidance, and Dev AI briefs.
-* Codex writes code.
 * Keep changes small and PR-focused.
 * Inspect current repository files before suggesting implementation changes.
 * Explain current architecture before recommending modifications.
 * Prefer the smallest safe change that achieves the goal.
-* Flag security, deployment, schema, migration, sync, or user-data risks before implementation.
+* Flag security, deployment, OAuth, session, schema, migration, sync, or user-data risks before implementation.
 * Prioritize maintainability and simplicity.
 * Prioritize mobile usability.
-* Review all Codex-generated changes before merge.
-
-Before proposing schema, sync, Apps Script, onboarding, or connection changes:
-
-Review:
-
-```text
-docs/PHASE_6_SCHEMA_API_DECISIONS.md
-```
-
-and treat approved decisions as architecture.
-
----
-
-## GitHub Update Discipline
-
-Codex should minimize GitHub update interactions.
-
-Before committing, pushing, or opening a PR:
-
-1. Inspect current repository state.
-2. Understand the full requested change.
-3. Plan the complete implementation.
-4. Make all related code changes locally.
-5. Run available verification.
-6. Review the complete diff.
-7. Push one coherent change set.
-8. Open one PR.
-
-Avoid repeated small pushes unless fixing review feedback or failed verification.
-
-Phase 8 should prefer coherent PRs over micro-PRs. Complete related documentation updates together, avoid multiple PRs that repeatedly touch the same documentation files, and keep each PR sized for review while remaining logically complete.
+* Review all generated changes before merge.
+* Do not change app behavior, Worker behavior, schema, OAuth scope, or sync behavior unless explicitly requested.
 
 ---
 
@@ -253,7 +380,7 @@ Examples:
 
 * Data model changes
 * Google Sheet schema changes
-* Google Apps Script API changes
+* Worker API changes
 * Sync behavior changes
 * Authentication/security changes
 * Connection architecture changes
@@ -266,78 +393,24 @@ Examples:
 
 When uncertain, treat as Major.
 
-After approval, complete all related code changes locally before pushing.
-
 ---
 
-## Codex Branch & PR Workflow
+## GitHub Update Discipline
 
-### Fresh Branch Requirement
+Codex should minimize GitHub update interactions.
 
-For every implementation task:
+Before committing, pushing, or opening a PR:
 
-1. Start a new Codex task/session.
-2. Start from the latest `main`.
-3. Create a new feature branch from current `main`.
-4. Do not reuse:
+1. Inspect current repository state.
+2. Understand the full requested change.
+3. Plan the complete implementation.
+4. Make all related code changes locally.
+5. Run available verification.
+6. Review the complete diff.
+7. Push one coherent change set.
+8. Open one PR.
 
-   * stale branches
-   * conflicted branches
-   * previous feature branches
-   * generic branches such as `work`
-
-### Conflict Prevention
-
-Before opening a PR:
-
-* Verify branch is based on current `main`.
-* Verify no conflict markers exist.
-* Verify working tree is clean.
-* Review complete diff.
-
-### Push / Connectivity Failures
-
-If GitHub access, push access, fetch access, or PR creation is blocked:
-
-Examples:
-
-* 403 proxy failures
-* push failures
-* GitHub access failures
-* npm/package registry failures
-
-Codex must:
-
-1. Stop.
-2. Clearly report the limitation.
-3. Not claim a PR is ready.
-4. Not claim a PR was created unless GitHub confirms it.
-5. Not claim mergeability unless GitHub confirms it.
-6. Not claim branch synchronization with remote `main` unless verified.
-
-### Conflict Handling
-
-Preferred workflow:
-
-1. Close conflicted PR.
-2. Delete conflicted branch.
-3. Create fresh branch from current `main`.
-4. Reimplement approved change.
-5. Open clean replacement PR.
-
-Avoid GitHub's web conflict editor unless explicitly approved.
-
-### Repository Hygiene
-
-Keep:
-
-* `main`
-
-Delete:
-
-* merged feature branches
-* abandoned branches
-* replaced conflict branches
+Avoid repeated small pushes unless fixing review feedback or failed verification.
 
 ---
 
@@ -347,25 +420,10 @@ Delete:
 - The live app displays these versions near the top-right of the app header as a cache/debug fingerprint, for example `HTML 1.01.00 · JS 1.01.00 · CSS 1.01.00`.
 - These values are only for confirming which static files GitHub Pages and the browser loaded; they are not release management or product version numbers.
 - Increment only the core-file debug versions for core files changed in a PR; leave unchanged core-file versions at their current values.
-- Future Codex prompts that modify `index.html`, `app.js`, or `styles.css` should specify the expected live debug versions after merge/deploy.
-- Codex final summaries for changes touching any core file should end with this concise block at the very bottom, listing all three expected live values and keeping unchanged files at their current value:
 
-```text
-LIVE VERSION CHECK
-
-HTML: x.xx.xx
-JS:   x.xx.xx
-CSS:  x.xx.xx
-```
+---
 
 ## Verification Rules
-
-Codex environments may have limited:
-
-* GitHub access
-* Browser access
-* npm access
-* Proxy/network access
 
 Do NOT install:
 
@@ -380,44 +438,16 @@ unless explicitly approved.
 
 Preferred verification methods:
 
-* `node --check`
+* Stale-reference search and review for docs-only changes
+* `node --check` when code is touched
 * `git diff --check`
-* conflict-marker scan
-* HTML parse validation
-* static DOM/hook checks
-* local HTTP server + curl smoke test
-* manual verification notes
+* Conflict-marker scan
+* HTML parse validation when HTML is touched
+* Static DOM/hook checks when UI hooks are touched
+* Local HTTP server + curl smoke test when useful
+* Manual verification notes
 
 Browser verification is optional.
-
-If unavailable, skip it silently.
-
----
-
-## Current Product Direction
-
-Current UI architecture:
-
-* Card List panel
-* Card Detail panel
-* Settings panel
-* Data panel
-* Full-screen Checkout Mode
-
-Data Panel is the sync/setup control center.
-
-Final Phase 8 Data Panel cleanup priorities:
-
-* Align diagnostics into a two-column/table-like label/value layout.
-* Group Google Sheets connection, health, refresh, and retry controls together.
-* Remove the obsolete/non-functional Upload Sheets button if it remains unused.
-* Keep CSV backup/recovery controls separate from Google Sheets sync controls.
-
-Approved architecture, schema, sync behavior, and connection model are documented in:
-
-```text
-docs/PHASE_6_SCHEMA_API_DECISIONS.md
-```
 
 ---
 
@@ -432,49 +462,31 @@ docs/PHASE_6_SCHEMA_API_DECISIONS.md
 * Spreadsheet-friendly data model
 * Low operational cost
 * Easy self-hosting via GitHub Pages
-
----
-
-## Success Criteria
-
-A user can:
-
-1. Maintain gift card records in a Google Sheet.
-2. Open Walmart-GC on desktop or mobile.
-3. View barcodes and PINs quickly.
-4. Update balances and Used state.
-5. Have updates synchronized back to the same Google Sheet.
-6. Continue using the app when temporarily offline.
-7. Manage dozens of gift cards without relying on a spreadsheet interface during checkout.
+* Durable Worker-managed OAuth session
+* Offline usability and CSV backup/recovery
 
 ---
 
 ## Current Roadmap Status
 
-Completed:
+Completed/historical:
 
 * Phase 1 – Static app foundation
 * Phase 2 – Checkout workflow improvements
 * Phase 3 – Used flag model and settings
 * Phase 4 – Mobile navigation workflow
 * Phase 5B – Data panel and checkout refinements
-* Phase 6 – Google Sheet schema, sync architecture, Apps Script API design
-* Phase 7 – Sync implementation
+* Phase 6 – Google Sheet schema and Apps Script API design for historical MVP
+* Phase 7 – Apps Script sync implementation for historical MVP
+* Phase 8 – MVP cleanup and hardening
+* Phase 9 / `phase-9-oauth` – OAuth transition work
+* Phase 10 / Phase 10E – Worker-backed OAuth/sync hardening before Phase 11
+* Apps Script MVP – historical reference only
 
 Current:
 
-* Final Phase 8 cleanup – UI/UX cleanup and documentation cleanup for a stable MVP baseline. Phase 9 has not started.
-  * Phase 8A – Documentation & Onboarding
-  * Phase 8B – Verification & Testing
-  * Phase 8C – Hardening & Diagnostics
-
-Future only, not current work:
-
-* Phase 9 may begin after the stable MVP is tagged, likely as `mvp-apps-script-final`.
-* Future Phase 9 work should use a dedicated `phase-9-oauth` branch and preserve `main` as the known-good Apps Script MVP.
-* Future OAuth direction is 100% direct Google OAuth + Google Sheets API, with no Apps Script long-term support requirement.
-* No migration guarantee is required for post-MVP OAuth work; CSV export/import is an acceptable fallback path.
+* Phase 11 – OAuth/session durability and Google Sheets access/sync hardening
 
 Upcoming:
 
-* Post-MVP enhancements only after MVP hardening
+* Post-MVP enhancements only after Phase 11 OAuth/session flow is fully functional and durable
