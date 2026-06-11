@@ -1,8 +1,8 @@
 # Google Sheet Setup
 
-This guide describes the active Phase 9.1 Google Sheet flow.
+This guide describes the active Worker-backed Google Sheet flow.
 
-Normal users do **not** create a Google Cloud project, paste an OAuth Client ID, deploy Apps Script, create a spreadsheet manually, or paste a Sheet URL/ID. Walmart-GC uses the maintainer-provided public OAuth browser client and the `drive.file` permission to manage one app-created/app-accessible spreadsheet.
+Normal users do **not** create a Google Cloud project, paste an OAuth Client ID, deploy Apps Script, create a spreadsheet manually, or paste a Sheet URL/ID. Walmart-GC uses the Worker-owned OAuth flow and the `drive.file` permission to manage one app-created/app-accessible spreadsheet.
 
 ## Normal First-Run Flow
 
@@ -10,15 +10,15 @@ Normal users do **not** create a Google Cloud project, paste an OAuth Client ID,
 2. Open the **Data** panel.
 3. Select **Connect Google**.
 4. Approve Google Drive file access.
-5. Walmart-GC searches Drive for an app-accessible spreadsheet named:
+5. Select **Ensure Sheet** or **Load from Google Sheets**. The Worker searches Drive for an app-accessible spreadsheet named:
 
    ```text
    Walmart-GC Data
    ```
 
 6. If the spreadsheet is not found, Walmart-GC creates it.
-7. Walmart-GC initializes the required `Cards` tab and hidden `_META` metadata tab.
-8. Walmart-GC loads remote cards when it can do so without silently replacing local unsynced data.
+7. The Worker initializes the required `Cards` tab and hidden `_META` metadata tab.
+8. Walmart-GC loads remote cards through the Worker when the user selects **Load from Google Sheets**.
 
 ## Dedicated Spreadsheet
 
@@ -87,4 +87,4 @@ CSV export/import remains available even while Google is disconnected or offline
 
 ## Maintainer-Only OAuth Configuration
 
-The public OAuth Client ID is static browser configuration maintained in the app source before deployment. It is not a secret. End users should not need to see, paste, or manage OAuth client configuration.
+OAuth client configuration is owned by the Cloudflare Worker deployment. End users should not see, paste, or manage OAuth client configuration, and the frontend must not store Google tokens or session IDs.

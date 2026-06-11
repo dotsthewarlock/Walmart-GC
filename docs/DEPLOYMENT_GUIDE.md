@@ -2,14 +2,14 @@
 
 Walmart-GC is a static GitHub Pages app. It uses plain HTML, CSS, and JavaScript with no build step, backend server, database, framework, or npm dependency.
 
-## Active Phase 10B Deployment Model
+## Active Phase 10D Deployment Model
 
 ```text
 Custom-domain GitHub Pages static app
         ↕
-Cloudflare Worker OAuth session
+Cloudflare Worker OAuth session and Sheet sync API
         ↕
-Google Drive API using drive.file
+Google Drive/Sheets APIs using drive.file
         ↕
 User-owned Walmart-GC Data spreadsheet
 ```
@@ -18,7 +18,7 @@ Normal users should only need to open the custom-domain app, select **Connect Go
 
 ## Maintainer OAuth Setup
 
-The OAuth client secret stays in the Cloudflare Worker secret store. Do not add OAuth client secrets or Google access/refresh tokens to the frontend.
+The OAuth client secret, refresh tokens, access tokens, and session records stay in the Cloudflare Worker/Worker storage. Do not add OAuth client secrets, Google tokens, or session IDs to the frontend.
 
 Required Google Cloud settings:
 
@@ -29,7 +29,7 @@ Required Google Cloud settings:
 - Authorized redirect URI: `https://walmart-gc-oauth.dotsthewarlock.com/auth/callback`.
 - Scope used by the app: `https://www.googleapis.com/auth/drive.file`.
 
-The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and carries the session only in the `walmart_gc_session` HttpOnly cookie.
+The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and carries the session only in the `walmart_gc_session` HttpOnly cookie. Frontend Worker API calls use `credentials: "include"`.
 
 ## Static Files
 
@@ -67,6 +67,6 @@ Also confirm:
 5. Confirm consent requests only `drive.file`.
 6. Confirm the return URL is `https://walmart-gc.dotsthewarlock.com/?auth=connected`, then cleans itself without any session query parameter.
 7. Confirm the Worker session cookie exists on `walmart-gc-oauth.dotsthewarlock.com` and refresh keeps the connection.
-8. Confirm Walmart-GC locates or creates `Walmart-GC Data` once Worker Sheet proxy support is enabled.
+8. Confirm **Ensure Sheet** locates or creates `Walmart-GC Data` through the Worker.
 9. Confirm **Open Sheet** opens the active spreadsheet when a Sheet is configured.
 10. Confirm local/offline data remains available if Google setup fails.

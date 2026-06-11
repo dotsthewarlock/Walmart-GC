@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.15 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.16 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.15";
+const DEBUG_VERSION_JS = "1.01.16";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -157,8 +157,6 @@ const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
 const connectGoogleButton = document.querySelector("#connect-google");
 const disconnectGoogleButton = document.querySelector("#disconnect-google");
 const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
-const directSheetInput = document.querySelector("#direct-sheet-id");
-const saveDirectSheetButton = document.querySelector("#save-direct-sheet");
 const initializeDirectSheetButton = document.querySelector("#initialize-direct-sheet");
 const openDirectSheetButton = document.querySelector("#open-direct-sheet");
 const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
@@ -249,7 +247,6 @@ const defaultSyncState = {
 };
 
 const WORKER_BASE_URL = "https://walmart-gc-oauth.dotsthewarlock.com";
-const googleDriveSpreadsheetMimeType = "application/vnd.google-apps.spreadsheet";
 const walmartGcDataSheetName = "Walmart-GC Data";
 const googleOAuthStatuses = {
   disconnected: "Disconnected",
@@ -262,20 +259,14 @@ const googleOAuthStatuses = {
 
 
 const directSheetsStatuses = {
-  notConfigured: "Not created",
+  notConfigured: "Disconnected",
   ready: "Connected",
-  checking: "Finding sheet",
-  creating: "Creating sheet",
+  checking: "Syncing",
+  creating: "Syncing",
   syncing: "Syncing",
   conflict: "Conflict",
-  error: "Error",
+  error: "Connection unavailable",
 };
-
-const directSheetsSchemaVersion = "1";
-const directSheetsCardsTab = "Cards";
-const directSheetsMetaTab = "_META";
-const directSheetsDefaultTab = "Sheet1";
-const directSheetsAppName = "Walmart-GC";
 
 const defaultDirectSheetsState = {
   spreadsheetId: "",
@@ -1260,13 +1251,7 @@ function renderDirectSheetsState() {
     return;
   }
 
-  if (directSheetInput) {
-    directSheetInput.value = directSheetsState.spreadsheetUrl || directSheetsState.spreadsheetId;
-  }
   const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.creating, directSheetsStatuses.syncing].includes(directSheetsState.status);
-  if (saveDirectSheetButton) {
-    saveDirectSheetButton.disabled = isBusy;
-  }
   if (initializeDirectSheetButton) {
     initializeDirectSheetButton.disabled = isBusy;
   }
@@ -1279,7 +1264,7 @@ function renderDirectSheetsState() {
   const details = [
     renderDiagnosticRow("Worker session", hasWorkerGoogleSession() ? "Connected" : "Disconnected"),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Sheet proxy", directSheetsState.status === directSheetsStatuses.error ? "Error" : (directSheetsState.spreadsheetId ? "Ready" : "Not ready")),
+    renderDiagnosticRow("Worker sync backend", directSheetsState.status === directSheetsStatuses.error ? "Connection unavailable" : (directSheetsState.spreadsheetId ? "Connected" : "Disconnected")),
     renderDiagnosticRow("Frontend token storage", "None"),
     renderDiagnosticRow("Active sheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
     renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
@@ -1346,7 +1331,7 @@ function renderGoogleOAuthState() {
     renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
     renderDiagnosticRow("Frontend token storage", "None"),
     renderDiagnosticRow("Session ID storage", "Cookie only"),
-    renderDiagnosticRow("Sheet proxy", directSheetsState.spreadsheetId ? "Ready" : "Not ready"),
+    renderDiagnosticRow("Worker sync backend", directSheetsState.spreadsheetId ? "Connected" : "Disconnected"),
     renderDiagnosticRow("Last connection error", valueOrFallback(googleOAuthState.lastErrorMessage)),
   ];
 
@@ -1520,7 +1505,7 @@ async function disconnectGoogleAccount() {
 
 function getSyncStatusLabel() {
   if (syncState.status === syncStatuses.connected) {
-    return "Connected/Synced";
+    return "Connected";
   }
 
   if (syncState.status === syncStatuses.conflict) {
@@ -1558,7 +1543,7 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
         ? (hasWorkerGoogleSession()
           ? "Saved locally. Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version."
           : "Saved locally. Connect Google to sync.")
-        : "Saved locally. Connect Google to enable durable sync before syncing.");
+        : "Saved locally. Connect Google before syncing through the Worker.");
     setSyncState({
       status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
@@ -1653,235 +1638,12 @@ function renderConnectionState() {
   renderSyncRecoveryActions(isBusy);
 }
 
-function parseSpreadsheetId(value) {
-  const rawValue = String(value || "").trim();
-  if (!rawValue) {
-    return "";
-  }
-
-  const urlMatch = rawValue.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (urlMatch) {
-    return urlMatch[1];
-  }
-
-  if (/^[a-zA-Z0-9-_]{20,}$/.test(rawValue)) {
-    return rawValue;
-  }
-
-  return "";
-}
-
-function getDirectSheetInputValue() {
-  return String(directSheetInput?.value || "").trim();
-}
-
-function saveDirectSheetFromInput() {
-  const inputValue = getDirectSheetInputValue();
-  const spreadsheetId = parseSpreadsheetId(inputValue);
-
-  if (!inputValue) {
-    setDirectSheetsState(cloneStateValue(defaultDirectSheetsState));
-    return;
-  }
-
-  if (!spreadsheetId) {
-    setDirectSheetsState({
-      spreadsheetUrl: inputValue,
-      spreadsheetId: "",
-      status: directSheetsStatuses.error,
-      cardsSheetInitialized: "unknown",
-      message: "Enter a valid Google Sheet URL or spreadsheet ID.",
-      lastErrorMessage: "Invalid Sheet URL or ID.",
-    });
-    return;
-  }
-
-  const changed = spreadsheetId !== directSheetsState.spreadsheetId;
-  if (changed) {
-    syncState = cloneStateValue(defaultSyncState);
-  }
-
-  setDirectSheetsState({
-    spreadsheetId,
-    spreadsheetUrl: inputValue,
-    spreadsheetName: changed ? "" : directSheetsState.spreadsheetName,
-    status: directSheetsStatuses.ready,
-    cardsSheetInitialized: changed ? "unknown" : directSheetsState.cardsSheetInitialized,
-    remoteSheetVersion: changed ? "" : directSheetsState.remoteSheetVersion,
-    lastSuccessfulSyncAt: changed ? "" : directSheetsState.lastSuccessfulSyncAt,
-    pendingUnsynced: false,
-    message: "Advanced Sheet ID saved locally. Connect Google, then load the Sheet.",
-    lastErrorMessage: "",
-  });
-}
-
 function makeDirectSheetsError(message, status = "") {
   const error = new Error(message);
   error.status = status;
   return error;
 }
 
-function getDirectSheetsFriendlyHttpError(status, bodyText = "") {
-  if (status === 401) {
-    return "Google authorization expired or was rejected. Reconnect Google, then try again.";
-  }
-  if (status === 403) {
-    return "Google file access was denied. Confirm Google Drive API and Google Sheets API are enabled, then reconnect Google.";
-  }
-  if (status === 404) {
-    return "Google could not find this spreadsheet. Check the Sheet ID/URL and account permissions.";
-  }
-  if (status === 429) {
-    return "Google Sheets is rate limiting requests. Wait a moment, then retry sync.";
-  }
-  if (status >= 500) {
-    return "Google Sheets is temporarily unavailable. Local data remains saved; try again later.";
-  }
-  return bodyText ? `Google Sheets API request failed (${status}): ${bodyText.slice(0, 180)}` : `Google Sheets API request failed (${status}).`;
-}
-
-async function getGoogleAccessTokenForDriveFile() {
-  if (!isGoogleOAuthConfigured()) {
-    throw makeDirectSheetsError("Google OAuth is not configured for this deployment. Add the public OAuth Client ID before deployment.");
-  }
-
-  if (navigator.onLine === false) {
-    throw makeDirectSheetsError("Google sync is unavailable while offline. Local data remains saved in this browser.");
-  }
-
-  throw makeDirectSheetsError(hasWorkerGoogleSession()
-    ? "Worker Sheet proxy is ready; retry the sync action."
-    : "Connect Google to sync.");
-}
-
-async function sheetsFetch(path, options = {}) {
-  const accessToken = await getGoogleAccessTokenForDriveFile();
-  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {}),
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => "");
-    throw makeDirectSheetsError(getDirectSheetsFriendlyHttpError(response.status, bodyText), response.status);
-  }
-
-  if (response.status === 204) {
-    return {};
-  }
-
-  return response.json();
-}
-
-function getDriveFriendlyHttpError(status, bodyText = "") {
-  if (status === 401) {
-    return "Google authorization expired or was rejected. Reconnect Google, then try again.";
-  }
-  if (status === 403) {
-    return "Google Drive file access was denied. Confirm the Drive API is enabled and reconnect Google.";
-  }
-  if (status === 404) {
-    return "Google Drive could not find the requested file. Reconnect Google, then try again.";
-  }
-  if (status === 429) {
-    return "Google Drive is rate limiting requests. Wait a moment, then retry.";
-  }
-  if (status >= 500) {
-    return "Google Drive is temporarily unavailable. Local data remains saved; try again later.";
-  }
-  return bodyText ? `Google Drive API request failed (${status}): ${bodyText.slice(0, 180)}` : `Google Drive API request failed (${status}).`;
-}
-
-async function driveFetch(path, options = {}) {
-  const accessToken = await getGoogleAccessTokenForDriveFile();
-  const response = await fetch(`https://www.googleapis.com/drive/v3/${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {}),
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => "");
-    throw makeDirectSheetsError(getDriveFriendlyHttpError(response.status, bodyText), response.status);
-  }
-
-  if (response.status === 204) {
-    return {};
-  }
-
-  return response.json();
-}
-
-function escapeDriveQueryValue(value) {
-  return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-async function findWalmartGcDataSheet() {
-  const query = [
-    `name = '${escapeDriveQueryValue(walmartGcDataSheetName)}'`,
-    `mimeType = '${googleDriveSpreadsheetMimeType}'`,
-    "trashed = false",
-  ].join(" and ");
-  const searchParams = new URLSearchParams({
-    q: query,
-    spaces: "drive",
-    pageSize: "10",
-    orderBy: "modifiedTime desc,name",
-    fields: "files(id,name,modifiedTime,webViewLink)",
-  });
-  const body = await driveFetch(`files?${searchParams.toString()}`);
-  const files = Array.isArray(body.files) ? body.files : [];
-  if (files.length > 1) {
-    setDirectSheetsState({
-      message: `Found ${files.length} app-accessible Walmart-GC Data spreadsheets. Using the most recently modified file.`,
-    });
-  }
-  return files[0] || null;
-}
-
-async function createWalmartGcDataSheet() {
-  return driveFetch("files?fields=id,name,modifiedTime,webViewLink", {
-    method: "POST",
-    body: JSON.stringify({
-      name: walmartGcDataSheetName,
-      mimeType: googleDriveSpreadsheetMimeType,
-    }),
-  });
-}
-
-function setActiveDirectSheet(file) {
-  const spreadsheetId = String(file?.id || "").trim();
-  if (!spreadsheetId) {
-    throw makeDirectSheetsError("Google did not return a spreadsheet ID for Walmart-GC Data.");
-  }
-
-  const spreadsheetUrl = String(file?.webViewLink || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`);
-  const changed = spreadsheetId !== directSheetsState.spreadsheetId;
-  if (changed) {
-    syncState = cloneStateValue(defaultSyncState);
-  }
-  setDirectSheetsState({
-    spreadsheetId,
-    spreadsheetUrl,
-    spreadsheetName: String(file?.name || walmartGcDataSheetName),
-    status: directSheetsStatuses.ready,
-    cardsSheetInitialized: changed ? "unknown" : directSheetsState.cardsSheetInitialized,
-    remoteSheetVersion: changed ? "" : directSheetsState.remoteSheetVersion,
-    lastSuccessfulSyncAt: changed ? "" : directSheetsState.lastSuccessfulSyncAt,
-    pendingUnsynced: changed ? false : directSheetsState.pendingUnsynced,
-    message: `Using ${String(file?.name || walmartGcDataSheetName)} for Google Sheets sync.`,
-    lastErrorMessage: "",
-  });
-}
 
 async function ensureWalmartGcDataSheet() {
   if (!hasWorkerGoogleSession()) {
@@ -1907,7 +1669,7 @@ async function ensureWalmartGcDataSheet() {
     status: directSheetsStatuses.ready,
     cardsSheetInitialized: "yes",
     remoteSheetVersion: String(sheet.sheetVersion || ""),
-    message: "Worker Sheet proxy is ready.",
+    message: "Worker sync backend is ready.",
     lastErrorMessage: "",
   });
   return {
@@ -2044,217 +1806,6 @@ function openActiveGoogleSheet() {
     return;
   }
   window.open(sheetUrl, "_blank", "noopener");
-}
-
-function encodeSheetRange(range) {
-  return encodeURIComponent(range).replace(/%21/g, "!");
-}
-
-async function getDirectSpreadsheetMetadata() {
-  if (!directSheetsState.spreadsheetId) {
-    throw makeDirectSheetsError("Connect Google to create or locate Walmart-GC Data before using sync.");
-  }
-
-  return sheetsFetch(`${directSheetsState.spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title,hidden)`);
-}
-
-function getSheetProperties(metadata, title) {
-  return getSheetByTitle(metadata, title)?.properties || null;
-}
-
-function getSheetByTitle(metadata, title) {
-  return metadata?.sheets?.find((sheet) => sheet?.properties?.title === title) || null;
-}
-
-async function readSheetValues(spreadsheetId, range) {
-  const encodedRange = encodeSheetRange(range);
-  const body = await sheetsFetch(`${spreadsheetId}/values/${encodedRange}?majorDimension=ROWS`);
-  return Array.isArray(body.values) ? body.values : [];
-}
-
-async function writeSheetValues(spreadsheetId, range, values) {
-  const encodedRange = encodeSheetRange(range);
-  return sheetsFetch(`${spreadsheetId}/values/${encodedRange}?valueInputOption=RAW`, {
-    method: "PUT",
-    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
-  });
-}
-
-async function clearSheetValues(spreadsheetId, range) {
-  const encodedRange = encodeSheetRange(range);
-  return sheetsFetch(`${spreadsheetId}/values/${encodedRange}:clear`, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
-}
-
-function isSheetValuesEmpty(values) {
-  if (!Array.isArray(values) || values.length === 0) {
-    return true;
-  }
-
-  return values.every((row) => {
-    if (!Array.isArray(row) || row.length === 0) {
-      return true;
-    }
-    return row.every((cell) => String(cell ?? "").trim() === "");
-  });
-}
-
-async function readSheetValuesForCleanup(spreadsheetId, sheetTitle) {
-  return readSheetValues(spreadsheetId, `'${sheetTitle}'!A1:Z1000`);
-}
-
-async function deleteEmptyDefaultSheetIfSafe(spreadsheetId, metadata) {
-  const sheets = Array.isArray(metadata?.sheets) ? metadata.sheets : [];
-  const cardsSheet = getSheetByTitle(metadata, directSheetsCardsTab);
-  const metaSheet = getSheetByTitle(metadata, directSheetsMetaTab);
-  const defaultSheet = getSheetByTitle(metadata, directSheetsDefaultTab);
-
-  const defaultSheetId = defaultSheet?.properties?.sheetId;
-  if (!cardsSheet || !metaSheet || !defaultSheet || sheets.length <= 1 || !Number.isInteger(defaultSheetId)) {
-    return false;
-  }
-
-  let defaultSheetValues;
-  try {
-    defaultSheetValues = await readSheetValuesForCleanup(spreadsheetId, directSheetsDefaultTab);
-  } catch (_) {
-    return false;
-  }
-
-  if (!isSheetValuesEmpty(defaultSheetValues)) {
-    return false;
-  }
-
-  try {
-    await sheetsFetch(`${spreadsheetId}:batchUpdate`, {
-      method: "POST",
-      body: JSON.stringify({
-        requests: [
-          { deleteSheet: { sheetId: defaultSheetId } },
-        ],
-      }),
-    });
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-async function cleanupDefaultSheetAfterInitialization(spreadsheetId, metadata) {
-  return deleteEmptyDefaultSheetIfSafe(spreadsheetId, metadata);
-}
-
-function areHeadersValid(row) {
-  return csvHeaders.every((header, index) => String(row?.[index] || "").trim() === header);
-}
-
-async function ensureCardsSheet() {
-  const spreadsheetId = directSheetsState.spreadsheetId;
-  let metadata = await getDirectSpreadsheetMetadata();
-  const requests = [];
-  let cardsProperties = getSheetProperties(metadata, directSheetsCardsTab);
-  let metaProperties = getSheetProperties(metadata, directSheetsMetaTab);
-
-  if (!cardsProperties) {
-    requests.push({ addSheet: { properties: { title: directSheetsCardsTab } } });
-  }
-  if (!metaProperties) {
-    requests.push({ addSheet: { properties: { title: directSheetsMetaTab, hidden: true } } });
-  } else if (!metaProperties.hidden) {
-    requests.push({ updateSheetProperties: { properties: { sheetId: metaProperties.sheetId, hidden: true }, fields: "hidden" } });
-  }
-
-  if (requests.length) {
-    await sheetsFetch(`${spreadsheetId}:batchUpdate`, {
-      method: "POST",
-      body: JSON.stringify({ requests }),
-    });
-    metadata = await getDirectSpreadsheetMetadata();
-    cardsProperties = getSheetProperties(metadata, directSheetsCardsTab);
-    metaProperties = getSheetProperties(metadata, directSheetsMetaTab);
-  }
-
-  const headerRows = await readSheetValues(spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
-  if (!headerRows.length || headerRows[0].every((cell) => !String(cell || "").trim())) {
-    await writeSheetValues(spreadsheetId, `${directSheetsCardsTab}!A1:J1`, [csvHeaders]);
-  } else if (!areHeadersValid(headerRows[0])) {
-    throw makeDirectSheetsError("The Cards tab headers do not match the approved Walmart-GC schema. No data was changed.");
-  }
-
-  const metaHeaderRows = await readSheetValues(spreadsheetId, `${directSheetsMetaTab}!A1:B1`);
-  if (!metaHeaderRows.length || metaHeaderRows[0][0] !== "key" || metaHeaderRows[0][1] !== "value") {
-    await writeSheetValues(spreadsheetId, `${directSheetsMetaTab}!A1:B1`, [["key", "value"]]);
-  }
-
-  await cleanupDefaultSheetAfterInitialization(spreadsheetId, metadata);
-
-  return {
-    spreadsheetName: String(metadata?.properties?.title || ""),
-    cardsSheetId: cardsProperties?.sheetId,
-    metaSheetId: metaProperties?.sheetId,
-  };
-}
-
-async function readSheetMeta() {
-  const values = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsMetaTab}!A:B`);
-  const meta = {};
-  values.slice(1).forEach((row) => {
-    const key = String(row?.[0] || "").trim();
-    if (key) {
-      meta[key] = String(row?.[1] || "");
-    }
-  });
-  return meta;
-}
-
-async function writeSheetMeta(nextMeta = {}) {
-  const mergedMeta = {
-    schemaVersion: directSheetsSchemaVersion,
-    sheetVersion: nextMeta.sheetVersion || generateRequestId(),
-    lastUpdated: new Date().toISOString(),
-    appName: directSheetsAppName,
-  };
-  const rows = [["key", "value"], ...Object.entries(mergedMeta)];
-  await clearSheetValues(directSheetsState.spreadsheetId, `${directSheetsMetaTab}!A:B`);
-  await writeSheetValues(directSheetsState.spreadsheetId, `${directSheetsMetaTab}!A1:B${rows.length}`, rows);
-  return mergedMeta;
-}
-
-function cardsToSheetRows(cards) {
-  return [csvHeaders, ...cards.map((card) => csvHeaders.map((header) => {
-    if (header === "used") {
-      return card.used ? "TRUE" : "FALSE";
-    }
-    return card[header] ?? "";
-  }))];
-}
-
-function cardsFromSheetRows(rows) {
-  const cards = [];
-  const seenCardNumbers = new Set();
-  rows.forEach((row, index) => {
-    const hasAnyValue = row.some((cell) => String(cell || "").trim());
-    if (!hasAnyValue) {
-      return;
-    }
-
-    const rawCard = {};
-    csvHeaders.forEach((header, headerIndex) => {
-      rawCard[header] = row[headerIndex] ?? "";
-    });
-    const normalizedCard = normalizeStoredCard(rawCard);
-    if (!normalizedCard) {
-      throw makeDirectSheetsError(`Cards row ${index + 2} contains malformed card data. Local data was not changed.`);
-    }
-    if (seenCardNumbers.has(normalizedCard.cardNumber)) {
-      throw makeDirectSheetsError(`Cards row ${index + 2} duplicates cardNumber ${normalizedCard.cardNumber}. Local data was not changed.`);
-    }
-    seenCardNumbers.add(normalizedCard.cardNumber);
-    cards.push(normalizedCard);
-  });
-  return cards;
 }
 
 async function initializeDirectSheetStructure() {
@@ -2415,7 +1966,7 @@ async function syncCardsToDirectSheets(options = {}) {
       remoteSheetVersion: String(result.sheetVersion || ""),
       lastSuccessfulSyncAt: now,
       pendingUnsynced: false,
-      message: options.successMessage || `Synced ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"} through the Worker Sheet proxy.`,
+      message: options.successMessage || `Synced ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"} through the secure Worker backend.`,
       lastErrorMessage: "",
     });
     return true;

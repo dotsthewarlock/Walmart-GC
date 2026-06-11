@@ -1,9 +1,9 @@
 # Manual Test Plan
 
-This manual test plan validates the active Phase 9.1 architecture:
+This manual test plan validates the active Phase 10D Worker-backed architecture:
 
 ```text
-User Google Account ↔ Google OAuth drive.file ↔ Google Drive/Sheets APIs ↔ Walmart-GC Web App
+User Google Account ↔ Cloudflare Worker OAuth session ↔ Google Drive/Sheets APIs ↔ Walmart-GC Web App
 ```
 
 ## Test Environment
@@ -14,7 +14,7 @@ Record:
 | --- | --- |
 | Browser/device |  |
 | Walmart-GC URL |  |
-| Embedded OAuth Client ID present? |  |
+| Frontend token/session storage absent? |  |
 | Active Sheet name/ID |  |
 | Starting card count |  |
 | HTML/JS/CSS debug versions |  |
@@ -34,14 +34,14 @@ Record:
 - [ ] Select **Connect Google**.
 - [ ] Complete Google consent.
 - [ ] OAuth requests `https://www.googleapis.com/auth/drive.file` and does not request broad `spreadsheets` or full `drive` scope.
-- [ ] Diagnostics show OAuth configured.
-- [ ] Diagnostics show Google connection is connected.
-- [ ] Diagnostics show Google file access is available.
-- [ ] App searches for `Walmart-GC Data`.
+- [ ] Diagnostics show the Worker session is connected.
+- [ ] Diagnostics show frontend token storage is none.
+- [ ] Select **Ensure Sheet**.
+- [ ] Worker searches for `Walmart-GC Data`.
 - [ ] If missing, app creates `Walmart-GC Data`.
 - [ ] App stores the active Sheet ID locally.
-- [ ] App initializes `Cards` headers.
-- [ ] App initializes hidden `_META` metadata with `sheetVersion`.
+- [ ] Worker initializes `Cards` headers.
+- [ ] Worker initializes hidden `_META` metadata with `sheetVersion`.
 - [ ] **Open Sheet** opens the active Google Sheet.
 - [ ] Disconnect Google.
 - [ ] Local cards and saved Sheet state remain available.
