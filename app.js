@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.13 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.14 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.13";
+const DEBUG_VERSION_JS = "1.01.14";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -1421,7 +1421,7 @@ async function refreshWorkerSessionStatus(options = {}) {
           spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${returnedSheetId}/edit`,
           spreadsheetName: String(status.sheetName || directSheetsState.spreadsheetName || walmartGcDataSheetName),
           status: directSheetsStatuses.ready,
-          message: "Saved Sheet metadata restored from the durable Google session. Sheet sync proxy is not yet enabled in this build.",
+          message: "Saved Sheet metadata restored from the durable Google session. Sheet sync proxy is not enabled in this build yet.",
           lastErrorMessage: "",
         });
       }
@@ -1553,7 +1553,7 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
     const message = options.noAutoSyncMessage
       || (isDirectSheetsConfigured()
         ? (hasWorkerGoogleSession()
-          ? "Saved locally. Durable Google session is connected. Sheet sync proxy is not yet enabled in this build."
+          ? "Saved locally. Durable Google session is connected. Sheet sync proxy is not enabled in this build yet."
           : "Saved locally. Connect Google to enable durable sync before syncing.")
         : "Saved locally. Connect Google to enable durable sync before syncing.");
     setSyncState({
@@ -1586,7 +1586,7 @@ function getRecoveryUnavailableMessage() {
 
   if (!hasGoogleFileAccessInMemory()) {
     return hasWorkerGoogleSession()
-      ? "Durable Google session is connected. Sheet sync proxy is not yet enabled in this build."
+      ? "Durable Google session is connected. Sheet sync proxy is not enabled in this build yet."
       : "Connect Google to enable durable sync before using Google Sheets recovery actions.";
   }
 
@@ -1747,7 +1747,7 @@ async function getGoogleAccessTokenForDriveFile() {
   }
 
   throw makeDirectSheetsError(hasWorkerGoogleSession()
-    ? "Durable Google session is connected. Sheet sync proxy is not yet enabled in this build."
+    ? "Durable Google session is connected. Sheet sync proxy is not enabled in this build yet."
     : "Connect Google to enable durable sync before using sync.");
 }
 

@@ -2,6 +2,7 @@ const OAUTH_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SESSION_COOKIE = "walmart_gc_session";
+const SESSION_COOKIE_ATTRIBUTES = "HttpOnly; Secure; SameSite=Lax; Path=/";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const OAUTH_STATE_TTL_SECONDS = 60 * 5;
 const DEFAULT_SHEET_NAME = "Walmart-GC Data";
@@ -262,7 +263,7 @@ async function sessionKey(env, sessionId) {
 }
 
 function buildSessionCookie(value, maxAge) {
-  return `${SESSION_COOKIE}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+  return `${SESSION_COOKIE}=${value}; ${SESSION_COOKIE_ATTRIBUTES}; Max-Age=${maxAge}`;
 }
 
 function readCookie(header, name) {
