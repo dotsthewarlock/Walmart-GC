@@ -65,7 +65,7 @@ Also confirm:
 3. Open the **Data** panel.
 4. Select **Connect Google**.
 5. Confirm consent requests only `drive.file`.
-6. Confirm the return URL is `https://walmart-gc.dotsthewarlock.com/?auth=connected`, then cleans itself without a `session_id`.
+6. Confirm the return URL is `https://walmart-gc.dotsthewarlock.com/?auth=connected`, then cleans itself without any session query parameter.
 7. Confirm the Worker session cookie exists on `walmart-gc-oauth.dotsthewarlock.com` and refresh keeps the connection.
 8. Confirm Walmart-GC locates or creates `Walmart-GC Data` once Worker Sheet proxy support is enabled.
 9. Confirm **Open Sheet** opens the active spreadsheet when a Sheet is configured.

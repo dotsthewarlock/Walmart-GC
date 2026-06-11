@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.12 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.13 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.12";
+const DEBUG_VERSION_JS = "1.01.13";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -249,8 +249,6 @@ const defaultSyncState = {
 };
 
 const WORKER_BASE_URL = "https://walmart-gc-oauth.dotsthewarlock.com";
-const embeddedGoogleOAuthClientId = "1059771800951-kfcf0cd42u4c54dfcnhaa64pp3l8ah1h.apps.googleusercontent.com";
-const googleOAuthScopes = "https://www.googleapis.com/auth/drive.file";
 const googleDriveSpreadsheetMimeType = "application/vnd.google-apps.spreadsheet";
 const walmartGcDataSheetName = "Walmart-GC Data";
 const googleOAuthStatuses = {
@@ -293,9 +291,7 @@ const defaultDirectSheetsState = {
 };
 
 const defaultGoogleOAuthState = {
-  clientId: embeddedGoogleOAuthClientId,
   status: googleOAuthStatuses.disconnected,
-  scriptLoaded: false,
   connectedEmail: "",
   connectedName: "",
   connectedAt: "",
@@ -726,9 +722,7 @@ function normalizeStoredGoogleOAuth(oauth) {
   }
 
   return {
-    clientId: embeddedGoogleOAuthClientId,
     status,
-    scriptLoaded: Boolean(window.walmartGcGoogleIdentityLoaded),
     connectedEmail: userDisconnectedGoogle ? "" : String(oauth.connectedEmail || ""),
     connectedName: userDisconnectedGoogle ? "" : String(oauth.connectedName || ""),
     connectedAt: userDisconnectedGoogle ? "" : String(oauth.connectedAt || ""),
@@ -1207,10 +1201,6 @@ function isGoogleOAuthConfigured() {
   return Boolean(WORKER_BASE_URL);
 }
 
-function hasGoogleIdentityScript() {
-  return Boolean(window.google?.accounts?.oauth2);
-}
-
 function hasWorkerGoogleSession() {
   return googleOAuthState.status === googleOAuthStatuses.connected;
 }
@@ -1219,7 +1209,6 @@ function setGoogleOAuthState(nextState) {
   googleOAuthState = {
     ...googleOAuthState,
     ...nextState,
-    scriptLoaded: hasGoogleIdentityScript() || Boolean(window.walmartGcGoogleIdentityLoaded),
   };
   saveAppState();
   renderGoogleOAuthState();
