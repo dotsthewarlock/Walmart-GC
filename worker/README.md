@@ -19,7 +19,7 @@ Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Shee
 - `GET /` — health response.
 - `GET /auth/init` — creates OAuth state plus PKCE verifier in `OAUTH_STATE` for 5 minutes and redirects to Google with `drive.file`.
 - `GET /auth/callback` — validates state, exchanges the authorization code, stores the refresh token server-side in `SESSIONS`, sets the `walmart_gc_session` cookie, and redirects to the custom-domain app root with `?auth=connected`.
-- `GET /api/status` — returns `{ "authenticated": false }` without a valid cookie/session, or authenticated account/session metadata without tokens.
+- `GET /api/status` — returns `{ "authenticated": false }` without a valid cookie/session, validates or refreshes the server-side Google access token when needed, renews the session cookie for valid sessions, and returns authenticated account/session metadata without tokens.
 - `POST /api/logout` — deletes the KV session when present, clears the cookie, and returns `{ "ok": true }`.
 - `POST /api/sheet/ensure` — finds or creates `Walmart-GC Data`, initializes `Cards` and `_META`, and returns Sheet metadata.
 - `GET /api/cards/load` — loads approved-schema cards plus `_META.sheetVersion`.
@@ -80,7 +80,7 @@ Successful OAuth callback sets:
 walmart_gc_session=<sessionId>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000
 ```
 
-The cookie contains only an opaque random session ID. The KV key is HMAC-derived with `SESSION_SECRET`; refresh tokens remain server-side only and are never returned by API responses. The frontend must not store tokens or session IDs.
+The cookie contains only an opaque random session ID. The KV key is HMAC-derived with `SESSION_SECRET`; refresh tokens remain server-side only and are never returned by API responses. `/api/status` revalidates the stored session and renews the cookie for valid sessions so refreshes and browser restarts remain durable while the session is valid. The frontend must not store tokens or session IDs.
 
 ## CORS Contract
 

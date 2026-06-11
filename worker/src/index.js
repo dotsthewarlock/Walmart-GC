@@ -26,7 +26,8 @@ const CARD_HEADERS = [
   "used",
   "notes",
 ];
-const FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
+const DEFAULT_FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
+const DEFAULT_REDIRECT_URI = "https://walmart-gc-oauth.dotsthewarlock.com/auth/callback";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
 
 export default {
@@ -43,7 +44,7 @@ export default {
       }
 
       if (request.method === "GET" && url.pathname === "/auth/init") {
-        return handleAuthInit(env);
+        return handleAuthInit(request, env);
       }
 
       if (request.method === "GET" && url.pathname === "/auth/callback") {
@@ -80,22 +81,27 @@ export default {
   },
 };
 
-async function handleAuthInit(env) {
+async function handleAuthInit(request, env) {
   assertOAuthConfig(env);
 
+  const existingSession = await getOptionalSession(request, env);
   const state = randomBase64Url(32);
   const verifier = randomBase64Url(64);
   const challenge = await sha256Base64Url(verifier);
 
   await env.OAUTH_STATE.put(
     oauthStateKey(state),
-    JSON.stringify({ verifier, createdAt: new Date().toISOString() }),
+    JSON.stringify({
+      verifier,
+      createdAt: new Date().toISOString(),
+      existingSessionKey: existingSession?.key || "",
+    }),
     { expirationTtl: OAUTH_STATE_TTL_SECONDS },
   );
 
   const authUrl = new URL(GOOGLE_AUTH_URL);
   authUrl.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
-  authUrl.searchParams.set("redirect_uri", env.REDIRECT_URI);
+  authUrl.searchParams.set("redirect_uri", getRedirectUri(env));
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
@@ -140,7 +146,7 @@ async function handleAuthCallback(request, env) {
       code,
       code_verifier: storedState.verifier,
       grant_type: "authorization_code",
-      redirect_uri: env.REDIRECT_URI,
+      redirect_uri: getRedirectUri(env),
     }),
   });
 
@@ -149,7 +155,9 @@ async function handleAuthCallback(request, env) {
     return textResponse("OAuth token exchange failed.", 502);
   }
 
-  if (!tokenPayload.refresh_token) {
+  const existingSession = await loadSessionByKey(env, storedState.existingSessionKey);
+  const refreshToken = tokenPayload.refresh_token || existingSession?.refreshToken || "";
+  if (!refreshToken) {
     return textResponse("OAuth did not return a refresh token. Revoke prior consent for this app, then connect again.", 400);
   }
 
@@ -162,24 +170,28 @@ async function handleAuthCallback(request, env) {
   const session = {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    email: "",
-    name: "",
-    sheetId: "",
-    sheetName: DEFAULT_SHEET_NAME,
+    email: existingSession?.email || "",
+    name: existingSession?.name || "",
+    sheetId: existingSession?.sheetId || "",
+    sheetName: existingSession?.sheetName || DEFAULT_SHEET_NAME,
     scope: OAUTH_SCOPE,
     accessToken: tokenPayload.access_token || "",
-    refreshToken: tokenPayload.refresh_token,
+    refreshToken,
     tokenType: tokenPayload.token_type || "Bearer",
     expiresAt: tokenPayload.expires_in
       ? new Date(Date.now() + Number(tokenPayload.expires_in) * 1000).toISOString()
       : "",
   };
 
-  await env.SESSIONS.put(await sessionKey(env, sessionId), JSON.stringify(session), {
+  const newSessionKey = await sessionKey(env, sessionId);
+  await env.SESSIONS.put(newSessionKey, JSON.stringify(session), {
     expirationTtl: SESSION_TTL_SECONDS,
   });
+  if (storedState.existingSessionKey && storedState.existingSessionKey !== newSessionKey) {
+    await env.SESSIONS.delete(storedState.existingSessionKey);
+  }
 
-  const redirectTo = `${FRONTEND_ORIGIN}${FRONTEND_CONNECTED_PATH}`;
+  const redirectTo = `${getFrontendOrigin(env)}${FRONTEND_CONNECTED_PATH}`;
   return new Response(null, {
     status: 302,
     headers: {
@@ -269,26 +281,38 @@ async function handleCardsSave(request, env) {
 }
 
 async function handleStatus(request, env) {
-  const sessionId = readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
-  if (!sessionId) {
+  const sessionContext = await getOptionalSession(request, env);
+  if (!sessionContext) {
     return jsonResponse({ authenticated: false });
   }
 
-  assertSessionConfig(env);
-  const session = await env.SESSIONS.get(await sessionKey(env, sessionId), { type: "json" });
-  if (!session?.refreshToken) {
-    return jsonResponse({ authenticated: false });
+  try {
+    await getGoogleAccessToken(env, sessionContext);
+  } catch (error) {
+    if (!(error instanceof HttpError) || error.status !== 401) {
+      throw error;
+    }
+    await env.SESSIONS.delete(sessionContext.key);
+    return jsonResponse(
+      { authenticated: false },
+      200,
+      { "Set-Cookie": buildSessionCookie("", 0) },
+    );
   }
 
-  return jsonResponse({
-    authenticated: true,
-    email: session.email || "",
-    name: session.name || "",
-    sheetId: session.sheetId || "",
-    sheetName: session.sheetName || DEFAULT_SHEET_NAME,
-    sheetVersion: session.sheetVersion || "",
-    scope: session.scope || OAUTH_SCOPE,
-  });
+  return jsonResponse(
+    {
+      authenticated: true,
+      email: sessionContext.session.email || "",
+      name: sessionContext.session.name || "",
+      sheetId: sessionContext.session.sheetId || "",
+      sheetName: sessionContext.session.sheetName || DEFAULT_SHEET_NAME,
+      sheetVersion: sessionContext.session.sheetVersion || "",
+      scope: sessionContext.session.scope || OAUTH_SCOPE,
+    },
+    200,
+    { "Set-Cookie": buildSessionCookie(sessionContext.sessionId, SESSION_TTL_SECONDS) },
+  );
 }
 
 async function handleLogout(request, env) {
@@ -314,19 +338,35 @@ class HttpError extends Error {
 }
 
 async function requireSession(request, env) {
+  const sessionContext = await getOptionalSession(request, env);
+  if (!sessionContext) {
+    throw new HttpError(401, { ok: false, error: "Not authenticated" });
+  }
+  return sessionContext;
+}
+
+async function getOptionalSession(request, env) {
   const sessionId = readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
   if (!sessionId) {
-    throw new HttpError(401, { ok: false, error: "Not authenticated" });
+    return null;
   }
 
   assertSessionConfig(env);
   const key = await sessionKey(env, sessionId);
-  const session = await env.SESSIONS.get(key, { type: "json" });
+  const session = await loadSessionByKey(env, key);
   if (!session?.refreshToken) {
-    throw new HttpError(401, { ok: false, error: "Not authenticated" });
+    return null;
   }
 
   return { sessionId, key, session };
+}
+
+async function loadSessionByKey(env, key) {
+  const safeKey = String(key || "").trim();
+  if (!safeKey || !safeKey.startsWith("session:")) {
+    return null;
+  }
+  return env.SESSIONS.get(safeKey, { type: "json" });
 }
 
 async function saveSession(env, context, patch = {}) {
@@ -669,7 +709,7 @@ function handleOptions(request, env) {
 
 function withCors(request, response, env) {
   const origin = request.headers.get("Origin") || "";
-  if (origin !== FRONTEND_ORIGIN) {
+  if (origin !== getFrontendOrigin(env)) {
     return response;
   }
 
@@ -711,7 +751,7 @@ function textResponse(body, status = 200, headers = {}) {
 
 function assertOAuthConfig(env) {
   assertSessionConfig(env);
-  const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "REDIRECT_URI", "OAUTH_STATE"];
+  const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "OAUTH_STATE"];
   const missing = required.filter((name) => !env[name]);
   if (missing.length) {
     throw new Error(`Missing required OAuth configuration: ${missing.join(", ")}`);
@@ -724,6 +764,15 @@ function assertSessionConfig(env) {
   if (missing.length) {
     throw new Error(`Missing required session configuration: ${missing.join(", ")}`);
   }
+}
+
+
+function getFrontendOrigin(env) {
+  return String(env.FRONTEND_ORIGIN || DEFAULT_FRONTEND_ORIGIN).replace(/\/$/, "");
+}
+
+function getRedirectUri(env) {
+  return String(env.REDIRECT_URI || DEFAULT_REDIRECT_URI);
 }
 
 function oauthStateKey(state) {
