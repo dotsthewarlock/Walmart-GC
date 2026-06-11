@@ -18,6 +18,18 @@ https://walmart-gc-oauth.dotsthewarlock.com
 
 Do not use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
 
+
+## Worker KV Binding Problems
+
+The Worker must have Cloudflare KV bindings named exactly:
+
+- `SESSIONS`
+- `OAUTH_STATE`
+
+If deploying from `worker/wrangler.toml`, replace the checked-in placeholder IDs with real KV namespace IDs for the target Cloudflare account, or configure equivalent bindings through the Cloudflare dashboard/deployment pipeline. Placeholder values such as `REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID` and `REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID` are documentation placeholders only; they are not valid deployment IDs.
+
+Symptoms of missing or placeholder KV bindings can include OAuth state failures, sessions that do not persist, `/api/status` returning disconnected after callback, or logout/status requests failing at the Worker.
+
 ## Connect Google Does Not Start OAuth
 
 Check:
@@ -64,6 +76,7 @@ Check:
 - Worker callback set `walmart_gc_session`.
 - Cookie is HttpOnly, Secure, SameSite=Lax, host-only, and has `Path=/`.
 - Cookie does not set `Domain=`.
+- If the KV session is missing, expired, invalid, or otherwise unusable, `/api/status` should return disconnected and clear the stale cookie with the same host-only cookie attributes.
 - Frontend calls `/api/status` with `credentials: "include"`.
 - Credentialed CORS allows exactly `https://walmart-gc.dotsthewarlock.com`.
 - Browser settings are not blocking required cookies.

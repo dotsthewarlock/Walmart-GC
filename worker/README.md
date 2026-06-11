@@ -19,7 +19,7 @@ Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Shee
 - `GET /` — health response.
 - `GET /auth/init` — creates OAuth state plus PKCE verifier in `OAUTH_STATE` for 5 minutes and redirects to Google with `drive.file`.
 - `GET /auth/callback` — validates state, exchanges the authorization code, stores the refresh token server-side in `SESSIONS`, sets the `walmart_gc_session` cookie, and redirects to the custom-domain app root with `?auth=connected`.
-- `GET /api/status` — returns `{ "authenticated": false }` without a valid cookie/session, validates or refreshes the server-side Google access token when needed, renews the session cookie for valid sessions, and returns authenticated account/session metadata without tokens.
+- `GET /api/status` — returns `{ "authenticated": false }` without a valid cookie/session, clears a stale session cookie when the KV session is missing or unusable, validates or refreshes the server-side Google access token when needed, renews the session cookie for valid sessions, and returns authenticated account/session metadata without tokens.
 - `POST /api/logout` — deletes the KV session when present, clears the cookie, and returns `{ "ok": true }`.
 - `POST /api/sheet/ensure` — finds or creates `Walmart-GC Data`, initializes `Cards` and `_META`, and returns Sheet metadata.
 - `GET /api/cards/load` — loads approved-schema cards plus `_META.sheetVersion`.
@@ -34,8 +34,10 @@ Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Shee
 
 KV bindings:
 
-- `SESSIONS`
-- `OAUTH_STATE`
+- `SESSIONS` — stores durable server-side sessions and refresh tokens.
+- `OAUTH_STATE` — stores short-lived OAuth state and PKCE verifier records.
+
+`worker/wrangler.toml` keeps placeholder KV namespace IDs on purpose because real namespace IDs are Cloudflare account/environment configuration, not application code. Before deploying with Wrangler, replace `REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID` and `REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID` with the real namespace IDs for the target Cloudflare account, or ensure the Cloudflare dashboard/deployment pipeline supplies equivalent bindings with these exact names. Deploying the checked-in placeholders unchanged is a configuration error.
 
 Secrets:
 
@@ -80,7 +82,7 @@ Successful OAuth callback sets:
 walmart_gc_session=<sessionId>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000
 ```
 
-The cookie contains only an opaque random session ID. The KV key is HMAC-derived with `SESSION_SECRET`; refresh tokens remain server-side only and are never returned by API responses. `/api/status` revalidates the stored session and renews the cookie for valid sessions so refreshes and browser restarts remain durable while the session is valid. The frontend must not store tokens or session IDs.
+The cookie contains only an opaque random session ID. The KV key is HMAC-derived with `SESSION_SECRET`; refresh tokens remain server-side only and are never returned by API responses. `/api/status` clears the cookie when a browser presents a stale session whose KV record is missing, expired, invalid, or otherwise unusable, and renews the cookie for valid sessions so refreshes and browser restarts remain durable while the session is valid. The frontend must not store tokens or session IDs.
 
 ## CORS Contract
 

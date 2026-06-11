@@ -10,6 +10,10 @@ compatibility_date = "2026-06-11"
 FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com"
 REDIRECT_URI = "https://walmart-gc-oauth.dotsthewarlock.com/auth/callback"
 
+# Placeholder KV IDs are intentional in source control. Do not deploy this file
+# unchanged with wrangler: replace each id with the real Cloudflare KV namespace
+# id for the target account/environment, or configure equivalent bindings in the
+# Cloudflare dashboard/deployment pipeline before publishing the Worker.
 [[kv_namespaces]]
 binding = "SESSIONS"
 id = "REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID"

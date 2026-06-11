@@ -281,9 +281,14 @@ async function handleCardsSave(request, env) {
 }
 
 async function handleStatus(request, env) {
+  const sessionCookie = readSessionCookie(request);
   const sessionContext = await getOptionalSession(request, env);
   if (!sessionContext) {
-    return jsonResponse({ authenticated: false });
+    return jsonResponse(
+      { authenticated: false },
+      200,
+      sessionCookie ? { "Set-Cookie": buildSessionCookie("", 0) } : {},
+    );
   }
 
   try {
@@ -316,7 +321,7 @@ async function handleStatus(request, env) {
 }
 
 async function handleLogout(request, env) {
-  const sessionId = readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
+  const sessionId = readSessionCookie(request);
   if (sessionId) {
     assertSessionConfig(env);
     await env.SESSIONS.delete(await sessionKey(env, sessionId));
@@ -346,7 +351,7 @@ async function requireSession(request, env) {
 }
 
 async function getOptionalSession(request, env) {
-  const sessionId = readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
+  const sessionId = readSessionCookie(request);
   if (!sessionId) {
     return null;
   }
@@ -361,12 +366,24 @@ async function getOptionalSession(request, env) {
   return { sessionId, key, session };
 }
 
+function readSessionCookie(request) {
+  return readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
+}
+
 async function loadSessionByKey(env, key) {
   const safeKey = String(key || "").trim();
   if (!safeKey || !safeKey.startsWith("session:")) {
     return null;
   }
-  return env.SESSIONS.get(safeKey, { type: "json" });
+
+  try {
+    return await env.SESSIONS.get(safeKey, { type: "json" });
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 async function saveSession(env, context, patch = {}) {
