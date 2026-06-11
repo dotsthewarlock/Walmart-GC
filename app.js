@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.14 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.15 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.14";
+const DEBUG_VERSION_JS = "1.01.15";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -1246,7 +1246,7 @@ function getDirectSheetsStatusClass() {
 }
 
 function hasGoogleFileAccessInMemory() {
-  return false;
+  return hasWorkerGoogleSession();
 }
 
 function getDirectSheetsDisplayUrl() {
@@ -1273,16 +1273,14 @@ function renderDirectSheetsState() {
   if (openDirectSheetButton) {
     openDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
   }
-  loadDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
-  syncDirectSheetButton.disabled = isBusy || !directSheetsState.spreadsheetId;
+  loadDirectSheetButton.disabled = isBusy || !hasWorkerGoogleSession();
+  syncDirectSheetButton.disabled = isBusy || !hasWorkerGoogleSession();
 
   const details = [
-    renderDiagnosticRow("Worker session backend", WORKER_BASE_URL),
-    renderDiagnosticRow("Google connection", googleOAuthState.status),
+    renderDiagnosticRow("Worker session", hasWorkerGoogleSession() ? "Connected" : "Disconnected"),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
+    renderDiagnosticRow("Sheet proxy", directSheetsState.status === directSheetsStatuses.error ? "Error" : (directSheetsState.spreadsheetId ? "Ready" : "Not ready")),
     renderDiagnosticRow("Frontend token storage", "None"),
-    renderDiagnosticRow("Sheet sync proxy", "Not enabled in this build"),
     renderDiagnosticRow("Active sheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
     renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
     renderDiagnosticRow("Active sheet name", valueOrFallback(directSheetsState.spreadsheetName)),
@@ -1348,7 +1346,7 @@ function renderGoogleOAuthState() {
     renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
     renderDiagnosticRow("Frontend token storage", "None"),
     renderDiagnosticRow("Session ID storage", "Cookie only"),
-    renderDiagnosticRow("Sheet sync proxy", "Not enabled in this build"),
+    renderDiagnosticRow("Sheet proxy", directSheetsState.spreadsheetId ? "Ready" : "Not ready"),
     renderDiagnosticRow("Last connection error", valueOrFallback(googleOAuthState.lastErrorMessage)),
   ];
 
@@ -1380,10 +1378,15 @@ async function fetchWorkerJson(path, options = {}) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = typeof payload.message === "string" && payload.message.trim()
-      ? payload.message.trim()
-      : `Worker request failed (${response.status}).`;
-    throw new Error(message);
+    const message = typeof payload.error === "string" && payload.error.trim()
+      ? payload.error.trim()
+      : (typeof payload.message === "string" && payload.message.trim()
+        ? payload.message.trim()
+        : `Worker request failed (${response.status}).`);
+    const error = new Error(message);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
 
   return payload;
@@ -1421,7 +1424,8 @@ async function refreshWorkerSessionStatus(options = {}) {
           spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${returnedSheetId}/edit`,
           spreadsheetName: String(status.sheetName || directSheetsState.spreadsheetName || walmartGcDataSheetName),
           status: directSheetsStatuses.ready,
-          message: "Saved Sheet metadata restored from the durable Google session. Sheet sync proxy is not enabled in this build yet.",
+          remoteSheetVersion: String(status.sheetVersion || directSheetsState.remoteSheetVersion || ""),
+          message: "Saved Sheet metadata restored from the durable Google session.",
           lastErrorMessage: "",
         });
       }
@@ -1528,8 +1532,7 @@ function getSyncStatusLabel() {
 
 function canAutoSyncToSheets() {
   return Boolean(
-    isDirectSheetsConfigured()
-      && hasGoogleFileAccessInMemory()
+    hasWorkerGoogleSession()
       && syncState.lastKnownSheetVersion
       && syncState.status !== syncStatuses.conflict,
   );
@@ -1553,8 +1556,8 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
     const message = options.noAutoSyncMessage
       || (isDirectSheetsConfigured()
         ? (hasWorkerGoogleSession()
-          ? "Saved locally. Durable Google session is connected. Sheet sync proxy is not enabled in this build yet."
-          : "Saved locally. Connect Google to enable durable sync before syncing.")
+          ? "Saved locally. Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version."
+          : "Saved locally. Connect Google to sync.")
         : "Saved locally. Connect Google to enable durable sync before syncing.");
     setSyncState({
       status: syncState.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
@@ -1586,8 +1589,8 @@ function getRecoveryUnavailableMessage() {
 
   if (!hasGoogleFileAccessInMemory()) {
     return hasWorkerGoogleSession()
-      ? "Durable Google session is connected. Sheet sync proxy is not enabled in this build yet."
-      : "Connect Google to enable durable sync before using Google Sheets recovery actions.";
+      ? "Load or initialize Walmart-GC Data before using Google Sheets recovery actions."
+      : "Connect Google to sync.";
   }
 
   return "";
@@ -1747,8 +1750,8 @@ async function getGoogleAccessTokenForDriveFile() {
   }
 
   throw makeDirectSheetsError(hasWorkerGoogleSession()
-    ? "Durable Google session is connected. Sheet sync proxy is not enabled in this build yet."
-    : "Connect Google to enable durable sync before using sync.");
+    ? "Worker Sheet proxy is ready; retry the sync action."
+    : "Connect Google to sync.");
 }
 
 async function sheetsFetch(path, options = {}) {
@@ -1881,22 +1884,38 @@ function setActiveDirectSheet(file) {
 }
 
 async function ensureWalmartGcDataSheet() {
+  if (!hasWorkerGoogleSession()) {
+    throw makeDirectSheetsError("Connect Google to sync.");
+  }
+
   setDirectSheetsState({
     status: directSheetsStatuses.checking,
-    message: `Finding ${walmartGcDataSheetName} in Google Drive...`,
+    message: `Asking Worker to find or create ${walmartGcDataSheetName}...`,
     lastErrorMessage: "",
   });
-  let file = await findWalmartGcDataSheet();
-  if (!file) {
-    setDirectSheetsState({
-      status: directSheetsStatuses.creating,
-      message: `Creating ${walmartGcDataSheetName} in Google Drive...`,
-      lastErrorMessage: "",
-    });
-    file = await createWalmartGcDataSheet();
+
+  const sheet = await fetchWorkerJson("/api/sheet/ensure", { method: "POST" });
+  const spreadsheetId = String(sheet.sheetId || "").trim();
+  if (!sheet.ok || !spreadsheetId) {
+    throw makeDirectSheetsError("Worker did not return an active Walmart-GC Data Sheet.");
   }
-  setActiveDirectSheet(file);
-  return file;
+
+  setDirectSheetsState({
+    spreadsheetId,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+    spreadsheetName: String(sheet.sheetName || walmartGcDataSheetName),
+    status: directSheetsStatuses.ready,
+    cardsSheetInitialized: "yes",
+    remoteSheetVersion: String(sheet.sheetVersion || ""),
+    message: "Worker Sheet proxy is ready.",
+    lastErrorMessage: "",
+  });
+  return {
+    id: spreadsheetId,
+    name: String(sheet.sheetName || walmartGcDataSheetName),
+    sheetVersion: String(sheet.sheetVersion || ""),
+    lastUpdated: String(sheet.lastUpdated || ""),
+  };
 }
 
 function hasMeaningfulLocalCards() {
@@ -1912,34 +1931,28 @@ function hasMeaningfulLocalCards() {
 async function connectGoogleAndPrepareSheet() {
   try {
     const file = await ensureWalmartGcDataSheet();
-    const structure = await ensureCardsSheet();
-    let meta = await readSheetMeta();
-    if (!meta.sheetVersion) {
-      meta = await writeSheetMeta({ sheetVersion: generateRequestId() });
-    }
-    const headerRows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
-    if (!areHeadersValid(headerRows[0])) {
-      throw makeDirectSheetsError("The Cards tab headers do not match the approved schema. Local data was not changed.");
-    }
-    const rows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
-    const loadedCards = cardsFromSheetRows(rows);
+    const loadResult = await fetchWorkerJson("/api/cards/load");
+    const loadedCards = normalizeStoredCards(loadResult.cards || []);
     const localHasCards = hasMeaningfulLocalCards();
     const now = new Date().toISOString();
+    const sheetVersion = String(loadResult.sheetVersion || file.sheetVersion || "");
 
     if (loadedCards.length > 0 && localHasCards) {
       syncState = {
         ...syncState,
         status: syncStatuses.unsynced,
         lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: meta.sheetVersion,
+        lastKnownSheetVersion: sheetVersion,
         message: "Connected to Walmart-GC Data. Remote cards were found; press Load from Google Sheets to replace this local session, or Sync Now to save local cards after reviewing.",
         lastErrorMessage: "",
       };
       setDirectSheetsState({
-        spreadsheetName: structure.spreadsheetName || file.name || walmartGcDataSheetName,
+        spreadsheetId: String(loadResult.sheetId || file.id),
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${String(loadResult.sheetId || file.id)}/edit`,
+        spreadsheetName: String(loadResult.sheetName || file.name || walmartGcDataSheetName),
         status: directSheetsStatuses.ready,
         cardsSheetInitialized: "yes",
-        remoteSheetVersion: meta.sheetVersion,
+        remoteSheetVersion: sheetVersion,
         pendingUnsynced: true,
         message: "Connected. Remote cards exist, so Walmart-GC did not replace local cards automatically.",
         lastErrorMessage: "",
@@ -1952,15 +1965,17 @@ async function connectGoogleAndPrepareSheet() {
         ...syncState,
         status: syncStatuses.unsynced,
         lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: meta.sheetVersion,
+        lastKnownSheetVersion: sheetVersion,
         message: "Connected to an empty Walmart-GC Data Sheet. Local cards were kept in this browser; press Sync Now to copy them to Google Sheets.",
         lastErrorMessage: "",
       };
       setDirectSheetsState({
-        spreadsheetName: structure.spreadsheetName || file.name || walmartGcDataSheetName,
+        spreadsheetId: String(loadResult.sheetId || file.id),
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${String(loadResult.sheetId || file.id)}/edit`,
+        spreadsheetName: String(loadResult.sheetName || file.name || walmartGcDataSheetName),
         status: directSheetsStatuses.ready,
         cardsSheetInitialized: "yes",
-        remoteSheetVersion: meta.sheetVersion,
+        remoteSheetVersion: sheetVersion,
         pendingUnsynced: true,
         message: "Connected to an empty Sheet. Local cards were not uploaded automatically.",
         lastErrorMessage: "",
@@ -1977,18 +1992,20 @@ async function connectGoogleAndPrepareSheet() {
       status: syncStatuses.connected,
       lastSyncTimestamp: now,
       lastSyncAttemptTimestamp: now,
-      lastKnownSheetVersion: meta.sheetVersion,
+      lastKnownSheetVersion: sheetVersion,
       message: loadedCards.length
-        ? "Loaded cards from Walmart-GC Data. Completed actions will now sync directly."
+        ? "Loaded cards from Walmart-GC Data. Completed actions will now sync through the Worker."
         : "Connected to a blank Walmart-GC Data Sheet. Add or import cards when ready.",
       lastErrorMessage: "",
       pendingOperation: null,
     };
     setDirectSheetsState({
-      spreadsheetName: structure.spreadsheetName || file.name || walmartGcDataSheetName,
+      spreadsheetId: String(loadResult.sheetId || file.id),
+      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${String(loadResult.sheetId || file.id)}/edit`,
+      spreadsheetName: String(loadResult.sheetName || file.name || walmartGcDataSheetName),
       status: directSheetsStatuses.ready,
       cardsSheetInitialized: "yes",
-      remoteSheetVersion: meta.sheetVersion,
+      remoteSheetVersion: sheetVersion,
       lastSuccessfulSyncAt: now,
       pendingUnsynced: false,
       message: loadedCards.length
@@ -2005,7 +2022,7 @@ async function connectGoogleAndPrepareSheet() {
     const message = error instanceof Error ? error.message : "Google Sheet setup failed.";
     setDirectSheetsState({
       status: directSheetsStatuses.error,
-      message,
+      message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
     });
     setSyncState({
@@ -2241,50 +2258,31 @@ function cardsFromSheetRows(rows) {
 }
 
 async function initializeDirectSheetStructure() {
-  if (!directSheetsState.spreadsheetId) {
-    setDirectSheetsState({
-      status: directSheetsStatuses.notConfigured,
-      message: "Connect Google to create or locate Walmart-GC Data before initializing.",
-      lastErrorMessage: "No active Sheet ID configured.",
-    });
-    return;
-  }
-
   setDirectSheetsState({
     status: directSheetsStatuses.checking,
-    message: "Initializing Walmart-GC Data structure...",
+    message: "Initializing Walmart-GC Data structure through the Worker...",
     lastErrorMessage: "",
   });
 
   try {
-    const structure = await ensureCardsSheet();
-    let meta = await readSheetMeta();
-    if (!meta.sheetVersion) {
-      meta = await writeSheetMeta({ sheetVersion: generateRequestId() });
-    }
-    const existingRows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
-    const hasExistingCardRows = existingRows.some((row) => row.some((cell) => String(cell || "").trim()));
-
+    const sheet = await ensureWalmartGcDataSheet();
+    const now = new Date().toISOString();
     syncState = {
       ...syncState,
-      status: hasExistingCardRows ? syncStatuses.unsynced : syncStatuses.connected,
-      lastSyncAttemptTimestamp: new Date().toISOString(),
-      lastKnownSheetVersion: hasExistingCardRows ? "" : meta.sheetVersion,
-      message: hasExistingCardRows
-        ? "Walmart-GC Data initialized. Load from Google Sheets before syncing so existing Sheet rows are not overwritten."
-        : "Blank Walmart-GC Data Sheet initialized. Completed local actions can now sync.",
+      status: syncStatuses.connected,
+      lastSyncAttemptTimestamp: now,
+      lastKnownSheetVersion: sheet.sheetVersion,
+      message: "Walmart-GC Data initialized. Completed local actions can now sync through the Worker.",
       lastErrorMessage: "",
       pendingOperation: null,
     };
     setDirectSheetsState({
-      spreadsheetName: structure.spreadsheetName,
+      spreadsheetName: sheet.name,
       status: directSheetsStatuses.ready,
       cardsSheetInitialized: "yes",
-      remoteSheetVersion: meta.sheetVersion,
-      pendingUnsynced: hasExistingCardRows,
-      message: hasExistingCardRows
-        ? "Walmart-GC Data structure is ready and existing card rows were detected. Load from Google Sheets before syncing."
-        : "Walmart-GC Data initialized with Cards headers and metadata.",
+      remoteSheetVersion: sheet.sheetVersion,
+      pendingUnsynced: false,
+      message: "Walmart-GC Data initialized with Cards headers and metadata.",
       lastErrorMessage: "",
     });
   } catch (error) {
@@ -2292,7 +2290,7 @@ async function initializeDirectSheetStructure() {
     setDirectSheetsState({
       status: directSheetsStatuses.error,
       cardsSheetInitialized: "unknown",
-      message,
+      message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
     });
     setSyncState({ status: syncStatuses.unsynced, lastErrorMessage: message });
@@ -2300,38 +2298,21 @@ async function initializeDirectSheetStructure() {
 }
 
 async function loadCardsFromDirectSheets() {
-  if (!directSheetsState.spreadsheetId) {
-    setDirectSheetsState({
-      status: directSheetsStatuses.notConfigured,
-      message: "Connect Google to create or locate Walmart-GC Data before loading.",
-      lastErrorMessage: "No active Sheet ID configured.",
-    });
-    return;
-  }
-
   setDirectSheetsState({
     status: directSheetsStatuses.checking,
-    message: "Loading cards directly from Google Sheets...",
+    message: "Loading cards from Google Sheets through the Worker...",
     lastErrorMessage: "",
   });
   setSyncState({
     lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: "Loading cards directly from Google Sheets...",
+    message: "Loading cards from Google Sheets through the Worker...",
   });
 
   try {
-    const structure = await ensureCardsSheet();
-    let meta = await readSheetMeta();
-    if (!meta.sheetVersion) {
-      meta = await writeSheetMeta({ sheetVersion: generateRequestId() });
-    }
-    const headerRows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A1:J1`);
-    if (!areHeadersValid(headerRows[0])) {
-      throw makeDirectSheetsError("The Cards tab headers do not match the approved schema. Local data was not changed.");
-    }
-
-    const rows = await readSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A2:J`);
-    const loadedCards = cardsFromSheetRows(rows);
+    const result = await fetchWorkerJson("/api/cards/load");
+    const loadedCards = normalizeStoredCards(result.cards || []);
+    const now = new Date().toISOString();
+    const spreadsheetId = String(result.sheetId || "").trim();
     sampleGiftCards.splice(0, sampleGiftCards.length, ...loadedCards);
     loadedCardsFromStorage = true;
     selectedCardIndex = loadedCards.length > 0 ? 0 : -1;
@@ -2339,19 +2320,21 @@ async function loadCardsFromDirectSheets() {
     syncState = {
       ...syncState,
       status: syncStatuses.connected,
-      lastSyncTimestamp: new Date().toISOString(),
-      lastSyncAttemptTimestamp: new Date().toISOString(),
-      lastKnownSheetVersion: meta.sheetVersion,
-      message: "Loaded from Walmart-GC Data. Completed actions will now sync.",
+      lastSyncTimestamp: now,
+      lastSyncAttemptTimestamp: now,
+      lastKnownSheetVersion: String(result.sheetVersion || ""),
+      message: "Loaded from Walmart-GC Data. Completed actions will now sync through the Worker.",
       lastErrorMessage: "",
       pendingOperation: null,
     };
     setDirectSheetsState({
-      spreadsheetName: structure.spreadsheetName,
+      spreadsheetId,
+      spreadsheetUrl: spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : directSheetsState.spreadsheetUrl,
+      spreadsheetName: String(result.sheetName || walmartGcDataSheetName),
       status: directSheetsStatuses.ready,
       cardsSheetInitialized: "yes",
-      remoteSheetVersion: meta.sheetVersion,
-      lastSuccessfulSyncAt: new Date().toISOString(),
+      remoteSheetVersion: String(result.sheetVersion || ""),
+      lastSuccessfulSyncAt: now,
       pendingUnsynced: false,
       message: `Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data.`,
       lastErrorMessage: "",
@@ -2360,10 +2343,10 @@ async function loadCardsFromDirectSheets() {
     refreshRawCardData(`Loaded ${loadedCards.length} card${loadedCards.length === 1 ? "" : "s"} from Walmart-GC Data into this session.`);
     renderApp(selectedCardIndex);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Direct Google Sheets load failed.";
+    const message = error instanceof Error ? error.message : "Worker Google Sheets load failed.";
     setDirectSheetsState({
       status: directSheetsStatuses.error,
-      message,
+      message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
     });
     setSyncState({ status: syncStatuses.unsynced, lastErrorMessage: message });
@@ -2379,19 +2362,19 @@ async function detectDirectSheetsConflict(remoteVersion) {
 }
 
 async function syncCardsToDirectSheets(options = {}) {
-  if (!isDirectSheetsConfigured()) {
-    throw makeDirectSheetsError("Connect Google to create or locate Walmart-GC Data before syncing.");
+  if (!hasWorkerGoogleSession()) {
+    throw makeDirectSheetsError("Connect Google to sync.");
   }
 
   setDirectSheetsState({
     status: directSheetsStatuses.syncing,
     pendingUnsynced: true,
-    message: options.startMessage || "Syncing current local cards to Google Sheets...",
+    message: options.startMessage || "Syncing current local cards to Google Sheets through the Worker...",
     lastErrorMessage: "",
   });
   setSyncState({
     lastSyncAttemptTimestamp: new Date().toISOString(),
-    message: options.startMessage || "Syncing current local cards to Google Sheets...",
+    message: options.startMessage || "Syncing current local cards to Google Sheets through the Worker...",
     pendingOperation: options.pendingOperation || {
       action: "batchUpdate",
       payload: { cards: cloneStateValue(sampleGiftCards) },
@@ -2401,13 +2384,47 @@ async function syncCardsToDirectSheets(options = {}) {
   });
 
   try {
-    const structure = await ensureCardsSheet();
-    const remoteMeta = await readSheetMeta();
-    const remoteVersion = String(remoteMeta.sheetVersion || "").trim();
-    if (!options.force && await detectDirectSheetsConflict(remoteVersion)) {
+    const baseSheetVersion = options.force
+      ? String(directSheetsState.remoteSheetVersion || syncState.lastKnownSheetVersion || "")
+      : String(syncState.lastKnownSheetVersion || "");
+    const result = await fetchWorkerJson("/api/cards/save", {
+      method: "POST",
+      body: JSON.stringify({
+        cards: sampleGiftCards,
+        baseSheetVersion,
+      }),
+    });
+    const now = new Date().toISOString();
+    const spreadsheetId = String(result.sheetId || directSheetsState.spreadsheetId || "").trim();
+    syncState = {
+      ...syncState,
+      status: syncStatuses.connected,
+      lastSyncTimestamp: now,
+      lastSyncAttemptTimestamp: now,
+      lastKnownSheetVersion: String(result.sheetVersion || ""),
+      message: options.successMessage || "Sync succeeded. Current local cards were saved to Google Sheets.",
+      lastErrorMessage: "",
+      pendingOperation: null,
+    };
+    setDirectSheetsState({
+      spreadsheetId,
+      spreadsheetUrl: spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : directSheetsState.spreadsheetUrl,
+      spreadsheetName: String(result.sheetName || walmartGcDataSheetName),
+      status: directSheetsStatuses.ready,
+      cardsSheetInitialized: "yes",
+      remoteSheetVersion: String(result.sheetVersion || ""),
+      lastSuccessfulSyncAt: now,
+      pendingUnsynced: false,
+      message: options.successMessage || `Synced ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"} through the Worker Sheet proxy.`,
+      lastErrorMessage: "",
+    });
+    return true;
+  } catch (error) {
+    const payload = error?.payload || {};
+    if (payload.conflict) {
+      const remoteVersion = String(payload.remoteSheetVersion || "");
       const message = "Conflict detected: the Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
       setDirectSheetsState({
-        spreadsheetName: structure.spreadsheetName,
         status: directSheetsStatuses.conflict,
         cardsSheetInitialized: "yes",
         remoteSheetVersion: remoteVersion,
@@ -2423,38 +2440,11 @@ async function syncCardsToDirectSheets(options = {}) {
       return false;
     }
 
-    const rows = cardsToSheetRows(sampleGiftCards);
-    await clearSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A:J`);
-    await writeSheetValues(directSheetsState.spreadsheetId, `${directSheetsCardsTab}!A1:J${rows.length}`, rows);
-    const nextMeta = await writeSheetMeta({ sheetVersion: generateRequestId() });
-    const now = new Date().toISOString();
-    syncState = {
-      ...syncState,
-      status: syncStatuses.connected,
-      lastSyncTimestamp: now,
-      lastSyncAttemptTimestamp: now,
-      lastKnownSheetVersion: nextMeta.sheetVersion,
-      message: options.successMessage || "Sync succeeded. Current local cards were saved to Google Sheets.",
-      lastErrorMessage: "",
-      pendingOperation: null,
-    };
-    setDirectSheetsState({
-      spreadsheetName: structure.spreadsheetName,
-      status: directSheetsStatuses.ready,
-      cardsSheetInitialized: "yes",
-      remoteSheetVersion: nextMeta.sheetVersion,
-      lastSuccessfulSyncAt: now,
-      pendingUnsynced: false,
-      message: options.successMessage || `Synced ${sampleGiftCards.length} card${sampleGiftCards.length === 1 ? "" : "s"} directly to Google Sheets.`,
-      lastErrorMessage: "",
-    });
-    return true;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Direct Google Sheets sync failed.";
+    const message = error instanceof Error ? error.message : "Worker Google Sheets sync failed.";
     setDirectSheetsState({
       status: directSheetsStatuses.error,
       pendingUnsynced: true,
-      message,
+      message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
     });
     setSyncState({
@@ -2491,8 +2481,8 @@ async function useCurrentSessionToOverwriteDirectSheets() {
 async function retrySyncCurrentSession() {
   const pendingOperation = normalizePendingSyncOperation(syncState.pendingOperation);
 
-  if (!isDirectSheetsConfigured()) {
-    const message = "Sync failed: connect Google to create or locate Walmart-GC Data before retrying sync.";
+  if (!hasWorkerGoogleSession()) {
+    const message = "Sync failed: Connect Google to sync.";
     setSyncState({
       status: syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
