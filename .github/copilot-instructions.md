@@ -52,11 +52,11 @@ Walmart-GC Web App
 OAuth/session rules:
 
 - Use `https://walmart-gc.dotsthewarlock.com` for production, development, and testing.
-- Worker URL: `https://walmart-gc-oauth.dotsthewarlock.com`.
+- Worker routes: same-origin `/auth/*` and `/api/*` on `https://walmart-gc.dotsthewarlock.com`; legacy `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
 - OAuth scope remains `https://www.googleapis.com/auth/drive.file`.
 - Frontend auth state comes from `/api/status`.
 - Logout uses `/api/logout`.
-- Worker API calls use `credentials: "include"`.
+- Worker API calls use same-origin `/api/*` paths with `credentials: "include"`.
 - Frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
 - Do not use localhost OAuth, alternate OAuth origins, `/Walmart-GC/`, session IDs in query parameters, Google Identity Services browser token flow, direct browser Drive API calls, or direct browser Sheets API calls.
 

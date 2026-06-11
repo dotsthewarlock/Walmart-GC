@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.19 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.20 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.19";
+const DEBUG_VERSION_JS = "1.01.20";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -246,7 +246,7 @@ const defaultSyncState = {
   pendingOperation: null,
 };
 
-const WORKER_BASE_URL = "https://walmart-gc-oauth.dotsthewarlock.com";
+const WORKER_ROUTE_DISPLAY = "Same-origin /auth/* and /api/*";
 const walmartGcDataSheetName = "Walmart-GC Data";
 const googleOAuthStatuses = {
   disconnected: "Disconnected",
@@ -1220,7 +1220,7 @@ function getLastWorkerApiError() {
 }
 
 function isGoogleOAuthConfigured() {
-  return Boolean(WORKER_BASE_URL);
+  return true;
 }
 
 function hasWorkerGoogleSession() {
@@ -1355,13 +1355,13 @@ function renderGoogleOAuthState() {
   disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
 
   const details = [
-    renderDiagnosticRow("Worker backend", WORKER_BASE_URL),
+    renderDiagnosticRow("Worker backend", WORKER_ROUTE_DISPLAY),
     renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
     renderDiagnosticRow("Connection state", googleOAuthState.status),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
     renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
     renderDiagnosticRow("Frontend token storage", "None"),
-    renderDiagnosticRow("Session storage", "HttpOnly cookie on Worker domain"),
+    renderDiagnosticRow("Session storage", "HttpOnly same-origin cookie"),
     renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
     renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
   ];
@@ -1378,7 +1378,7 @@ function renderGoogleOAuthState() {
 }
 
 function getWorkerApiUrl(path) {
-  return `${WORKER_BASE_URL}${path}`;
+  return path;
 }
 
 async function fetchWorkerJson(path, options = {}) {

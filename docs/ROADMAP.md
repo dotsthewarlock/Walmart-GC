@@ -48,9 +48,10 @@ Frontend:
 
 Backend:
 
-- `https://walmart-gc-oauth.dotsthewarlock.com`
+- Same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and `https://walmart-gc.dotsthewarlock.com/api/*` routes
 - Cloudflare Worker
 - Workers KV
+- Legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only
 
 Do not introduce or recommend a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, new hosting, localhost OAuth, alternate OAuth origins, `/Walmart-GC/`, or session IDs in query parameters.
 
@@ -79,7 +80,7 @@ OAuth is fixed when:
 - Frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
 - Frontend auth state comes from `/api/status`.
 - Logout uses `/api/logout`.
-- Worker API calls use `credentials: "include"`.
+- Worker API calls use same-origin `/api/*` paths with `credentials: "include"`.
 - Session cookie is HttpOnly, Secure, SameSite=Lax, and host-only.
 - Google Sheet schema remains unchanged.
 - Worker owns sheet discovery, creation, initialization, metadata, and Google API access.

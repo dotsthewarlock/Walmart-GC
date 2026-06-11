@@ -38,7 +38,7 @@ Frontend:
 
 Backend:
 
-- Cloudflare Worker at `https://walmart-gc-oauth.dotsthewarlock.com`.
+- Cloudflare Worker on same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and `https://walmart-gc.dotsthewarlock.com/api/*` routes; `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
 - Workers KV for OAuth state and sessions.
 - Worker owns Google OAuth, refresh tokens, session cookie, sheet discovery, sheet creation, schema initialization, metadata, and Google API calls.
 
@@ -68,7 +68,7 @@ Authentication is Worker-managed Google OAuth.
 
 - Frontend auth state comes from `GET /api/status`.
 - Logout uses `POST /api/logout`.
-- Worker API calls must use `credentials: "include"`.
+- Worker API calls must use same-origin `/api/*` paths with `credentials: "include"`.
 - OAuth scope must remain `https://www.googleapis.com/auth/drive.file`.
 - The frontend must never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
 - The session model is an HttpOnly, Secure, SameSite=Lax, host-only cookie.
@@ -82,7 +82,21 @@ Use only this frontend origin for production, development, and testing:
 https://walmart-gc.dotsthewarlock.com
 ```
 
-Worker backend:
+Active Worker routing:
+
+```text
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
+```
+
+Required Cloudflare route rules:
+
+```text
+walmart-gc.dotsthewarlock.com/auth/*
+walmart-gc.dotsthewarlock.com/api/*
+```
+
+Legacy Worker subdomain fallback:
 
 ```text
 https://walmart-gc-oauth.dotsthewarlock.com
@@ -95,7 +109,7 @@ Authorized JavaScript origin:
 https://walmart-gc.dotsthewarlock.com
 
 Authorized redirect URI:
-https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+https://walmart-gc.dotsthewarlock.com/auth/callback
 ```
 
 Worker callback must return to:

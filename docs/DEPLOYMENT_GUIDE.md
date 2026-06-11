@@ -22,11 +22,14 @@ Frontend production and development/testing URL:
 https://walmart-gc.dotsthewarlock.com
 ```
 
-Backend Worker:
+Active Worker routing:
 
 ```text
-https://walmart-gc-oauth.dotsthewarlock.com
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
 ```
+
+GitHub Pages continues to serve static files at the custom-domain root. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain available only as a fallback/legacy deployment endpoint; normal frontend OAuth and API calls use same-origin `/auth/*` and `/api/*` paths.
 
 Normal users should only need to open the custom-domain app, select **Connect Google**, approve `drive.file` access, and return to Walmart-GC with a durable HttpOnly Worker session cookie.
 
@@ -47,10 +50,17 @@ Required Google Cloud settings:
 - OAuth status may be Testing while limited to configured test users.
 - Enabled APIs: Google Drive API and Google Sheets API.
 - Authorized JavaScript origin: `https://walmart-gc.dotsthewarlock.com`.
-- Authorized redirect URI: `https://walmart-gc-oauth.dotsthewarlock.com/auth/callback`.
+- Authorized redirect URI: `https://walmart-gc.dotsthewarlock.com/auth/callback`.
 - Scope used by the app: `https://www.googleapis.com/auth/drive.file`.
 
-The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and carries the session only in the `walmart_gc_session` HttpOnly cookie. Frontend Worker API calls use `credentials: "include"`.
+Cloudflare must route these same-origin paths to the Worker:
+
+```text
+walmart-gc.dotsthewarlock.com/auth/*
+walmart-gc.dotsthewarlock.com/api/*
+```
+
+The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and carries the session only in the `walmart_gc_session` HttpOnly cookie. Frontend Worker API calls use same-origin paths with `credentials: "include"`.
 
 Do not configure or recommend localhost OAuth, alternate development origins, `/Walmart-GC/` callback paths, session IDs in query parameters, OAuth Client ID inputs for normal users, Google Identity Services browser token flow, direct browser Drive API calls, or direct browser Sheets API calls.
 
@@ -66,7 +76,7 @@ The repository's `worker/wrangler.toml` intentionally contains placeholder KV na
 
 ## Worker Source of Truth
 
-The Worker code in this repository is the source of truth for `https://walmart-gc-oauth.dotsthewarlock.com`. Avoid Cloudflare Web IDE edits because they can drift from reviewable source control. Use Web IDE changes only for emergency fixes, then immediately backport the exact change into `worker/src/index.js`, run verification, and redeploy from the repository.
+The Worker code in this repository is the source of truth for the same-origin `/auth/*` and `/api/*` routes on `https://walmart-gc.dotsthewarlock.com`. The legacy Worker subdomain may remain available as fallback/legacy routing only. Avoid Cloudflare Web IDE edits because they can drift from reviewable source control. Use Web IDE changes only for emergency fixes, then immediately backport the exact change into `worker/src/index.js`, run verification, and redeploy from the repository.
 
 Worker contract checks:
 
@@ -75,7 +85,7 @@ Worker contract checks:
 - Session cookie is host-only: `walmart_gc_session=<id>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`.
 - The cookie does not set `Domain=`.
 - `/api/status` clears that same host-only cookie if the browser presents a stale session whose KV record is missing, expired, invalid, or otherwise unusable.
-- Credentialed CORS allows exactly `https://walmart-gc.dotsthewarlock.com`.
+- Same-origin `/auth/*` and `/api/*` routing is active; credentialed CORS remains only as a defensive fallback for legacy Worker-domain calls from `https://walmart-gc.dotsthewarlock.com`.
 - OAuth scope remains `https://www.googleapis.com/auth/drive.file`.
 
 ## Static Files
@@ -119,7 +129,7 @@ Also confirm:
 4. Select **Connect Google**.
 5. Confirm consent requests only `drive.file`.
 6. Confirm the return URL is `https://walmart-gc.dotsthewarlock.com/?auth=connected`, then cleans itself without any session query parameter.
-7. Confirm the Worker session cookie exists on `walmart-gc-oauth.dotsthewarlock.com` and refresh keeps the connection.
+7. Confirm the same-origin `walmart_gc_session` cookie exists for `walmart-gc.dotsthewarlock.com` and refresh keeps the connection.
 8. Restart the browser and confirm login persists while the session is valid.
 9. Confirm `/api/status` reports connected.
 10. Confirm logout clears the session.

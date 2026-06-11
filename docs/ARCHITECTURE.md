@@ -26,7 +26,11 @@ Deployment URLs:
 Frontend production/development/testing:
 https://walmart-gc.dotsthewarlock.com
 
-Backend Worker:
+Worker same-origin routes:
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
+
+Legacy Worker subdomain fallback:
 https://walmart-gc-oauth.dotsthewarlock.com
 ```
 
@@ -61,7 +65,7 @@ The Worker owns:
 - Google Sheets API calls.
 - Sheet discovery, creation, initialization, metadata, and sync conflict checks.
 
-Frontend Worker API calls use `credentials: "include"`.
+Cloudflare routes `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker while GitHub Pages serves the static app at the root. Frontend Worker API calls use same-origin `/auth/*` and `/api/*` paths with `credentials: "include"`; CORS is retained only as a defensive fallback for legacy Worker-domain calls.
 
 ### Google OAuth
 
@@ -78,7 +82,7 @@ Authorized JavaScript origin:
 https://walmart-gc.dotsthewarlock.com
 
 Authorized redirect URI:
-https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+https://walmart-gc.dotsthewarlock.com/auth/callback
 ```
 
 The Worker callback returns to:

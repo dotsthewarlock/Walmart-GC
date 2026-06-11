@@ -12,11 +12,14 @@ Use only the cloud app for production, development, and testing:
 https://walmart-gc.dotsthewarlock.com
 ```
 
-Backend Worker:
+Active Worker routing:
 
 ```text
-https://walmart-gc-oauth.dotsthewarlock.com
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
 ```
+
+Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
 
 No localhost OAuth or alternate OAuth origin is supported.
 
@@ -27,7 +30,7 @@ No localhost OAuth or alternate OAuth origin is supported.
 3. Select **Connect Google**.
 4. Approve only Google Drive file access (`https://www.googleapis.com/auth/drive.file`).
 5. The Worker sets the HttpOnly session cookie and returns to `https://walmart-gc.dotsthewarlock.com/?auth=connected`.
-6. Frontend auth state comes from `/api/status`; frontend Worker API calls use `credentials: "include"`.
+6. Frontend auth state comes from same-origin `/api/status`; frontend Worker API calls use same-origin `/api/*` paths with `credentials: "include"`.
 7. Select **Ensure Sheet** or **Load from Google Sheets**. The Worker searches Drive for an app-accessible spreadsheet named:
 
    ```text

@@ -22,11 +22,14 @@ Use only the cloud app for production, development, and testing:
 https://walmart-gc.dotsthewarlock.com
 ```
 
-Backend Worker:
+Active Worker routing:
 
 ```text
-https://walmart-gc-oauth.dotsthewarlock.com
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
 ```
+
+Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` is fallback/legacy only.
 
 No localhost OAuth, alternate OAuth origin, `/Walmart-GC/` callback path, or session ID query parameter is supported.
 
@@ -36,7 +39,7 @@ Record:
 | --- | --- |
 | Browser/device |  |
 | Walmart-GC URL | https://walmart-gc.dotsthewarlock.com |
-| Worker URL | https://walmart-gc-oauth.dotsthewarlock.com |
+| Worker routing | Same-origin `/auth/*` and `/api/*` on https://walmart-gc.dotsthewarlock.com |
 | Frontend token/session storage absent? |  |
 | Active Sheet name/ID |  |
 | Starting card count |  |
@@ -58,18 +61,18 @@ Record:
 OAuth is fixed when every item in this section passes:
 
 - [ ] Select **Connect Google**.
-- [ ] OAuth starts through the Worker.
+- [ ] OAuth starts through same-origin `/auth/init`.
 - [ ] Consent requests only `https://www.googleapis.com/auth/drive.file`.
 - [ ] Callback succeeds.
 - [ ] Callback returns to `https://walmart-gc.dotsthewarlock.com/?auth=connected`.
 - [ ] The URL cleans itself without any session query parameter.
 - [ ] Worker sets an HttpOnly, Secure, SameSite=Lax, host-only session cookie.
-- [ ] `/api/status` reports connected.
+- [ ] Same-origin `/api/status` reports connected.
 - [ ] Refresh preserves login.
 - [ ] Browser restart preserves login while the session is valid.
-- [ ] Logout uses `/api/logout` and clears the session.
+- [ ] Logout uses same-origin `/api/logout` and clears the session.
 - [ ] Reconnect works.
-- [ ] Frontend Worker API calls use credentialed requests.
+- [ ] Frontend Worker API calls use same-origin `/api/*` paths with credentialed requests.
 - [ ] Frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
 
 ## Google Account and Sheet Lifecycle
