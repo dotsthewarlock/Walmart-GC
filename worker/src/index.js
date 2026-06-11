@@ -6,6 +6,26 @@ const SESSION_COOKIE_ATTRIBUTES = "HttpOnly; Secure; SameSite=Lax; Path=/";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const OAUTH_STATE_TTL_SECONDS = 60 * 5;
 const DEFAULT_SHEET_NAME = "Walmart-GC Data";
+const GOOGLE_DRIVE_API = "https://www.googleapis.com/drive/v3";
+const GOOGLE_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
+const GOOGLE_SPREADSHEET_MIME_TYPE = "application/vnd.google-apps.spreadsheet";
+const CARDS_TAB = "Cards";
+const META_TAB = "_META";
+const DEFAULT_TAB = "Sheet1";
+const APP_NAME = "Walmart-GC";
+const SCHEMA_VERSION = "1";
+const CARD_HEADERS = [
+  "cardNumber",
+  "pin",
+  "merchant",
+  "startingBalance",
+  "currentBalance",
+  "dateAdded",
+  "dateUpdated",
+  "dateUsed",
+  "used",
+  "notes",
+];
 const FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
 
@@ -38,9 +58,24 @@ export default {
         return withCors(request, await handleLogout(request, env), env);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/sheet/ensure") {
+        return withCors(request, await handleSheetEnsure(request, env), env);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/cards/load") {
+        return withCors(request, await handleCardsLoad(request, env), env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/cards/save") {
+        return withCors(request, await handleCardsSave(request, env), env);
+      }
+
       return withCors(request, jsonResponse({ error: "not_found" }, 404), env);
     } catch (error) {
-      return withCors(request, jsonResponse({ error: "server_error", message: safeErrorMessage(error) }, 500), env);
+      if (error instanceof HttpError) {
+        return withCors(request, jsonResponse(error.body, error.status), env);
+      }
+      return withCors(request, jsonResponse({ ok: false, error: "server_error", message: safeErrorMessage(error) }, 500), env);
     }
   },
 };
@@ -155,6 +190,84 @@ async function handleAuthCallback(request, env) {
   });
 }
 
+async function handleSheetEnsure(request, env) {
+  const sessionContext = await requireSession(request, env);
+  const token = await getGoogleAccessToken(env, sessionContext);
+  const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
+  await saveSession(env, sessionContext, sheet.sessionPatch);
+
+  return jsonResponse({
+    ok: true,
+    sheetId: sheet.sheetId,
+    sheetName: sheet.sheetName,
+    sheetVersion: sheet.sheetVersion,
+    lastUpdated: sheet.lastUpdated,
+  });
+}
+
+async function handleCardsLoad(request, env) {
+  const sessionContext = await requireSession(request, env);
+  const token = await getGoogleAccessToken(env, sessionContext);
+  const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
+  await saveSession(env, sessionContext, sheet.sessionPatch);
+
+  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A1:J1`);
+  if (!areHeadersValid(headerRows[0])) {
+    throw new HttpError(409, { ok: false, error: "Cards headers do not match the approved schema." });
+  }
+
+  const rows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:J`);
+  const cards = cardsFromSheetRows(rows);
+  const meta = await readSheetMeta(token, sheet.sheetId);
+
+  return jsonResponse({
+    ok: true,
+    cards,
+    sheetId: sheet.sheetId,
+    sheetName: sheet.sheetName,
+    sheetVersion: meta.sheetVersion || sheet.sheetVersion,
+    lastUpdated: meta.lastUpdated || sheet.lastUpdated,
+  });
+}
+
+async function handleCardsSave(request, env) {
+  const sessionContext = await requireSession(request, env);
+  const body = await request.json().catch(() => null);
+  if (!body || !Array.isArray(body.cards)) {
+    throw new HttpError(400, { ok: false, error: "Expected cards array." });
+  }
+
+  const cards = validateCards(body.cards);
+  const baseSheetVersion = String(body.baseSheetVersion || "").trim();
+  const token = await getGoogleAccessToken(env, sessionContext);
+  const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
+  await saveSession(env, sessionContext, sheet.sessionPatch);
+
+  const remoteMeta = await readSheetMeta(token, sheet.sheetId);
+  const remoteSheetVersion = String(remoteMeta.sheetVersion || sheet.sheetVersion || "").trim();
+  if (remoteSheetVersion !== baseSheetVersion) {
+    return jsonResponse({ ok: false, conflict: true, remoteSheetVersion }, 409);
+  }
+
+  const rows = cardsToSheetRows(cards);
+  await clearSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A:J`);
+  await writeSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A1:J${rows.length}`, rows);
+  const nextMeta = await writeSheetMeta(token, sheet.sheetId, { sheetVersion: generateSheetVersion() });
+  await saveSession(env, sessionContext, {
+    sheetId: sheet.sheetId,
+    sheetName: sheet.sheetName,
+    sheetVersion: nextMeta.sheetVersion,
+  });
+
+  return jsonResponse({
+    ok: true,
+    sheetId: sheet.sheetId,
+    sheetName: sheet.sheetName,
+    sheetVersion: nextMeta.sheetVersion,
+    lastUpdated: nextMeta.lastUpdated,
+  });
+}
+
 async function handleStatus(request, env) {
   const sessionId = readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
   if (!sessionId) {
@@ -173,6 +286,7 @@ async function handleStatus(request, env) {
     name: session.name || "",
     sheetId: session.sheetId || "",
     sheetName: session.sheetName || DEFAULT_SHEET_NAME,
+    sheetVersion: session.sheetVersion || "",
     scope: session.scope || OAUTH_SCOPE,
   });
 }
@@ -189,6 +303,364 @@ async function handleLogout(request, env) {
     200,
     { "Set-Cookie": buildSessionCookie("", 0) },
   );
+}
+
+class HttpError extends Error {
+  constructor(status, body) {
+    super(typeof body?.error === "string" ? body.error : `HTTP ${status}`);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+async function requireSession(request, env) {
+  const sessionId = readCookie(request.headers.get("Cookie") || "", SESSION_COOKIE);
+  if (!sessionId) {
+    throw new HttpError(401, { ok: false, error: "Not authenticated" });
+  }
+
+  assertSessionConfig(env);
+  const key = await sessionKey(env, sessionId);
+  const session = await env.SESSIONS.get(key, { type: "json" });
+  if (!session?.refreshToken) {
+    throw new HttpError(401, { ok: false, error: "Not authenticated" });
+  }
+
+  return { sessionId, key, session };
+}
+
+async function saveSession(env, context, patch = {}) {
+  const now = new Date().toISOString();
+  context.session = {
+    ...context.session,
+    ...patch,
+    updatedAt: now,
+  };
+  await env.SESSIONS.put(context.key, JSON.stringify(context.session), { expirationTtl: SESSION_TTL_SECONDS });
+}
+
+async function getGoogleAccessToken(env, context) {
+  assertOAuthConfig(env);
+  const expiresAt = Date.parse(context.session.expiresAt || "");
+  if (context.session.accessToken && Number.isFinite(expiresAt) && expiresAt > Date.now() + 60_000) {
+    return context.session.accessToken;
+  }
+
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      grant_type: "refresh_token",
+      refresh_token: context.session.refreshToken,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) {
+    throw new HttpError(401, { ok: false, error: "Not authenticated" });
+  }
+
+  await saveSession(env, context, {
+    accessToken: payload.access_token,
+    tokenType: payload.token_type || "Bearer",
+    expiresAt: payload.expires_in
+      ? new Date(Date.now() + Number(payload.expires_in) * 1000).toISOString()
+      : "",
+  });
+  return payload.access_token;
+}
+
+async function ensureSpreadsheetAndSchema(accessToken, session) {
+  let file = null;
+  if (session.sheetId) {
+    file = await getDriveFile(accessToken, session.sheetId).catch(() => null);
+  }
+  if (!file) {
+    file = await findWalmartGcSpreadsheet(accessToken);
+  }
+  if (!file) {
+    file = await createWalmartGcSpreadsheet(accessToken);
+  }
+
+  const structure = await ensureSheetStructure(accessToken, file.id);
+  let meta = await readSheetMeta(accessToken, file.id);
+  const missingMeta = !meta.schemaVersion || !meta.sheetVersion || !meta.lastUpdated || !meta.appName;
+  if (missingMeta) {
+    meta = await writeSheetMeta(accessToken, file.id, {
+      schemaVersion: meta.schemaVersion || SCHEMA_VERSION,
+      sheetVersion: meta.sheetVersion || generateSheetVersion(),
+      lastUpdated: meta.lastUpdated,
+      appName: meta.appName || APP_NAME,
+    });
+  }
+
+  return {
+    sheetId: file.id,
+    sheetName: structure.spreadsheetName || file.name || DEFAULT_SHEET_NAME,
+    sheetVersion: meta.sheetVersion || "",
+    lastUpdated: meta.lastUpdated || "",
+    sessionPatch: {
+      sheetId: file.id,
+      sheetName: structure.spreadsheetName || file.name || DEFAULT_SHEET_NAME,
+      sheetVersion: meta.sheetVersion || "",
+    },
+  };
+}
+
+async function googleFetch(url, accessToken, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new HttpError(response.status === 401 ? 401 : 502, {
+      ok: false,
+      error: response.status === 401 ? "Not authenticated" : `Google API request failed (${response.status}).`,
+      message: body.slice(0, 180),
+    });
+  }
+  if (response.status === 204) {
+    return {};
+  }
+  return response.json();
+}
+
+function encodeRange(range) {
+  return encodeURIComponent(range).replace(/%21/g, "!");
+}
+
+async function getDriveFile(accessToken, fileId) {
+  const fields = encodeURIComponent("id,name,mimeType,webViewLink");
+  const file = await googleFetch(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=${fields}`, accessToken);
+  return file?.mimeType === GOOGLE_SPREADSHEET_MIME_TYPE ? file : null;
+}
+
+function escapeDriveQueryValue(value) {
+  return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function findWalmartGcSpreadsheet(accessToken) {
+  const query = [
+    `name = '${escapeDriveQueryValue(DEFAULT_SHEET_NAME)}'`,
+    `mimeType = '${GOOGLE_SPREADSHEET_MIME_TYPE}'`,
+    "trashed = false",
+  ].join(" and ");
+  const params = new URLSearchParams({
+    q: query,
+    spaces: "drive",
+    pageSize: "10",
+    orderBy: "modifiedTime desc,name",
+    fields: "files(id,name,mimeType,webViewLink,modifiedTime)",
+  });
+  const body = await googleFetch(`${GOOGLE_DRIVE_API}/files?${params.toString()}`, accessToken);
+  return Array.isArray(body.files) ? body.files[0] || null : null;
+}
+
+async function createWalmartGcSpreadsheet(accessToken) {
+  return googleFetch(`${GOOGLE_DRIVE_API}/files?fields=id,name,mimeType,webViewLink`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({ name: DEFAULT_SHEET_NAME, mimeType: GOOGLE_SPREADSHEET_MIME_TYPE }),
+  });
+}
+
+async function getSpreadsheetMetadata(accessToken, spreadsheetId) {
+  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title,hidden)`, accessToken);
+}
+
+function getSheetProperties(metadata, title) {
+  return metadata?.sheets?.find((sheet) => sheet?.properties?.title === title)?.properties || null;
+}
+
+async function ensureSheetStructure(accessToken, spreadsheetId) {
+  let metadata = await getSpreadsheetMetadata(accessToken, spreadsheetId);
+  let cardsProperties = getSheetProperties(metadata, CARDS_TAB);
+  let metaProperties = getSheetProperties(metadata, META_TAB);
+  const requests = [];
+
+  if (!cardsProperties) {
+    requests.push({ addSheet: { properties: { title: CARDS_TAB } } });
+  }
+  if (!metaProperties) {
+    requests.push({ addSheet: { properties: { title: META_TAB, hidden: true } } });
+  } else if (!metaProperties.hidden) {
+    requests.push({ updateSheetProperties: { properties: { sheetId: metaProperties.sheetId, hidden: true }, fields: "hidden" } });
+  }
+
+  if (requests.length) {
+    await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}:batchUpdate`, accessToken, {
+      method: "POST",
+      body: JSON.stringify({ requests }),
+    });
+    metadata = await getSpreadsheetMetadata(accessToken, spreadsheetId);
+    cardsProperties = getSheetProperties(metadata, CARDS_TAB);
+    metaProperties = getSheetProperties(metadata, META_TAB);
+  }
+
+  const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:J1`);
+  if (!headerRows.length || headerRows[0].every((cell) => !String(cell || "").trim())) {
+    await writeSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:J1`, [CARD_HEADERS]);
+  } else if (!areHeadersValid(headerRows[0])) {
+    throw new HttpError(409, { ok: false, error: "Cards headers do not match the approved schema." });
+  }
+
+  const metaHeaderRows = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B1`);
+  if (!metaHeaderRows.length || metaHeaderRows[0]?.[0] !== "key" || metaHeaderRows[0]?.[1] !== "value") {
+    await writeSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B1`, [["key", "value"]]);
+  }
+
+  await deleteEmptyDefaultSheetIfSafe(accessToken, spreadsheetId, metadata);
+
+  return {
+    spreadsheetName: String(metadata?.properties?.title || DEFAULT_SHEET_NAME),
+    cardsSheetId: cardsProperties?.sheetId,
+    metaSheetId: metaProperties?.sheetId,
+  };
+}
+
+async function readSheetValues(accessToken, spreadsheetId, range) {
+  const body = await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}?majorDimension=ROWS`, accessToken);
+  return Array.isArray(body.values) ? body.values : [];
+}
+
+async function writeSheetValues(accessToken, spreadsheetId, range, values) {
+  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}?valueInputOption=RAW`, accessToken, {
+    method: "PUT",
+    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
+  });
+}
+
+async function clearSheetValues(accessToken, spreadsheetId, range) {
+  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}:clear`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+async function readSheetMeta(accessToken, spreadsheetId) {
+  const values = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`);
+  const meta = {};
+  values.slice(1).forEach((row) => {
+    const key = String(row?.[0] || "").trim();
+    if (key) {
+      meta[key] = String(row?.[1] || "");
+    }
+  });
+  return meta;
+}
+
+async function writeSheetMeta(accessToken, spreadsheetId, nextMeta = {}) {
+  const meta = {
+    schemaVersion: nextMeta.schemaVersion || SCHEMA_VERSION,
+    sheetVersion: nextMeta.sheetVersion || generateSheetVersion(),
+    lastUpdated: nextMeta.lastUpdated || new Date().toISOString(),
+    appName: nextMeta.appName || APP_NAME,
+  };
+  const rows = [["key", "value"], ...Object.entries(meta)];
+  await clearSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`);
+  await writeSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B${rows.length}`, rows);
+  return meta;
+}
+
+function areHeadersValid(row) {
+  return CARD_HEADERS.every((header, index) => String(row?.[index] || "").trim() === header);
+}
+
+function validateCards(cards) {
+  const seen = new Set();
+  return cards.map((card, index) => {
+    if (!card || typeof card !== "object" || Array.isArray(card)) {
+      throw new HttpError(400, { ok: false, error: `Card ${index + 1} is invalid.` });
+    }
+    const normalized = {};
+    CARD_HEADERS.forEach((header) => {
+      if (header === "used") {
+        normalized.used = card.used === true || String(card.used || "").toLowerCase() === "true";
+      } else {
+        normalized[header] = String(card[header] ?? "");
+      }
+    });
+    normalized.cardNumber = normalized.cardNumber.trim();
+    if (!normalized.cardNumber) {
+      throw new HttpError(400, { ok: false, error: `Card ${index + 1} is missing cardNumber.` });
+    }
+    if (seen.has(normalized.cardNumber)) {
+      throw new HttpError(400, { ok: false, error: `Duplicate cardNumber ${normalized.cardNumber}.` });
+    }
+    seen.add(normalized.cardNumber);
+    return normalized;
+  });
+}
+
+function cardsFromSheetRows(rows) {
+  const cards = [];
+  const seen = new Set();
+  rows.forEach((row, index) => {
+    if (!Array.isArray(row) || row.every((cell) => !String(cell || "").trim())) {
+      return;
+    }
+    const card = {};
+    CARD_HEADERS.forEach((header, headerIndex) => {
+      card[header] = header === "used"
+        ? String(row[headerIndex] || "").toLowerCase() === "true"
+        : String(row[headerIndex] ?? "");
+    });
+    if (!card.cardNumber.trim()) {
+      throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} is missing cardNumber.` });
+    }
+    if (seen.has(card.cardNumber)) {
+      throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} duplicates cardNumber ${card.cardNumber}.` });
+    }
+    seen.add(card.cardNumber);
+    cards.push(card);
+  });
+  return cards;
+}
+
+function cardsToSheetRows(cards) {
+  return [CARD_HEADERS, ...cards.map((card) => CARD_HEADERS.map((header) => {
+    if (header === "used") {
+      return card.used ? "TRUE" : "FALSE";
+    }
+    return card[header] ?? "";
+  }))];
+}
+
+function isSheetValuesEmpty(values) {
+  return !Array.isArray(values) || values.every((row) => !Array.isArray(row) || row.every((cell) => String(cell ?? "").trim() === ""));
+}
+
+async function deleteEmptyDefaultSheetIfSafe(accessToken, spreadsheetId, metadata) {
+  const sheets = Array.isArray(metadata?.sheets) ? metadata.sheets : [];
+  const cardsSheet = getSheetProperties(metadata, CARDS_TAB);
+  const metaSheet = getSheetProperties(metadata, META_TAB);
+  const defaultSheet = getSheetProperties(metadata, DEFAULT_TAB);
+  const defaultSheetId = defaultSheet?.sheetId;
+  if (!cardsSheet || !metaSheet || !defaultSheet || sheets.length <= 1 || !Number.isInteger(defaultSheetId)) {
+    return false;
+  }
+
+  const defaultValues = await readSheetValues(accessToken, spreadsheetId, `'${DEFAULT_TAB}'!A1:Z1000`).catch(() => null);
+  if (!isSheetValuesEmpty(defaultValues)) {
+    return false;
+  }
+
+  await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}:batchUpdate`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({ requests: [{ deleteSheet: { sheetId: defaultSheetId } }] }),
+  }).catch(() => null);
+  return true;
+}
+
+function generateSheetVersion() {
+  return `${new Date().toISOString()}-${randomBase64Url(8)}`;
 }
 
 function handleOptions(request, env) {
