@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.16 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.17 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.16";
+const DEBUG_VERSION_JS = "1.01.17";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -1188,6 +1188,37 @@ function renderDiagnosticRow(label, value) {
     </li>`;
 }
 
+
+function getWorkerSessionDiagnosticStatus() {
+  if (googleOAuthState.status === googleOAuthStatuses.error) {
+    return "Unavailable";
+  }
+
+  return hasWorkerGoogleSession() ? "Connected" : "Disconnected";
+}
+
+function getSheetProxyDiagnosticStatus() {
+  if (directSheetsState.status === directSheetsStatuses.error || googleOAuthState.status === googleOAuthStatuses.error) {
+    return "Error";
+  }
+
+  if (hasWorkerGoogleSession() && directSheetsState.spreadsheetId) {
+    return "Ready";
+  }
+
+  return "Needs setup";
+}
+
+function getOfflineAvailabilityStatus() {
+  return navigator.onLine === false
+    ? "Available locally; browser is offline"
+    : "Available locally";
+}
+
+function getLastWorkerApiError() {
+  return valueOrFallback(directSheetsState.lastErrorMessage || syncState.lastErrorMessage || googleOAuthState.lastErrorMessage);
+}
+
 function isGoogleOAuthConfigured() {
   return Boolean(WORKER_BASE_URL);
 }
@@ -1262,21 +1293,20 @@ function renderDirectSheetsState() {
   syncDirectSheetButton.disabled = isBusy || !hasWorkerGoogleSession();
 
   const details = [
-    renderDiagnosticRow("Worker session", hasWorkerGoogleSession() ? "Connected" : "Disconnected"),
+    renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
+    renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Worker sync backend", directSheetsState.status === directSheetsStatuses.error ? "Connection unavailable" : (directSheetsState.spreadsheetId ? "Connected" : "Disconnected")),
-    renderDiagnosticRow("Frontend token storage", "None"),
-    renderDiagnosticRow("Active sheet ID configured", directSheetsState.spreadsheetId ? "Yes" : "No"),
     renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
     renderDiagnosticRow("Active sheet name", valueOrFallback(directSheetsState.spreadsheetName)),
     renderDiagnosticRow("Cards sheet initialized", valueOrFallback(directSheetsState.cardsSheetInitialized)),
-    renderDiagnosticRow("Local last known sheetVersion", valueOrFallback(syncState.lastKnownSheetVersion)),
+    renderDiagnosticRow("Local sheetVersion", valueOrFallback(syncState.lastKnownSheetVersion)),
     renderDiagnosticRow("Remote sheetVersion", valueOrFallback(directSheetsState.remoteSheetVersion)),
     renderDiagnosticRow("Sync state", getSyncStatusLabel()),
     renderDiagnosticRow("Unsynced changes", directSheetsState.pendingUnsynced || syncState.pendingOperation ? "Yes" : "No"),
     renderDiagnosticRow("Last successful sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
-    renderDiagnosticRow("Last Google API error", valueOrFallback(directSheetsState.lastErrorMessage)),
+    renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
     renderDiagnosticRow("Local card count", String(sampleGiftCards.length)),
+    renderDiagnosticRow("Offline/local availability", getOfflineAvailabilityStatus()),
   ];
 
   const sheetLink = getDirectSheetsDisplayUrl();
@@ -1325,14 +1355,15 @@ function renderGoogleOAuthState() {
   disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
 
   const details = [
-    renderDiagnosticRow("Worker session backend", WORKER_BASE_URL),
+    renderDiagnosticRow("Worker backend", WORKER_BASE_URL),
+    renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
     renderDiagnosticRow("Connection state", googleOAuthState.status),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
     renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
     renderDiagnosticRow("Frontend token storage", "None"),
-    renderDiagnosticRow("Session ID storage", "Cookie only"),
-    renderDiagnosticRow("Worker sync backend", directSheetsState.spreadsheetId ? "Connected" : "Disconnected"),
-    renderDiagnosticRow("Last connection error", valueOrFallback(googleOAuthState.lastErrorMessage)),
+    renderDiagnosticRow("Session storage", "HttpOnly cookie on Worker domain"),
+    renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
+    renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
   ];
 
   googleOAuthStatusArea.className = `connection-status oauth-status is-${getGoogleOAuthStatusClass()}`;

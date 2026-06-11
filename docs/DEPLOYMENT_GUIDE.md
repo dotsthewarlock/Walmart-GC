@@ -2,7 +2,7 @@
 
 Walmart-GC is a static GitHub Pages app. It uses plain HTML, CSS, and JavaScript with no build step, backend server, database, framework, or npm dependency.
 
-## Active Phase 10D Deployment Model
+## Active Phase 10E Deployment Model
 
 ```text
 Custom-domain GitHub Pages static app
@@ -31,6 +31,19 @@ Required Google Cloud settings:
 
 The Worker callback redirects users to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and carries the session only in the `walmart_gc_session` HttpOnly cookie. Frontend Worker API calls use `credentials: "include"`.
 
+
+## Worker Source of Truth
+
+The Worker code in this repository is the source of truth for `https://walmart-gc-oauth.dotsthewarlock.com`. Avoid Cloudflare Web IDE edits because they can drift from reviewable source control. Use Web IDE changes only for emergency fixes, then immediately backport the exact change into `worker/src/index.js`, run verification, and redeploy from the repository.
+
+Worker contract checks:
+
+- OAuth callback redirects to `https://walmart-gc.dotsthewarlock.com/?auth=connected`.
+- Callback does not append `/Walmart-GC/` or any `session_id` query parameter.
+- Session cookie is host-only: `walmart_gc_session=<id>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`.
+- The cookie does not set `Domain=`.
+- Credentialed CORS allows exactly `https://walmart-gc.dotsthewarlock.com`.
+
 ## Static Files
 
 Deploy these files through GitHub Pages from the selected branch:
@@ -38,6 +51,7 @@ Deploy these files through GitHub Pages from the selected branch:
 - `index.html`
 - `app.js`
 - `styles.css`
+- `worker/src/index.js` as the source of truth for the deployed Cloudflare Worker
 - documentation files as needed
 
 ## Pre-Deployment Checks
@@ -46,6 +60,7 @@ Run:
 
 ```bash
 node --check app.js
+node --check worker/src/index.js
 git diff --check
 # Run a conflict-marker scan before committing.
 ```

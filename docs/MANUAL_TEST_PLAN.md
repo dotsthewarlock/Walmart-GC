@@ -1,6 +1,6 @@
 # Manual Test Plan
 
-This manual test plan validates the active Phase 10D Worker-backed architecture:
+This manual test plan validates the active Phase 10E Worker-backed architecture:
 
 ```text
 User Google Account ↔ Cloudflare Worker OAuth session ↔ Google Drive/Sheets APIs ↔ Walmart-GC Web App
@@ -31,19 +31,25 @@ Record:
 
 ## Google Account and Sheet Lifecycle
 
+- [ ] First-run blank user opens the app with no Google connection and no local cards.
+- [ ] Diagnostics show Worker session **Disconnected**, Sheet proxy **Needs setup**, local card count, and offline/local availability.
 - [ ] Select **Connect Google**.
 - [ ] Complete Google consent.
 - [ ] OAuth requests `https://www.googleapis.com/auth/drive.file` and does not request broad `spreadsheets` or full `drive` scope.
-- [ ] Diagnostics show the Worker session is connected.
-- [ ] Diagnostics show frontend token storage is none.
+- [ ] Callback returns to `https://walmart-gc.dotsthewarlock.com/?auth=connected` and then removes the query parameter from browser history.
+- [ ] No `session_id` query parameter appears.
+- [ ] Diagnostics show Worker session **Connected** and frontend token/session ID storage is absent.
+- [ ] Refresh the app and confirm connection persists.
+- [ ] Restart the browser and confirm the Worker session persists.
 - [ ] Select **Ensure Sheet**.
 - [ ] Worker searches for `Walmart-GC Data`.
 - [ ] If missing, app creates `Walmart-GC Data`.
 - [ ] App stores the active Sheet ID locally.
 - [ ] Worker initializes `Cards` headers.
 - [ ] Worker initializes hidden `_META` metadata with `sheetVersion`.
+- [ ] Diagnostics show Sheet proxy **Ready**, active Sheet ID/name, local sheetVersion, and remote sheetVersion if known.
 - [ ] **Open Sheet** opens the active Google Sheet.
-- [ ] Disconnect Google.
+- [ ] Logout/disconnect clears the Worker session.
 - [ ] Local cards and saved Sheet state remain available.
 - [ ] Reconnect Google and confirm it reuses the saved/found Sheet.
 
@@ -94,22 +100,41 @@ Verify each action syncs only after the action is completed:
 
 ## Diagnostics
 
-Confirm diagnostics include readable label/value rows for:
+Confirm diagnostics include readable compact label/value rows for:
 
-- [ ] OAuth configured.
-- [ ] Google script loaded.
-- [ ] Google connection state.
-- [ ] Google file access available / needs reconnect.
-- [ ] Active Sheet ID configured.
+- [ ] Worker session: **Connected**, **Disconnected**, or **Unavailable**.
+- [ ] Sheet proxy: **Ready**, **Needs setup**, or **Error**.
+- [ ] Active Sheet ID.
 - [ ] Active Sheet name.
-- [ ] Cards sheet initialized.
 - [ ] Local sheetVersion.
 - [ ] Remote sheetVersion, if known.
 - [ ] Sync state.
 - [ ] Unsynced changes.
 - [ ] Last successful sync.
-- [ ] Last Google API error.
-- [ ] Local card count where useful.
+- [ ] Last Worker/API error.
+- [ ] Local card count.
+- [ ] Offline/local availability.
+
+## Final Validation Checklist
+
+- [ ] First-run blank user.
+- [ ] OAuth connect.
+- [ ] Refresh persistence.
+- [ ] Browser restart persistence.
+- [ ] Logout clears session.
+- [ ] Ensure Sheet.
+- [ ] Load cards.
+- [ ] Edit balance sync.
+- [ ] Used flag sync.
+- [ ] Notes sync.
+- [ ] Merchant sync.
+- [ ] New card sync.
+- [ ] Accepted CSV import sync.
+- [ ] Conflict detection.
+- [ ] CSV export.
+- [ ] Offline/local behavior.
+- [ ] Mobile Chrome smoke test.
+- [ ] Mobile Safari smoke test.
 
 ## Regression Checks
 

@@ -1,6 +1,6 @@
 # Walmart-GC OAuth Worker
 
-Cloudflare Worker backend for the Phase 10B durable OAuth session contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com/`; this Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout endpoints.
+Cloudflare Worker backend for the Phase 10E durable OAuth and Sheets sync contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com/`; this Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout and Sheet sync endpoints.
 
 ## Endpoints
 
@@ -9,7 +9,15 @@ Cloudflare Worker backend for the Phase 10B durable OAuth session contract. The 
 - `GET /auth/callback` — validates state, exchanges the authorization code, stores the refresh token server-side in `SESSIONS`, sets the `walmart_gc_session` cookie, and redirects to the custom-domain app root with `?auth=connected`.
 - `GET /api/status` — returns `{ "authenticated": false }` without a valid cookie/session, or authenticated account/session metadata without tokens.
 - `POST /api/logout` — deletes the KV session when present, clears the cookie, and returns `{ "ok": true }`.
+- `POST /api/sheet/ensure` — finds or creates `Walmart-GC Data`, initializes `Cards` and `_META`, and returns Sheet metadata.
+- `GET /api/cards/load` — loads approved-schema cards plus `_META.sheetVersion`.
+- `POST /api/cards/save` — saves completed local actions only when the submitted base `sheetVersion` matches the remote `_META.sheetVersion`.
 - `OPTIONS *` — returns a clean CORS preflight response for the approved frontend origin.
+
+
+## Source-of-truth rule
+
+`worker/src/index.js` in this repository is the source of truth for the live Worker. Avoid Cloudflare Web IDE edits except emergency fixes; if an emergency edit is unavoidable, backport it into this repository before the next deploy.
 
 ## Required Cloudflare configuration
 

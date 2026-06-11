@@ -2,18 +2,22 @@
 
 ## Overview
 
-Walmart-GC uses a lightweight static-web architecture that avoids dedicated servers and databases.
+Walmart-GC uses a lightweight static frontend plus Cloudflare Worker architecture that avoids databases, VPS hosting, build tooling, and app-managed user accounts.
 
 ## Current Phase 10 Auth Architecture
 
 ```text
-User Google Account
+GitHub Pages custom-domain frontend
+https://walmart-gc.dotsthewarlock.com/
         ↕
-Cloudflare Worker OAuth session
+Cloudflare Worker custom-domain session/API
+https://walmart-gc-oauth.dotsthewarlock.com
         ↕
-Walmart-GC Web App
+Google Drive/Sheets APIs (`drive.file`)
         ↕
-Local browser storage / CSV backup
+User-owned Walmart-GC Data spreadsheet
+
+Local browser storage and CSV backup/recovery remain available when offline or disconnected.
 ```
 
 ## Components
@@ -27,11 +31,11 @@ The user-owned Google Sheet is the online source of truth. The active workbook c
 
 ### Google OAuth
 
-Google account connection uses the Cloudflare Worker session backend. The frontend redirects to the Worker for OAuth, checks `/api/status` with credentials included, and never stores Google tokens or session IDs. The Worker owns OAuth, refresh tokens, and the HttpOnly session cookie.
+Google account connection uses the Cloudflare Worker session backend with a Google Cloud OAuth backend client. The frontend redirects to the Worker for OAuth, checks `/api/status` with credentials included, and never stores Google tokens or session IDs. The Worker owns OAuth, refresh tokens, and the host-only HttpOnly session cookie.
 
 ### Google Sheets API
 
-The frontend loads, ensures, and saves Sheets data only through Worker endpoints. The Worker performs the server-side Drive and Sheets API calls, including `_META.sheetVersion` conflict checks.
+The frontend loads, ensures, and saves Sheets data only through Worker endpoints. The Worker performs the server-side Drive and Sheets API calls using only `drive.file`, including `_META.sheetVersion` conflict checks.
 
 ### Walmart-GC Web App
 

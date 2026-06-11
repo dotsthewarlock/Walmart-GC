@@ -77,9 +77,9 @@ Completed on `phase-9-oauth` and later retired from the active frontend path. It
 
 ## Current Implementation Phase
 
-### Phase 10D – Worker-Only Durable Sync
+### Phase 10E – Final OAuth/Sync Hardening & Documentation
 
-Current. Walmart-GC uses a Cloudflare Worker session with `drive.file`; the Worker owns OAuth, refresh tokens, and server-side Drive/Sheets API calls. The frontend syncs only through Worker endpoints.
+Current. Walmart-GC uses a Cloudflare Worker session with `drive.file`; the Worker owns OAuth, refresh tokens, and server-side Drive/Sheets API calls. The frontend syncs only through Worker endpoints. Phase 10E is limited to reliability polish, diagnostics, source-of-truth cleanup, and concise documentation alignment; it is not a feature or architecture redesign phase.
 
 Phase 10 goals:
 
@@ -89,6 +89,7 @@ Phase 10 goals:
 - Route online load/save sync only through Worker endpoints while preserving conflict handling, local persistence, and CSV backup/recovery.
 - Keep `main` preserved as the known-good Apps Script MVP.
 - Keep Apps Script docs/code only as historical MVP reference material unless separately archived.
+- Treat `worker/src/index.js` as the source of truth for the Cloudflare Worker and avoid Cloudflare Web IDE drift except emergency fixes.
 
 ## Active Sync Notes
 
