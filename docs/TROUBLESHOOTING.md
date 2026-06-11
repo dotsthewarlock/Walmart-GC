@@ -10,11 +10,21 @@ Frontend production/development/testing URL:
 https://walmart-gc.dotsthewarlock.com
 ```
 
-Backend Worker:
+Active Worker routing:
 
 ```text
-https://walmart-gc-oauth.dotsthewarlock.com
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
 ```
+
+Required Cloudflare route rules:
+
+```text
+walmart-gc.dotsthewarlock.com/auth/*
+walmart-gc.dotsthewarlock.com/api/*
+```
+
+The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` is fallback/legacy only.
 
 Do not use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
 
@@ -35,8 +45,8 @@ Symptoms of missing or placeholder KV bindings can include OAuth state failures,
 Check:
 
 - The app is opened from `https://walmart-gc.dotsthewarlock.com`.
-- The Worker URL is reachable.
-- The Connect Google action points to the Worker OAuth init endpoint.
+- The same-origin Worker routes `/auth/init`, `/api/status`, `/api/logout`, `/api/sheet/ensure`, `/api/cards/load`, and `/api/cards/save` are routed to the Worker by Cloudflare.
+- The Connect Google action points to same-origin `/auth/init`.
 - No browser extension is blocking redirects or third-party authentication.
 
 ## Google Consent Shows the Wrong Scope
@@ -58,7 +68,7 @@ Authorized JavaScript origin:
 https://walmart-gc.dotsthewarlock.com
 
 Authorized redirect URI:
-https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+https://walmart-gc.dotsthewarlock.com/auth/callback
 ```
 
 Expected callback return:
@@ -77,8 +87,8 @@ Check:
 - Cookie is HttpOnly, Secure, SameSite=Lax, host-only, and has `Path=/`.
 - Cookie does not set `Domain=`.
 - If the KV session is missing, expired, invalid, or otherwise unusable, `/api/status` should return disconnected and clear the stale cookie with the same host-only cookie attributes.
-- Frontend calls `/api/status` with `credentials: "include"`.
-- Credentialed CORS allows exactly `https://walmart-gc.dotsthewarlock.com`.
+- Frontend calls same-origin `/api/status` with `credentials: "include"`.
+- Same-origin routing is active; credentialed CORS is only a defensive fallback for legacy Worker-domain calls from `https://walmart-gc.dotsthewarlock.com`.
 - Browser settings are not blocking required cookies.
 
 The frontend should never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials. Do not work around cookie/session issues by adding browser token storage.

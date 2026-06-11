@@ -76,7 +76,8 @@ Frontend:
 
 Backend:
 
-* Cloudflare Worker: `https://walmart-gc-oauth.dotsthewarlock.com`
+* Cloudflare Worker same-origin routes: `https://walmart-gc.dotsthewarlock.com/auth/*` and `https://walmart-gc.dotsthewarlock.com/api/*`
+* Legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only
 * Workers KV
 
 Do not introduce or recommend:
@@ -131,7 +132,7 @@ https://www.googleapis.com/auth/drive.file
 
 Do not broaden scope.
 
-Worker API calls must use:
+Worker API calls must use same-origin `/api/*` paths with:
 
 ```js
 credentials: "include"
@@ -158,7 +159,14 @@ Authorized JavaScript origin:
 https://walmart-gc.dotsthewarlock.com
 
 Authorized redirect URI:
-https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+https://walmart-gc.dotsthewarlock.com/auth/callback
+```
+
+Cloudflare must route these paths to the Worker while GitHub Pages serves static files at the root:
+
+```text
+walmart-gc.dotsthewarlock.com/auth/*
+walmart-gc.dotsthewarlock.com/api/*
 ```
 
 Worker callback must return to:

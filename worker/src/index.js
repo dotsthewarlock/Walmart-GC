@@ -27,7 +27,7 @@ const CARD_HEADERS = [
   "notes",
 ];
 const DEFAULT_FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
-const DEFAULT_REDIRECT_URI = "https://walmart-gc-oauth.dotsthewarlock.com/auth/callback";
+const DEFAULT_REDIRECT_URI = "https://walmart-gc.dotsthewarlock.com/auth/callback";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
 
 export default {

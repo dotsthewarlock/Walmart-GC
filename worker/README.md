@@ -1,6 +1,6 @@
 # Walmart-GC OAuth Worker
 
-Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Sheets sync contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com`; this Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout and Sheet sync endpoints.
+Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Sheets sync contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com`; Cloudflare routes same-origin `/auth/*` and `/api/*` paths on that host to this Worker. The Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout and Sheet sync endpoints.
 
 ## Active Contract
 
@@ -9,7 +9,7 @@ Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Shee
 - The frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
 - Frontend auth state comes from `/api/status`.
 - Logout uses `/api/logout`.
-- Frontend Worker API calls use `credentials: "include"`.
+- Frontend Worker API calls use same-origin `/auth/*` and `/api/*` paths with `credentials: "include"`.
 - Session cookie is HttpOnly, Secure, SameSite=Lax, and host-only.
 - Production and development/testing both use `https://walmart-gc.dotsthewarlock.com`.
 - No localhost OAuth or alternate OAuth origin is supported.
@@ -24,7 +24,7 @@ Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Shee
 - `POST /api/sheet/ensure` — finds or creates `Walmart-GC Data`, initializes `Cards` and `_META`, and returns Sheet metadata.
 - `GET /api/cards/load` — loads approved-schema cards plus `_META.sheetVersion`.
 - `POST /api/cards/save` — saves completed local actions only when the submitted base `sheetVersion` matches the remote `_META.sheetVersion`.
-- `OPTIONS *` — returns a clean CORS preflight response for the approved frontend origin.
+- `OPTIONS *` — returns a clean CORS preflight response for the approved frontend origin as a defensive fallback for legacy Worker-domain calls.
 
 ## Source-of-Truth Rule
 
@@ -48,7 +48,16 @@ Secrets:
 Vars:
 
 - `FRONTEND_ORIGIN=https://walmart-gc.dotsthewarlock.com`
-- `REDIRECT_URI=https://walmart-gc-oauth.dotsthewarlock.com/auth/callback`
+- `REDIRECT_URI=https://walmart-gc.dotsthewarlock.com/auth/callback`
+
+Required Cloudflare route rules:
+
+```text
+walmart-gc.dotsthewarlock.com/auth/*
+walmart-gc.dotsthewarlock.com/api/*
+```
+
+The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain available only as fallback/legacy routing; normal frontend calls do not depend on it.
 
 Google OAuth settings:
 
@@ -57,7 +66,7 @@ Authorized JavaScript origin:
 https://walmart-gc.dotsthewarlock.com
 
 Authorized redirect URI:
-https://walmart-gc-oauth.dotsthewarlock.com/auth/callback
+https://walmart-gc.dotsthewarlock.com/auth/callback
 ```
 
 The Worker requests only this scope:
@@ -84,9 +93,9 @@ walmart_gc_session=<sessionId>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=
 
 The cookie contains only an opaque random session ID. The KV key is HMAC-derived with `SESSION_SECRET`; refresh tokens remain server-side only and are never returned by API responses. `/api/status` clears the cookie when a browser presents a stale session whose KV record is missing, expired, invalid, or otherwise unusable, and renews the cookie for valid sessions so refreshes and browser restarts remain durable while the session is valid. The frontend must not store tokens or session IDs.
 
-## CORS Contract
+## CORS Fallback Contract
 
-Credentialed CORS headers are returned only when the request `Origin` is exactly:
+Normal app calls are same-origin and do not depend on CORS. For legacy Worker-domain fallback calls, credentialed CORS headers are returned only when the request `Origin` is exactly:
 
 ```text
 https://walmart-gc.dotsthewarlock.com

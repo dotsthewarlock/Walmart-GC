@@ -54,8 +54,9 @@ No build system
 Backend Worker:
 
 ```text
-Cloudflare Worker at https://walmart-gc-oauth.dotsthewarlock.com
+Cloudflare Worker on same-origin /auth/* and /api/* routes at https://walmart-gc.dotsthewarlock.com
 Workers KV
+Legacy Worker subdomain https://walmart-gc-oauth.dotsthewarlock.com may remain fallback/legacy only
 ```
 
 Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, new hosting, VPS, or app-managed user account system. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
@@ -67,7 +68,7 @@ Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script s
 - The frontend never stores access tokens, refresh tokens, session IDs, or OAuth secrets.
 - Frontend auth state comes from `GET /api/status`.
 - Logout uses `POST /api/logout`.
-- Worker API calls from the frontend use `credentials: "include"`.
+- Worker API calls from the frontend use same-origin `/api/*` paths with `credentials: "include"`.
 - Session cookies are HttpOnly, Secure, SameSite=Lax, host-only cookies.
 
 ## URLs and Testing
@@ -78,11 +79,14 @@ Production and development/testing use the same cloud URL:
 https://walmart-gc.dotsthewarlock.com
 ```
 
-Backend Worker:
+Active Worker routing:
 
 ```text
-https://walmart-gc-oauth.dotsthewarlock.com
+https://walmart-gc.dotsthewarlock.com/auth/*
+https://walmart-gc.dotsthewarlock.com/api/*
 ```
+
+Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
 
 OAuth testing is cloud-only. Do not document or use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
 
