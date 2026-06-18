@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.20 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.21 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.20";
+const DEBUG_VERSION_JS = "1.01.21";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -18,7 +18,7 @@ renderDebugVersionFingerprint();
 
 const bundledSampleGiftCards = [
   {
-    cardNumber: "6045782190348765",
+    cardNumber: "6351234567890123",
     pin: "4821",
     merchant: "walmart-ca",
     startingBalance: 50,
@@ -30,7 +30,7 @@ const bundledSampleGiftCards = [
     notes: "Sample card ready for checkout testing.",
   },
   {
-    cardNumber: "6045789317522388",
+    cardNumber: "6352234567890123",
     pin: "9064",
     merchant: "walmart-ca",
     startingBalance: 100,
@@ -42,7 +42,7 @@ const bundledSampleGiftCards = [
     notes: "Partially used sample card with a remaining balance.",
   },
   {
-    cardNumber: "6045780642197715",
+    cardNumber: "6353234567890123",
     pin: "1138",
     merchant: "walmart-ca",
     startingBalance: 25,
@@ -54,7 +54,7 @@ const bundledSampleGiftCards = [
     notes: "Zero-balance sample card retained for used flag visibility.",
   },
   {
-    cardNumber: "6045787063154490",
+    cardNumber: "6354234567890123",
     pin: "7205",
     merchant: "walmart-ca",
     startingBalance: 75,
@@ -66,7 +66,7 @@ const bundledSampleGiftCards = [
     notes: "Used flag is independent of balance so this card keeps its remaining value.",
   },
   {
-    cardNumber: "6045784926808824",
+    cardNumber: "6355234567890123",
     pin: "3349",
     merchant: "walmart-ca",
     startingBalance: 10,
@@ -201,6 +201,7 @@ const legacyCsvHeaders = [
 ];
 const prototypeDefaultMerchant = "walmart-ca";
 const walmartCaBarcodePrefix = "79936686504000";
+const walmartGiftCardNumberPattern = /^635\d{13}$/;
 const code128Patterns = [
   "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213",
   "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221", "223211", "221132",
@@ -313,6 +314,10 @@ function formatDate(dateValue) {
 
 function normalizeCardNumber(cardNumber) {
   return String(cardNumber ?? "").replace(/\D/g, "");
+}
+
+function isValidWalmartGiftCardNumber(cardNumber) {
+  return walmartGiftCardNumberPattern.test(String(cardNumber ?? ""));
 }
 
 function getBarcodeFallbackMessage(card) {
@@ -980,8 +985,8 @@ function parseRawCardData(rawCsv) {
     if (!cardNumber) {
       warnings.push(`Row ${displayRow}: missing card number.`);
       hasError = true;
-    } else if (!/^\d+$/.test(cardNumber)) {
-      warnings.push(`Row ${displayRow}: card number must contain contiguous digits only.`);
+    } else if (!isValidWalmartGiftCardNumber(cardNumber)) {
+      warnings.push(`Row ${displayRow}: Card number must start with 635 and be exactly 16 digits.`);
       hasError = true;
     } else if (seenCardNumbers.has(cardNumber)) {
       warnings.push(`Row ${displayRow}: duplicate card number ${cardNumber}.`);
