@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.37 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.38 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.37";
-const DEBUG_VERSION_CSS = "1.01.37";
+const DEBUG_VERSION_JS = "1.01.38";
+const DEBUG_VERSION_CSS = "1.01.38";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -490,7 +490,7 @@ function clearRenderedBarcode(container, statusElement, captionElement) {
   container.replaceChildren();
   container.hidden = true;
   statusElement.textContent = "Barcode unavailable";
-  captionElement.textContent = "Choose a card from Cards to render its checkout barcode.";
+  captionElement.textContent = "Select a card to render its checkout barcode.";
 }
 
 function todayString() {
@@ -965,7 +965,7 @@ function readCsvMoney(value) {
 function setRawDataLocked(isLocked) {
   rawDataLocked = isLocked;
   rawDataInput.readOnly = rawDataLocked;
-  toggleDataLockButton.textContent = rawDataLocked ? "Unlock Editing" : "Lock Editing";
+  toggleDataLockButton.textContent = rawDataLocked ? "Unlock editing" : "Lock editing";
 }
 
 function renderValidationWarnings(warnings, summary = "No validation run yet.") {
@@ -1221,7 +1221,7 @@ async function updateRawCardData() {
       startMessage: "Imported data saved locally. Syncing imported cards to Sheets...",
       noAutoSyncMessage: syncState.lastKnownSheetVersion
         ? "Imported data saved locally, but it is not ready to sync right now. Try sync again or download a backup CSV."
-        : "Imported data saved locally. Connect Google and load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version.",
+        : "Imported data saved locally. Connect Google and load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current sheet version.",
     },
   );
 }
@@ -1234,7 +1234,7 @@ function importCsvFile(file) {
   const reader = new FileReader();
   reader.addEventListener("load", () => {
     rawDataInput.value = String(reader.result ?? "");
-    renderValidationWarnings([], "CSV imported into the raw data area. Press Update Data to validate and load it into this session.");
+    renderValidationWarnings([], "CSV imported into the raw data area. Press Update data to validate and load it into this session.");
   });
   reader.addEventListener("error", () => {
     renderValidationWarnings(["Unable to read the selected CSV file."], "CSV import failed.");
@@ -1456,7 +1456,7 @@ function renderDirectSheetsState() {
       <span class="sync-badge">${escapeHtml(getSyncStatusLabel())}</span>
     </div>
     <p>${formatDirectSheetsPanelMessage()}</p>
-    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open Google Sheet</a></p>` : ""}
+    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open Google sheet</a></p>` : ""}
     ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
     <ul class="diagnostic-list">${details.join("")}</ul>
   `;
@@ -1499,7 +1499,7 @@ function renderGoogleOAuthState() {
     renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
     renderDiagnosticRow("Connection state", googleOAuthState.status),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Saved Sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
+    renderDiagnosticRow("Saved sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
     renderDiagnosticRow("Frontend token storage", "None"),
     renderDiagnosticRow("Session storage", "HttpOnly same-origin cookie"),
     renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
@@ -1600,7 +1600,7 @@ async function refreshWorkerSessionStatus(options = {}) {
           spreadsheetName: String(status.sheetName || directSheetsState.spreadsheetName || walmartGcDataSheetName),
           status: directSheetsStatuses.ready,
           remoteSheetVersion: String(status.sheetVersion || directSheetsState.remoteSheetVersion || ""),
-          message: "Saved Sheet metadata restored from the durable Google session.",
+          message: "Saved sheet metadata restored from the durable Google session.",
           lastErrorMessage: "",
           workerVersion,
           schemaMode,
@@ -1737,7 +1737,7 @@ async function postCompletedActionToSheets(action, payload, successMessage, opti
     const message = options.noAutoSyncMessage
       || (isDirectSheetsConfigured()
         ? (hasWorkerGoogleSession()
-          ? "Saved locally. Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version."
+          ? "Saved locally. Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current sheet version."
           : "Saved locally. Connect Google to sync.")
         : "Saved locally. Connect Google before syncing through the Worker.");
     setSyncState({
@@ -1798,7 +1798,7 @@ function renderSyncRecoveryActions(isBusy) {
         <div class="recovery-action-grid">
           <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download backup CSV</button>
           <button class="primary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Replace local data from Sheet</button>
-          <button class="danger-button" type="button" data-sync-recovery="use-current-session" ${disableSheetsActions ? "disabled" : ""}>Overwrite Sheet with this session</button>
+          <button class="danger-button" type="button" data-sync-recovery="use-current-session" ${disableSheetsActions ? "disabled" : ""}>Overwrite sheet with this session</button>
         </div>
       </div>
     `;
@@ -1846,7 +1846,7 @@ function getAppSyncSummaryState() {
     return {
       key: "conflict",
       label: "Sync conflict",
-      help: "Open Backup & Sync",
+      help: "Open backup and sync",
     };
   }
 
@@ -1856,7 +1856,7 @@ function getAppSyncSummaryState() {
     return {
       key: "unavailable",
       label: "Sync unavailable",
-      help: hasPendingLocalChanges ? "Open Backup & Sync" : "Local cards available",
+      help: hasPendingLocalChanges ? "Open backup and sync" : "Local cards available",
     };
   }
 
@@ -1864,7 +1864,7 @@ function getAppSyncSummaryState() {
     return {
       key: "unsynced",
       label: "Unsynced changes",
-      help: "Open Backup & Sync",
+      help: "Open backup and sync",
     };
   }
 
@@ -1879,7 +1879,7 @@ function getAppSyncSummaryState() {
   return {
     key: "local-only",
     label: "Local only",
-    help: "Connect in Backup & Sync",
+    help: "Connect in backup and sync",
   };
 }
 
@@ -1890,7 +1890,7 @@ function renderAppSyncSummary() {
 
   const summary = getAppSyncSummaryState();
   appSyncSummary.dataset.syncSummary = summary.key;
-  appSyncSummary.setAttribute("aria-label", `${summary.label}. ${summary.help}. Open Backup and Sync.`);
+  appSyncSummary.setAttribute("aria-label", `${summary.label}. ${summary.help}. Open backup and sync.`);
   appSyncSummary.innerHTML = `
     <span class="app-sync-summary-label">${escapeHtml(summary.label)}</span>
     <span class="app-sync-summary-help">${escapeHtml(summary.help)}</span>
@@ -1924,7 +1924,7 @@ async function ensureWalmartGcDataSheet() {
   const sheet = await fetchWorkerJson("/api/sheet/ensure", { method: "POST" });
   const spreadsheetId = String(sheet.sheetId || "").trim();
   if (!sheet.ok || !spreadsheetId) {
-    throw makeDirectSheetsError("Worker did not return an active Walmart-GC Data Sheet.");
+    throw makeDirectSheetsError("Worker did not return an active Walmart-GC Data sheet.");
   }
 
   setDirectSheetsState({
@@ -1946,7 +1946,7 @@ async function ensureWalmartGcDataSheet() {
 }
 
 // Post-connect Sheet setup intentionally remains user-directed during Phase 11:
-// after OAuth returns, users choose Set up / check Sheet, Reload from Sheet, or Sync to Sheet so
+// after OAuth returns, users choose Check sheet, Reload from sheet, or Sync to sheet so
 // local cards are never replaced or uploaded automatically.
 
 function openActiveGoogleSheet() {
@@ -1954,7 +1954,7 @@ function openActiveGoogleSheet() {
   if (!sheetUrl) {
     setDirectSheetsState({
       status: directSheetsStatuses.notConfigured,
-      message: "Connect Google to create or locate Walmart-GC Data before opening the Sheet.",
+      message: "Connect Google to create or locate Walmart-GC Data before opening the sheet.",
       lastErrorMessage: "No active Sheet ID configured.",
     });
     return;
@@ -2166,14 +2166,14 @@ async function syncCardsToDirectSheets(options = {}) {
 
 async function useCurrentSessionToOverwriteDirectSheets() {
   const backupRecommended = window.confirm(
-    "Overwrite Sheet with this session will replace every card row in the configured Google Sheet with this browser session. Download a backup CSV before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+    "Overwrite sheet with this session will replace every card row in the configured Google sheet with this browser session. Download a backup CSV before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
   );
   if (!backupRecommended) {
     return;
   }
 
   const confirmed = window.confirm(
-    "Final confirmation: overwrite the configured Google Sheet with the current local session now? Walmart-GC will not automatically merge Sheet changes.",
+    "Final confirmation: overwrite the configured Google sheet with the current local session now? Walmart-GC will not automatically merge sheet changes.",
   );
   if (!confirmed) {
     return;
@@ -2217,7 +2217,7 @@ async function retrySyncCurrentSession() {
   }
 
   if (!syncState.lastKnownSheetVersion) {
-    const message = "Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version.";
+    const message = "Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current sheet version.";
     setSyncState({
       status: syncStatuses.unsynced,
       lastSyncAttemptTimestamp: new Date().toISOString(),
@@ -2407,17 +2407,17 @@ function clearCardDetail() {
   detailStartingBalance.textContent = "—";
   detailCurrentBalance.textContent = "—";
   detailDateAdded.textContent = "—";
-  detailCurrentDateLabel.textContent = "Date Updated";
+  detailCurrentDateLabel.textContent = "Date updated";
   detailCurrentDate.textContent = "—";
   currentBalanceCard.classList.remove("used-balance-card");
-  detailNotes.textContent = "Choose a card from Cards to view checkout notes.";
+  detailNotes.textContent = "Select a card to view checkout notes.";
   cardPosition.textContent = "Card 0 of 0";
   previousButton.disabled = true;
   nextButton.disabled = true;
   markUsedButton.disabled = true;
   openBalanceModalButton.disabled = true;
   barcodeOpenButton.disabled = true;
-  detailBarcodeActionLabel.textContent = "Choose a card from Cards";
+  detailBarcodeActionLabel.textContent = "Select a card";
   clearRenderedBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption);
   clearRenderedBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption);
   fullscreenCardNumber.textContent = "—";
@@ -2452,7 +2452,7 @@ function renderCardDetail() {
   detailStartingBalance.textContent = formatBalance(card.startingBalance);
   detailCurrentBalance.textContent = formatBalance(card.currentBalance);
   detailDateAdded.textContent = formatDate(card.dateAdded);
-  detailCurrentDateLabel.textContent = card.used ? "Date Used" : "Date Updated";
+  detailCurrentDateLabel.textContent = card.used ? "Date used" : "Date updated";
   detailCurrentDate.textContent = formatDate(card.used ? card.dateUsed : card.dateUpdated);
   currentBalanceCard.classList.toggle("used-balance-card", card.used);
   detailNotes.textContent = card.notes;
@@ -2460,7 +2460,7 @@ function renderCardDetail() {
   previousButton.disabled = visiblePosition <= 0;
   nextButton.disabled = visiblePosition === visibleIndexes.length - 1;
   markUsedButton.disabled = false;
-  markUsedButton.textContent = card.used ? "Unmark Used" : "Mark Used";
+  markUsedButton.textContent = card.used ? "Unmark used" : "Mark used";
   openBalanceModalButton.disabled = false;
   barcodeOpenButton.disabled = false;
   detailBarcodeActionLabel.textContent = "Tap to open full screen";
@@ -2630,7 +2630,7 @@ function validateBalanceUpdate() {
   const remainingBalance = readMoneyInput(remainingBalanceInput);
 
   if (amountUsed === null && remainingBalance === null) {
-    setBalanceModalError("Enter Amount Used or Remaining Balance.");
+    setBalanceModalError("Enter amount used or remaining balance.");
     return null;
   }
 
@@ -2644,7 +2644,7 @@ function validateBalanceUpdate() {
     : normalizeMoney(remainingBalance);
 
   if (nextBalance < 0) {
-    setBalanceModalError("Remaining Balance cannot be negative.");
+    setBalanceModalError("Remaining balance cannot be negative.");
     return null;
   }
 
