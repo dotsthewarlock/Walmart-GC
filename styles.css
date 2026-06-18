@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.37 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.38 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -13,7 +13,22 @@
   --shadow: 0 18px 45px rgba(23, 32, 51, 0.08);
   --unused: #0f7b3f;
   --used: #6d7480;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --type-body-size: 1rem;
+  --type-body-line-height: 1.5;
+  --type-body-weight: 400;
+  --type-label-size: 0.78rem;
+  --type-label-line-height: 1.25;
+  --type-label-weight: 600;
+  --type-title-size: 1.05rem;
+  --type-title-line-height: 1.3;
+  --type-title-weight: 600;
+  --type-headline-size: clamp(2rem, 9vw, 4rem);
+  --type-headline-line-height: 1.08;
+  --type-headline-weight: 700;
+  --type-button-weight: 600;
 }
+
 
 * {
   box-sizing: border-box;
@@ -23,8 +38,10 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-sans);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
   padding-top: 3.4rem;
 }
 
@@ -62,9 +79,25 @@ button:disabled {
   line-height: 1.1;
 }
 
+.section-heading h2,
+.fullscreen-header h2,
+.modal-card h2,
+.data-section-heading h3,
+.data-card-heading h3,
+.data-card-heading h4,
+.validation-card h3,
+.validation-card h4,
+.schema-detail-card h4 {
+  font-size: var(--type-title-size);
+  font-weight: var(--type-title-weight);
+  line-height: var(--type-title-line-height);
+}
+
 .app-header h1 {
-  font-size: clamp(2rem, 9vw, 4rem);
-  letter-spacing: -0.04em;
+  font-size: var(--type-headline-size);
+  font-weight: var(--type-headline-weight);
+  line-height: var(--type-headline-line-height);
+  letter-spacing: -0.03em;
 }
 
 .debug-version-fingerprint {
@@ -112,7 +145,7 @@ button:disabled {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -130,7 +163,7 @@ button:disabled {
   min-width: 0;
   color: rgba(255, 255, 255, 0.86);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.15;
 }
 
@@ -152,9 +185,10 @@ button:disabled {
 .eyebrow {
   margin: 0 0 0.35rem;
   color: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line-height);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.78;
 }
@@ -189,7 +223,7 @@ button:disabled {
   color: var(--primary-dark);
   cursor: pointer;
   font-size: clamp(0.72rem, 2.7vw, 0.95rem);
-  font-weight: 800;
+  font-weight: 600;
   padding: 0.58rem 0.35rem;
   text-align: center;
   transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
@@ -247,7 +281,7 @@ button:disabled {
   background: #eef4fb;
   color: var(--primary-dark);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -335,13 +369,13 @@ button:disabled {
 }
 
 .card-number {
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.03em;
 }
 
 .card-balance {
   font-size: 1.35rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .is-used-balance {
@@ -408,7 +442,7 @@ button:disabled {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 999px;
   padding: 0.4rem 0.75rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .barcode-action-label {
@@ -475,8 +509,8 @@ dt,
   margin: 0 0 0.25rem;
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -484,12 +518,13 @@ dd,
 .notes-block p {
   margin: 0;
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 #detail-current-balance {
   color: var(--primary-dark);
   font-size: clamp(1.35rem, 5vw, 1.85rem);
+  font-weight: 700;
   line-height: 1.15;
 }
 
@@ -515,7 +550,7 @@ dd,
 }
 
 .pin-value {
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
 }
 
 .action-row,
@@ -534,7 +569,7 @@ dd,
   border: 1px solid transparent;
   border-radius: 0.8rem;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: var(--type-button-weight);
   padding: 0.75rem 1rem;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
@@ -625,7 +660,7 @@ dd,
 .form-error {
   min-height: 1.4rem;
   color: var(--danger);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .fullscreen-content {
@@ -664,7 +699,7 @@ dd,
 
 .fullscreen-placeholder small {
   color: #1f2937;
-  font-weight: 800;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -674,7 +709,7 @@ dd,
   background: #ffffff;
   color: #07111f;
   font-size: clamp(1rem, 4vw, 1.45rem);
-  font-weight: 900;
+  font-weight: 700;
   padding: 0.5rem 0.8rem;
   text-align: center;
 }
@@ -696,8 +731,8 @@ dd,
 .fullscreen-card-meta dt {
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -705,8 +740,8 @@ dd,
   margin: 0.3rem 0 0;
   color: #ffffff;
   font-size: clamp(1.15rem, 5vw, 2.25rem);
-  font-weight: 900;
-  letter-spacing: 0.07em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   word-break: break-word;
 }
 
@@ -836,11 +871,11 @@ dd,
 }
 
 .advanced-diagnostics-section summary::-webkit-details-marker {
-  color: var(--accent);
+  color: var(--primary);
 }
 
 .advanced-diagnostics-section summary::marker {
-  color: var(--accent);
+  color: var(--primary);
 }
 
 .advanced-diagnostics-content {
@@ -930,7 +965,7 @@ dd,
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .data-actions button:disabled {
@@ -946,7 +981,7 @@ dd,
 
 .validation-warnings p {
   margin: 0 0 0.45rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .validation-warnings ul {
@@ -978,8 +1013,8 @@ dd,
 .connection-label {
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -1125,7 +1160,7 @@ dd,
   background: rgba(0, 113, 220, 0.12);
   color: var(--primary-dark);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 600;
   padding: 0.25rem 0.55rem;
 }
 
@@ -1141,7 +1176,7 @@ dd,
 
 .sync-message {
   margin-top: 0.45rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .sync-recovery-actions {
@@ -1179,7 +1214,7 @@ dd,
 }
 
 .recovery-status {
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .recovery-warning {

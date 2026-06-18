@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.37 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.38 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,14 +8,14 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.37" />
+    <link rel="stylesheet" href="styles.css?v=1.01.38" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
-      <button id="nav-list" class="nav-button" type="button" data-panel="list" aria-pressed="true">Card List</button>
+      <button id="nav-list" class="nav-button" type="button" data-panel="list" aria-pressed="true">Card list</button>
       <button id="nav-detail" class="nav-button" type="button" data-panel="detail" aria-pressed="false">Checkout</button>
-      <button id="nav-settings" class="nav-button" type="button" data-panel="settings" aria-label="Open Preferences" title="Preferences" aria-pressed="false">Preferences</button>
-      <button id="nav-data" class="nav-button" type="button" data-panel="data" aria-label="Open Backup and Sync" title="Backup & Sync" aria-pressed="false">Backup &amp; Sync</button>
+      <button id="nav-settings" class="nav-button" type="button" data-panel="settings" aria-label="Open preferences" title="Preferences" aria-pressed="false">Preferences</button>
+      <button id="nav-data" class="nav-button" type="button" data-panel="data" aria-label="Open backup and sync" title="Backup and sync" aria-pressed="false">Backup and sync</button>
     </nav>
 
     <header class="app-header">
@@ -23,10 +23,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.37"
+          data-html-version="1.01.38"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.37 · JS loading · CSS 1.01.37
+          HTML 1.01.38 · JS loading · CSS 1.01.38
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -38,10 +38,10 @@
           class="app-sync-summary"
           type="button"
           aria-live="polite"
-          aria-label="Sync status. Open Backup and Sync"
+          aria-label="Sync status. Open backup and sync"
         >
           <span class="app-sync-summary-label">Local only</span>
-          <span class="app-sync-summary-help">Open Backup &amp; Sync</span>
+          <span class="app-sync-summary-help">Open backup and sync</span>
         </button>
       </div>
     </header>
@@ -85,7 +85,7 @@
               <span id="detail-barcode-status">Barcode unavailable</span>
               <strong id="detail-barcode-action-label" class="barcode-action-label">Tap to open full screen</strong>
               <div id="detail-barcode-render" class="barcode-render" aria-hidden="true"></div>
-              <small id="detail-barcode-caption">Choose a card from Cards to render its checkout barcode.</small>
+              <small id="detail-barcode-caption">Select a card to render its checkout barcode.</small>
             </button>
 
             <dl class="detail-grid">
@@ -100,18 +100,18 @@
               <div>
                 <dt>Starting balance</dt>
                 <dd id="detail-starting-balance">—</dd>
-                <p class="date-line">Date Added: <span id="detail-date-added">—</span></p>
+                <p class="date-line">Date added: <span id="detail-date-added">—</span></p>
               </div>
               <div id="current-balance-card">
                 <dt>Current balance</dt>
                 <dd id="detail-current-balance">—</dd>
-                <p class="date-line"><span id="detail-current-date-label">Date Updated</span>: <span id="detail-current-date">—</span></p>
+                <p class="date-line"><span id="detail-current-date-label">Date updated</span>: <span id="detail-current-date">—</span></p>
               </div>
             </dl>
 
             <div class="action-row" aria-label="Card actions">
-              <button id="mark-used" class="danger-button" type="button">Mark Used</button>
-              <button id="open-balance-modal" class="primary-button" type="button">Update Balance</button>
+              <button id="mark-used" class="danger-button" type="button">Mark used</button>
+              <button id="open-balance-modal" class="primary-button" type="button">Update balance</button>
             </div>
 
             <div class="notes-block">
@@ -132,7 +132,7 @@
           <div class="settings-list">
             <label class="setting-row">
               <span>
-                <strong>Proceed to next card when Mark Used</strong>
+                <strong>Proceed to next card after marking used</strong>
                 <small>Default on; advances through the visible sorted list.</small>
               </span>
               <input id="advance-on-used" type="checkbox" checked />
@@ -140,7 +140,7 @@
 
             <label class="setting-row">
               <span>
-                <strong>Hide Used Cards</strong>
+                <strong>Hide used cards</strong>
                 <small>Hide cards where Used = true.</small>
               </span>
               <input id="hide-used" type="checkbox" checked />
@@ -148,34 +148,34 @@
 
             <label class="setting-row">
               <span>
-                <strong>Hide $0 Balance Cards</strong>
-                <small>Hide cards where Current Balance = $0.00.</small>
+                <strong>Hide $0 balance cards</strong>
+                <small>Hide cards where current balance = $0.00.</small>
               </span>
               <input id="hide-zero-balance" type="checkbox" />
             </label>
 
             <label class="setting-row setting-row-stacked" for="sort-cards">
               <span>
-                <strong>Sort Cards</strong>
-                <small>Affects list and Prev / Next navigation.</small>
+                <strong>Sort cards</strong>
+                <small>Affects list and Previous/next navigation.</small>
               </span>
               <select id="sort-cards">
-                <option value="balance-asc">Balance (Low → High)</option>
-                <option value="balance-desc">Balance (High → Low)</option>
-                <option value="date-added-asc">Date Added (Oldest First)</option>
-                <option value="date-added-desc">Date Added (Newest First)</option>
-                <option value="date-updated-asc">Date Updated (Oldest First)</option>
-                <option value="date-updated-desc">Date Updated (Newest First)</option>
-                <option value="card-number">Card Number</option>
+                <option value="balance-asc">Balance (low → high)</option>
+                <option value="balance-desc">Balance (high → low)</option>
+                <option value="date-added-asc">Date added (oldest first)</option>
+                <option value="date-added-desc">Date added (newest first)</option>
+                <option value="date-updated-asc">Date updated (oldest first)</option>
+                <option value="date-updated-desc">Date updated (newest first)</option>
+                <option value="card-number">Card number</option>
               </select>
             </label>
 
             <div class="setting-row setting-row-stacked">
               <span>
-                <strong>Mark All $0 Cards as Used</strong>
+                <strong>Mark all $0 cards as used</strong>
                 <small>Preserves balances and dates.</small>
               </span>
-              <button id="mark-zero-used" class="secondary-button" type="button">Mark All $0 Cards as Used</button>
+              <button id="mark-zero-used" class="secondary-button" type="button">Mark all $0 cards as used</button>
             </div>
 
             <div class="setting-row setting-row-stacked">
@@ -191,8 +191,8 @@
       <section id="data-panel" class="panel data-panel" aria-labelledby="data-heading" data-panel-name="data" hidden>
         <div class="section-heading compact-heading">
           <div>
-            <p class="eyebrow">Backup &amp; Sync</p>
-            <h2 id="data-heading">Backup &amp; Sync</h2>
+            <p class="eyebrow">Backup and sync</p>
+            <h2 id="data-heading">Backup and sync</h2>
           </div>
         </div>
 
@@ -204,16 +204,16 @@
 
           <section class="data-section google-sync-section" aria-labelledby="google-sync-heading">
             <div class="data-section-heading">
-              <p class="eyebrow">Google Sync</p>
-              <h3 id="google-sync-heading">Google Sync</h3>
-              <p>Connect Google and manage the Walmart-GC Data Sheet used for cross-device sync.</p>
+              <p class="eyebrow">Google sync</p>
+              <h3 id="google-sync-heading">Google sync</h3>
+              <p>Connect Google and manage the Walmart-GC Data sheet used for cross-device sync.</p>
             </div>
 
             <div class="data-card oauth-card">
               <div class="data-card-heading">
                 <div>
-                  <h4>Google Account</h4>
-                  <p>Connect your Google Account to use Google Sheets sync. Walmart-GC keeps sensitive Google sign-in details out of the browser.</p>
+                  <h4>Google account</h4>
+                  <p>Connect your Google account to use Google Sheets sync. Walmart-GC keeps sensitive Google sign-in details out of the browser.</p>
                 </div>
               </div>
 
@@ -228,16 +228,16 @@
             <div class="data-card direct-sheets-card">
               <div class="data-card-heading">
                 <div>
-                  <h4>Google Sheet</h4>
-                  <p><code>Walmart-GC Data</code> is the Google Sheet used for sync. Walmart-GC can find or create the spreadsheet and prepare the <code>Cards</code> and <code>_META</code> tabs.</p>
+                  <h4>Google sheet</h4>
+                  <p><code>Walmart-GC Data</code> is the Google sheet used for sync. Walmart-GC can find or create the spreadsheet and prepare the <code>Cards</code> and <code>_META</code> tabs.</p>
                 </div>
               </div>
 
-              <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
-                <button id="initialize-direct-sheet" class="secondary-button" type="button">Set up / check Sheet</button>
-                <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
-                <button id="load-direct-sheet" class="primary-button" type="button">Reload from Sheet</button>
-                <button id="sync-direct-sheet" class="secondary-button" type="button">Sync to Sheet</button>
+              <div class="connection-actions sheet-normal-actions" aria-label="Google sheet setup and sync actions">
+                <button id="initialize-direct-sheet" class="secondary-button" type="button">Check sheet</button>
+                <button id="open-direct-sheet" class="secondary-button" type="button">Open Google sheet</button>
+                <button id="load-direct-sheet" class="primary-button" type="button">Reload from sheet</button>
+                <button id="sync-direct-sheet" class="secondary-button" type="button">Sync to sheet</button>
               </div>
 
               <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
@@ -247,8 +247,8 @@
 
           <section class="data-section backup-restore-section" aria-labelledby="backup-restore-heading">
             <div class="data-section-heading">
-              <p class="eyebrow">Backup &amp; Restore</p>
-              <h3 id="backup-restore-heading">Backup &amp; Restore</h3>
+              <p class="eyebrow">Backup and restore</p>
+              <h3 id="backup-restore-heading">Backup and restore</h3>
               <p>Export a CSV backup before major changes. Import only when you need to restore or replace the local card list.</p>
               <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
             </div>
@@ -256,7 +256,7 @@
             <div class="data-card csv-recovery-card">
               <div class="data-card-heading">
                 <div>
-                  <h4>CSV Backup &amp; Recovery</h4>
+                  <h4>CSV backup and recovery</h4>
                   <p>CSV files are your portable local backup. Export is safe and non-destructive; importing replaces the local card list only after the existing confirmation flow.</p>
                 </div>
               </div>
@@ -272,10 +272,10 @@
           </section>
 
           <details class="data-section advanced-diagnostics-section">
-            <summary aria-label="Show Advanced / Diagnostics tools">
+            <summary aria-label="Show advanced diagnostics tools">
               <span>
-                <span class="eyebrow">Advanced / Diagnostics</span>
-                <strong>Advanced / Diagnostics</strong>
+                <span class="eyebrow">Advanced diagnostics</span>
+                <strong>Advanced diagnostics</strong>
                 <small>Raw CSV editing, manual refresh/update controls, validation warnings, schema details, and app version information.</small>
               </span>
             </summary>
@@ -284,7 +284,7 @@
               <div class="data-card raw-data-card">
                 <div class="data-card-heading">
                   <div>
-                    <h4>Raw CSV Editor</h4>
+                    <h4>Raw CSV editor</h4>
                     <p>Advanced recovery tools for reviewing or editing the raw local CSV representation.</p>
                   </div>
                 </div>
@@ -300,27 +300,27 @@
 
                 <div class="data-actions" aria-label="Raw data diagnostic actions">
                   <div class="data-action-row">
-                    <button id="toggle-data-lock" class="secondary-button" type="button">Unlock Editing</button>
+                    <button id="toggle-data-lock" class="secondary-button" type="button">Unlock editing</button>
                     <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
                   </div>
                   <div class="data-action-row">
-                    <button id="refresh-card-data" class="secondary-button" type="button">Refresh Data</button>
-                    <button id="update-card-data" class="primary-button" type="button">Update Data</button>
+                    <button id="refresh-card-data" class="secondary-button" type="button">Refresh data</button>
+                    <button id="update-card-data" class="primary-button" type="button">Update data</button>
                   </div>
                 </div>
                 <p class="data-footnote">* Scan remains disabled for the MVP; use CSV import/export for backup and recovery.</p>
               </div>
 
               <div class="validation-card">
-                <h4>Validation Warnings</h4>
+                <h4>Validation warnings</h4>
                 <div id="data-validation-warnings" class="validation-warnings" role="status">No validation run yet.</div>
               </div>
 
               <div class="data-card schema-detail-card">
-                <h4>CSV and Sheet Header Details</h4>
+                <h4>CSV and sheet header details</h4>
                 <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>.</p>
                 <p>Sheets sync matches approved headers by name, so columns may be rearranged.</p>
-                <p class="data-footnote">App-shell fingerprint: HTML 1.01.37 · JS 1.01.37 · CSS 1.01.37.</p>
+                <p class="data-footnote">App-shell fingerprint: HTML 1.01.38 · JS 1.01.38 · CSS 1.01.38.</p>
               </div>
             </div>
           </details>
@@ -330,11 +330,11 @@
 
     <div id="balance-modal" class="modal-backdrop" hidden>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="balance-modal-title">
-        <h2 id="balance-modal-title">Update Balance</h2>
+        <h2 id="balance-modal-title">Update balance</h2>
         <p id="balance-modal-context" class="modal-context">Current balance: —</p>
-        <label for="amount-used-input">Amount Used:</label>
+        <label for="amount-used-input">Amount used:</label>
         <input id="amount-used-input" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
-        <label for="remaining-balance-input">Remaining Balance:</label>
+        <label for="remaining-balance-input">Remaining balance:</label>
         <input id="remaining-balance-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
         <p id="balance-modal-error" class="form-error" role="alert"></p>
         <div class="modal-actions">
@@ -347,7 +347,7 @@
     <div id="confirm-modal" class="modal-backdrop" hidden>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
         <h2 id="confirm-modal-title">Confirm bulk update</h2>
-        <p id="confirm-modal-message" class="modal-context">Mark 0 zero-balance cards as Used?</p>
+        <p id="confirm-modal-message" class="modal-context">Mark 0 zero-balance cards as used?</p>
         <div class="modal-actions">
           <button id="cancel-confirm" class="secondary-button" type="button">Cancel</button>
           <button id="confirm-zero-used" class="danger-button compact-danger" type="button">Confirm</button>
@@ -367,7 +367,7 @@
         <p id="fullscreen-position" class="fullscreen-position">Card 0 of 0</p>
         <dl class="fullscreen-card-meta" aria-label="Checkout card details">
           <div>
-            <dt>Card Number</dt>
+            <dt>Card number</dt>
             <dd id="fullscreen-card-number">—</dd>
           </div>
           <div>
@@ -375,7 +375,7 @@
             <dd id="fullscreen-pin">—</dd>
           </div>
           <div>
-            <dt>Current Balance</dt>
+            <dt>Current balance</dt>
             <dd id="fullscreen-current-balance">—</dd>
           </div>
         </dl>
@@ -389,12 +389,12 @@
           <button id="fullscreen-next" class="secondary-button" type="button">Next</button>
         </div>
         <div class="fullscreen-actions" aria-label="Checkout actions">
-          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark Used</button>
-          <button id="fullscreen-update-balance" class="primary-button" type="button">Update Balance</button>
+          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark used</button>
+          <button id="fullscreen-update-balance" class="primary-button" type="button">Update balance</button>
         </div>
       </div>
     </div>
 
-    <script src="app.js?v=1.01.37"></script>
+    <script src="app.js?v=1.01.38"></script>
   </body>
 </html>
