@@ -1,17 +1,20 @@
-// Debug file fingerprint: app.js app-shell version 1.01.41 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.42 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.41";
-const DEBUG_VERSION_CSS = "1.01.41";
+const DEBUG_VERSION_JS = "1.01.42";
+const DEBUG_VERSION_CSS = "1.01.42";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
+  const settingsFingerprint = document.querySelector("#settings-app-shell-fingerprint");
+  const htmlVersion = fingerprint?.dataset.htmlVersion || "unknown";
 
-  if (!fingerprint) {
-    return;
+  if (fingerprint) {
+    fingerprint.textContent = `HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
   }
 
-  const htmlVersion = fingerprint.dataset.htmlVersion || "unknown";
-  fingerprint.textContent = `HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
+  if (settingsFingerprint) {
+    settingsFingerprint.textContent = `App shell: HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
+  }
 }
 
 renderDebugVersionFingerprint();
@@ -165,6 +168,7 @@ const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
 const connectGoogleButton = document.querySelector("#connect-google");
 const disconnectGoogleButton = document.querySelector("#disconnect-google");
 const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
+const advancedSyncDiagnostics = document.querySelector("#advanced-sync-diagnostics");
 const initializeDirectSheetButton = document.querySelector("#initialize-direct-sheet");
 const openDirectSheetButton = document.querySelector("#open-direct-sheet");
 const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
@@ -1306,6 +1310,60 @@ function renderDiagnosticRow(label, value) {
     </li>`;
 }
 
+function renderAdvancedSyncDiagnostics(googleRows = [], sheetRows = []) {
+  if (!advancedSyncDiagnostics) {
+    return;
+  }
+
+  advancedSyncDiagnostics.innerHTML = `
+    <div class="diagnostic-group">
+      <h5>Google account diagnostics</h5>
+      <ul class="diagnostic-list">${googleRows.join("")}</ul>
+    </div>
+    <div class="diagnostic-group">
+      <h5>Google Sheet diagnostics</h5>
+      <ul class="diagnostic-list">${sheetRows.join("")}</ul>
+    </div>
+  `;
+}
+
+function getGoogleOAuthDiagnosticRows() {
+  return [
+    renderDiagnosticRow("Worker backend", WORKER_ROUTE_DISPLAY),
+    renderDiagnosticRow("Worker version", valueOrFallback(googleOAuthState.workerVersion || directSheetsState.workerVersion)),
+    renderDiagnosticRow("Schema mode", valueOrFallback(googleOAuthState.schemaMode || directSheetsState.schemaMode)),
+    renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
+    renderDiagnosticRow("Connection state", googleOAuthState.status),
+    renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
+    renderDiagnosticRow("Saved sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
+    renderDiagnosticRow("Frontend token storage", "None"),
+    renderDiagnosticRow("Session storage", "HttpOnly same-origin cookie"),
+    renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
+    renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
+  ];
+}
+
+function getDirectSheetsDiagnosticRows() {
+  return [
+    renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
+    renderDiagnosticRow("Worker version", valueOrFallback(directSheetsState.workerVersion || googleOAuthState.workerVersion)),
+    renderDiagnosticRow("Schema mode", valueOrFallback(directSheetsState.schemaMode || googleOAuthState.schemaMode)),
+    renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
+    renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
+    renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
+    renderDiagnosticRow("Active sheet name", valueOrFallback(directSheetsState.spreadsheetName)),
+    renderDiagnosticRow("Cards sheet initialized", valueOrFallback(directSheetsState.cardsSheetInitialized)),
+    renderDiagnosticRow("Local sheetVersion", valueOrFallback(syncState.lastKnownSheetVersion)),
+    renderDiagnosticRow("Remote sheetVersion", valueOrFallback(directSheetsState.remoteSheetVersion)),
+    renderDiagnosticRow("Sync state", getSyncStatusLabel()),
+    renderDiagnosticRow("Unsynced changes", directSheetsState.pendingUnsynced || syncState.pendingOperation ? "Yes" : "No"),
+    renderDiagnosticRow("Last successful sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
+    renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
+    renderDiagnosticRow("Local card count", String(sampleGiftCards.length)),
+    renderDiagnosticRow("Offline/local availability", getOfflineAvailabilityStatus()),
+  ];
+}
+
 
 function getWorkerSessionDiagnosticStatus() {
   if (googleOAuthState.status === googleOAuthStatuses.error) {
@@ -1428,24 +1486,7 @@ function renderDirectSheetsState() {
   loadDirectSheetButton.disabled = isBusy || !hasWorkerGoogleSession();
   syncDirectSheetButton.disabled = isBusy || !hasWorkerGoogleSession();
 
-  const details = [
-    renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
-    renderDiagnosticRow("Worker version", valueOrFallback(directSheetsState.workerVersion || googleOAuthState.workerVersion)),
-    renderDiagnosticRow("Schema mode", valueOrFallback(directSheetsState.schemaMode || googleOAuthState.schemaMode)),
-    renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
-    renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
-    renderDiagnosticRow("Active sheet name", valueOrFallback(directSheetsState.spreadsheetName)),
-    renderDiagnosticRow("Cards sheet initialized", valueOrFallback(directSheetsState.cardsSheetInitialized)),
-    renderDiagnosticRow("Local sheetVersion", valueOrFallback(syncState.lastKnownSheetVersion)),
-    renderDiagnosticRow("Remote sheetVersion", valueOrFallback(directSheetsState.remoteSheetVersion)),
-    renderDiagnosticRow("Sync state", getSyncStatusLabel()),
-    renderDiagnosticRow("Unsynced changes", directSheetsState.pendingUnsynced || syncState.pendingOperation ? "Yes" : "No"),
-    renderDiagnosticRow("Last successful sync", formatConnectionTimestamp(directSheetsState.lastSuccessfulSyncAt)),
-    renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
-    renderDiagnosticRow("Local card count", String(sampleGiftCards.length)),
-    renderDiagnosticRow("Offline/local availability", getOfflineAvailabilityStatus()),
-  ];
+  renderAdvancedSyncDiagnostics(getGoogleOAuthDiagnosticRows(), getDirectSheetsDiagnosticRows());
 
   const sheetLink = getDirectSheetsDisplayUrl();
   directSheetStatusArea.className = `connection-status is-${getDirectSheetsStatusClass()} sync-${syncState.status}`;
@@ -1458,7 +1499,6 @@ function renderDirectSheetsState() {
     <p>${formatDirectSheetsPanelMessage()}</p>
     ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open Google sheet</a></p>` : ""}
     ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
-    <ul class="diagnostic-list">${details.join("")}</ul>
   `;
 }
 
@@ -1492,19 +1532,7 @@ function renderGoogleOAuthState() {
   disconnectGoogleButton.disabled = isBusy;
   disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
 
-  const details = [
-    renderDiagnosticRow("Worker backend", WORKER_ROUTE_DISPLAY),
-    renderDiagnosticRow("Worker version", valueOrFallback(googleOAuthState.workerVersion || directSheetsState.workerVersion)),
-    renderDiagnosticRow("Schema mode", valueOrFallback(googleOAuthState.schemaMode || directSheetsState.schemaMode)),
-    renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
-    renderDiagnosticRow("Connection state", googleOAuthState.status),
-    renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
-    renderDiagnosticRow("Saved sheet metadata", directSheetsState.spreadsheetId ? "Preserved locally" : "None saved"),
-    renderDiagnosticRow("Frontend token storage", "None"),
-    renderDiagnosticRow("Session storage", "HttpOnly same-origin cookie"),
-    renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
-    renderDiagnosticRow("Last Worker/API error", getLastWorkerApiError()),
-  ];
+  renderAdvancedSyncDiagnostics(getGoogleOAuthDiagnosticRows(), getDirectSheetsDiagnosticRows());
 
   googleOAuthStatusArea.className = `connection-status oauth-status is-${getGoogleOAuthStatusClass()}`;
   googleOAuthStatusArea.innerHTML = `
@@ -1513,7 +1541,6 @@ function renderGoogleOAuthState() {
       <strong>${escapeHtml(googleOAuthState.status)}</strong>
     </div>
     <p>${escapeHtml(googleOAuthState.message || defaultGoogleOAuthState.message)}</p>
-    <ul class="diagnostic-list">${details.join("")}</ul>
   `;
 }
 
@@ -2469,7 +2496,8 @@ function renderCardDetail() {
   fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
   const fullscreenCardIdentifier = `Card ${maskCardNumber(card.cardNumber)}`;
   fullscreenCardNumber.textContent = fullscreenCardIdentifier;
-  fullscreenBarcodeCaption.textContent = fullscreenCardIdentifier;
+  fullscreenBarcodeCaption.textContent = "";
+  fullscreenBarcodeCaption.hidden = true;
   fullscreenPin.textContent = card.pin;
   fullscreenCurrentBalance.textContent = formatBalance(card.currentBalance);
   fullscreenPreviousButton.disabled = visiblePosition <= 0;
