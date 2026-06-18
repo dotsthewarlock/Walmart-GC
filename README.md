@@ -61,6 +61,19 @@ Legacy Worker subdomain https://walmart-gc-oauth.dotsthewarlock.com may remain f
 
 Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, new hosting, VPS, or app-managed user account system. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
 
+
+## Runtime Debugging Priority
+
+Worker-backed OAuth and sync are the intended Phase 11 architecture. When debugging a live failure, however, evidence wins over architecture notes. Use this priority order:
+
+1. Exact live error string / observed behavior
+2. Current workspace/repo files
+3. Active deployment/config
+4. Repo docs / intended architecture
+5. Prior assumptions
+
+If an exact live error string exists only in `apps-script/Code.gs`, inspect and debug the Apps Script path first until the active runtime is disproven. Do not treat Apps Script as the active default architecture without that live evidence.
+
 ## OAuth and Session Contract
 
 - Authentication is Worker-managed Google OAuth.
