@@ -1,3 +1,21 @@
+# Archived / Historical
+
+This file is retained for historical reference only.
+
+Do not use it as the source of truth for current Phase 11 implementation unless:
+
+* an exact live error string points to this path,
+* a regression requires historical comparison,
+* or the user explicitly asks for historical context.
+
+Current source of truth:
+
+* docs/CODEX_ACTIVE_CONTEXT.md
+* AGENTS.md
+* docs/ARCHITECTURE.md
+
+Apps Script is retired as the intended sync path. Do not use this for new setup unless exact deployed behavior or error strings prove Apps Script is active.
+
 > Historical reference only: Apps Script belonged to the retired MVP path. It is not part of the active Phase 11 architecture, sync path, setup flow, diagnostics, or user-facing guidance. Active Phase 11 sync is Worker-managed Google OAuth through same-origin `/auth/*` and `/api/*` routes on `https://walmart-gc.dotsthewarlock.com`; the legacy Worker subdomain may remain fallback/legacy only.
 
 > Historical MVP reference: this document describes the retired Apps Script MVP. It is not the active Phase 11 OAuth/session or sync path.
@@ -35,14 +53,14 @@ Apps Script validates and writes the approved MVP `Cards` schema:
 cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
-If Health Check or Load from Sheets reports a schema issue, compare the Sheet to [Google Sheet Setup](GOOGLE_SHEET_SETUP.md).
+If Health Check or Load from Sheets reports a schema issue, compare the Sheet to [Google Sheet Setup](../../GOOGLE_SHEET_SETUP.md).
 
 ## Before You Start
 
 You need:
 
 - A Google account.
-- A compatible Google Sheet. See [Google Sheet Setup](GOOGLE_SHEET_SETUP.md).
+- A compatible Google Sheet. See [Google Sheet Setup](../../GOOGLE_SHEET_SETUP.md).
 - Access to the Walmart-GC repository files.
 - The Apps Script source file from this repository:
 
@@ -242,4 +260,4 @@ Resolution:
 
 ## Next Step
 
-After Health Check succeeds, continue with [Deployment Guide](DEPLOYMENT_GUIDE.md) to load cards and verify sync.
+After Health Check succeeds, continue with [Deployment Guide](../../DEPLOYMENT_GUIDE.md) to load cards and verify sync.

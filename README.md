@@ -105,6 +105,8 @@ OAuth testing is cloud-only. Do not document or use localhost OAuth, alternate O
 
 ## Documentation
 
+Start with [Codex Active Context](docs/CODEX_ACTIVE_CONTEXT.md) for compact current Phase 11 context. Archived docs are historical references only and are not current setup guidance.
+
 - [Architecture](docs/ARCHITECTURE.md)
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 - [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md)
@@ -112,7 +114,7 @@ OAuth testing is cloud-only. Do not document or use localhost OAuth, alternate O
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Roadmap](docs/ROADMAP.md)
 - [AI Handoff](docs/AI_HANDOFF.md)
-- [Historical Apps Script Setup](docs/APPS_SCRIPT_SETUP.md)
+- [Documentation Archive](docs/archive/README.md)
 
 ## Sheet Sharing
 

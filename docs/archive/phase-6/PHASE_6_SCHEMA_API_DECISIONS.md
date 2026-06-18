@@ -1,3 +1,19 @@
+# Archived / Historical
+
+This file is retained for historical reference only.
+
+Do not use it as the source of truth for current Phase 11 implementation unless:
+
+* an exact live error string points to this path,
+* a regression requires historical comparison,
+* or the user explicitly asks for historical context.
+
+Current source of truth:
+
+* docs/CODEX_ACTIVE_CONTEXT.md
+* AGENTS.md
+* docs/ARCHITECTURE.md
+
 > Historical reference only: this file records Phase 6 MVP schema/API decisions for the retired Apps Script path. Phase 11 is active on `phase-11`; active sync is Worker-managed Google OAuth, Drive API, and Sheets API. Apps Script references below are historical and must not be used as active Phase 11 setup or sync guidance.
 
 > Historical MVP reference: this document describes the retired Apps Script MVP. It is not the active Phase 11 OAuth/session or sync path.

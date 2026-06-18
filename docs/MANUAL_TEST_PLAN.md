@@ -100,9 +100,9 @@ Confirm `Cards` includes the required header names. New or empty Sheets initiali
 ```text
 cardNumber
 pin
+merchant
 startingBalance
 currentBalance
-merchant
 dateAdded
 dateUpdated
 dateUsed

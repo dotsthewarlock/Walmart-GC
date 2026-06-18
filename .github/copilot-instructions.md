@@ -1,5 +1,8 @@
 # Walmart-GC Development Instructions
 
+Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 11 context. Use `docs/archive/` only for historical/regression tasks, not normal implementation guidance.
+
+
 Project type:
 
 Static website hosted on GitHub Pages with a Cloudflare Worker OAuth/session backend.
