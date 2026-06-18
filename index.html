@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.44 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.45 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.44" />
+    <link rel="stylesheet" href="styles.css?v=1.01.45" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -23,10 +23,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.44"
+          data-html-version="1.01.45"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.44 · JS loading · CSS 1.01.44
+          HTML 1.01.45 · JS loading · CSS 1.01.45
         </div>
         <h1>Gift Card Manager</h1>
         <button
@@ -47,7 +47,6 @@
         <div class="section-heading">
           <div>
             <h2 id="card-list-heading">Cards</h2>
-            <p class="panel-helper">Choose a card to start checkout.</p>
           </div>
           <span id="card-count" class="count-badge">0 cards</span>
         </div>
@@ -128,32 +127,24 @@
           <div class="settings-list">
             <label class="setting-row">
               <span>
-                <strong>Proceed to next card after marking used</strong>
-                <small>Default on; advances through the visible sorted list.</small>
-              </span>
-              <input id="advance-on-used" type="checkbox" checked />
-            </label>
-
-            <label class="setting-row">
-              <span>
                 <strong>Hide used cards</strong>
-                <small>Hide cards where Used = true.</small>
+                <small>Remove used cards from Cards and Checkout.</small>
               </span>
               <input id="hide-used" type="checkbox" checked />
             </label>
 
             <label class="setting-row">
               <span>
-                <strong>Hide $0 balance cards</strong>
-                <small>Hide cards where current balance = $0.00.</small>
+                <strong>Hide $0 cards</strong>
+                <small>Remove zero-balance cards from Cards and Checkout.</small>
               </span>
               <input id="hide-zero-balance" type="checkbox" />
             </label>
 
             <label class="setting-row setting-row-stacked" for="sort-cards">
               <span>
-                <strong>Sort cards</strong>
-                <small>Affects list and previous/next card navigation.</small>
+                <strong>Sort order</strong>
+                <small>Controls Cards and Checkout previous/next order.</small>
               </span>
               <select id="sort-cards">
                 <option value="balance-asc">Balance (low → high)</option>
@@ -166,22 +157,30 @@
               </select>
             </label>
 
-            <div class="setting-row setting-row-stacked">
+            <label class="setting-row">
               <span>
-                <strong>Mark all $0 cards as used</strong>
-                <small>Preserves balances and dates.</small>
+                <strong>Auto-advance after marking used</strong>
+                <small>Move to the next visible card after Mark used.</small>
               </span>
-              <button id="mark-zero-used" class="secondary-button" type="button">Mark all $0 cards as used</button>
+              <input id="advance-on-used" type="checkbox" checked />
+            </label>
+
+            <div class="setting-row settings-action-row">
+              <span>
+                <strong>Mark $0 cards used</strong>
+                <small>Requires confirmation; balances are unchanged.</small>
+              </span>
+              <button id="mark-zero-used" class="secondary-button" type="button">Mark $0 cards used</button>
             </div>
 
-            <div class="setting-row setting-row-stacked">
+            <div class="setting-row settings-action-row">
               <span>
-                <strong>Reload latest app version</strong>
-                <small>Clears cached app files and reloads HTML, JavaScript, and CSS. Local gift card data remains saved.</small>
+                <strong>Force refresh (debug)</strong>
+                <small>Clears cached app files and reloads. Local card data stays saved.</small>
               </span>
-              <button id="force-refresh-app-shell" class="secondary-button app-reload-button" type="button">Reload latest app version</button>
+              <button id="force-refresh-app-shell" class="secondary-button app-reload-button" type="button">Force refresh (debug)</button>
             </div>
-            <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.44 · JS 1.01.44 · CSS 1.01.44</p>
+            <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.45 · JS 1.01.45 · CSS 1.01.45</p>
           </div>
       </section>
 
@@ -199,7 +198,8 @@
               <p>Sync cards across devices with Google Sheets.</p>
             </div>
 
-            <div class="data-card oauth-card">
+            <details id="google-account-panel" class="data-card collapsible-data-card oauth-card">
+              <summary>
               <div class="data-card-heading">
                 <div>
                   <h4>Google account</h4>
@@ -207,21 +207,26 @@
                 </div>
               </div>
 
+              </summary>
+
               <div class="connection-actions oauth-actions" aria-label="Google account actions">
                 <button id="connect-google" class="primary-button" type="button">Connect Google</button>
                 <button id="disconnect-google" class="secondary-button" type="button">Disconnect</button>
               </div>
 
               <div id="google-oauth-status" class="connection-status oauth-status" role="status" aria-live="polite"></div>
-            </div>
+            </details>
 
-            <div class="data-card direct-sheets-card">
+            <details id="google-sheet-panel" class="data-card collapsible-data-card direct-sheets-card">
+              <summary>
               <div class="data-card-heading">
                 <div>
                   <h4>Google Sheet</h4>
                   <p>Use <code>Walmart-GC Data</code> for sync.</p>
                 </div>
               </div>
+
+              </summary>
 
               <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
                 <button id="initialize-direct-sheet" class="secondary-button" type="button">Check sheet</button>
@@ -232,7 +237,7 @@
 
               <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
               <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
-            </div>
+            </details>
           </section>
 
           <section class="data-section backup-restore-section" aria-labelledby="backup-restore-heading">
@@ -242,13 +247,16 @@
               <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
             </div>
 
-            <div class="data-card csv-recovery-card">
+            <details id="csv-recovery-panel" class="data-card collapsible-data-card csv-recovery-card" open>
+              <summary>
               <div class="data-card-heading">
                 <div>
                   <h4>CSV backup and recovery</h4>
                   <p>Export is safe. Import replaces local cards after confirmation.</p>
                 </div>
               </div>
+
+              </summary>
 
               <div class="data-actions" aria-label="CSV backup and recovery actions">
                 <div class="data-action-row">
@@ -257,7 +265,7 @@
                   <button id="export-csv" class="secondary-button" type="button">Export CSV</button>
                 </div>
               </div>
-            </div>
+            </details>
           </section>
 
           <details class="data-section advanced-diagnostics-section">
@@ -384,6 +392,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=1.01.44"></script>
+    <script src="app.js?v=1.01.45"></script>
   </body>
 </html>
