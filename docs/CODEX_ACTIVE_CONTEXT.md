@@ -99,6 +99,14 @@ ChatGPT Project Settings own ChatGPT conversation behavior; repo docs own Codex/
 
 Read only files listed by the task unless evidence points elsewhere. Prefer exact-string search over broad scans. Do not paste full files into responses unless requested. Summarize findings briefly. Avoid `docs/archive/` unless the task requires history. For low-risk UI/copy/CSS changes, do not inspect backend files. For high-risk auth/sync/schema tasks, inspect the relevant runtime path before proposing changes. Report changed files, validation, and risk notes.
 
+## Version-Bump Convention
+
+- Frontend runtime changes: bump all app-shell cache/debug fingerprints together in `index.html`, `app.js`, and `styles.css`, including CSS/JS query strings.
+- Worker runtime changes: bump `WORKER_VERSION` in `worker/src/index.js`.
+- Frontend plus Worker changes: bump both the frontend app-shell fingerprints and `WORKER_VERSION`.
+- Docs-only changes: bump neither.
+- App-shell fingerprints are lightweight cache/debug aids, not product release numbers.
+
 ## Standard Validation Commands
 
 - `git diff --check`
