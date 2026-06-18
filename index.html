@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.42 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.43 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.42" />
+    <link rel="stylesheet" href="styles.css?v=1.01.43" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -23,16 +23,13 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.42"
+          data-html-version="1.01.43"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.42 · JS loading · CSS 1.01.42
+          HTML 1.01.43 · JS loading · CSS 1.01.43
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift Card Manager</h1>
-        <p class="intro">
-          Keep your Walmart gift cards ready at checkout. Save cards locally, show the barcode and PIN quickly, and sync safely with Google Sheets when connected.
-        </p>
         <button
           id="app-sync-summary"
           class="app-sync-summary"
@@ -50,8 +47,8 @@
       <section id="list-panel" class="panel list-panel" aria-labelledby="card-list-heading" data-panel-name="list">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Cards</p>
-            <h2 id="card-list-heading">Card list</h2>
+            <h2 id="card-list-heading">Cards</h2>
+            <p class="panel-helper">Choose a card to start checkout.</p>
           </div>
           <span id="card-count" class="count-badge">0 cards</span>
         </div>
@@ -63,11 +60,12 @@
       <section id="detail-panel" class="panel detail-panel" aria-labelledby="card-detail-heading" data-panel-name="detail" hidden>
           <div class="section-heading">
             <div>
-              <p class="eyebrow">In-store workflow</p>
               <h2 id="card-detail-heading">Checkout</h2>
             </div>
             <span id="detail-status" class="status-badge" hidden></span>
           </div>
+
+          <div id="checkout-feedback" class="checkout-feedback" role="status" aria-live="polite" hidden></div>
 
           <article id="card-detail" class="card-detail">
             <div class="checkout-nav" aria-label="Checkout navigation">
@@ -124,8 +122,7 @@
       <section id="settings-panel" class="panel settings-panel" aria-labelledby="settings-heading" data-panel-name="settings" hidden>
           <div class="section-heading compact-heading">
             <div>
-              <p class="eyebrow">Preferences</p>
-              <h2 id="settings-heading">Preferences</h2>
+              <h2 id="settings-heading">Settings</h2>
             </div>
           </div>
 
@@ -185,36 +182,30 @@
               </span>
               <button id="force-refresh-app-shell" class="secondary-button app-reload-button" type="button">Reload latest app version</button>
             </div>
-            <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.42 · JS 1.01.42 · CSS 1.01.42</p>
+            <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.43 · JS 1.01.43 · CSS 1.01.43</p>
           </div>
       </section>
 
       <section id="data-panel" class="panel data-panel" aria-labelledby="data-heading" data-panel-name="data" hidden>
         <div class="section-heading compact-heading">
           <div>
-            <p class="eyebrow">Backup and sync</p>
-            <h2 id="data-heading">Backup and sync</h2>
+            <h2 id="data-heading">Backup</h2>
           </div>
         </div>
 
         <div class="data-layout">
-          <p class="data-description">
-            Manage Google Sheets sync separately from local CSV backup and recovery tools.
-            Google Sheets keeps your card list available across devices when connected. CSV remains available for local backup and recovery.
-          </p>
-
           <section class="data-section google-sync-section" aria-labelledby="google-sync-heading">
             <div class="data-section-heading">
               <p class="eyebrow">Google sync</p>
               <h3 id="google-sync-heading">Google sync</h3>
-              <p>Connect Google and manage the Walmart-GC Data sheet used for cross-device sync.</p>
+              <p>Sync cards across devices with Google Sheets.</p>
             </div>
 
             <div class="data-card oauth-card">
               <div class="data-card-heading">
                 <div>
                   <h4>Google account</h4>
-                  <p>Connect your Google account to use Google Sheets sync. Walmart-GC keeps sensitive Google sign-in details out of the browser.</p>
+                  <p>Connect Google to sync across devices.</p>
                 </div>
               </div>
 
@@ -230,7 +221,7 @@
               <div class="data-card-heading">
                 <div>
                   <h4>Google Sheet</h4>
-                  <p><code>Walmart-GC Data</code> is the Google Sheet used for sync. Walmart-GC can find or create the spreadsheet and prepare the <code>Cards</code> and <code>_META</code> tabs.</p>
+                  <p>Use <code>Walmart-GC Data</code> for sync.</p>
                 </div>
               </div>
 
@@ -250,7 +241,7 @@
             <div class="data-section-heading">
               <p class="eyebrow">Backup and restore</p>
               <h3 id="backup-restore-heading">Backup and restore</h3>
-              <p>Export a CSV backup before major changes. Import only when you need to restore or replace the local card list.</p>
+              <p>Export before major changes. Import only when restoring local data.</p>
               <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
             </div>
 
@@ -258,7 +249,7 @@
               <div class="data-card-heading">
                 <div>
                   <h4>CSV backup and recovery</h4>
-                  <p>CSV files are your portable local backup. Export is safe and non-destructive; importing replaces the local card list only after the existing confirmation flow.</p>
+                  <p>Export is safe. Import replaces local cards after confirmation.</p>
                 </div>
               </div>
 
@@ -277,7 +268,7 @@
               <span>
                 <span class="eyebrow">Advanced diagnostics</span>
                 <strong>Advanced diagnostics</strong>
-                <small>Raw CSV editing, manual refresh/update controls, validation warnings, schema details, and app version information.</small>
+                <small>Raw CSV tools, validation warnings, schema details, and technical sync diagnostics.</small>
               </span>
             </summary>
 
@@ -397,6 +388,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=1.01.42"></script>
+    <script src="app.js?v=1.01.43"></script>
   </body>
 </html>
