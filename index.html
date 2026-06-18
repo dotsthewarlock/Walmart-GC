@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.36 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.37 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.36" />
+    <link rel="stylesheet" href="styles.css?v=1.01.37" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -23,16 +23,26 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.36"
+          data-html-version="1.01.37"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.36 · JS loading · CSS 1.01.36
+          HTML 1.01.37 · JS loading · CSS 1.01.37
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
           Keep your Walmart gift cards ready at checkout. Save cards locally, show the barcode and PIN quickly, and sync safely with Google Sheets when connected.
         </p>
+        <button
+          id="app-sync-summary"
+          class="app-sync-summary"
+          type="button"
+          aria-live="polite"
+          aria-label="Sync status. Open Backup and Sync"
+        >
+          <span class="app-sync-summary-label">Local only</span>
+          <span class="app-sync-summary-help">Open Backup &amp; Sync</span>
+        </button>
       </div>
     </header>
 
@@ -310,7 +320,7 @@
                 <h4>CSV and Sheet Header Details</h4>
                 <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>.</p>
                 <p>Sheets sync matches approved headers by name, so columns may be rearranged.</p>
-                <p class="data-footnote">App-shell fingerprint: HTML 1.01.36 · JS 1.01.36 · CSS 1.01.36.</p>
+                <p class="data-footnote">App-shell fingerprint: HTML 1.01.37 · JS 1.01.37 · CSS 1.01.37.</p>
               </div>
             </div>
           </details>
@@ -385,6 +395,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=1.01.36"></script>
+    <script src="app.js?v=1.01.37"></script>
   </body>
 </html>

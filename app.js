@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.36 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.37 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.36";
-const DEBUG_VERSION_CSS = "1.01.36";
+const DEBUG_VERSION_JS = "1.01.37";
+const DEBUG_VERSION_CSS = "1.01.37";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -99,6 +99,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 const navButtons = document.querySelectorAll(".nav-button");
 const panelSections = document.querySelectorAll("[data-panel-name]");
 const cardList = document.querySelector("#card-list");
+const appSyncSummary = document.querySelector("#app-sync-summary");
 const cardCount = document.querySelector("#card-count");
 const advanceOnUsedCheckbox = document.querySelector("#advance-on-used");
 const hideUsedCheckbox = document.querySelector("#hide-used");
@@ -1352,6 +1353,7 @@ function setGoogleOAuthState(nextState) {
   saveAppState();
   renderGoogleOAuthState();
   renderDirectSheetsState();
+  renderAppSyncSummary();
 }
 
 function setDirectSheetsState(nextState) {
@@ -1827,9 +1829,78 @@ function renderSyncRecoveryActions(isBusy) {
   syncRecoveryActions.innerHTML = "";
 }
 
+
+function getAppSyncSummaryState() {
+  const isChecking = [googleOAuthStatuses.connecting, googleOAuthStatuses.restoring].includes(googleOAuthState.status)
+    || [directSheetsStatuses.checking, directSheetsStatuses.creating, directSheetsStatuses.syncing].includes(directSheetsState.status);
+
+  if (isChecking) {
+    return {
+      key: "checking",
+      label: "Checking sync",
+      help: "Local cards stay available",
+    };
+  }
+
+  if (syncState.status === syncStatuses.conflict || directSheetsState.status === directSheetsStatuses.conflict) {
+    return {
+      key: "conflict",
+      label: "Sync conflict",
+      help: "Open Backup & Sync",
+    };
+  }
+
+  const hasPendingLocalChanges = Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
+
+  if (navigator.onLine === false || googleOAuthState.status === googleOAuthStatuses.error || directSheetsState.status === directSheetsStatuses.error) {
+    return {
+      key: "unavailable",
+      label: "Sync unavailable",
+      help: hasPendingLocalChanges ? "Open Backup & Sync" : "Local cards available",
+    };
+  }
+
+  if (hasPendingLocalChanges || syncState.status === syncStatuses.unsynced && hasWorkerGoogleSession()) {
+    return {
+      key: "unsynced",
+      label: "Unsynced changes",
+      help: "Open Backup & Sync",
+    };
+  }
+
+  if (hasWorkerGoogleSession() && directSheetsState.status === directSheetsStatuses.ready && syncState.status === syncStatuses.connected) {
+    return {
+      key: "connected",
+      label: "Connected",
+      help: "Google Sheets sync ready",
+    };
+  }
+
+  return {
+    key: "local-only",
+    label: "Local only",
+    help: "Connect in Backup & Sync",
+  };
+}
+
+function renderAppSyncSummary() {
+  if (!appSyncSummary) {
+    return;
+  }
+
+  const summary = getAppSyncSummaryState();
+  appSyncSummary.dataset.syncSummary = summary.key;
+  appSyncSummary.setAttribute("aria-label", `${summary.label}. ${summary.help}. Open Backup and Sync.`);
+  appSyncSummary.innerHTML = `
+    <span class="app-sync-summary-label">${escapeHtml(summary.label)}</span>
+    <span class="app-sync-summary-help">${escapeHtml(summary.help)}</span>
+  `;
+}
+
 function renderConnectionState() {
   const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
   renderSyncRecoveryActions(isBusy);
+  renderAppSyncSummary();
 }
 
 function makeDirectSheetsError(message, status = "") {
@@ -2719,6 +2790,9 @@ async function forceRefreshAppShell() {
   }
 }
 
+window.addEventListener("online", renderConnectionState);
+window.addEventListener("offline", renderConnectionState);
+
 function updateBalanceFromCheckout() {
   openBalanceModal();
 }
@@ -2804,6 +2878,10 @@ loadDirectSheetButton.addEventListener("click", loadCardsFromDirectSheets);
 syncDirectSheetButton.addEventListener("click", retrySyncCurrentSession);
 connectGoogleButton.addEventListener("click", connectGoogleAccount);
 disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
+if (appSyncSummary) {
+  appSyncSummary.addEventListener("click", () => showPanel("data"));
+}
+
 syncRecoveryActions.addEventListener("click", (event) => {
   const recoveryButton = event.target.closest("[data-sync-recovery]");
   if (!recoveryButton) {
