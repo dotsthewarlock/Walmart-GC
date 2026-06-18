@@ -127,12 +127,15 @@ pin
 startingBalance
 currentBalance
 merchant
+merchantInferred
 dateAdded
 dateUpdated
 dateUsed
 used
 notes
 ```
+
+Merchant model: `merchant` stores only the explicit user override, `merchantInferred` stores the app/Worker-derived merchant from `cardNumber`, and runtime-only `effectiveMerchant` must not be stored. Old Sheets missing only `merchantInferred` can be additively migrated by header name.
 
 Barcode payload is derived only and must not be stored:
 

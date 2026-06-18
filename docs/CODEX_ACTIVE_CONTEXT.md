@@ -54,12 +54,15 @@ pin
 startingBalance
 currentBalance
 merchant
+merchantInferred
 dateAdded
 dateUpdated
 dateUsed
 used
 notes
 ```
+
+Merchant model: `merchant` is the explicit user-entered/user-selected override only; `merchantInferred` is app/Worker-derived from `cardNumber`; `effectiveMerchant` is runtime-only (`merchant || merchantInferred`) and must not be stored. Existing old-schema Sheets missing only `merchantInferred` are safe additive migration candidates.
 
 Barcode payload is derived only and must not be stored: `79936686504000 + cardNumber`. Conflict handling uses `_META.sheetVersion`: no silent overwrite, no automatic merge, user chooses recovery, CSV backup before destructive recovery.
 
