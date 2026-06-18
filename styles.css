@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.43 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.44 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -42,7 +42,7 @@ body {
   font-size: var(--type-body-size);
   font-weight: var(--type-body-weight);
   line-height: var(--type-body-line-height);
-  padding-bottom: calc(4.8rem + env(safe-area-inset-bottom));
+  padding-bottom: 0;
 }
 
 button,
