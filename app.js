@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js app-shell version 1.01.28 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.29 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.28";
+const DEBUG_VERSION_JS = "1.01.29";
 const DEBUG_VERSION_CSS = "1.01.27";
 
 function renderDebugVersionFingerprint() {
@@ -201,7 +201,7 @@ const legacyCsvHeaders = [
   "dateUsed",
   "used",
 ];
-const prototypeDefaultMerchant = "walmart-ca";
+const walmartCaMerchant = "walmart-ca";
 const walmartCaBarcodePrefix = "79936686504000";
 const walmartGiftCardNumberPattern = /^63\d{14}$/;
 const code128Patterns = [
@@ -327,12 +327,17 @@ function normalizePinValue(pin) {
   return String(pin ?? "").trim();
 }
 
-function normalizeMerchantValue(merchant, cardNumber) {
-  const normalizedMerchant = String(merchant ?? "").trim();
-  if (normalizedMerchant) {
-    return normalizedMerchant;
-  }
-  return isValidWalmartGiftCardNumber(cardNumber) ? prototypeDefaultMerchant : "";
+function normalizeMerchantValue(merchant) {
+  return String(merchant ?? "").trim();
+}
+
+function inferMerchantFromCardNumber(cardNumber) {
+  return isValidWalmartGiftCardNumber(cardNumber) ? walmartCaMerchant : "";
+}
+
+function getEffectiveMerchant(card) {
+  const explicitMerchant = normalizeMerchantValue(card?.merchant);
+  return explicitMerchant || inferMerchantFromCardNumber(card?.cardNumber);
 }
 
 function parseOptionalMoney(value) {
@@ -347,8 +352,8 @@ function getBarcodeFallbackMessage(card) {
     return "Barcode unavailable";
   }
 
-  const merchant = card?.merchant || prototypeDefaultMerchant;
-  if (merchant !== prototypeDefaultMerchant) {
+  const merchant = getEffectiveMerchant(card);
+  if (merchant !== walmartCaMerchant) {
     return "Barcode unavailable for this merchant";
   }
 
@@ -357,9 +362,9 @@ function getBarcodeFallbackMessage(card) {
 
 function getBarcodePayload(card) {
   const cardNumber = normalizeCardNumber(card?.cardNumber);
-  const merchant = card?.merchant || prototypeDefaultMerchant;
+  const merchant = getEffectiveMerchant(card);
 
-  if (merchant !== prototypeDefaultMerchant || !cardNumber) {
+  if (merchant !== walmartCaMerchant || !isValidWalmartGiftCardNumber(cardNumber)) {
     return "";
   }
 
@@ -580,7 +585,7 @@ function normalizeStoredCard(card) {
   return {
     cardNumber,
     pin,
-    merchant: normalizeMerchantValue(card.merchant, cardNumber),
+    merchant: normalizeMerchantValue(card.merchant),
     startingBalance: normalizeMoney(startingBalance),
     currentBalance: normalizeMoney(currentBalance),
     dateAdded,
@@ -1065,10 +1070,7 @@ function parseRawCardData(rawCsv) {
       hasError = true;
     }
 
-    const merchant = normalizeMerchantValue(merchantRaw, cardNumber);
-    if (!merchantRaw && isValidWalmartGiftCardNumber(cardNumber)) {
-      warnings.push(`Row ${displayRow}: missing merchant; defaulted to ${prototypeDefaultMerchant}.`);
-    }
+    const merchant = normalizeMerchantValue(merchantRaw);
 
     const startingBalance = readCsvMoney(startingBalanceRaw);
     if (startingBalance === null || Number.isNaN(startingBalance)) {

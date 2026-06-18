@@ -156,7 +156,7 @@ notes
 Rules:
 
 - `cardNumber` is the unique ID.
-- `merchant` defaults to `walmart-ca`.
+- `merchant` stores explicit user, Sheet, or import input only; blank merchant remains blank. Runtime barcode/UI behavior may infer Walmart Canada from valid Walmart Canada card numbers.
 - `currentBalance` is authoritative.
 - `startingBalance` is historical.
 - `used` is independent of balance.
