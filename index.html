@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.32 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.33 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Walmart-GC</title>
-    <link rel="stylesheet" href="styles.css?v=1.01.32" />
+    <link rel="stylesheet" href="styles.css?v=1.01.33" />
   </head>
   <body>
-    <nav class="top-nav" aria-label="Panel navigation">
+    <nav class="top-nav" aria-label="App sections">
       <button id="nav-list" class="nav-button" type="button" data-panel="list" aria-pressed="true">Card List</button>
-      <button id="nav-detail" class="nav-button" type="button" data-panel="detail" aria-pressed="false">Card Detail</button>
-      <button id="nav-settings" class="nav-button icon-nav-button" type="button" data-panel="settings" aria-label="Settings" title="Settings" aria-pressed="false">⚙</button>
-      <button id="nav-data" class="nav-button icon-nav-button" type="button" data-panel="data" aria-label="Data" title="Data" aria-pressed="false">▦</button>
+      <button id="nav-detail" class="nav-button" type="button" data-panel="detail" aria-pressed="false">Checkout</button>
+      <button id="nav-settings" class="nav-button" type="button" data-panel="settings" aria-label="Open Preferences" title="Preferences" aria-pressed="false">Preferences</button>
+      <button id="nav-data" class="nav-button" type="button" data-panel="data" aria-label="Open Backup and Sync" title="Backup & Sync" aria-pressed="false">Backup &amp; Sync</button>
     </nav>
 
     <header class="app-header">
@@ -20,16 +20,15 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.32"
-          aria-label="Debug file fingerprint versions"
+          data-html-version="1.01.33"
+          aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.32 · JS loading · CSS 1.01.32
+          HTML 1.01.33 · JS loading · CSS 1.01.33
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
         <p class="intro">
-          Mobile-first checkout access for Walmart gift cards. Connect Google for a Worker-backed durable session that finds or creates
-          your dedicated Walmart-GC Data Sheet and syncs completed local actions through the secure backend.
+          Keep your Walmart gift cards ready at checkout. Save cards locally, show the barcode and PIN quickly, and sync safely with Google Sheets when connected.
         </p>
       </div>
     </header>
@@ -52,7 +51,7 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">Selected card</p>
-              <h2 id="card-detail-heading">Card detail</h2>
+              <h2 id="card-detail-heading">Checkout</h2>
             </div>
             <span id="detail-status" class="status-badge" hidden></span>
           </div>
@@ -111,8 +110,8 @@
       <section id="settings-panel" class="panel settings-panel" aria-labelledby="settings-heading" data-panel-name="settings" hidden>
           <div class="section-heading compact-heading">
             <div>
-              <p class="eyebrow">Prototype settings</p>
-              <h2 id="settings-heading">Settings</h2>
+              <p class="eyebrow">Preferences</p>
+              <h2 id="settings-heading">Preferences</h2>
             </div>
           </div>
 
@@ -178,22 +177,22 @@
       <section id="data-panel" class="panel data-panel" aria-labelledby="data-heading" data-panel-name="data" hidden>
         <div class="section-heading compact-heading">
           <div>
-            <p class="eyebrow">Prototype data tools</p>
-            <h2 id="data-heading">Data</h2>
+            <p class="eyebrow">Backup &amp; Sync</p>
+            <h2 id="data-heading">Backup &amp; Sync</h2>
           </div>
         </div>
 
         <div class="data-layout">
           <p class="data-description">
             Manage Google Sheets sync separately from local CSV backup and recovery tools.
-            Worker-backed Google Sheets sync is the only online sync path. CSV remains available for local backup and recovery.
+            Google Sheets keeps your card list available across devices when connected. CSV remains available for local backup and recovery.
           </p>
 
           <div class="data-card oauth-card">
             <div class="data-card-heading">
               <div>
                 <h3>Google Account</h3>
-                <p>Worker-backed durable Google session. The frontend does not store Google tokens or session IDs.</p>
+                <p>Connect your Google Account to use Google Sheets sync. Walmart-GC keeps sensitive Google sign-in details out of the browser.</p>
               </div>
             </div>
 
@@ -209,7 +208,7 @@
             <div class="data-card-heading">
               <div>
                 <h3>Google Sheet</h3>
-                <p><code>Walmart-GC Data</code> syncs through the secure Worker backend. Walmart-GC finds or creates the dedicated spreadsheet and prepares the <code>Cards</code> and <code>_META</code> tabs.</p>
+                <p><code>Walmart-GC Data</code> is the Google Sheet used for sync. Walmart-GC can find or create the spreadsheet and prepare the <code>Cards</code> and <code>_META</code> tabs.</p>
               </div>
             </div>
 
@@ -336,6 +335,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=1.01.32"></script>
+    <script src="app.js?v=1.01.33"></script>
   </body>
 </html>
