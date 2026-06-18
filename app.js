@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.40 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.41 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.40";
-const DEBUG_VERSION_CSS = "1.01.40";
+const DEBUG_VERSION_JS = "1.01.41";
+const DEBUG_VERSION_CSS = "1.01.41";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2420,7 +2420,7 @@ function clearCardDetail() {
   detailBarcodeActionLabel.textContent = "Choose a card";
   clearRenderedBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption);
   clearRenderedBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption);
-  fullscreenCardNumber.textContent = "—";
+  fullscreenCardNumber.textContent = "Card —";
   fullscreenPin.textContent = "—";
   fullscreenCurrentBalance.textContent = "—";
   fullscreenPosition.textContent = "Card 0 of 0";
@@ -2467,12 +2467,14 @@ function renderCardDetail() {
   renderBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption, card, { height: 88 });
   renderBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption, card, { height: 132, moduleWidth: 3 });
   fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
-  fullscreenCardNumber.textContent = groupCardNumber(card.cardNumber);
+  const fullscreenCardIdentifier = `Card ${maskCardNumber(card.cardNumber)}`;
+  fullscreenCardNumber.textContent = fullscreenCardIdentifier;
+  fullscreenBarcodeCaption.textContent = fullscreenCardIdentifier;
   fullscreenPin.textContent = card.pin;
   fullscreenCurrentBalance.textContent = formatBalance(card.currentBalance);
   fullscreenPreviousButton.disabled = visiblePosition <= 0;
   fullscreenNextButton.disabled = visiblePosition === visibleIndexes.length - 1;
-  fullscreenMarkUsedButton.disabled = false;
+  fullscreenMarkUsedButton.disabled = card.used;
   fullscreenUpdateBalanceButton.disabled = false;
 }
 
@@ -2749,19 +2751,27 @@ function openFullscreenBarcode() {
   barcodeCloseButton.focus();
 }
 
-function closeFullscreenBarcode() {
+function closeFullscreenBarcode(options = {}) {
   fullscreenBarcode.hidden = true;
   releaseCheckoutWakeLock();
-  barcodeOpenButton.focus();
+
+  if (!options.skipFocus) {
+    barcodeOpenButton.focus();
+  }
 }
 
 function markUsedFromCheckout() {
-  if (selectedCardIndex < 0) {
+  if (selectedCardIndex < 0 || sampleGiftCards[selectedCardIndex].used) {
     return;
   }
 
-  if (!sampleGiftCards[selectedCardIndex].used) {
-    toggleSelectedUsed();
+  const wasFullscreenOpen = !fullscreenBarcode.hidden;
+  toggleSelectedUsed();
+
+  if (wasFullscreenOpen) {
+    closeFullscreenBarcode({ skipFocus: true });
+    showPanel("detail");
+    openBalanceModalButton.focus();
   }
 }
 
@@ -2794,6 +2804,11 @@ window.addEventListener("online", renderConnectionState);
 window.addEventListener("offline", renderConnectionState);
 
 function updateBalanceFromCheckout() {
+  if (!fullscreenBarcode.hidden) {
+    closeFullscreenBarcode({ skipFocus: true });
+    showPanel("detail");
+  }
+
   openBalanceModal();
 }
 

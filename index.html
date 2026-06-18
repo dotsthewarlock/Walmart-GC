@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.40 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.41 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.40" />
+    <link rel="stylesheet" href="styles.css?v=1.01.41" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -23,10 +23,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.40"
+          data-html-version="1.01.41"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.40 · JS loading · CSS 1.01.40
+          HTML 1.01.41 · JS loading · CSS 1.01.41
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift Card Manager</h1>
@@ -94,7 +94,7 @@
                 <dd id="detail-pin" class="pin-value">—</dd>
               </div>
               <div id="current-balance-card" class="checkout-primary-detail balance-detail-card">
-                <dt>Current balance</dt>
+                <dt>Balance</dt>
                 <dd id="detail-current-balance">—</dd>
                 <p class="date-line"><span id="detail-current-date-label">Date updated</span>: <span id="detail-current-date">—</span></p>
               </div>
@@ -320,7 +320,7 @@
                 <h4>CSV and Sheet header details</h4>
                 <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>.</p>
                 <p>Sheets sync matches approved headers by name, so columns may be rearranged.</p>
-                <p class="data-footnote">App-shell fingerprint: HTML 1.01.40 · JS 1.01.40 · CSS 1.01.40.</p>
+                <p class="data-footnote">App-shell fingerprint: HTML 1.01.41 · JS 1.01.41 · CSS 1.01.41.</p>
               </div>
             </div>
           </details>
@@ -364,37 +364,34 @@
           </div>
           <button id="barcode-close" class="primary-button fullscreen-done-button" type="button" aria-label="Exit full screen barcode">Done</button>
         </div>
+        <div id="fullscreen-barcode-frame" class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen barcode">
+          <span id="fullscreen-barcode-status">Barcode unavailable</span>
+          <div id="fullscreen-barcode-render" class="barcode-render fullscreen-barcode-render" aria-hidden="true"></div>
+          <small id="fullscreen-barcode-caption">Card —</small>
+        </div>
         <p id="fullscreen-position" class="fullscreen-position">Card 0 of 0</p>
+        <p id="fullscreen-card-number" class="fullscreen-card-identifier">Card —</p>
         <dl class="fullscreen-card-meta" aria-label="Checkout card details">
-          <div>
-            <dt>Card number</dt>
-            <dd id="fullscreen-card-number">—</dd>
-          </div>
           <div>
             <dt>PIN</dt>
             <dd id="fullscreen-pin">—</dd>
           </div>
           <div>
-            <dt>Current balance</dt>
+            <dt>Balance</dt>
             <dd id="fullscreen-current-balance">—</dd>
           </div>
         </dl>
-        <div id="fullscreen-barcode-frame" class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen barcode">
-          <span id="fullscreen-barcode-status">Barcode unavailable</span>
-          <div id="fullscreen-barcode-render" class="barcode-render fullscreen-barcode-render" aria-hidden="true"></div>
-          <small id="fullscreen-barcode-caption">Tap to enlarge for scanning.</small>
-        </div>
         <div class="fullscreen-nav" aria-label="Checkout navigation">
           <button id="fullscreen-prev" class="secondary-button" type="button">Previous card</button>
           <button id="fullscreen-next" class="secondary-button" type="button">Next card</button>
         </div>
         <div class="fullscreen-actions" aria-label="Checkout actions">
-          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark used</button>
           <button id="fullscreen-update-balance" class="primary-button" type="button">Update balance</button>
+          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark used</button>
         </div>
       </div>
     </div>
 
-    <script src="app.js?v=1.01.40"></script>
+    <script src="app.js?v=1.01.41"></script>
   </body>
 </html>
