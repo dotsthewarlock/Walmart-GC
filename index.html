@@ -76,12 +76,18 @@
               id="barcode-open"
               class="barcode-placeholder barcode-action"
               type="button"
-              aria-label="Show barcode full screen"
+              aria-label="Focus barcode for scanning"
             >
-              <span id="detail-barcode-status">Barcode unavailable</span>
-              <strong id="detail-barcode-action-label" class="barcode-action-label">Show barcode full screen</strong>
+              <div class="barcode-meta-row barcode-meta-top">
+                <span id="detail-barcode-status">Barcode unavailable</span>
+                <strong id="detail-barcode-balance">—</strong>
+              </div>
               <div id="detail-barcode-render" class="barcode-render" aria-hidden="true"></div>
-              <small id="detail-barcode-caption">Choose a card from Cards to start checkout. The barcode, PIN, and balance will appear here.</small>
+              <div class="barcode-meta-row barcode-meta-bottom">
+                <span id="detail-barcode-caption">Choose a card</span>
+                <strong id="detail-barcode-pin">PIN —</strong>
+              </div>
+              <strong id="detail-barcode-action-label" class="barcode-action-label" hidden>Focus barcode</strong>
             </button>
 
             <dl class="detail-grid checkout-priority-grid">
@@ -125,26 +131,9 @@
           </div>
 
           <div class="settings-list">
-            <label class="setting-row">
-              <span>
-                <strong>Hide used cards</strong>
-                <small>Remove used cards from Cards and Checkout.</small>
-              </span>
-              <input id="hide-used" type="checkbox" checked />
-            </label>
-
-            <label class="setting-row">
-              <span>
-                <strong>Hide $0 cards</strong>
-                <small>Remove zero-balance cards from Cards and Checkout.</small>
-              </span>
-              <input id="hide-zero-balance" type="checkbox" />
-            </label>
-
             <label class="setting-row setting-row-stacked" for="sort-cards">
               <span>
                 <strong>Sort order</strong>
-                <small>Controls Cards and Checkout previous/next order.</small>
               </span>
               <select id="sort-cards">
                 <option value="balance-asc">Balance (low → high)</option>
@@ -159,26 +148,38 @@
 
             <label class="setting-row">
               <span>
-                <strong>Auto-advance after marking used</strong>
-                <small>Move to the next visible card after Mark used.</small>
+                <strong>Hide used cards</strong>
+              </span>
+              <input id="hide-used" type="checkbox" checked />
+            </label>
+
+            <label class="setting-row">
+              <span>
+                <strong>Hide $0 cards</strong>
+              </span>
+              <input id="hide-zero-balance" type="checkbox" />
+            </label>
+
+            <label class="setting-row">
+              <span>
+                <strong>Auto-advance after use</strong>
               </span>
               <input id="advance-on-used" type="checkbox" checked />
             </label>
 
-            <div class="setting-row settings-action-row">
+            <button id="mark-zero-used" class="setting-row settings-compact-action-row" type="button">
               <span>
                 <strong>Mark $0 cards used</strong>
-                <small>Requires confirmation; balances are unchanged.</small>
               </span>
-              <button id="mark-zero-used" class="secondary-button" type="button">Mark $0 cards used</button>
-            </div>
+              <span class="secondary-button compact-row-action" aria-hidden="true">Mark</span>
+            </button>
 
             <div class="setting-row settings-action-row">
               <span>
                 <strong>Force refresh (debug)</strong>
-                <small>Clears cached app files and reloads. Local card data stays saved.</small>
+                <small>Clears cache. Data stays saved.</small>
               </span>
-              <button id="force-refresh-app-shell" class="secondary-button app-reload-button" type="button">Force refresh (debug)</button>
+              <button id="force-refresh-app-shell" class="secondary-button app-reload-button" type="button">Refresh</button>
             </div>
             <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.45 · JS 1.01.45 · CSS 1.01.45</p>
           </div>
@@ -195,7 +196,8 @@
           <section class="data-section google-sync-section" aria-labelledby="google-sync-heading">
             <div class="data-section-heading">
               <h3 id="google-sync-heading">Google sync</h3>
-              <p>Sync cards across devices with Google Sheets.</p>
+              <p>Google Sheets sync across devices.</p>
+              <div id="google-sync-overview" class="sync-overview" role="status" aria-live="polite">Setup needed</div>
             </div>
 
             <details id="google-account-panel" class="data-card collapsible-data-card oauth-card">
@@ -243,11 +245,11 @@
           <section class="data-section backup-restore-section" aria-labelledby="backup-restore-heading">
             <div class="data-section-heading">
               <h3 id="backup-restore-heading">Backup and restore</h3>
-              <p>Export before major changes. Import only when restoring local data.</p>
+              <p>Export a CSV backup or restore local data.</p>
               <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
             </div>
 
-            <details id="csv-recovery-panel" class="data-card collapsible-data-card csv-recovery-card" open>
+            <details id="csv-recovery-panel" class="data-card collapsible-data-card csv-recovery-card">
               <summary>
               <div class="data-card-heading">
                 <div>
@@ -277,13 +279,15 @@
             </summary>
 
             <div class="advanced-diagnostics-content">
-              <div class="data-card raw-data-card">
+              <details class="data-card raw-data-card collapsible-data-card">
+                <summary>
                 <div class="data-card-heading">
                   <div>
                     <h4>Raw CSV editor</h4>
                     <p>Advanced recovery tools for reviewing or editing the raw local CSV representation.</p>
                   </div>
                 </div>
+                </summary>
 
                 <textarea
                   id="raw-data-input"
@@ -305,23 +309,23 @@
                   </div>
                 </div>
                 <p class="data-footnote">* Scan remains disabled for the MVP; use CSV import/export for backup and recovery.</p>
-              </div>
+              </details>
 
-              <div class="validation-card">
-                <h4>Validation warnings</h4>
+              <details class="validation-card collapsible-data-card">
+                <summary><h4>Validation warnings</h4></summary>
                 <div id="data-validation-warnings" class="validation-warnings" role="status">No validation run yet.</div>
-              </div>
+              </details>
 
-              <div class="data-card schema-detail-card">
-                <h4>CSV and Sheet header details</h4>
+              <details class="data-card schema-detail-card collapsible-data-card">
+                <summary><h4>CSV and Sheet header details</h4></summary>
                 <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>.</p>
                 <p>Sheets sync matches approved headers by name, so columns may be rearranged.</p>
-              </div>
+              </details>
 
-              <div class="data-card diagnostics-detail-card">
-                <h4>Technical sync diagnostics</h4>
+              <details class="data-card diagnostics-detail-card collapsible-data-card">
+                <summary><h4>Technical sync diagnostics</h4></summary>
                 <div id="advanced-sync-diagnostics" class="advanced-sync-diagnostics" role="status">Diagnostics load with sync status.</div>
-              </div>
+              </details>
             </div>
           </details>
         </div>
@@ -355,42 +359,33 @@
       </div>
     </div>
 
-    <div id="fullscreen-barcode" class="fullscreen-barcode" hidden>
-      <div class="fullscreen-content" role="dialog" aria-modal="true" aria-labelledby="fullscreen-title">
-        <div class="fullscreen-header">
-          <div>
-            <p class="eyebrow">Checkout mode</p>
-            <h2 id="fullscreen-title">Barcode full screen</h2>
+    <div id="fullscreen-barcode" class="barcode-focus-backdrop" hidden>
+      <div class="barcode-focus-content" role="dialog" aria-modal="true" aria-label="Focused checkout barcode">
+        <button id="barcode-close" class="primary-button barcode-focus-close" type="button" aria-label="Exit barcode focus mode">Done</button>
+        <div id="fullscreen-barcode-frame" class="barcode-placeholder barcode-focus-frame" aria-label="Focused barcode">
+          <div class="barcode-meta-row barcode-meta-top">
+            <span id="fullscreen-barcode-status">Barcode unavailable</span>
+            <strong id="fullscreen-current-balance">—</strong>
           </div>
-          <button id="barcode-close" class="primary-button fullscreen-done-button" type="button" aria-label="Exit full screen barcode">Done</button>
-        </div>
-        <div id="fullscreen-barcode-frame" class="barcode-placeholder fullscreen-placeholder" aria-label="Full screen barcode">
-          <span id="fullscreen-barcode-status">Barcode unavailable</span>
           <div id="fullscreen-barcode-render" class="barcode-render fullscreen-barcode-render" aria-hidden="true"></div>
+          <div class="barcode-meta-row barcode-meta-bottom">
+            <span id="fullscreen-card-number">Card —</span>
+            <strong id="fullscreen-pin">PIN —</strong>
+          </div>
           <small id="fullscreen-barcode-caption" hidden></small>
         </div>
-        <p id="fullscreen-position" class="fullscreen-position">Card 0 of 0</p>
-        <p id="fullscreen-card-number" class="fullscreen-card-identifier">Card —</p>
-        <dl class="fullscreen-card-meta" aria-label="Checkout card details">
-          <div>
-            <dt>PIN</dt>
-            <dd id="fullscreen-pin">—</dd>
-          </div>
-          <div>
-            <dt>Balance</dt>
-            <dd id="fullscreen-current-balance">—</dd>
-          </div>
-        </dl>
-        <div class="fullscreen-nav" aria-label="Checkout navigation">
-          <button id="fullscreen-prev" class="secondary-button" type="button">Previous card</button>
-          <button id="fullscreen-next" class="secondary-button" type="button">Next card</button>
-        </div>
-        <div class="fullscreen-actions" aria-label="Checkout actions">
-          <button id="fullscreen-update-balance" class="primary-button" type="button">Update balance</button>
-          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark used</button>
-        </div>
+        <p id="fullscreen-position" class="fullscreen-position" hidden>Card 0 of 0</p>
+        <button id="fullscreen-prev" class="secondary-button archived-fullscreen-control" type="button" hidden>Previous card</button>
+        <button id="fullscreen-next" class="secondary-button archived-fullscreen-control" type="button" hidden>Next card</button>
+        <button id="fullscreen-update-balance" class="primary-button archived-fullscreen-control" type="button" hidden>Update balance</button>
+        <button id="fullscreen-mark-used" class="danger-button archived-fullscreen-control" type="button" hidden>Mark used</button>
       </div>
     </div>
+
+    <!-- Archived fullscreen barcode dialog — retained for possible future reversion. Not active in the current user flow. -->
+    <template id="archived-fullscreen-barcode-dialog">
+      <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
+    </template>
 
     <script src="app.js?v=1.01.45"></script>
   </body>

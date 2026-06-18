@@ -147,6 +147,8 @@ const detailBarcodeStatus = document.querySelector("#detail-barcode-status");
 const detailBarcodeRender = document.querySelector("#detail-barcode-render");
 const detailBarcodeCaption = document.querySelector("#detail-barcode-caption");
 const detailBarcodeActionLabel = document.querySelector("#detail-barcode-action-label");
+const detailBarcodeBalance = document.querySelector("#detail-barcode-balance");
+const detailBarcodePin = document.querySelector("#detail-barcode-pin");
 const fullscreenBarcodeStatus = document.querySelector("#fullscreen-barcode-status");
 const fullscreenBarcodeRender = document.querySelector("#fullscreen-barcode-render");
 const fullscreenBarcodeCaption = document.querySelector("#fullscreen-barcode-caption");
@@ -177,6 +179,7 @@ const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
 const directSheetStatusArea = document.querySelector("#direct-sheet-status");
 const googleAccountPanel = document.querySelector("#google-account-panel");
 const googleSheetPanel = document.querySelector("#google-sheet-panel");
+const googleSyncOverview = document.querySelector("#google-sync-overview");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -185,8 +188,6 @@ let checkoutFeedbackTimer = null;
 let hideZeroBalanceCards = false;
 let sortMode = "balance-asc";
 let amountUsedEditedLast = false;
-let touchStartX = 0;
-let touchStartY = 0;
 let rawDataLocked = true;
 let detailNumberRevealed = false;
 let wakeLock = null;
@@ -390,7 +391,7 @@ function getBarcodePayload(card) {
     return "";
   }
 
-  // Walmart Canada checkout barcodes are derived from scanned sample gift cards;
+  // Walmart Canada Code 128 payloads are derived from scanned sample gift cards;
   // keep the static prefix frontend-only so the approved Sheet schema stays unchanged.
   return `${walmartCaBarcodePrefix}${cardNumber}`;
 }
@@ -483,8 +484,7 @@ function renderBarcode(container, statusElement, captionElement, card, options =
 
     container.appendChild(svg);
     container.hidden = false;
-    statusElement.textContent = "Walmart Canada checkout barcode";
-    captionElement.textContent = "Tap to enlarge for scanning.";
+    statusElement.textContent = "Walmart Canada";
     return true;
   } catch {
     statusElement.textContent = "Barcode unavailable";
@@ -498,7 +498,7 @@ function clearRenderedBarcode(container, statusElement, captionElement) {
   container.replaceChildren();
   container.hidden = true;
   statusElement.textContent = "Barcode unavailable";
-  captionElement.textContent = "Choose a card from Cards to start checkout. The barcode, PIN, and balance will appear here.";
+  captionElement.textContent = "Choose a card";
 }
 
 function todayString() {
@@ -1487,6 +1487,7 @@ function updateBackupPanelOpenState() {
 
   setDetailsOpen(googleAccountPanel, accountNeedsAttention);
   setDetailsOpen(googleSheetPanel, sheetNeedsAttention);
+  renderAppSyncSummary();
 }
 
 function renderDirectSheetsState() {
@@ -1932,17 +1933,34 @@ function getAppSyncSummaryState() {
 }
 
 function renderAppSyncSummary() {
-  if (!appSyncSummary) {
-    return;
+  const summary = getAppSyncSummaryState();
+
+  if (appSyncSummary) {
+    appSyncSummary.dataset.syncSummary = summary.key;
+    appSyncSummary.setAttribute("aria-label", `${summary.label}. ${summary.help}. Open backup and sync.`);
+    appSyncSummary.innerHTML = `
+      <span class="app-sync-summary-label">${escapeHtml(summary.label)}</span>
+      <span class="app-sync-summary-help">${escapeHtml(summary.help)}</span>
+    `;
   }
 
-  const summary = getAppSyncSummaryState();
-  appSyncSummary.dataset.syncSummary = summary.key;
-  appSyncSummary.setAttribute("aria-label", `${summary.label}. ${summary.help}. Open backup and sync.`);
-  appSyncSummary.innerHTML = `
-    <span class="app-sync-summary-label">${escapeHtml(summary.label)}</span>
-    <span class="app-sync-summary-help">${escapeHtml(summary.help)}</span>
-  `;
+  if (googleSyncOverview) {
+    googleSyncOverview.dataset.syncOverview = summary.key;
+    googleSyncOverview.textContent = getGoogleSyncOverviewText(summary.key);
+  }
+}
+
+function getGoogleSyncOverviewText(summaryKey) {
+  const labels = {
+    connected: "Connected · Sheet ready",
+    conflict: "Conflict",
+    unavailable: "Error",
+    checking: "Checking",
+    unsynced: "Sync pending",
+    "local-only": "Setup needed",
+  };
+
+  return labels[summaryKey] || "Needs attention";
 }
 
 function renderConnectionState() {
@@ -2432,10 +2450,10 @@ function renderCardList() {
     cardButton.innerHTML = `
       <div class="card-row-top">
         <span class="card-number">${maskCardNumber(card.cardNumber)}</span>
-        ${renderUsedIndicator(card)}
-      </div>
-      <div class="card-row-bottom">
-        <span class="card-balance${card.used ? " is-used-balance" : ""}">${formatBalance(card.currentBalance)}</span>
+        <span class="card-row-right">
+          ${renderUsedIndicator(card)}
+          <span class="card-balance${card.used ? " is-used-balance" : ""}">${formatBalance(card.currentBalance)}</span>
+        </span>
       </div>
     `;
 
@@ -2464,11 +2482,13 @@ function clearCardDetail() {
   markUsedButton.disabled = true;
   openBalanceModalButton.disabled = true;
   barcodeOpenButton.disabled = true;
-  detailBarcodeActionLabel.textContent = "Choose a card";
+  detailBarcodeActionLabel.textContent = "Focus barcode";
+  detailBarcodeBalance.textContent = "—";
+  detailBarcodePin.textContent = "PIN —";
   clearRenderedBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption);
   clearRenderedBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption);
   fullscreenCardNumber.textContent = "Card —";
-  fullscreenPin.textContent = "—";
+  fullscreenPin.textContent = "PIN —";
   fullscreenCurrentBalance.textContent = "—";
   fullscreenPosition.textContent = "Card 0 of 0";
   fullscreenPreviousButton.disabled = true;
@@ -2510,15 +2530,19 @@ function renderCardDetail() {
   markUsedButton.textContent = card.used ? "Unmark used" : "Mark used";
   openBalanceModalButton.disabled = false;
   barcodeOpenButton.disabled = false;
-  detailBarcodeActionLabel.textContent = "Show barcode full screen";
-  renderBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption, card, { height: 88 });
+  detailBarcodeActionLabel.textContent = "Focus barcode";
+  detailBarcodeBalance.textContent = formatBalance(card.currentBalance);
+  detailBarcodePin.textContent = `PIN ${card.pin}`;
+  detailBarcodeCaption.textContent = maskCardNumber(card.cardNumber);
+  renderBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption, card, { height: 82 });
+  detailBarcodeCaption.textContent = maskCardNumber(card.cardNumber);
   renderBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption, card, { height: 132, moduleWidth: 3 });
   fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
   const fullscreenCardIdentifier = `Card ${maskCardNumber(card.cardNumber)}`;
   fullscreenCardNumber.textContent = fullscreenCardIdentifier;
   fullscreenBarcodeCaption.textContent = "";
   fullscreenBarcodeCaption.hidden = true;
-  fullscreenPin.textContent = card.pin;
+  fullscreenPin.textContent = `PIN ${card.pin}`;
   fullscreenCurrentBalance.textContent = formatBalance(card.currentBalance);
   fullscreenPreviousButton.disabled = visiblePosition <= 0;
   fullscreenNextButton.disabled = visiblePosition === visibleIndexes.length - 1;
@@ -2814,7 +2838,9 @@ function releaseCheckoutWakeLock() {
   wakeLock = null;
 }
 
-function openFullscreenBarcode() {
+// Archived fullscreen barcode dialog — retained for possible future reversion.
+// The old full-screen dialog flow is inactive; this handler now opens compact barcode focus mode.
+function openBarcodeFocusMode() {
   if (selectedCardIndex < 0) {
     return;
   }
@@ -2825,7 +2851,7 @@ function openFullscreenBarcode() {
   barcodeCloseButton.focus();
 }
 
-function closeFullscreenBarcode(options = {}) {
+function closeBarcodeFocusMode(options = {}) {
   fullscreenBarcode.hidden = true;
   releaseCheckoutWakeLock();
 
@@ -2843,7 +2869,7 @@ function markUsedFromCheckout() {
   toggleSelectedUsed();
 
   if (wasFullscreenOpen) {
-    closeFullscreenBarcode({ skipFocus: true });
+    closeBarcodeFocusMode({ skipFocus: true });
     showPanel("detail");
     openBalanceModalButton.focus();
   }
@@ -2879,23 +2905,11 @@ window.addEventListener("offline", renderConnectionState);
 
 function updateBalanceFromCheckout() {
   if (!fullscreenBarcode.hidden) {
-    closeFullscreenBarcode({ skipFocus: true });
+    closeBarcodeFocusMode({ skipFocus: true });
     showPanel("detail");
   }
 
   openBalanceModal();
-}
-
-function handleSwipeEnd(event, action) {
-  const touch = event.changedTouches[0];
-  const deltaX = touch.screenX - touchStartX;
-  const deltaY = touch.screenY - touchStartY;
-
-  if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) {
-    return;
-  }
-
-  action(deltaX < 0 ? 1 : -1);
 }
 
 function isModalOpen() {
@@ -2954,8 +2968,8 @@ markZeroUsedButton.addEventListener("click", openZeroBalanceConfirm);
 forceRefreshAppShellButton.addEventListener("click", forceRefreshAppShell);
 cancelConfirmButton.addEventListener("click", closeConfirmModal);
 confirmZeroUsedButton.addEventListener("click", markZeroBalanceCardsUsed);
-barcodeOpenButton.addEventListener("click", openFullscreenBarcode);
-barcodeCloseButton.addEventListener("click", closeFullscreenBarcode);
+barcodeOpenButton.addEventListener("click", openBarcodeFocusMode);
+barcodeCloseButton.addEventListener("click", closeBarcodeFocusMode);
 toggleDataLockButton.addEventListener("click", () => setRawDataLocked(!rawDataLocked));
 refreshCardDataButton.addEventListener("click", refreshRawCardData);
 updateCardDataButton.addEventListener("click", updateRawCardData);
@@ -2989,7 +3003,7 @@ syncRecoveryActions.addEventListener("click", (event) => {
 });
 fullscreenBarcode.addEventListener("click", (event) => {
   if (event.target === fullscreenBarcode) {
-    closeFullscreenBarcode();
+    closeBarcodeFocusMode();
   }
 });
 balanceModal.addEventListener("click", (event) => {
@@ -3005,7 +3019,7 @@ confirmModal.addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (!fullscreenBarcode.hidden && event.key === "Escape") {
-    closeFullscreenBarcode();
+    closeBarcodeFocusMode();
   }
 
   if (!balanceModal.hidden && event.key === "Escape") {
@@ -3016,26 +3030,6 @@ document.addEventListener("keydown", (event) => {
     closeConfirmModal();
   }
 });
-
-fullscreenBarcode.addEventListener("touchstart", (event) => {
-  if (fullscreenBarcode.hidden || isModalOpen() || isInteractiveGestureTarget(event.target)) {
-    touchStartX = 0;
-    touchStartY = 0;
-    return;
-  }
-
-  const touch = event.changedTouches[0];
-  touchStartX = touch.screenX;
-  touchStartY = touch.screenY;
-}, { passive: true });
-
-fullscreenBarcode.addEventListener("touchend", (event) => {
-  if (fullscreenBarcode.hidden || isModalOpen() || isInteractiveGestureTarget(event.target) || (touchStartX === 0 && touchStartY === 0)) {
-    return;
-  }
-
-  handleSwipeEnd(event, moveSelection);
-}, { passive: true });
 
 applyAppState(loadAppState());
 saveAppState();
