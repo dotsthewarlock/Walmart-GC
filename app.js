@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.38 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.39 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.38";
-const DEBUG_VERSION_CSS = "1.01.38";
+const DEBUG_VERSION_JS = "1.01.39";
+const DEBUG_VERSION_CSS = "1.01.39";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -476,7 +476,7 @@ function renderBarcode(container, statusElement, captionElement, card, options =
     container.appendChild(svg);
     container.hidden = false;
     statusElement.textContent = "Walmart Canada checkout barcode";
-    captionElement.textContent = "Encodes the Walmart Canada checkout payload derived from this card number.";
+    captionElement.textContent = "Tap to enlarge for scanning.";
     return true;
   } catch {
     statusElement.textContent = "Barcode unavailable";
@@ -490,7 +490,7 @@ function clearRenderedBarcode(container, statusElement, captionElement) {
   container.replaceChildren();
   container.hidden = true;
   statusElement.textContent = "Barcode unavailable";
-  captionElement.textContent = "Select a card to render its checkout barcode.";
+  captionElement.textContent = "Choose a card from Cards to start checkout. The barcode, PIN, and balance will appear here.";
 }
 
 function todayString() {
@@ -2410,14 +2410,14 @@ function clearCardDetail() {
   detailCurrentDateLabel.textContent = "Date updated";
   detailCurrentDate.textContent = "—";
   currentBalanceCard.classList.remove("used-balance-card");
-  detailNotes.textContent = "Select a card to view checkout notes.";
+  detailNotes.textContent = "Choose a card from Cards to start checkout. The barcode, PIN, and balance will appear here.";
   cardPosition.textContent = "Card 0 of 0";
   previousButton.disabled = true;
   nextButton.disabled = true;
   markUsedButton.disabled = true;
   openBalanceModalButton.disabled = true;
   barcodeOpenButton.disabled = true;
-  detailBarcodeActionLabel.textContent = "Select a card";
+  detailBarcodeActionLabel.textContent = "Choose a card";
   clearRenderedBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption);
   clearRenderedBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption);
   fullscreenCardNumber.textContent = "—";
@@ -2463,7 +2463,7 @@ function renderCardDetail() {
   markUsedButton.textContent = card.used ? "Unmark used" : "Mark used";
   openBalanceModalButton.disabled = false;
   barcodeOpenButton.disabled = false;
-  detailBarcodeActionLabel.textContent = "Tap to open full screen";
+  detailBarcodeActionLabel.textContent = "Show barcode full screen";
   renderBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption, card, { height: 88 });
   renderBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption, card, { height: 132, moduleWidth: 3 });
   fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;

@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.38 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.39 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -1230,4 +1230,43 @@ dd,
   .recovery-action-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+.checkout-priority-grid {
+  align-items: stretch;
+}
+
+.checkout-primary-detail {
+  background: #f2f8ff;
+  border-color: rgba(0, 113, 220, 0.24);
+}
+
+.checkout-primary-detail dd {
+  font-size: clamp(1.35rem, 6vw, 2rem);
+  line-height: 1.15;
+}
+
+.pin-detail-card dd {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.balance-detail-card {
+  box-shadow: inset 0 0 0 1px rgba(0, 113, 220, 0.08);
+}
+
+.checkout-secondary-detail,
+.notes-block {
+  background: #fbfcfe;
+}
+
+.checkout-secondary-detail dd,
+.notes-block p {
+  color: #344054;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.fullscreen-done-button {
+  min-width: 6.5rem;
 }
