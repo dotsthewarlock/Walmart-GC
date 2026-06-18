@@ -30,7 +30,6 @@ const CARD_HEADERS = [
   "used",
   "notes",
 ];
-const DEFAULT_MERCHANT = "walmart-ca";
 const DEFAULT_FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
 const DEFAULT_REDIRECT_URI = "https://walmart-gc.dotsthewarlock.com/auth/callback";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
@@ -745,12 +744,8 @@ function normalizePinValue(pin) {
   return String(pin ?? "").trim();
 }
 
-function normalizeMerchantValue(merchant, cardNumber) {
-  const normalizedMerchant = String(merchant ?? "").trim();
-  if (normalizedMerchant) {
-    return normalizedMerchant;
-  }
-  return WALMART_GIFT_CARD_NUMBER_PATTERN.test(String(cardNumber ?? "").trim()) ? DEFAULT_MERCHANT : "";
+function normalizeMerchantValue(merchant) {
+  return String(merchant ?? "").trim();
 }
 
 function normalizeOptionalMoneyString(value) {
@@ -792,7 +787,7 @@ function validateCards(cards) {
     if (normalized.pin.length < 4) {
       throw new HttpError(400, { ok: false, error: `Card ${index + 1}: PIN must be at least 4 characters.` });
     }
-    normalized.merchant = normalizeMerchantValue(normalized.merchant, normalized.cardNumber);
+    normalized.merchant = normalizeMerchantValue(normalized.merchant);
     normalized.startingBalance = normalizeOptionalMoneyString(normalized.startingBalance);
     normalized.currentBalance = normalizeCurrentBalanceValue(normalized.currentBalance, normalized.startingBalance);
     if (seen.has(normalized.cardNumber)) {
@@ -819,7 +814,7 @@ function cardsFromSheetRows(rows, headerMap) {
     });
     card.cardNumber = card.cardNumber.trim();
     card.pin = normalizePinValue(card.pin);
-    card.merchant = normalizeMerchantValue(card.merchant, card.cardNumber);
+    card.merchant = normalizeMerchantValue(card.merchant);
     card.startingBalance = normalizeOptionalMoneyString(card.startingBalance);
     card.currentBalance = normalizeCurrentBalanceValue(card.currentBalance, card.startingBalance);
     if (!card.cardNumber) {

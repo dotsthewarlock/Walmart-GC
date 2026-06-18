@@ -80,7 +80,7 @@ Do not rename, add, or remove schema fields during Phase 11.
 
 - `cardNumber` is required, must be unique, must start with `635`, must be exactly 16 numeric digits, and is the record ID.
 - `pin` is required for practical checkout use.
-- `merchant` defaults to `walmart-ca`.
+- `merchant` stores explicit user, Sheet, or import input only; leave it blank when unknown. Runtime barcode/UI behavior may infer Walmart Canada from valid Walmart Canada card numbers.
 - `startingBalance` is the historical starting value.
 - `currentBalance` is the authoritative remaining balance.
 - `dateAdded`, `dateUpdated`, and `dateUsed` should use `YYYY-MM-DD` when populated.
