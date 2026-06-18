@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.47 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.48 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -1887,4 +1887,93 @@ dd,
 .data-card-heading,
 .data-section-heading {
   gap: 0.25rem;
+}
+
+/* Phase 11.3e material UI polish and global status banner */
+.global-status-banner {
+  position: fixed;
+  left: max(1rem, calc((100vw - 68rem) / 2 + 1rem));
+  right: max(1rem, calc((100vw - 68rem) / 2 + 1rem));
+  bottom: calc(4.7rem + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  display: block;
+  margin: 0;
+  border: 1px solid rgba(15, 123, 63, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 0.9rem 2.2rem rgba(23, 32, 51, 0.16);
+  color: var(--text);
+  padding: 0.42rem 0.8rem;
+  text-align: center;
+}
+
+.global-status-banner[data-sync-summary="connected"] {
+  border-color: rgba(15, 123, 63, 0.22);
+  color: var(--unused);
+}
+
+.global-status-banner[data-sync-summary="unsynced"],
+.global-status-banner[data-sync-summary="checking"] {
+  border-color: rgba(122, 74, 0, 0.22);
+  color: #7a4a00;
+}
+
+.global-status-banner[data-sync-summary="conflict"],
+.global-status-banner[data-sync-summary="unavailable"] {
+  border-color: rgba(180, 35, 24, 0.24);
+  color: var(--danger);
+}
+
+.card-count-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding-inline: 0.75rem;
+}
+
+.cards-heading {
+  grid-template-columns: minmax(0, 1fr) auto minmax(5.5rem, 1fr);
+}
+
+.card-total-balance {
+  min-width: 5.5rem;
+  text-align: right;
+}
+
+.checkout-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkout-nav #prev-card {
+  justify-self: start;
+}
+
+.checkout-nav #next-card {
+  justify-self: end;
+}
+
+.checkout-nav .secondary-button {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.position-indicator {
+  min-width: 3.25rem;
+  padding: 0.35rem 0.55rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.notes-button #detail-notes:empty::before {
+  content: "Add note";
+  color: var(--muted);
+}
+
+.settings-app-shell-fingerprint {
+  margin: 0.85rem auto 0;
+  text-align: center;
 }

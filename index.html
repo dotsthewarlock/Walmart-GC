@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.47 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.48 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.47" />
+    <link rel="stylesheet" href="styles.css?v=1.01.48" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,10 +21,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.47"
+          data-html-version="1.01.48"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.47 · JS loading · CSS 1.01.47
+          HTML 1.01.48 · JS loading · CSS 1.01.48
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
@@ -40,6 +40,7 @@
           <span class="app-sync-summary-label">Local only</span>
           <span class="app-sync-summary-help">Open backup and sync</span>
         </button>
+        <div id="checkout-feedback" class="checkout-feedback global-status-banner" role="status" aria-live="polite">Local only</div>
       </div>
     </header>
 
@@ -65,13 +66,11 @@
             <span id="detail-status" class="status-badge" hidden></span>
           </div>
 
-          <div id="checkout-feedback" class="checkout-feedback" role="status" aria-live="polite" hidden></div>
-
           <article id="card-detail" class="card-detail">
             <div class="checkout-nav" aria-label="Checkout navigation">
-              <button id="prev-card" class="secondary-button" type="button">Previous card</button>
-              <span id="card-position" class="position-indicator">Card 0 of 0</span>
-              <button id="next-card" class="secondary-button" type="button">Next card</button>
+              <button id="prev-card" class="secondary-button" type="button">Previous</button>
+              <span id="card-position" class="position-indicator">0/0</span>
+              <button id="next-card" class="secondary-button" type="button">Next</button>
             </div>
 
             <button
@@ -92,26 +91,7 @@
               <strong id="detail-barcode-action-label" class="barcode-action-label" hidden>Focus barcode</strong>
             </button>
 
-            <dl class="detail-grid checkout-priority-grid compact-checkout-details">
-              <div class="checkout-primary-detail pin-detail-card">
-                <dt>PIN</dt>
-                <dd id="detail-pin" class="pin-value">—</dd>
-              </div>
-              <div id="current-balance-card" class="checkout-primary-detail balance-detail-card">
-                <dt>Balance</dt>
-                <dd id="detail-current-balance">—</dd>
-                <p class="date-line"><span id="detail-current-date-label">Date updated</span>: <span id="detail-current-date">—</span></p>
-              </div>
-              <div class="checkout-secondary-detail">
-                <dt>Card number</dt>
-                <dd><button id="detail-number" class="card-number-toggle" type="button" aria-label="Reveal full card number">—</button></dd>
-              </div>
-              <div class="checkout-secondary-detail">
-                <dt>Starting balance</dt>
-                <dd id="detail-starting-balance">—</dd>
-                <p class="date-line">Date added: <span id="detail-date-added">—</span></p>
-              </div>
-            </dl>
+            <button id="detail-number" class="card-number-toggle" type="button" aria-label="Reveal full card number" hidden>—</button>
 
             <div class="action-row" aria-label="Card actions">
               <button id="open-balance-modal" class="primary-button" type="button">Update balance</button>
@@ -141,10 +121,10 @@
               <select id="sort-cards">
                 <option value="balance-asc">Balance (low → high)</option>
                 <option value="balance-desc">Balance (high → low)</option>
-                <option value="date-added-asc">Date added (oldest first)</option>
-                <option value="date-added-desc">Date added (newest first)</option>
-                <option value="date-updated-asc">Date updated (oldest first)</option>
-                <option value="date-updated-desc">Date updated (newest first)</option>
+                <option value="date-added-asc">Date added (oldest)</option>
+                <option value="date-added-desc">Date added (newest)</option>
+                <option value="date-updated-asc">Date updated (oldest)</option>
+                <option value="date-updated-desc">Date updated (newest)</option>
                 <option value="card-number">Card number</option>
               </select>
             </label>
@@ -183,7 +163,6 @@
               </span>
               <button id="force-refresh-app-shell" class="secondary-button app-reload-button" type="button">Refresh</button>
             </div>
-            <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.47 · JS 1.01.47 · CSS 1.01.47</p>
           </div>
 
           <details id="backup-sync-section" class="data-section backup-sync-section" aria-labelledby="backup-sync-heading">
@@ -331,6 +310,7 @@
           </details>
             </div>
           </details>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.48 · JS 1.01.48 · CSS 1.01.48</p>
       </section>
     </main>
 
@@ -390,9 +370,9 @@
           </div>
           <small id="fullscreen-barcode-caption" hidden></small>
         </div>
-        <p id="fullscreen-position" class="fullscreen-position" hidden>Card 0 of 0</p>
-        <button id="fullscreen-prev" class="secondary-button archived-fullscreen-control" type="button" hidden>Previous card</button>
-        <button id="fullscreen-next" class="secondary-button archived-fullscreen-control" type="button" hidden>Next card</button>
+        <p id="fullscreen-position" class="fullscreen-position" hidden>0/0</p>
+        <button id="fullscreen-prev" class="secondary-button archived-fullscreen-control" type="button" hidden>Previous</button>
+        <button id="fullscreen-next" class="secondary-button archived-fullscreen-control" type="button" hidden>Next</button>
         <button id="fullscreen-update-balance" class="primary-button archived-fullscreen-control" type="button" hidden>Update balance</button>
         <button id="fullscreen-mark-used" class="danger-button archived-fullscreen-control" type="button" hidden>Mark used</button>
       </div>
@@ -403,6 +383,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.47"></script>
+    <script src="app.js?v=1.01.48"></script>
   </body>
 </html>
