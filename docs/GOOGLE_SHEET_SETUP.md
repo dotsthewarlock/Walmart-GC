@@ -58,9 +58,9 @@ The `Cards` tab requires these header names. New or empty Sheets initialize with
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed
@@ -71,16 +71,16 @@ notes
 As a CSV header row, the preferred order is:
 
 ```csv
-cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
+cardNumber,pin,startingBalance,currentBalance,merchant,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
 Do not rename, add, or remove schema fields during Phase 11.
 
 ## Schema Rules
 
-- `cardNumber` is required, must be unique, must start with `635`, must be exactly 16 numeric digits, and is the record ID.
+- `cardNumber` is required, must be unique, must start with `63`, must be exactly 16 numeric digits, and is the record ID.
 - `pin` is required for practical checkout use.
-- `merchant` stores explicit user, Sheet, or import input only; leave it blank when unknown. Runtime barcode/UI behavior may infer Walmart Canada from valid Walmart Canada card numbers.
+- `merchant` is required as a header, but individual cells may be blank. Blank merchant values on valid Walmart Canada gift card numbers are inferred/defaulted to `walmart-ca`; runtime barcode/UI behavior uses the same Walmart Canada inference.
 - `startingBalance` is the historical starting value.
 - `currentBalance` is the authoritative remaining balance.
 - `dateAdded`, `dateUpdated`, and `dateUsed` should use `YYYY-MM-DD` when populated.
@@ -91,10 +91,10 @@ Do not rename, add, or remove schema fields during Phase 11.
 ## Example Rows
 
 ```csv
-cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
-6098765432101234,1234,walmart-ca,50.00,50.00,2026-06-01,2026-06-01,,false,New card
-6098765432105678,5678,walmart-ca,100.00,37.42,2026-06-02,2026-06-09,,false,Partial balance after grocery trip
-6098765432109999,9999,walmart-ca,25.00,0.00,2026-06-03,2026-06-08,2026-06-08,true,Fully used
+cardNumber,pin,startingBalance,currentBalance,merchant,dateAdded,dateUpdated,dateUsed,used,notes
+6351234567890123,1234,50.00,50.00,walmart-ca,2026-06-01,2026-06-01,,false,New card
+6352234567890123,5678,100.00,37.42,walmart-ca,2026-06-02,2026-06-09,,false,Partial balance after grocery trip
+6353234567890123,9999,25.00,0.00,walmart-ca,2026-06-03,2026-06-08,2026-06-08,true,Fully used
 ```
 
 ## Data Safety

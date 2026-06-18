@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { workerTestInternals } from "./src/index.js";
 
-const { CARD_HEADERS, validateCardHeaders } = workerTestInternals;
+const { CARD_HEADERS, normalizeEffectiveMerchant, validateCardHeaders } = workerTestInternals;
 
 function assertValid(headers, expectedIndexes) {
   const headerMap = validateCardHeaders(headers);
@@ -69,5 +69,12 @@ assertHeaderError(
   ["cardNumber", ...CARD_HEADERS],
   [/Duplicate required Cards header\(s\): cardNumber\./, /column order can be changed/],
 );
+assertHeaderError(
+  ["unexpected", "alsoUnexpected"],
+  [/Cards header row is blank or ambiguous/, /expected approved headers/, /CSV backup/],
+);
+
+assert.equal(normalizeEffectiveMerchant("", "6351234567890123"), "walmart-ca");
+assert.equal(normalizeEffectiveMerchant("custom-merchant", "6351234567890123"), "custom-merchant");
 
 console.log("schema-header tests passed");

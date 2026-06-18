@@ -119,14 +119,14 @@ Tabs:
 - `Cards`: the approved card data schema.
 - `_META`: sheet metadata, including the optimistic `sheetVersion` value used for conflict detection.
 
-Approved `Cards` schema (header-name based; approved order):
+Approved `Cards` schema (header-name based; preferred creation/CSV order only):
 
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed

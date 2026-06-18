@@ -143,9 +143,9 @@ Do not change the card schema without explicit approval. Sheets are mapped by he
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed
@@ -156,7 +156,7 @@ notes
 Rules:
 
 - `cardNumber` is the unique ID.
-- `merchant` stores explicit user, Sheet, or import input only; blank merchant remains blank. Runtime barcode/UI behavior may infer Walmart Canada from valid Walmart Canada card numbers.
+- `merchant` is a required approved header. Blank merchant values on valid Walmart Canada gift card numbers are inferred/defaulted to `walmart-ca`; runtime barcode/UI behavior uses the same Walmart Canada inference.
 - `currentBalance` is authoritative.
 - `startingBalance` is historical.
 - `used` is independent of balance.

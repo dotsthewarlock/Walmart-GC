@@ -691,6 +691,7 @@ function validateCardHeaders(row) {
   const headers = normalizeHeaderRow(row);
   const headerMap = new Map();
   const duplicates = new Set();
+  const nonBlankHeaders = headers.filter((header) => header);
 
   headers.forEach((header, index) => {
     if (!header || !CARD_HEADERS.includes(header)) {
@@ -710,15 +711,18 @@ function validateCardHeaders(row) {
     });
   }
 
-  const missing = CARD_HEADERS.filter((header) => !headerMap.has(header));
-  if (missing.length > 0) {
-    const recognizedHeaderCount = headerMap.size;
-    const recoveryHint = recognizedHeaderCount === 0
-      ? " The Cards header row has no recognized approved headers; fix row 1 or clear the tab only after exporting a CSV backup."
-      : " Add the missing header(s) to row 1; column order can be changed.";
+  if (nonBlankHeaders.length === 0 || headerMap.size === 0) {
     throw new HttpError(409, {
       ok: false,
-      error: formatCardsHeaderError(`Missing required Cards header(s): ${missing.join(", ")}.${recoveryHint}`),
+      error: formatCardsHeaderError(`Cards header row is blank or ambiguous; expected approved headers: ${CARD_HEADERS.join(", ")}. Fix row 1 or clear the tab only after exporting a CSV backup.`),
+    });
+  }
+
+  const missing = CARD_HEADERS.filter((header) => !headerMap.has(header));
+  if (missing.length > 0) {
+    throw new HttpError(409, {
+      ok: false,
+      error: formatCardsHeaderError(`Missing required Cards header(s): ${missing.join(", ")}. Add the missing header(s) to row 1; column order can be changed.`),
     });
   }
 
@@ -746,6 +750,14 @@ function normalizePinValue(pin) {
 
 function normalizeMerchantValue(merchant) {
   return String(merchant ?? "").trim();
+}
+
+function inferMerchantFromCardNumber(cardNumber) {
+  return WALMART_GIFT_CARD_NUMBER_PATTERN.test(String(cardNumber ?? "").trim()) ? "walmart-ca" : "";
+}
+
+function normalizeEffectiveMerchant(merchant, cardNumber) {
+  return normalizeMerchantValue(merchant) || inferMerchantFromCardNumber(cardNumber);
 }
 
 function normalizeOptionalMoneyString(value) {
@@ -787,7 +799,7 @@ function validateCards(cards) {
     if (normalized.pin.length < 4) {
       throw new HttpError(400, { ok: false, error: `Card ${index + 1}: PIN must be at least 4 characters.` });
     }
-    normalized.merchant = normalizeMerchantValue(normalized.merchant);
+    normalized.merchant = normalizeEffectiveMerchant(normalized.merchant, normalized.cardNumber);
     normalized.startingBalance = normalizeOptionalMoneyString(normalized.startingBalance);
     normalized.currentBalance = normalizeCurrentBalanceValue(normalized.currentBalance, normalized.startingBalance);
     if (seen.has(normalized.cardNumber)) {
@@ -814,7 +826,7 @@ function cardsFromSheetRows(rows, headerMap) {
     });
     card.cardNumber = card.cardNumber.trim();
     card.pin = normalizePinValue(card.pin);
-    card.merchant = normalizeMerchantValue(card.merchant);
+    card.merchant = normalizeEffectiveMerchant(card.merchant, card.cardNumber);
     card.startingBalance = normalizeOptionalMoneyString(card.startingBalance);
     card.currentBalance = normalizeCurrentBalanceValue(card.currentBalance, card.startingBalance);
     if (!card.cardNumber) {
@@ -1021,4 +1033,5 @@ function safeErrorMessage(error) {
 export const workerTestInternals = {
   CARD_HEADERS,
   validateCardHeaders,
+  normalizeEffectiveMerchant,
 };

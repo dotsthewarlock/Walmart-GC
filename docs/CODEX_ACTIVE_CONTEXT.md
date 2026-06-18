@@ -51,9 +51,9 @@ Approved `Cards` schema is header-name based and must not change without explici
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed
