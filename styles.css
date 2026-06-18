@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.44 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.45 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -328,6 +328,7 @@ button:disabled {
 .barcode-action:focus-visible,
 .setting-row input:focus-visible,
 .setting-row select:focus-visible,
+.collapsible-data-card summary:focus-visible,
 .modal-card input:focus-visible {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
@@ -377,6 +378,10 @@ button:disabled {
 .card-number {
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.card-row-bottom {
+  justify-content: flex-start;
 }
 
 .card-balance {
@@ -632,9 +637,15 @@ dd,
   padding: 0.75rem;
 }
 
-.setting-row-stacked {
+.setting-row-stacked,
+.settings-action-row {
   display: grid;
   align-items: stretch;
+}
+
+.settings-action-row .secondary-button {
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .settings-app-shell-fingerprint {
@@ -984,7 +995,8 @@ dd,
   background: #ffffff;
 }
 
-.advanced-diagnostics-section summary {
+.advanced-diagnostics-section summary,
+.collapsible-data-card summary {
   align-items: center;
   cursor: pointer;
   display: flex;
@@ -992,7 +1004,14 @@ dd,
   list-style-position: outside;
 }
 
-.advanced-diagnostics-section summary > span {
+.collapsible-data-card summary {
+  margin: -0.15rem;
+  padding: 0.15rem;
+  border-radius: 0.7rem;
+}
+
+.advanced-diagnostics-section summary > span,
+.collapsible-data-card summary > .data-card-heading {
   display: grid;
   gap: 0.2rem;
   min-width: 0;
@@ -1003,11 +1022,13 @@ dd,
   font-size: 1.05rem;
 }
 
-.advanced-diagnostics-section summary::-webkit-details-marker {
+.advanced-diagnostics-section summary::-webkit-details-marker,
+.collapsible-data-card summary::-webkit-details-marker {
   color: var(--primary);
 }
 
-.advanced-diagnostics-section summary::marker {
+.advanced-diagnostics-section summary::marker,
+.collapsible-data-card summary::marker {
   color: var(--primary);
 }
 
@@ -1132,7 +1153,8 @@ dd,
     align-items: start;
   }
 
-  .setting-row-stacked .secondary-button {
+  .setting-row-stacked .secondary-button,
+  .settings-action-row .secondary-button {
     justify-self: start;
     width: auto;
   }

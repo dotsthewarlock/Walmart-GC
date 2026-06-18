@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.44 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.45 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.44";
-const DEBUG_VERSION_CSS = "1.01.44";
+const DEBUG_VERSION_JS = "1.01.45";
+const DEBUG_VERSION_CSS = "1.01.45";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -175,6 +175,8 @@ const openDirectSheetButton = document.querySelector("#open-direct-sheet");
 const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
 const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
 const directSheetStatusArea = document.querySelector("#direct-sheet-status");
+const googleAccountPanel = document.querySelector("#google-account-panel");
+const googleSheetPanel = document.querySelector("#google-sheet-panel");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -1473,8 +1475,23 @@ function getDirectSheetsDisplayUrl() {
     : "";
 }
 
+function setDetailsOpen(detailsElement, shouldOpen) {
+  if (detailsElement) {
+    detailsElement.open = Boolean(shouldOpen);
+  }
+}
+
+function updateBackupPanelOpenState() {
+  const accountNeedsAttention = googleOAuthState.status !== googleOAuthStatuses.connected;
+  const sheetNeedsAttention = hasWorkerGoogleSession() && directSheetsState.status !== directSheetsStatuses.ready;
+
+  setDetailsOpen(googleAccountPanel, accountNeedsAttention);
+  setDetailsOpen(googleSheetPanel, sheetNeedsAttention);
+}
+
 function renderDirectSheetsState() {
   if (!directSheetStatusArea) {
+    updateBackupPanelOpenState();
     return;
   }
 
@@ -1489,6 +1506,7 @@ function renderDirectSheetsState() {
   syncDirectSheetButton.disabled = isBusy || !hasWorkerGoogleSession();
 
   renderAdvancedSyncDiagnostics(getGoogleOAuthDiagnosticRows(), getDirectSheetsDiagnosticRows());
+  updateBackupPanelOpenState();
 
   const sheetLink = getDirectSheetsDisplayUrl();
   directSheetStatusArea.className = `connection-status is-${getDirectSheetsStatusClass()} sync-${syncState.status}`;
@@ -1535,6 +1553,7 @@ function renderGoogleOAuthState() {
   disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
 
   renderAdvancedSyncDiagnostics(getGoogleOAuthDiagnosticRows(), getDirectSheetsDiagnosticRows());
+  updateBackupPanelOpenState();
 
   googleOAuthStatusArea.className = `connection-status oauth-status is-${getGoogleOAuthStatusClass()}`;
   googleOAuthStatusArea.innerHTML = `
@@ -2416,7 +2435,6 @@ function renderCardList() {
         ${renderUsedIndicator(card)}
       </div>
       <div class="card-row-bottom">
-        <span class="card-note">Current balance</span>
         <span class="card-balance${card.used ? " is-used-balance" : ""}">${formatBalance(card.currentBalance)}</span>
       </div>
     `;
