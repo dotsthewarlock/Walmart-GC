@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.30 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.31 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.30";
-const DEBUG_VERSION_CSS = "1.01.30";
+const DEBUG_VERSION_JS = "1.01.31";
+const DEBUG_VERSION_CSS = "1.01.31";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -283,6 +283,8 @@ const defaultDirectSheetsState = {
   pendingUnsynced: false,
   message: "Connect Google to find or create Walmart-GC Data.",
   lastErrorMessage: "",
+  workerVersion: "",
+  schemaMode: "",
 };
 
 const defaultGoogleOAuthState = {
@@ -295,6 +297,8 @@ const defaultGoogleOAuthState = {
   userDisconnectedGoogle: false,
   message: "Checking Google account connection. Local cards remain usable without Google.",
   lastErrorMessage: "",
+  workerVersion: "",
+  schemaMode: "",
 };
 
 let sampleGiftCards = cloneStateValue(bundledSampleGiftCards);
@@ -721,6 +725,8 @@ function normalizeStoredDirectSheets(directSheets) {
     pendingUnsynced: Boolean(directSheets.pendingUnsynced),
     message: String(directSheets.message || defaultDirectSheetsState.message),
     lastErrorMessage: String(directSheets.lastErrorMessage || ""),
+    workerVersion: String(directSheets.workerVersion || ""),
+    schemaMode: String(directSheets.schemaMode || ""),
   };
 }
 
@@ -759,6 +765,8 @@ function normalizeStoredGoogleOAuth(oauth) {
         ? "Previously connected. Reconnect Google to sync."
         : defaultGoogleOAuthState.message)),
     lastErrorMessage: String(oauth.lastErrorMessage || ""),
+    workerVersion: String(oauth.workerVersion || ""),
+    schemaMode: String(oauth.schemaMode || ""),
   };
 }
 
@@ -1346,7 +1354,7 @@ function getDirectSheetsStatusClass() {
 }
 
 function isCardsHeaderError(message) {
-  return /(?:Missing|Duplicate) required Cards header|Cards header row/i.test(String(message || ""));
+  return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
 }
 
 function formatDirectSheetsPanelMessage() {
@@ -1355,7 +1363,7 @@ function formatDirectSheetsPanelMessage() {
     return escapeHtml(message);
   }
 
-  return `${escapeHtml(message)}<br><strong>Required Cards headers (any order):</strong> <code>${escapeHtml(expectedCardsHeaderRow)}</code>`;
+  return `${escapeHtml(message)}<br><strong>Required Cards headers (any order):</strong> <code>${escapeHtml(expectedCardsHeaderRow)}</code><br><strong>Non-destructive guidance:</strong> Local data remains available. Export/download a CSV backup before any destructive recovery. Fix Cards row 1 manually or use a future safe repair flow; names must match exactly.`;
 }
 
 function hasGoogleFileAccessInMemory() {
@@ -1385,6 +1393,8 @@ function renderDirectSheetsState() {
 
   const details = [
     renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
+    renderDiagnosticRow("Worker version", valueOrFallback(directSheetsState.workerVersion || googleOAuthState.workerVersion)),
+    renderDiagnosticRow("Schema mode", valueOrFallback(directSheetsState.schemaMode || googleOAuthState.schemaMode)),
     renderDiagnosticRow("Sheet proxy", getSheetProxyDiagnosticStatus()),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
     renderDiagnosticRow("Active sheet ID", valueOrFallback(directSheetsState.spreadsheetId)),
@@ -1447,6 +1457,8 @@ function renderGoogleOAuthState() {
 
   const details = [
     renderDiagnosticRow("Worker backend", WORKER_ROUTE_DISPLAY),
+    renderDiagnosticRow("Worker version", valueOrFallback(googleOAuthState.workerVersion || directSheetsState.workerVersion)),
+    renderDiagnosticRow("Schema mode", valueOrFallback(googleOAuthState.schemaMode || directSheetsState.schemaMode)),
     renderDiagnosticRow("Worker session", getWorkerSessionDiagnosticStatus()),
     renderDiagnosticRow("Connection state", googleOAuthState.status),
     renderDiagnosticRow("Connected account", valueOrFallback(googleOAuthState.connectedEmail || googleOAuthState.connectedName)),
@@ -1490,13 +1502,30 @@ async function fetchWorkerJson(path, options = {}) {
       : (typeof payload.message === "string" && payload.message.trim()
         ? payload.message.trim()
         : `Worker request failed (${response.status}).`);
-    const error = new Error(message);
+    const error = new Error(formatWorkerApiErrorMessage(message, payload));
     error.status = response.status;
     error.payload = payload;
     throw error;
   }
 
   return payload;
+}
+
+function formatWorkerApiErrorMessage(message, payload) {
+  const details = [];
+  if (Array.isArray(payload?.missingHeaders) && payload.missingHeaders.length) {
+    details.push(`Missing: ${payload.missingHeaders.join(", ")}.`);
+  }
+  if (Array.isArray(payload?.duplicateHeaders) && payload.duplicateHeaders.length) {
+    details.push(`Duplicates: ${payload.duplicateHeaders.join(", ")}.`);
+  }
+  if (Array.isArray(payload?.recognizedHeaders)) {
+    details.push(`Recognized row 1 headers: ${payload.recognizedHeaders.length ? payload.recognizedHeaders.join(", ") : "none"}.`);
+  }
+  if (Array.isArray(payload?.expectedHeaders) && payload.expectedHeaders.length) {
+    details.push(`Expected approved headers: ${payload.expectedHeaders.join(", ")}.`);
+  }
+  return [message, ...details].filter(Boolean).join(" ");
 }
 
 function consumeAuthReturnQuery() {
@@ -1525,6 +1554,8 @@ async function refreshWorkerSessionStatus(options = {}) {
     if (status.authenticated) {
       const now = new Date().toISOString();
       const returnedSheetId = String(status.sheetId || "").trim();
+      const workerVersion = String(status.workerVersion || "");
+      const schemaMode = String(status.schemaMode || "");
       if (returnedSheetId && !directSheetsState.spreadsheetId) {
         setDirectSheetsState({
           spreadsheetId: returnedSheetId,
@@ -1534,6 +1565,8 @@ async function refreshWorkerSessionStatus(options = {}) {
           remoteSheetVersion: String(status.sheetVersion || directSheetsState.remoteSheetVersion || ""),
           message: "Saved Sheet metadata restored from the durable Google session.",
           lastErrorMessage: "",
+          workerVersion,
+          schemaMode,
         });
       }
       setGoogleOAuthState({
@@ -1548,6 +1581,8 @@ async function refreshWorkerSessionStatus(options = {}) {
           ? `Connected as ${status.email || status.name}.`
           : "Google connected",
         lastErrorMessage: "",
+        workerVersion,
+        schemaMode,
       });
       return true;
     }
@@ -1562,6 +1597,8 @@ async function refreshWorkerSessionStatus(options = {}) {
       userDisconnectedGoogle: false,
       message: "Connect Google to enable durable sync.",
       lastErrorMessage: "",
+      workerVersion: String(status.workerVersion || googleOAuthState.workerVersion || ""),
+      schemaMode: String(status.schemaMode || googleOAuthState.schemaMode || ""),
     });
     return false;
   } catch (error) {
