@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.34 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.35 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -716,6 +716,14 @@ dd,
 .advanced-diagnostics-section summary strong {
   color: var(--text);
   font-size: 1.05rem;
+}
+
+.advanced-diagnostics-section summary::-webkit-details-marker {
+  color: var(--accent);
+}
+
+.advanced-diagnostics-section summary::marker {
+  color: var(--accent);
 }
 
 .advanced-diagnostics-content {
