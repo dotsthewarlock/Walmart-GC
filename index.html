@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.33 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.34 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Walmart-GC</title>
-    <link rel="stylesheet" href="styles.css?v=1.01.33" />
+    <link rel="stylesheet" href="styles.css?v=1.01.34" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.33"
+          data-html-version="1.01.34"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.33 · JS loading · CSS 1.01.33
+          HTML 1.01.34 · JS loading · CSS 1.01.34
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -188,82 +188,128 @@
             Google Sheets keeps your card list available across devices when connected. CSV remains available for local backup and recovery.
           </p>
 
-          <div class="data-card oauth-card">
-            <div class="data-card-heading">
-              <div>
-                <h3>Google Account</h3>
-                <p>Connect your Google Account to use Google Sheets sync. Walmart-GC keeps sensitive Google sign-in details out of the browser.</p>
-              </div>
+          <section class="data-section google-sync-section" aria-labelledby="google-sync-heading">
+            <div class="data-section-heading">
+              <p class="eyebrow">Google Sync</p>
+              <h3 id="google-sync-heading">Google Sync</h3>
+              <p>Connect Google and manage the Walmart-GC Data Sheet used for cross-device sync.</p>
             </div>
 
-            <div class="connection-actions oauth-actions" aria-label="Google account actions">
-              <button id="connect-google" class="primary-button" type="button">Connect Google</button>
-              <button id="disconnect-google" class="secondary-button" type="button">Disconnect</button>
+            <div class="data-card oauth-card">
+              <div class="data-card-heading">
+                <div>
+                  <h4>Google Account</h4>
+                  <p>Connect your Google Account to use Google Sheets sync. Walmart-GC keeps sensitive Google sign-in details out of the browser.</p>
+                </div>
+              </div>
+
+              <div class="connection-actions oauth-actions" aria-label="Google account actions">
+                <button id="connect-google" class="primary-button" type="button">Connect Google</button>
+                <button id="disconnect-google" class="secondary-button" type="button">Disconnect</button>
+              </div>
+
+              <div id="google-oauth-status" class="connection-status oauth-status" role="status" aria-live="polite"></div>
             </div>
 
-            <div id="google-oauth-status" class="connection-status oauth-status" role="status" aria-live="polite"></div>
-          </div>
-
-          <div class="data-card direct-sheets-card">
-            <div class="data-card-heading">
-              <div>
-                <h3>Google Sheet</h3>
-                <p><code>Walmart-GC Data</code> is the Google Sheet used for sync. Walmart-GC can find or create the spreadsheet and prepare the <code>Cards</code> and <code>_META</code> tabs.</p>
+            <div class="data-card direct-sheets-card">
+              <div class="data-card-heading">
+                <div>
+                  <h4>Google Sheet</h4>
+                  <p><code>Walmart-GC Data</code> is the Google Sheet used for sync. Walmart-GC can find or create the spreadsheet and prepare the <code>Cards</code> and <code>_META</code> tabs.</p>
+                </div>
               </div>
+
+              <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
+                <button id="initialize-direct-sheet" class="secondary-button" type="button">Set up / check Sheet</button>
+                <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
+                <button id="load-direct-sheet" class="primary-button" type="button">Reload from Sheet</button>
+                <button id="sync-direct-sheet" class="secondary-button" type="button">Sync to Sheet</button>
+              </div>
+
+              <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
+              <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
+            </div>
+          </section>
+
+          <section class="data-section backup-restore-section" aria-labelledby="backup-restore-heading">
+            <div class="data-section-heading">
+              <p class="eyebrow">Backup &amp; Restore</p>
+              <h3 id="backup-restore-heading">Backup &amp; Restore</h3>
+              <p>Export a CSV backup before major changes, or import a CSV to recover local card data.</p>
+              <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
             </div>
 
-            <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
-              <button id="initialize-direct-sheet" class="secondary-button" type="button">Set up / check Sheet</button>
-              <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
-              <button id="load-direct-sheet" class="primary-button" type="button">Reload from Sheet</button>
-              <button id="sync-direct-sheet" class="secondary-button" type="button">Sync to Sheet</button>
-            </div>
+            <div class="data-card csv-recovery-card">
+              <div class="data-card-heading">
+                <div>
+                  <h4>CSV Backup &amp; Recovery</h4>
+                  <p>CSV files are your portable local backup. Export is safe and non-destructive; importing replaces the local card list only after the existing confirmation flow.</p>
+                </div>
+              </div>
 
-            <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
-            <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
-          </div>
-
-          <div class="data-card csv-recovery-card">
-            <div class="data-card-heading">
-              <div>
-                <h3>CSV Backup & Recovery</h3>
-                <p>Use CSV export as an emergency backup before major changes, or import CSV to recover local card data.</p>
-                <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>. Sheets sync matches approved headers by name, so columns may be rearranged.</p>
-                <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
+              <div class="data-actions" aria-label="CSV backup and recovery actions">
+                <div class="data-action-row">
+                  <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
+                  <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
+                  <button id="export-csv" class="secondary-button" type="button">Export CSV</button>
+                </div>
               </div>
             </div>
+          </section>
 
-            <textarea
-              id="raw-data-input"
-              class="raw-data-input"
-              aria-label="Raw CSV card data"
-              spellcheck="false"
-              rows="8"
-              placeholder="Paste or import card data here..."
-            ></textarea>
+          <details class="data-section advanced-diagnostics-section">
+            <summary>
+              <span>
+                <span class="eyebrow">Advanced / Diagnostics</span>
+                <strong>Advanced / Diagnostics</strong>
+                <small>Raw CSV editing, manual refresh/update controls, validation warnings, and schema details.</small>
+              </span>
+            </summary>
 
-            <div class="data-actions" aria-label="CSV backup and recovery actions">
-              <div class="data-action-row">
-                <button id="toggle-data-lock" class="secondary-button" type="button">Unlock Editing</button>
-                <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
+            <div class="advanced-diagnostics-content">
+              <div class="data-card raw-data-card">
+                <div class="data-card-heading">
+                  <div>
+                    <h4>Raw CSV Editor</h4>
+                    <p>Advanced recovery tools for reviewing or editing the raw local CSV representation.</p>
+                  </div>
+                </div>
+
+                <textarea
+                  id="raw-data-input"
+                  class="raw-data-input"
+                  aria-label="Raw CSV card data"
+                  spellcheck="false"
+                  rows="8"
+                  placeholder="Paste or import card data here..."
+                ></textarea>
+
+                <div class="data-actions" aria-label="Raw data diagnostic actions">
+                  <div class="data-action-row">
+                    <button id="toggle-data-lock" class="secondary-button" type="button">Unlock Editing</button>
+                    <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
+                  </div>
+                  <div class="data-action-row">
+                    <button id="refresh-card-data" class="secondary-button" type="button">Refresh Data</button>
+                    <button id="update-card-data" class="primary-button" type="button">Update Data</button>
+                  </div>
+                </div>
+                <p class="data-footnote">* Scan remains disabled for the MVP; use CSV import/export for backup and recovery.</p>
               </div>
-              <div class="data-action-row">
-                <button id="refresh-card-data" class="secondary-button" type="button">Refresh Data</button>
-                <button id="update-card-data" class="primary-button" type="button">Update Data</button>
+
+              <div class="validation-card">
+                <h4>Validation Warnings</h4>
+                <div id="data-validation-warnings" class="validation-warnings" role="status">No validation run yet.</div>
               </div>
-              <div class="data-action-row">
-                <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
-                <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
-                <button id="export-csv" class="danger-button" type="button">Export CSV</button>
+
+              <div class="data-card schema-detail-card">
+                <h4>CSV and Sheet Header Details</h4>
+                <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>.</p>
+                <p>Sheets sync matches approved headers by name, so columns may be rearranged.</p>
+                <p class="data-footnote">App-shell fingerprint: HTML 1.01.34 · JS 1.01.34 · CSS 1.01.34.</p>
               </div>
             </div>
-            <p class="data-footnote">* Scan remains disabled for the MVP; use CSV import/export for backup and recovery.</p>
-          </div>
-
-          <div class="validation-card">
-            <h3>Validation Warnings</h3>
-            <div id="data-validation-warnings" class="validation-warnings" role="status">No validation run yet.</div>
-          </div>
+          </details>
         </div>
       </section>
     </main>
@@ -335,6 +381,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=1.01.33"></script>
+    <script src="app.js?v=1.01.34"></script>
   </body>
 </html>
