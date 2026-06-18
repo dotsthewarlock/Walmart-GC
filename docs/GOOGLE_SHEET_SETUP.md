@@ -53,14 +53,14 @@ Use the **Open Sheet** button in the Data panel to view it in Google Sheets afte
 
 ## Required Schema
 
-The `Cards` tab uses this exact header order:
+The `Cards` tab requires these header names. New or empty Sheets initialize with this preferred header order, but existing Sheets may keep these required headers in any order:
 
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed
@@ -68,13 +68,13 @@ used
 notes
 ```
 
-As a CSV header row, that is:
+As a CSV header row, the preferred order is:
 
 ```csv
-cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
+cardNumber,pin,startingBalance,currentBalance,merchant,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
-Do not change the schema during Phase 11.
+Do not rename, add, or remove schema fields during Phase 11.
 
 ## Schema Rules
 

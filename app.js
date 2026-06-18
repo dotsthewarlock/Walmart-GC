@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.21 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.22 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.21";
+const DEBUG_VERSION_JS = "1.01.22";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -180,9 +180,9 @@ const dataPanelRowLimit = 100;
 const csvHeaders = [
   "cardNumber",
   "pin",
-  "merchant",
   "startingBalance",
   "currentBalance",
+  "merchant",
   "dateAdded",
   "dateUpdated",
   "dateUsed",
@@ -840,7 +840,8 @@ function maskCardNumber(cardNumber) {
 }
 
 function getDataRowCount(rawCsv) {
-  return normalizeCsvRows(rawCsv).length;
+  const { rows } = normalizeCsvRows(rawCsv);
+  return rows.length;
 }
 
 function updateDataCountSummary(displayedCount = 0) {
@@ -932,6 +933,29 @@ function renderValidationWarnings(warnings, summary = "No validation run yet.") 
   dataValidationWarnings.append(warningList);
 }
 
+function getCsvHeaderMap(headerValues) {
+  if (!Array.isArray(headerValues)) {
+    return null;
+  }
+
+  const normalizedValues = headerValues.map((value) => value.trim());
+  const knownHeaders = new Set([...csvHeaders, ...legacyCsvHeaders]);
+  if (!normalizedValues.every((value) => knownHeaders.has(value))) {
+    return null;
+  }
+
+  const headerMap = new Map();
+  normalizedValues.forEach((value, index) => {
+    if (value) {
+      headerMap.set(value, index);
+    }
+  });
+
+  const hasApprovedHeaders = csvHeaders.every((header) => headerMap.has(header));
+  const hasLegacyPrototypeHeaders = legacyCsvHeaders.every((header) => headerMap.has(header));
+  return hasApprovedHeaders || hasLegacyPrototypeHeaders ? headerMap : null;
+}
+
 function normalizeCsvRows(rawCsv) {
   const rows = rawCsv
     .split(/\r?\n/)
@@ -939,33 +963,36 @@ function normalizeCsvRows(rawCsv) {
     .filter(({ line }) => line);
 
   if (rows.length === 0) {
-    return [];
+    return { rows: [], headerMap: null };
   }
 
-  const firstRow = parseCsvLine(rows[0].line);
-  const normalizedHeader = firstRow?.map((value) => value.toLowerCase()).join(",");
-  const hasApprovedHeader = normalizedHeader === csvHeaders.join(",").toLowerCase();
-  const hasLegacyPrototypeHeader = normalizedHeader === legacyCsvHeaders.join(",").toLowerCase();
-  return hasApprovedHeader || hasLegacyPrototypeHeader ? rows.slice(1) : rows;
+  const headerMap = getCsvHeaderMap(parseCsvLine(rows[0].line));
+  return headerMap ? { rows: rows.slice(1), headerMap } : { rows, headerMap: null };
 }
 
 function parseRawCardData(rawCsv) {
   const warnings = [];
   const parsedCards = [];
   const seenCardNumbers = new Set();
-  const rows = normalizeCsvRows(rawCsv);
+  const { rows, headerMap } = normalizeCsvRows(rawCsv);
   const fallbackToday = todayString();
 
   rows.forEach(({ line, lineNumber }) => {
     const displayRow = lineNumber;
     const values = parseCsvLine(line);
 
-    if (!values || ![csvHeaders.length, legacyCsvHeaders.length].includes(values.length)) {
+    if (!values || (!headerMap && ![csvHeaders.length, legacyCsvHeaders.length].includes(values.length))) {
       warnings.push(`Row ${displayRow}: malformed row; expected ${csvHeaders.length} CSV fields.`);
       return;
     }
 
-    const isLegacyPrototypeRow = values.length === legacyCsvHeaders.length;
+    const isLegacyPrototypeRow = !headerMap && values.length === legacyCsvHeaders.length;
+    const readHeaderValue = (header) => {
+      if (!headerMap || !headerMap.has(header)) {
+        return "";
+      }
+      return values[headerMap.get(header)] ?? "";
+    };
     const [
       cardNumber,
       pin,
@@ -977,9 +1004,22 @@ function parseRawCardData(rawCsv) {
       dateUsedRaw,
       usedRaw,
       notesRaw = "",
-    ] = isLegacyPrototypeRow
-      ? [values[0], values[1], "", ...values.slice(2), ""]
-      : values;
+    ] = headerMap
+      ? [
+        readHeaderValue("cardNumber"),
+        readHeaderValue("pin"),
+        readHeaderValue("merchant"),
+        readHeaderValue("startingBalance"),
+        readHeaderValue("currentBalance"),
+        readHeaderValue("dateAdded"),
+        readHeaderValue("dateUpdated"),
+        readHeaderValue("dateUsed"),
+        readHeaderValue("used"),
+        readHeaderValue("notes"),
+      ]
+      : isLegacyPrototypeRow
+        ? [values[0], values[1], "", ...values.slice(2), ""]
+        : values;
     let hasError = false;
 
     if (!cardNumber) {
