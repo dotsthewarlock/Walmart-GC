@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.48 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.49 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -416,7 +416,6 @@ button:disabled {
 
 .checkout-nav .secondary-button,
 .checkout-nav .position-indicator {
-  width: 100%;
   justify-content: center;
 }
 
@@ -657,7 +656,6 @@ dd,
 
 .app-reload-button {
   box-sizing: border-box;
-  width: 100%;
 }
 
 .setting-row span {
@@ -690,7 +688,6 @@ dd,
 
 .settings-action-row .secondary-button {
   box-sizing: border-box;
-  width: 100%;
 }
 
 .settings-app-shell-fingerprint {
@@ -900,14 +897,7 @@ dd,
 
 @media (max-width: 34rem) {
   .checkout-nav {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .position-indicator {
-    grid-column: 1 / -1;
-    justify-content: center;
-    order: -1;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   }
 }
 
@@ -1197,11 +1187,6 @@ dd,
   .setting-row-stacked .secondary-button,
   .settings-action-row .secondary-button {
     justify-self: start;
-    width: auto;
-  }
-
-  .app-reload-button {
-    width: auto;
   }
 
 }
