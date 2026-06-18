@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.47 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.48 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.47";
-const DEBUG_VERSION_CSS = "1.01.47";
+const DEBUG_VERSION_JS = "1.01.48";
+const DEBUG_VERSION_CSS = "1.01.48";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -1971,6 +1971,17 @@ function renderAppSyncSummary() {
     googleSyncOverview.dataset.syncOverview = summary.key;
     googleSyncOverview.textContent = getGoogleSyncOverviewText(summary.key);
   }
+
+  if (backupSyncOverview) {
+    backupSyncOverview.dataset.syncOverview = summary.key;
+    backupSyncOverview.textContent = getGoogleSyncOverviewText(summary.key);
+  }
+
+  if (checkoutFeedback && checkoutFeedback.dataset.temporary !== "true") {
+    checkoutFeedback.dataset.syncSummary = summary.key;
+    checkoutFeedback.textContent = `${summary.label} · ${summary.help}`;
+    checkoutFeedback.hidden = false;
+  }
 }
 
 function getGoogleSyncOverviewText(summaryKey) {
@@ -2526,18 +2537,18 @@ function clearCardDetail() {
   detailNumber.textContent = "—";
   detailNumber.disabled = true;
   detailNumber.setAttribute("aria-label", "No card number selected");
-  detailPin.textContent = "—";
-  detailStartingBalance.textContent = "—";
-  detailCurrentBalance.textContent = "—";
-  detailDateAdded.textContent = "—";
-  detailCurrentDateLabel.textContent = "Date updated";
-  detailCurrentDate.textContent = "—";
-  currentBalanceCard.classList.remove("used-balance-card");
+  detailPin && (detailPin.textContent = "—");
+  detailStartingBalance && (detailStartingBalance.textContent = "—");
+  detailCurrentBalance && (detailCurrentBalance.textContent = "—");
+  detailDateAdded && (detailDateAdded.textContent = "—");
+  detailCurrentDateLabel && (detailCurrentDateLabel.textContent = "Date updated");
+  detailCurrentDate && (detailCurrentDate.textContent = "—");
+  currentBalanceCard?.classList.remove("used-balance-card");
   detailNotes.textContent = "No card selected.";
   if (openNotesModalButton) {
     openNotesModalButton.disabled = true;
   }
-  cardPosition.textContent = "Card 0 of 0";
+  cardPosition.textContent = "0/0";
   previousButton.disabled = true;
   nextButton.disabled = true;
   markUsedButton.disabled = true;
@@ -2576,18 +2587,18 @@ function renderCardDetail() {
   detailNumber.disabled = false;
   detailNumber.setAttribute("aria-label", detailNumberRevealed ? "Mask card number" : "Reveal full card number");
   detailNumber.title = detailNumberRevealed ? "Tap to mask card number" : "Tap to reveal full card number";
-  detailPin.textContent = card.pin;
-  detailStartingBalance.textContent = formatBalance(card.startingBalance);
-  detailCurrentBalance.textContent = formatBalance(card.currentBalance);
-  detailDateAdded.textContent = formatDate(card.dateAdded);
-  detailCurrentDateLabel.textContent = card.used ? "Date used" : "Date updated";
-  detailCurrentDate.textContent = formatDate(card.used ? card.dateUsed : card.dateUpdated);
-  currentBalanceCard.classList.toggle("used-balance-card", card.used);
-  detailNotes.textContent = card.notes || "Tap to add notes.";
+  detailPin && (detailPin.textContent = card.pin);
+  detailStartingBalance && (detailStartingBalance.textContent = formatBalance(card.startingBalance));
+  detailCurrentBalance && (detailCurrentBalance.textContent = formatBalance(card.currentBalance));
+  detailDateAdded && (detailDateAdded.textContent = formatDate(card.dateAdded));
+  detailCurrentDateLabel && (detailCurrentDateLabel.textContent = card.used ? "Date used" : "Date updated");
+  detailCurrentDate && (detailCurrentDate.textContent = formatDate(card.used ? card.dateUsed : card.dateUpdated));
+  currentBalanceCard?.classList.toggle("used-balance-card", card.used);
+  detailNotes.textContent = card.notes || "Add note";
   if (openNotesModalButton) {
     openNotesModalButton.disabled = false;
   }
-  cardPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
+  cardPosition.textContent = `${visiblePosition + 1}/${visibleIndexes.length}`;
   previousButton.disabled = visiblePosition <= 0;
   nextButton.disabled = visiblePosition === visibleIndexes.length - 1;
   markUsedButton.disabled = false;
@@ -2628,6 +2639,7 @@ function showCheckoutFeedback(message, options = {}) {
 
   window.clearTimeout(checkoutFeedbackTimer);
   checkoutFeedback.classList.remove("is-hiding");
+  checkoutFeedback.dataset.temporary = "true";
   checkoutFeedback.textContent = message;
   checkoutFeedback.hidden = false;
 
@@ -2636,9 +2648,9 @@ function showCheckoutFeedback(message, options = {}) {
     checkoutFeedbackTimer = window.setTimeout(() => {
       checkoutFeedback.classList.add("is-hiding");
       checkoutFeedbackTimer = window.setTimeout(() => {
-        checkoutFeedback.hidden = true;
         checkoutFeedback.classList.remove("is-hiding");
-        checkoutFeedback.textContent = "";
+        delete checkoutFeedback.dataset.temporary;
+        renderAppSyncSummary();
       }, 240);
     }, dismissMs);
   }
@@ -3059,7 +3071,8 @@ function isModalOpen() {
 }
 
 function isInteractiveGestureTarget(target) {
-  return Boolean(target.closest("button, a, input, textarea, select, [role='button'], [contenteditable='true']"));
+  const interactiveTarget = target.closest("button, a, input, textarea, select, [role='button'], [contenteditable='true']");
+  return Boolean(interactiveTarget && !interactiveTarget.classList.contains("card-button"));
 }
 
 let primarySwipeStart = null;
