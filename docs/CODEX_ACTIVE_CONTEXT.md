@@ -1,6 +1,6 @@
 # Codex Active Context — Phase 11
 
-Read this first for current Walmart-GC tasks. It is the compact Phase 11 source-of-truth for future Codex work; use `AGENTS.md` for mandatory agent rules and `docs/ARCHITECTURE.md` for deeper current architecture.
+Read this first for current Walmart-GC tasks. It is the compact Phase 11 source-of-truth for future Codex work. Preferred source-of-truth chain: `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
 
 ## Current Basics
 
@@ -66,6 +66,14 @@ Barcode payload is derived only and must not be stored: `79936686504000 + cardNu
 ## Hard Guardrails
 
 Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, frameworks, build steps, or new hosting.
+
+## Naming Conventions
+
+- Runtime files stay simple lowercase, for example `app.js`, `index.html`, and `styles.css`; Worker entrypoint is `worker/src/index.js`.
+- Docs use conventional uppercase names, for example `README.md`, `AGENTS.md`, and `CODEX_ACTIVE_CONTEXT.md`; archive folders use lowercase kebab-case, for example `docs/archive/apps-script-retired/`.
+- Branches use lowercase kebab-case, for example `phase-11-fix-sync-status`; PR/task names use imperative verb phrases, for example “Clarify Apps Script diagnostic docs”.
+- JavaScript functions/variables use `camelCase`; JavaScript constants use `SCREAMING_SNAKE_CASE`.
+- Preserve approved schema field names as existing `camelCase`; do not rename schema fields for style.
 
 ## Task Routing Table
 

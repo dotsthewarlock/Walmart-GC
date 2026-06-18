@@ -218,7 +218,7 @@ OAuth is fixed when:
 
 ## Retired/Historical Paths
 
-Apps Script materials may remain only as historical MVP references, including `apps-script/Code.gs`, `docs/archive/apps-script-retired/APPS_SCRIPT_SETUP.md`, and `docs/archive/phase-6/PHASE_6_SCHEMA_API_DECISIONS.md`. Apps Script must not appear as the default or active setup, sync, or user-facing path in Phase 11; inspect Apps Script for diagnostics only when exact live behavior or an exact error string points to `apps-script/Code.gs`.
+Apps Script materials may remain only as historical MVP references, including `apps-script/Code.gs`, `docs/archive/apps-script-retired/APPS_SCRIPT_SETUP.md`, and `docs/archive/phase-6/PHASE_6_SCHEMA_API_DECISIONS.md`. Apps Script must not appear as the default/current setup path, the active sync path, or a normal user-facing option in Phase 11. Apps Script may still be inspected for diagnostics only when exact live behavior or an exact error string points to `apps-script/Code.gs`. Preserve the debugging priority: (1) exact error string or observed live behavior, (2) current workspace/repo files, (3) active deployment/config files, (4) project instructions, and (5) prior architecture assumptions.
 
 Do not reintroduce:
 
