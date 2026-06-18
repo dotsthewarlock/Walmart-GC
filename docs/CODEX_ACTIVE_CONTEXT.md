@@ -75,6 +75,14 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - JavaScript functions/variables use `camelCase`; JavaScript constants use `SCREAMING_SNAKE_CASE`.
 - Preserve approved schema field names as existing `camelCase`; do not rename schema fields for style.
 
+## Docs Update Authority
+
+When project architecture or context changes, update `docs/CODEX_ACTIVE_CONTEXT.md` first. Update `README.md`, `docs/ARCHITECTURE.md`, `docs/AI_HANDOFF.md`, and `.github/copilot-instructions.md` only when user-facing, expanded, or tool-specific details also need to change. Avoid duplicating long architecture blocks across active docs. Keep historical material in `docs/archive/`, and keep active docs compact and current.
+
+## Future Auth Hardening Note
+
+Future auth hardening may consider a `__Host-`-prefixed session cookie. Do not implement that in this PR; treat it as an auth/session behavior change requiring a separate focused task and live OAuth/session testing.
+
 ## Task Routing Table
 
 | Task type | Inspect first | Avoid |
