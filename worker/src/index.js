@@ -19,9 +19,9 @@ const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 const CARD_HEADERS = [
   "cardNumber",
   "pin",
+  "merchant",
   "startingBalance",
   "currentBalance",
-  "merchant",
   "dateAdded",
   "dateUpdated",
   "dateUsed",
