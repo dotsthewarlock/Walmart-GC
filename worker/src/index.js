@@ -752,14 +752,6 @@ function normalizeMerchantValue(merchant) {
   return String(merchant ?? "").trim();
 }
 
-function inferMerchantFromCardNumber(cardNumber) {
-  return WALMART_GIFT_CARD_NUMBER_PATTERN.test(String(cardNumber ?? "").trim()) ? "walmart-ca" : "";
-}
-
-function normalizeEffectiveMerchant(merchant, cardNumber) {
-  return normalizeMerchantValue(merchant) || inferMerchantFromCardNumber(cardNumber);
-}
-
 function normalizeOptionalMoneyString(value) {
   const normalizedValue = String(value ?? "").trim();
   if (!normalizedValue) {
@@ -799,7 +791,7 @@ function validateCards(cards) {
     if (normalized.pin.length < 4) {
       throw new HttpError(400, { ok: false, error: `Card ${index + 1}: PIN must be at least 4 characters.` });
     }
-    normalized.merchant = normalizeEffectiveMerchant(normalized.merchant, normalized.cardNumber);
+    normalized.merchant = normalizeMerchantValue(normalized.merchant);
     normalized.startingBalance = normalizeOptionalMoneyString(normalized.startingBalance);
     normalized.currentBalance = normalizeCurrentBalanceValue(normalized.currentBalance, normalized.startingBalance);
     if (seen.has(normalized.cardNumber)) {
@@ -826,7 +818,7 @@ function cardsFromSheetRows(rows, headerMap) {
     });
     card.cardNumber = card.cardNumber.trim();
     card.pin = normalizePinValue(card.pin);
-    card.merchant = normalizeEffectiveMerchant(card.merchant, card.cardNumber);
+    card.merchant = normalizeMerchantValue(card.merchant);
     card.startingBalance = normalizeOptionalMoneyString(card.startingBalance);
     card.currentBalance = normalizeCurrentBalanceValue(card.currentBalance, card.startingBalance);
     if (!card.cardNumber) {
@@ -1033,5 +1025,5 @@ function safeErrorMessage(error) {
 export const workerTestInternals = {
   CARD_HEADERS,
   validateCardHeaders,
-  normalizeEffectiveMerchant,
+  normalizeMerchantValue,
 };
