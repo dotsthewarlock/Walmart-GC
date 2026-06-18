@@ -14,11 +14,24 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WORKER_VERSION = "2026-06-18.schema-diagnostics.1";
+const WORKER_VERSION = "2026-06-18.merchant-inferred-schema.1";
 const SCHEMA_MODE = "header-name";
 const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
 const CARD_HEADERS = [
+  "cardNumber",
+  "pin",
+  "startingBalance",
+  "currentBalance",
+  "merchant",
+  "merchantInferred",
+  "dateAdded",
+  "dateUpdated",
+  "dateUsed",
+  "used",
+  "notes",
+];
+const OLD_CARD_HEADERS = [
   "cardNumber",
   "pin",
   "startingBalance",
@@ -622,9 +635,9 @@ async function ensureSheetStructure(accessToken, spreadsheetId) {
 
   const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!1:1`);
   if (!headerRows.length || headerRows[0].every((cell) => !String(cell || "").trim())) {
-    await writeSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:J1`, [CARD_HEADERS]);
+    await writeSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:K1`, [CARD_HEADERS]);
   } else {
-    validateCardHeaders(headerRows[0]);
+    await migrateCardsHeadersIfSafe(accessToken, spreadsheetId, headerRows[0]);
   }
 
   const metaHeaderRows = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B1`);
@@ -707,6 +720,8 @@ function validateCardHeaders(row) {
   });
 
   const recognizedHeaders = Array.from(headerMap.keys());
+  const unsupportedHeaders = nonBlankHeaders.filter((header) => !CARD_HEADERS.includes(header));
+  const hasBlankHeaderGap = headers.slice(0, Math.max(nonBlankHeaders.length, CARD_HEADERS.length)).some((header) => !header);
   const baseDetails = {
     expectedHeaders: CARD_HEADERS,
     recognizedHeaders,
@@ -717,6 +732,20 @@ function validateCardHeaders(row) {
     throw new HttpError(409, buildCardsHeaderError(
       `Duplicate required Cards header(s): ${duplicateHeaders.join(", ")}. Keep each approved header exactly once; column order can be changed.`,
       { ...baseDetails, duplicateHeaders },
+    ));
+  }
+
+  if (unsupportedHeaders.length > 0) {
+    throw new HttpError(409, buildCardsHeaderError(
+      `Unsupported Cards header(s): ${unsupportedHeaders.join(", ")}. Remove unsupported header(s) or rename them to approved headers; column order can be changed.`,
+      { ...baseDetails, unsupportedHeaders },
+    ));
+  }
+
+  if (hasBlankHeaderGap) {
+    throw new HttpError(409, buildCardsHeaderError(
+      `Cards header row has blank or ambiguous header cells; expected approved headers: ${CARD_HEADERS.join(", ")}. Fix Cards row 1 manually before syncing.`,
+      baseDetails,
     ));
   }
 
@@ -736,6 +765,78 @@ function validateCardHeaders(row) {
   }
 
   return headerMap;
+}
+
+function buildHeaderMap(headers, approvedHeaders) {
+  const headerMap = new Map();
+  const duplicates = new Set();
+  headers.forEach((header, index) => {
+    if (!header || !approvedHeaders.includes(header)) {
+      return;
+    }
+    if (headerMap.has(header)) {
+      duplicates.add(header);
+      return;
+    }
+    headerMap.set(header, index);
+  });
+  return { headerMap, duplicates };
+}
+
+function getOldSchemaMigrationMap(row) {
+  const headers = normalizeHeaderRow(row);
+  const nonBlankHeaders = headers.filter((header) => header);
+  const { headerMap, duplicates } = buildHeaderMap(headers, OLD_CARD_HEADERS);
+  const unsupportedHeaders = nonBlankHeaders.filter((header) => !OLD_CARD_HEADERS.includes(header) && header !== "merchantInferred");
+  const missing = OLD_CARD_HEADERS.filter((header) => !headerMap.has(header));
+  const hasBlankHeaderGap = headers.slice(0, Math.max(nonBlankHeaders.length, OLD_CARD_HEADERS.length)).some((header) => !header);
+
+  if (
+    duplicates.size > 0 ||
+    unsupportedHeaders.length > 0 ||
+    hasBlankHeaderGap ||
+    headerMap.has("merchantInferred") ||
+    missing.length > 0 ||
+    nonBlankHeaders.length !== OLD_CARD_HEADERS.length
+  ) {
+    return null;
+  }
+
+  return headerMap;
+}
+
+async function migrateCardsHeadersIfSafe(accessToken, spreadsheetId, headerRow) {
+  try {
+    return validateCardHeaders(headerRow);
+  } catch (error) {
+    const oldHeaderMap = getOldSchemaMigrationMap(headerRow);
+    if (!oldHeaderMap) {
+      throw error;
+    }
+
+    const existingRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A2:ZZ`);
+    const migratedRows = existingRows.map((row) => CARD_HEADERS.map((header) => {
+      if (header === "merchantInferred") {
+        return inferMerchantFromCardNumber(row[oldHeaderMap.get("cardNumber")]);
+      }
+      const oldIndex = oldHeaderMap.get(header);
+      if (oldIndex === undefined) {
+        return "";
+      }
+      if (header === "merchant") {
+        return normalizeMerchantValue(row[oldIndex]);
+      }
+      return String(row[oldIndex] ?? "");
+    }));
+
+    await writeSheetValues(
+      accessToken,
+      spreadsheetId,
+      `${CARDS_TAB}!A1:K${Math.max(migratedRows.length + 1, 1)}`,
+      [CARD_HEADERS, ...migratedRows],
+    );
+    return validateCardHeaders(CARD_HEADERS);
+  }
 }
 
 function buildCardsHeaderError(detail, details = {}) {
@@ -769,6 +870,10 @@ function normalizePinValue(pin) {
 
 function normalizeMerchantValue(merchant) {
   return String(merchant ?? "").trim();
+}
+
+function inferMerchantFromCardNumber(cardNumber) {
+  return WALMART_GIFT_CARD_NUMBER_PATTERN.test(String(cardNumber ?? "").trim()) ? "walmart-ca" : "";
 }
 
 function normalizeOptionalMoneyString(value) {
@@ -811,6 +916,7 @@ function validateCards(cards) {
       throw new HttpError(400, { ok: false, error: `Card ${index + 1}: PIN must be at least 4 characters.` });
     }
     normalized.merchant = normalizeMerchantValue(normalized.merchant);
+    normalized.merchantInferred = inferMerchantFromCardNumber(normalized.cardNumber);
     normalized.startingBalance = normalizeOptionalMoneyString(normalized.startingBalance);
     normalized.currentBalance = normalizeCurrentBalanceValue(normalized.currentBalance, normalized.startingBalance);
     if (seen.has(normalized.cardNumber)) {
@@ -838,6 +944,7 @@ function cardsFromSheetRows(rows, headerMap) {
     card.cardNumber = card.cardNumber.trim();
     card.pin = normalizePinValue(card.pin);
     card.merchant = normalizeMerchantValue(card.merchant);
+    card.merchantInferred = inferMerchantFromCardNumber(card.cardNumber);
     card.startingBalance = normalizeOptionalMoneyString(card.startingBalance);
     card.currentBalance = normalizeCurrentBalanceValue(card.currentBalance, card.startingBalance);
     if (!card.cardNumber) {

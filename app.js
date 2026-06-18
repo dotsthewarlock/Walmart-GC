@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.31 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.32 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.31";
-const DEBUG_VERSION_CSS = "1.01.31";
+const DEBUG_VERSION_JS = "1.01.32";
+const DEBUG_VERSION_CSS = "1.01.32";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -21,6 +21,7 @@ const bundledSampleGiftCards = [
     cardNumber: "6351234567890123",
     pin: "4821",
     merchant: "walmart-ca",
+    merchantInferred: "walmart-ca",
     startingBalance: 50,
     currentBalance: 50,
     dateAdded: "2026-06-01",
@@ -33,6 +34,7 @@ const bundledSampleGiftCards = [
     cardNumber: "6352234567890123",
     pin: "9064",
     merchant: "walmart-ca",
+    merchantInferred: "walmart-ca",
     startingBalance: 100,
     currentBalance: 37.42,
     dateAdded: "2026-05-28",
@@ -45,6 +47,7 @@ const bundledSampleGiftCards = [
     cardNumber: "6353234567890123",
     pin: "1138",
     merchant: "walmart-ca",
+    merchantInferred: "walmart-ca",
     startingBalance: 25,
     currentBalance: 0,
     dateAdded: "2026-05-20",
@@ -57,6 +60,7 @@ const bundledSampleGiftCards = [
     cardNumber: "6354234567890123",
     pin: "7205",
     merchant: "walmart-ca",
+    merchantInferred: "walmart-ca",
     startingBalance: 75,
     currentBalance: 18.25,
     dateAdded: "2026-06-05",
@@ -69,6 +73,7 @@ const bundledSampleGiftCards = [
     cardNumber: "6355234567890123",
     pin: "3349",
     merchant: "walmart-ca",
+    merchantInferred: "walmart-ca",
     startingBalance: 10,
     currentBalance: 0,
     dateAdded: "2026-06-03",
@@ -184,6 +189,7 @@ const csvHeaders = [
   "startingBalance",
   "currentBalance",
   "merchant",
+  "merchantInferred",
   "dateAdded",
   "dateUpdated",
   "dateUsed",
@@ -201,6 +207,7 @@ const legacyCsvHeaders = [
   "dateUsed",
   "used",
 ];
+const oldApprovedCsvHeaders = csvHeaders.filter((header) => header !== "merchantInferred");
 const walmartCaMerchant = "walmart-ca";
 const walmartCaBarcodePrefix = "79936686504000";
 const walmartGiftCardNumberPattern = /^63\d{14}$/;
@@ -341,7 +348,8 @@ function inferMerchantFromCardNumber(cardNumber) {
 
 function getEffectiveMerchant(card) {
   const explicitMerchant = normalizeMerchantValue(card?.merchant);
-  return explicitMerchant || inferMerchantFromCardNumber(card?.cardNumber);
+  const storedInferredMerchant = normalizeMerchantValue(card?.merchantInferred);
+  return explicitMerchant || storedInferredMerchant || inferMerchantFromCardNumber(card?.cardNumber);
 }
 
 function parseOptionalMoney(value) {
@@ -590,6 +598,7 @@ function normalizeStoredCard(card) {
     cardNumber,
     pin,
     merchant: normalizeMerchantValue(card.merchant),
+    merchantInferred: inferMerchantFromCardNumber(cardNumber),
     startingBalance: normalizeMoney(startingBalance),
     currentBalance: normalizeMoney(currentBalance),
     dateAdded,
@@ -852,7 +861,15 @@ function escapeCsvValue(value) {
 
 function cardToCsvRow(card) {
   return csvHeaders
-    .map((field) => escapeCsvValue(field === "used" ? String(Boolean(card[field])) : card[field]))
+    .map((field) => {
+      if (field === "used") {
+        return escapeCsvValue(String(Boolean(card[field])));
+      }
+      if (field === "merchantInferred") {
+        return escapeCsvValue(inferMerchantFromCardNumber(card.cardNumber));
+      }
+      return escapeCsvValue(card[field]);
+    })
     .join(",");
 }
 
@@ -975,7 +992,7 @@ function getCsvHeaderMap(headerValues) {
   }
 
   const normalizedValues = headerValues.map((value) => value.trim());
-  const knownHeaders = new Set([...csvHeaders, ...legacyCsvHeaders]);
+  const knownHeaders = new Set([...csvHeaders, ...oldApprovedCsvHeaders, ...legacyCsvHeaders]);
   if (!normalizedValues.every((value) => knownHeaders.has(value))) {
     return null;
   }
@@ -988,8 +1005,9 @@ function getCsvHeaderMap(headerValues) {
   });
 
   const hasApprovedHeaders = csvHeaders.every((header) => headerMap.has(header));
+  const hasOldApprovedHeaders = oldApprovedCsvHeaders.every((header) => headerMap.has(header));
   const hasLegacyPrototypeHeaders = legacyCsvHeaders.every((header) => headerMap.has(header));
-  return hasApprovedHeaders || hasLegacyPrototypeHeaders ? headerMap : null;
+  return hasApprovedHeaders || hasOldApprovedHeaders || hasLegacyPrototypeHeaders ? headerMap : null;
 }
 
 function normalizeCsvRows(rawCsv) {
@@ -1017,18 +1035,31 @@ function parseRawCardData(rawCsv) {
     const displayRow = lineNumber;
     const values = parseCsvLine(line);
 
-    if (!values || (!headerMap && ![csvHeaders.length, legacyCsvHeaders.length].includes(values.length))) {
+    if (!values || (!headerMap && ![csvHeaders.length, oldApprovedCsvHeaders.length, legacyCsvHeaders.length].includes(values.length))) {
       warnings.push(`Row ${displayRow}: malformed row; expected ${csvHeaders.length} CSV fields.`);
       return;
     }
 
     const isLegacyPrototypeRow = !headerMap && values.length === legacyCsvHeaders.length;
+    const isOldApprovedRow = !headerMap && values.length === oldApprovedCsvHeaders.length;
     const readHeaderValue = (header) => {
       if (!headerMap || !headerMap.has(header)) {
         return "";
       }
       return values[headerMap.get(header)] ?? "";
     };
+    const fallbackApprovedValues = [
+      values[0],
+      values[1],
+      values[4],
+      values[2],
+      values[3],
+      values[6],
+      values[7],
+      values[8],
+      values[9],
+      values[10] ?? "",
+    ];
     const [
       cardNumber,
       pin,
@@ -1055,7 +1086,9 @@ function parseRawCardData(rawCsv) {
       ]
       : isLegacyPrototypeRow
         ? [values[0], values[1], "", ...values.slice(2), ""]
-        : values;
+        : isOldApprovedRow
+          ? [values[0], values[1], values[4], values[2], values[3], ...values.slice(5)]
+          : fallbackApprovedValues;
     let hasError = false;
 
     if (!cardNumber) {
@@ -1115,6 +1148,7 @@ function parseRawCardData(rawCsv) {
       cardNumber,
       pin: normalizedPin,
       merchant,
+      merchantInferred: inferMerchantFromCardNumber(cardNumber),
       startingBalance,
       currentBalance,
       dateAdded,
