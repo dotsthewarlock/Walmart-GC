@@ -123,6 +123,16 @@ Confirm barcode payload remains derived only and is not stored:
 79936686504000 + cardNumber
 ```
 
+Confirm Phase 12 card number validation:
+
+- [ ] `6351234567890123` is accepted.
+- [ ] A 16-digit number not starting with `635` is rejected.
+- [ ] A `635` card shorter than 16 digits is rejected.
+- [ ] A `635` card longer than 16 digits is rejected.
+- [ ] A card number containing letters or symbols is rejected unless existing input normalization handles formatting characters.
+- [ ] CSV import with one valid `635` 16-digit card and one invalid card continues to warn/reject invalid rows.
+- [ ] Barcode display still works for a valid card.
+
 ## Sync Behavior
 
 Completed actions sync through the Worker only:

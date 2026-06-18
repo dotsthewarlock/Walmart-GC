@@ -14,6 +14,8 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
+const WALMART_GIFT_CARD_NUMBER_PATTERN = /^635\d{13}$/;
+
 const CARD_HEADERS = [
   "cardNumber",
   "pin",
@@ -692,6 +694,9 @@ function validateCards(cards) {
     if (!normalized.cardNumber) {
       throw new HttpError(400, { ok: false, error: `Card ${index + 1} is missing cardNumber.` });
     }
+    if (!WALMART_GIFT_CARD_NUMBER_PATTERN.test(normalized.cardNumber)) {
+      throw new HttpError(400, { ok: false, error: `Card ${index + 1}: Card number must start with 635 and be exactly 16 digits.` });
+    }
     if (seen.has(normalized.cardNumber)) {
       throw new HttpError(400, { ok: false, error: `Duplicate cardNumber ${normalized.cardNumber}.` });
     }
@@ -715,6 +720,9 @@ function cardsFromSheetRows(rows) {
     });
     if (!card.cardNumber.trim()) {
       throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} is missing cardNumber.` });
+    }
+    if (!WALMART_GIFT_CARD_NUMBER_PATTERN.test(card.cardNumber.trim())) {
+      throw new HttpError(409, { ok: false, error: `Cards row ${index + 2}: Card number must start with 635 and be exactly 16 digits.` });
     }
     if (seen.has(card.cardNumber)) {
       throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} duplicates cardNumber ${card.cardNumber}.` });

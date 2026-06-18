@@ -78,7 +78,7 @@ Do not change the schema during Phase 11.
 
 ## Schema Rules
 
-- `cardNumber` is required, must be unique, and is the record ID.
+- `cardNumber` is required, must be unique, must start with `635`, must be exactly 16 numeric digits, and is the record ID.
 - `pin` is required for practical checkout use.
 - `merchant` defaults to `walmart-ca`.
 - `startingBalance` is the historical starting value.
