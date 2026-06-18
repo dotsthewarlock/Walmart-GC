@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js app-shell version 1.01.26 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.27 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const APP_SHELL_VERSION = "1.01.26";
+const APP_SHELL_VERSION = "1.01.27";
 const DEBUG_VERSION_JS = APP_SHELL_VERSION;
 const DEBUG_VERSION_CSS = APP_SHELL_VERSION;
 
@@ -191,6 +191,7 @@ const csvHeaders = [
   "used",
   "notes",
 ];
+const expectedCardsHeaderRow = csvHeaders.join(", ");
 const legacyCsvHeaders = [
   "cardNumber",
   "pin",
@@ -269,6 +270,7 @@ const directSheetsStatuses = {
   syncing: "Syncing",
   conflict: "Conflict",
   error: "Connection unavailable",
+  needsAttention: "Sheet needs attention",
 };
 
 const defaultDirectSheetsState = {
@@ -1173,7 +1175,7 @@ async function updateRawCardData() {
       },
       startMessage: "Imported data saved locally. Syncing imported cards to Sheets...",
       noAutoSyncMessage: syncState.lastKnownSheetVersion
-        ? "Imported data saved locally, but it is not ready to sync right now. Retry Sync or download a CSV backup."
+        ? "Imported data saved locally, but it is not ready to sync right now. Try sync again or download a backup CSV."
         : "Imported data saved locally. Connect Google and load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current Sheet version.",
     },
   );
@@ -1323,6 +1325,10 @@ function isDirectSheetsConfigured() {
 }
 
 function getDirectSheetsStatusClass() {
+  if (directSheetsState.status === directSheetsStatuses.needsAttention || isCardsHeaderError(directSheetsState.lastErrorMessage)) {
+    return "needs-attention";
+  }
+
   if (directSheetsState.status === directSheetsStatuses.ready) {
     return "connected";
   }
@@ -1336,6 +1342,19 @@ function getDirectSheetsStatusClass() {
     return "error";
   }
   return "not-connected";
+}
+
+function isCardsHeaderError(message) {
+  return /Cards header row (?:is missing|required|has duplicate)/i.test(String(message || ""));
+}
+
+function formatDirectSheetsPanelMessage() {
+  const message = directSheetsState.message || defaultDirectSheetsState.message;
+  if (!isCardsHeaderError(directSheetsState.lastErrorMessage || message)) {
+    return escapeHtml(message);
+  }
+
+  return `${escapeHtml(message)}<br><strong>Expected Cards headers:</strong> <code>${escapeHtml(expectedCardsHeaderRow)}</code>`;
 }
 
 function hasGoogleFileAccessInMemory() {
@@ -1388,8 +1407,8 @@ function renderDirectSheetsState() {
       <strong>${escapeHtml(directSheetsState.status)}</strong>
       <span class="sync-badge">${escapeHtml(getSyncStatusLabel())}</span>
     </div>
-    <p>${escapeHtml(directSheetsState.message || defaultDirectSheetsState.message)}</p>
-    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open Sheet</a></p>` : ""}
+    <p>${formatDirectSheetsPanelMessage()}</p>
+    ${sheetLink ? `<p><a href="${escapeHtml(sheetLink)}" target="_blank" rel="noopener">Open Google Sheet</a></p>` : ""}
     ${syncState.message ? `<p class="sync-message">${escapeHtml(syncState.message)}</p>` : ""}
     <ul class="diagnostic-list">${details.join("")}</ul>
   `;
@@ -1702,9 +1721,9 @@ function renderSyncRecoveryActions(isBusy) {
           ${unavailableMessage ? `<p class="recovery-warning">${escapeHtml(unavailableMessage)}</p>` : ""}
         </div>
         <div class="recovery-action-grid">
-          <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download Session CSV Backup</button>
-          <button class="primary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Refresh from Sheets and Replace Local Session</button>
-          <button class="danger-button" type="button" data-sync-recovery="use-current-session" ${disableSheetsActions ? "disabled" : ""}>Use Current Session to Overwrite Sheets</button>
+          <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download backup CSV</button>
+          <button class="primary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Replace local data from Sheet</button>
+          <button class="danger-button" type="button" data-sync-recovery="use-current-session" ${disableSheetsActions ? "disabled" : ""}>Overwrite Sheet with this session</button>
         </div>
       </div>
     `;
@@ -1718,13 +1737,13 @@ function renderSyncRecoveryActions(isBusy) {
         <div>
           <p class="recovery-status">Unsynced recovery</p>
           <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
-          <p>Refresh from Sheets replaces this local session only after you press the button. Download a CSV backup first if you want a copy of the current session.</p>
+          <p><strong>Replace local data from Sheet</strong> overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
           ${unavailableMessage ? `<p class="recovery-warning">${escapeHtml(unavailableMessage)}</p>` : ""}
         </div>
         <div class="recovery-action-grid">
-          <button class="primary-button" type="button" data-sync-recovery="retry-sync" ${disableSheetsActions ? "disabled" : ""}>Retry Sync</button>
-          <button class="secondary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Refresh from Sheets</button>
-          <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download Session CSV Backup</button>
+          <button class="primary-button" type="button" data-sync-recovery="retry-sync" ${disableSheetsActions ? "disabled" : ""}>Try sync again</button>
+          <button class="secondary-button" type="button" data-sync-recovery="refresh-from-sheets" ${disableSheetsActions ? "disabled" : ""}>Replace local data from Sheet</button>
+          <button class="secondary-button" type="button" data-sync-recovery="download-backup">Download backup CSV</button>
         </div>
       </div>
     `;
@@ -1783,7 +1802,7 @@ async function ensureWalmartGcDataSheet() {
 }
 
 // Post-connect Sheet setup intentionally remains user-directed during Phase 11:
-// after OAuth returns, users choose Ensure Sheet, Load from Google Sheets, or Sync Now so
+// after OAuth returns, users choose Set up / check Sheet, Reload from Sheet, or Sync to Sheet so
 // local cards are never replaced or uploaded automatically.
 
 function openActiveGoogleSheet() {
@@ -1829,8 +1848,9 @@ async function initializeDirectSheetStructure() {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Walmart-GC Data initialization failed.";
+    const isHeaderError = isCardsHeaderError(message);
     setDirectSheetsState({
-      status: directSheetsStatuses.error,
+      status: isHeaderError ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
       cardsSheetInitialized: "unknown",
       message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
@@ -1886,8 +1906,9 @@ async function loadCardsFromDirectSheets() {
     renderApp(selectedCardIndex);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Worker Google Sheets load failed.";
+    const isHeaderError = isCardsHeaderError(message);
     setDirectSheetsState({
-      status: directSheetsStatuses.error,
+      status: isHeaderError ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
       message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
     });
@@ -1983,8 +2004,9 @@ async function syncCardsToDirectSheets(options = {}) {
     }
 
     const message = error instanceof Error ? error.message : "Worker Google Sheets sync failed.";
+    const isHeaderError = isCardsHeaderError(message);
     setDirectSheetsState({
-      status: directSheetsStatuses.error,
+      status: isHeaderError ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
       pendingUnsynced: true,
       message: message === "Not authenticated" ? "Connect Google to sync." : message,
       lastErrorMessage: message,
@@ -2000,7 +2022,7 @@ async function syncCardsToDirectSheets(options = {}) {
 
 async function useCurrentSessionToOverwriteDirectSheets() {
   const backupRecommended = window.confirm(
-    "Use Current Session will replace every card row in the configured Google Sheet with this browser session. Download a CSV backup before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+    "Overwrite Sheet with this session will replace every card row in the configured Google Sheet with this browser session. Download a backup CSV before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
   );
   if (!backupRecommended) {
     return;
@@ -2045,7 +2067,7 @@ async function retrySyncCurrentSession() {
       status: syncStatuses.conflict,
       lastSyncAttemptTimestamp: new Date().toISOString(),
       message: "Conflict detected. Load the remote Sheet or explicitly overwrite it with this session.",
-      lastErrorMessage: "Conflict detected. Retry Sync will not overwrite Sheet changes automatically.",
+      lastErrorMessage: "Conflict detected. Try sync again will not overwrite Sheet changes automatically.",
     });
     return;
   }
