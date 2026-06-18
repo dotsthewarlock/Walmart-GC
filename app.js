@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.45 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.46 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.45";
-const DEBUG_VERSION_CSS = "1.01.45";
+const DEBUG_VERSION_JS = "1.01.46";
+const DEBUG_VERSION_CSS = "1.01.46";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -104,6 +104,7 @@ const panelSections = document.querySelectorAll("[data-panel-name]");
 const cardList = document.querySelector("#card-list");
 const appSyncSummary = document.querySelector("#app-sync-summary");
 const cardCount = document.querySelector("#card-count");
+const cardTotalBalance = document.querySelector("#card-total-balance");
 const advanceOnUsedCheckbox = document.querySelector("#advance-on-used");
 const hideUsedCheckbox = document.querySelector("#hide-used");
 const hideZeroBalanceCheckbox = document.querySelector("#hide-zero-balance");
@@ -120,6 +121,7 @@ const detailCurrentDateLabel = document.querySelector("#detail-current-date-labe
 const detailCurrentDate = document.querySelector("#detail-current-date");
 const currentBalanceCard = document.querySelector("#current-balance-card");
 const detailNotes = document.querySelector("#detail-notes");
+const openNotesModalButton = document.querySelector("#open-notes-modal");
 const previousButton = document.querySelector("#prev-card");
 const nextButton = document.querySelector("#next-card");
 const cardPosition = document.querySelector("#card-position");
@@ -134,9 +136,15 @@ const balanceModalError = document.querySelector("#balance-modal-error");
 const cancelBalanceUpdateButton = document.querySelector("#cancel-balance-update");
 const saveBalanceUpdateButton = document.querySelector("#save-balance-update");
 const confirmModal = document.querySelector("#confirm-modal");
+const confirmModalTitle = document.querySelector("#confirm-modal-title");
 const confirmModalMessage = document.querySelector("#confirm-modal-message");
 const cancelConfirmButton = document.querySelector("#cancel-confirm");
 const confirmZeroUsedButton = document.querySelector("#confirm-zero-used");
+const notesModal = document.querySelector("#notes-modal");
+const notesModalContext = document.querySelector("#notes-modal-context");
+const notesInput = document.querySelector("#notes-input");
+const cancelNotesUpdateButton = document.querySelector("#cancel-notes-update");
+const saveNotesUpdateButton = document.querySelector("#save-notes-update");
 const barcodeOpenButton = document.querySelector("#barcode-open");
 const fullscreenBarcode = document.querySelector("#fullscreen-barcode");
 const barcodeCloseButton = document.querySelector("#barcode-close");
@@ -177,9 +185,12 @@ const openDirectSheetButton = document.querySelector("#open-direct-sheet");
 const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
 const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
 const directSheetStatusArea = document.querySelector("#direct-sheet-status");
+const googleSyncSection = document.querySelector("#google-sync-section");
 const googleAccountPanel = document.querySelector("#google-account-panel");
 const googleSheetPanel = document.querySelector("#google-sheet-panel");
 const googleSyncOverview = document.querySelector("#google-sync-overview");
+const backupRestoreSection = document.querySelector("#backup-restore-section");
+const csvRecoveryPanel = document.querySelector("#csv-recovery-panel");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -187,6 +198,8 @@ let hideUsedCards = true;
 let checkoutFeedbackTimer = null;
 let hideZeroBalanceCards = false;
 let sortMode = "balance-asc";
+let pendingConfirmAction = null;
+let confirmReturnFocusElement = null;
 let amountUsedEditedLast = false;
 let rawDataLocked = true;
 let detailNumberRevealed = false;
@@ -1485,8 +1498,12 @@ function updateBackupPanelOpenState() {
   const accountNeedsAttention = googleOAuthState.status !== googleOAuthStatuses.connected;
   const sheetNeedsAttention = hasWorkerGoogleSession() && directSheetsState.status !== directSheetsStatuses.ready;
 
+  const syncNeedsAttention = accountNeedsAttention || sheetNeedsAttention || syncState.status === syncStatuses.conflict || Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
+  setDetailsOpen(googleSyncSection, syncNeedsAttention);
   setDetailsOpen(googleAccountPanel, accountNeedsAttention);
   setDetailsOpen(googleSheetPanel, sheetNeedsAttention);
+  setDetailsOpen(backupRestoreSection, false);
+  setDetailsOpen(csvRecoveryPanel, false);
   renderAppSyncSummary();
 }
 
@@ -2012,7 +2029,7 @@ async function ensureWalmartGcDataSheet() {
 }
 
 // Post-connect Sheet setup intentionally remains user-directed during Phase 11:
-// after OAuth returns, users choose Check sheet, Reload from sheet, or Sync to sheet so
+// after OAuth returns, users choose Verify / Initialize, Import from Google, or Export to Google so
 // local cards are never replaced or uploaded automatically.
 
 function openActiveGoogleSheet() {
@@ -2426,12 +2443,12 @@ function renderUsedIndicator(card) {
 
 function renderCardList() {
   const visibleIndexes = getVisibleCardIndexes();
-  const hiddenCount = sampleGiftCards.length - visibleIndexes.length;
-  const countLabel = hiddenCount > 0
-    ? `${visibleIndexes.length} of ${sampleGiftCards.length} cards`
-    : `${sampleGiftCards.length} cards`;
+  const visibleTotal = visibleIndexes.reduce((sum, cardIndex) => sum + sampleGiftCards[cardIndex].currentBalance, 0);
 
-  cardCount.textContent = countLabel;
+  cardCount.textContent = `${visibleIndexes.length}/${sampleGiftCards.length}`;
+  if (cardTotalBalance) {
+    cardTotalBalance.textContent = formatBalance(visibleTotal);
+  }
   cardList.innerHTML = "";
 
   if (visibleIndexes.length === 0) {
@@ -2475,7 +2492,10 @@ function clearCardDetail() {
   detailCurrentDateLabel.textContent = "Date updated";
   detailCurrentDate.textContent = "—";
   currentBalanceCard.classList.remove("used-balance-card");
-  detailNotes.textContent = "Choose a card from Cards to start checkout. The barcode, PIN, and balance will appear here.";
+  detailNotes.textContent = "No card selected.";
+  if (openNotesModalButton) {
+    openNotesModalButton.disabled = true;
+  }
   cardPosition.textContent = "Card 0 of 0";
   previousButton.disabled = true;
   nextButton.disabled = true;
@@ -2522,7 +2542,10 @@ function renderCardDetail() {
   detailCurrentDateLabel.textContent = card.used ? "Date used" : "Date updated";
   detailCurrentDate.textContent = formatDate(card.used ? card.dateUsed : card.dateUpdated);
   currentBalanceCard.classList.toggle("used-balance-card", card.used);
-  detailNotes.textContent = card.notes;
+  detailNotes.textContent = card.notes || "Tap to add notes.";
+  if (openNotesModalButton) {
+    openNotesModalButton.disabled = false;
+  }
   cardPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
   previousButton.disabled = visiblePosition <= 0;
   nextButton.disabled = visiblePosition === visibleIndexes.length - 1;
@@ -2538,7 +2561,7 @@ function renderCardDetail() {
   detailBarcodeCaption.textContent = maskCardNumber(card.cardNumber);
   renderBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption, card, { height: 132, moduleWidth: 3 });
   fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
-  const fullscreenCardIdentifier = `Card ${maskCardNumber(card.cardNumber)}`;
+  const fullscreenCardIdentifier = maskCardNumber(card.cardNumber);
   fullscreenCardNumber.textContent = fullscreenCardIdentifier;
   fullscreenBarcodeCaption.textContent = "";
   fullscreenBarcodeCaption.hidden = true;
@@ -2777,24 +2800,65 @@ function getZeroBalanceCardIndexes() {
     .map(({ index }) => index);
 }
 
-function openZeroBalanceConfirm() {
-  const zeroBalanceIndexes = getZeroBalanceCardIndexes();
-
-  if (zeroBalanceIndexes.length === 0) {
-    confirmModalMessage.textContent = "There are no unmarked zero-balance cards to update.";
-    confirmZeroUsedButton.disabled = true;
-  } else {
-    confirmModalMessage.textContent = `Mark ${zeroBalanceIndexes.length} zero-balance card${zeroBalanceIndexes.length === 1 ? "" : "s"} as Used?`;
-    confirmZeroUsedButton.disabled = false;
-  }
-
+function openConfirmModal({ title, message, confirmLabel = "Confirm", confirmClass = "danger-button compact-danger", onConfirm, returnFocusElement }) {
+  pendingConfirmAction = typeof onConfirm === "function" ? onConfirm : null;
+  confirmReturnFocusElement = returnFocusElement || null;
+  confirmModalTitle.textContent = title;
+  confirmModalMessage.textContent = message;
+  confirmZeroUsedButton.textContent = confirmLabel;
+  confirmZeroUsedButton.className = confirmClass;
+  confirmZeroUsedButton.disabled = !pendingConfirmAction;
   confirmModal.hidden = false;
   cancelConfirmButton.focus();
 }
 
+function openZeroBalanceConfirm() {
+  const zeroBalanceIndexes = getZeroBalanceCardIndexes();
+
+  if (zeroBalanceIndexes.length === 0) {
+    openConfirmModal({
+      title: "Mark $0 cards used",
+      message: "There are no unmarked zero-balance cards to update.",
+      confirmLabel: "Mark",
+      onConfirm: null,
+      returnFocusElement: markZeroUsedButton,
+    });
+    return;
+  }
+
+  openConfirmModal({
+    title: "Mark $0 cards used?",
+    message: `Mark ${zeroBalanceIndexes.length} zero-balance card${zeroBalanceIndexes.length === 1 ? "" : "s"} as Used?`,
+    confirmLabel: "Mark",
+    onConfirm: markZeroBalanceCardsUsed,
+    returnFocusElement: markZeroUsedButton,
+  });
+}
+
 function closeConfirmModal() {
   confirmModal.hidden = true;
-  markZeroUsedButton.focus();
+  const focusTarget = confirmReturnFocusElement;
+  pendingConfirmAction = null;
+  confirmReturnFocusElement = null;
+  if (focusTarget && typeof focusTarget.focus === "function") {
+    focusTarget.focus();
+  }
+}
+
+async function runPendingConfirmAction() {
+  const action = pendingConfirmAction;
+  const focusTarget = confirmReturnFocusElement;
+  if (!action) {
+    closeConfirmModal();
+    return;
+  }
+  confirmModal.hidden = true;
+  pendingConfirmAction = null;
+  confirmReturnFocusElement = null;
+  await action();
+  if (focusTarget && typeof focusTarget.focus === "function") {
+    focusTarget.focus();
+  }
 }
 
 function markZeroBalanceCardsUsed() {
@@ -2815,6 +2879,43 @@ function markZeroBalanceCardsUsed() {
       `Saved ${updatedCards.length} zero-balance card${updatedCards.length === 1 ? "" : "s"} as used to Sheets.`,
     );
   }
+}
+
+function openNotesModal() {
+  if (selectedCardIndex < 0) {
+    return;
+  }
+  const card = sampleGiftCards[selectedCardIndex];
+  notesModalContext.textContent = `${maskCardNumber(card.cardNumber)} · PIN ${card.pin}`;
+  notesInput.value = card.notes || "";
+  notesModal.hidden = false;
+  notesInput.focus();
+}
+
+function closeNotesModal() {
+  notesModal.hidden = true;
+  if (openNotesModalButton && typeof openNotesModalButton.focus === "function") {
+    openNotesModalButton.focus();
+  }
+}
+
+function saveNotesUpdate() {
+  if (selectedCardIndex < 0) {
+    closeNotesModal();
+    return;
+  }
+  const card = sampleGiftCards[selectedCardIndex];
+  card.notes = notesInput.value.trim();
+  const updatedCard = cloneStateValue(card);
+  saveAppState();
+  closeNotesModal();
+  renderApp(selectedCardIndex);
+  showCheckoutFeedback("Notes saved locally.");
+  postCompletedActionToSheets(
+    "updateCard",
+    { card: updatedCard },
+    "Saved notes update to Sheets.",
+  );
 }
 
 async function requestCheckoutWakeLock() {
@@ -2951,6 +3052,7 @@ sortCardsSelect.addEventListener("change", (event) => {
 });
 markUsedButton.addEventListener("click", toggleSelectedUsed);
 openBalanceModalButton.addEventListener("click", openBalanceModal);
+openNotesModalButton.addEventListener("click", openNotesModal);
 detailNumber.addEventListener("click", () => {
   if (selectedCardIndex < 0) {
     return;
@@ -2964,15 +3066,24 @@ amountUsedInput.addEventListener("input", () => calculateModalCounterpart("amoun
 remainingBalanceInput.addEventListener("input", () => calculateModalCounterpart("remaining-balance"));
 cancelBalanceUpdateButton.addEventListener("click", closeBalanceModal);
 saveBalanceUpdateButton.addEventListener("click", saveBalanceUpdate);
+cancelNotesUpdateButton.addEventListener("click", closeNotesModal);
+saveNotesUpdateButton.addEventListener("click", saveNotesUpdate);
 markZeroUsedButton.addEventListener("click", openZeroBalanceConfirm);
 forceRefreshAppShellButton.addEventListener("click", forceRefreshAppShell);
 cancelConfirmButton.addEventListener("click", closeConfirmModal);
-confirmZeroUsedButton.addEventListener("click", markZeroBalanceCardsUsed);
+confirmZeroUsedButton.addEventListener("click", runPendingConfirmAction);
 barcodeOpenButton.addEventListener("click", openBarcodeFocusMode);
 barcodeCloseButton.addEventListener("click", closeBarcodeFocusMode);
 toggleDataLockButton.addEventListener("click", () => setRawDataLocked(!rawDataLocked));
 refreshCardDataButton.addEventListener("click", refreshRawCardData);
-updateCardDataButton.addEventListener("click", updateRawCardData);
+updateCardDataButton.addEventListener("click", () => openConfirmModal({
+  title: "Import CSV?",
+  message: "This may replace local card data after validation.",
+  confirmLabel: "Import",
+  confirmClass: "primary-button",
+  onConfirm: updateRawCardData,
+  returnFocusElement: updateCardDataButton,
+}));
 importCsvButton.addEventListener("click", () => csvFileInput.click());
 csvFileInput.addEventListener("change", (event) => {
   importCsvFile(event.target.files[0]);
@@ -2985,8 +3096,22 @@ if (initializeDirectSheetButton) {
 if (openDirectSheetButton) {
   openDirectSheetButton.addEventListener("click", openActiveGoogleSheet);
 }
-loadDirectSheetButton.addEventListener("click", loadCardsFromDirectSheets);
-syncDirectSheetButton.addEventListener("click", retrySyncCurrentSession);
+loadDirectSheetButton.addEventListener("click", () => openConfirmModal({
+  title: "Import from Google?",
+  message: "This may replace local card data with Google Sheet data.",
+  confirmLabel: "Import",
+  confirmClass: "primary-button",
+  onConfirm: loadCardsFromDirectSheets,
+  returnFocusElement: loadDirectSheetButton,
+}));
+syncDirectSheetButton.addEventListener("click", () => openConfirmModal({
+  title: "Export to Google?",
+  message: "This may replace Google Sheet data with local card data.",
+  confirmLabel: "Export",
+  confirmClass: "primary-button",
+  onConfirm: retrySyncCurrentSession,
+  returnFocusElement: syncDirectSheetButton,
+}));
 connectGoogleButton.addEventListener("click", connectGoogleAccount);
 disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
 if (appSyncSummary) {
@@ -3016,6 +3141,11 @@ confirmModal.addEventListener("click", (event) => {
     closeConfirmModal();
   }
 });
+notesModal.addEventListener("click", (event) => {
+  if (event.target === notesModal) {
+    closeNotesModal();
+  }
+});
 
 document.addEventListener("keydown", (event) => {
   if (!fullscreenBarcode.hidden && event.key === "Escape") {
@@ -3024,6 +3154,10 @@ document.addEventListener("keydown", (event) => {
 
   if (!balanceModal.hidden && event.key === "Escape") {
     closeBalanceModal();
+  }
+
+  if (!notesModal.hidden && event.key === "Escape") {
+    closeNotesModal();
   }
 
   if (!confirmModal.hidden && event.key === "Escape") {
