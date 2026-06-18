@@ -14,7 +14,7 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WORKER_VERSION = "2026-06-18.merchant-preserve.1";
+const WORKER_VERSION = "2026-06-18.schema-diagnostics.1";
 const SCHEMA_MODE = "header-name";
 const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
@@ -342,7 +342,7 @@ async function handleStatus(request, env) {
   const sessionContext = await getOptionalSession(request, env);
   if (!sessionContext) {
     return jsonResponse(
-      { authenticated: false },
+      { authenticated: false, workerVersion: WORKER_VERSION, schemaMode: SCHEMA_MODE },
       200,
       sessionCookie ? { "Set-Cookie": buildSessionCookie("", 0) } : {},
     );
@@ -356,7 +356,7 @@ async function handleStatus(request, env) {
     }
     await env.SESSIONS.delete(sessionContext.key);
     return jsonResponse(
-      { authenticated: false },
+      { authenticated: false, workerVersion: WORKER_VERSION, schemaMode: SCHEMA_MODE },
       200,
       { "Set-Cookie": buildSessionCookie("", 0) },
     );
@@ -371,6 +371,8 @@ async function handleStatus(request, env) {
       sheetName: sessionContext.session.sheetName || DEFAULT_SHEET_NAME,
       sheetVersion: sessionContext.session.sheetVersion || "",
       scope: sessionContext.session.scope || OAUTH_SCOPE,
+      workerVersion: WORKER_VERSION,
+      schemaMode: SCHEMA_MODE,
     },
     200,
     { "Set-Cookie": buildSessionCookie(sessionContext.sessionId, SESSION_TTL_SECONDS) },
@@ -704,33 +706,50 @@ function validateCardHeaders(row) {
     headerMap.set(header, index);
   });
 
+  const recognizedHeaders = Array.from(headerMap.keys());
+  const baseDetails = {
+    expectedHeaders: CARD_HEADERS,
+    recognizedHeaders,
+  };
+
   if (duplicates.size > 0) {
-    throw new HttpError(409, {
-      ok: false,
-      error: formatCardsHeaderError(`Duplicate required Cards header(s): ${Array.from(duplicates).join(", ")}. Keep each approved header exactly once; column order can be changed.`),
-    });
+    const duplicateHeaders = Array.from(duplicates);
+    throw new HttpError(409, buildCardsHeaderError(
+      `Duplicate required Cards header(s): ${duplicateHeaders.join(", ")}. Keep each approved header exactly once; column order can be changed.`,
+      { ...baseDetails, duplicateHeaders },
+    ));
   }
 
   if (nonBlankHeaders.length === 0 || headerMap.size === 0) {
-    throw new HttpError(409, {
-      ok: false,
-      error: formatCardsHeaderError(`Cards header row is blank or ambiguous; expected approved headers: ${CARD_HEADERS.join(", ")}. Fix row 1 or clear the tab only after exporting a CSV backup.`),
-    });
+    throw new HttpError(409, buildCardsHeaderError(
+      `Cards header row is blank or ambiguous; expected approved headers: ${CARD_HEADERS.join(", ")}. Fix Cards row 1 manually or use a future safe repair flow.`,
+      baseDetails,
+    ));
   }
 
   const missing = CARD_HEADERS.filter((header) => !headerMap.has(header));
   if (missing.length > 0) {
-    throw new HttpError(409, {
-      ok: false,
-      error: formatCardsHeaderError(`Missing required Cards header(s): ${missing.join(", ")}. Add the missing header(s) to row 1; column order can be changed.`),
-    });
+    throw new HttpError(409, buildCardsHeaderError(
+      `Missing required Cards header(s): ${missing.join(", ")}. Add the missing header(s) to Cards row 1; column order can be changed.`,
+      { ...baseDetails, missingHeaders: missing },
+    ));
   }
 
   return headerMap;
 }
 
+function buildCardsHeaderError(detail, details = {}) {
+  return {
+    ok: false,
+    error: formatCardsHeaderError(detail),
+    errorType: "cards_header_schema",
+    schemaMode: SCHEMA_MODE,
+    ...details,
+  };
+}
+
 function formatCardsHeaderError(detail) {
-  return `${detail} Local data remains available. Export a CSV backup before any destructive Sheet recovery.`;
+  return `${detail} Local data remains available. Export/download a CSV backup before any destructive Sheet recovery. Required headers may be in any order but names must match exactly.`;
 }
 
 function columnNumberToA1(columnNumber) {
