@@ -18,9 +18,9 @@ const WRITE_SOURCE = 'apps-script';
 const CARD_SCHEMA = [
   'cardNumber',
   'pin',
-  'merchant',
   'startingBalance',
   'currentBalance',
+  'merchant',
   'dateAdded',
   'dateUpdated',
   'dateUsed',
@@ -275,7 +275,7 @@ function ensureHeaderStructure_(sheet) {
   }
 
   if (!isRepairableApprovedHeaderSubset_(headerValues)) {
-    throw apiError_(ERROR_CODES.INVALID_SCHEMA, 'Cards sheet headers do not match the approved schema.');
+    validateRequiredHeaderNames_(headerValues);
   }
 
   repairMissingSchemaColumns_(sheet, headerValues);
@@ -286,20 +286,7 @@ function writeSchemaHeaders_(sheet) {
 }
 
 function repairMissingSchemaColumns_(sheet, headerValues) {
-  let currentHeaders = headerValues.slice();
-
-  CARD_SCHEMA.forEach(function (expectedHeader, expectedIndex) {
-    if (currentHeaders[expectedIndex] === expectedHeader) return;
-
-    const existingIndex = currentHeaders.indexOf(expectedHeader);
-    if (existingIndex > expectedIndex) {
-      throw apiError_(ERROR_CODES.INVALID_SCHEMA, 'Cards sheet headers are out of order.');
-    }
-
-    sheet.insertColumnBefore(expectedIndex + 1);
-    sheet.getRange(1, expectedIndex + 1).setValue(expectedHeader);
-    currentHeaders.splice(expectedIndex, 0, expectedHeader);
-  });
+  validateRequiredHeaderNames_(headerValues);
 }
 
 function isExactSchemaSheet_(sheet) {
@@ -307,29 +294,63 @@ function isExactSchemaSheet_(sheet) {
 }
 
 function isExactHeaderPrefix_(headerValues) {
-  if (headerValues.length !== CARD_SCHEMA.length) return false;
-  for (let i = 0; i < CARD_SCHEMA.length; i += 1) {
-    if (headerValues[i] !== CARD_SCHEMA[i]) return false;
-  }
-  return true;
+  return getRequiredHeaderValidation_(headerValues).valid;
 }
 
 function isRepairableApprovedHeaderSubset_(headerValues) {
-  const seen = {};
-  let schemaIndex = 0;
+  return getRequiredHeaderValidation_(headerValues).valid;
+}
 
-  for (let i = 0; i < headerValues.length; i += 1) {
-    const header = headerValues[i];
-    if (!header) continue;
-    if (seen[header]) return false;
-    seen[header] = true;
+function getRequiredHeaderValidation_(headerValues) {
+  const counts = {};
+  CARD_SCHEMA.forEach(function (field) {
+    counts[field] = 0;
+  });
 
-    const foundIndex = CARD_SCHEMA.indexOf(header, schemaIndex);
-    if (foundIndex === -1) return false;
-    schemaIndex = foundIndex + 1;
+  headerValues.forEach(function (header) {
+    if (Object.prototype.hasOwnProperty.call(counts, header)) {
+      counts[header] += 1;
+    }
+  });
+
+  const missing = CARD_SCHEMA.filter(function (field) {
+    return counts[field] === 0;
+  });
+  const duplicates = CARD_SCHEMA.filter(function (field) {
+    return counts[field] > 1;
+  });
+
+  return {
+    valid: missing.length === 0 && duplicates.length === 0,
+    missing: missing,
+    duplicates: duplicates
+  };
+}
+
+function validateRequiredHeaderNames_(headerValues) {
+  const validation = getRequiredHeaderValidation_(headerValues);
+
+  if (validation.duplicates.length > 0) {
+    throw apiError_(ERROR_CODES.INVALID_SCHEMA, 'Cards sheet has duplicate required header(s): ' + validation.duplicates.join(', ') + '.');
   }
 
-  return Object.keys(seen).length > 0;
+  if (validation.missing.length > 0) {
+    throw apiError_(ERROR_CODES.INVALID_SCHEMA, 'Cards sheet is missing required header(s): ' + validation.missing.join(', ') + '.');
+  }
+}
+
+function getHeaderIndexMap_(sheet) {
+  const headerValues = getHeaderValues_(sheet);
+  validateRequiredHeaderNames_(headerValues);
+
+  const headerIndexMap = {};
+  headerValues.forEach(function (header, index) {
+    if (CARD_SCHEMA.indexOf(header) !== -1) {
+      headerIndexMap[header] = index;
+    }
+  });
+
+  return headerIndexMap;
 }
 
 function getHeaderValues_(sheet) {
@@ -354,7 +375,8 @@ function readCards_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const values = sheet.getRange(2, 1, lastRow - 1, CARD_SCHEMA.length).getValues();
+  const headerIndexMap = getHeaderIndexMap_(sheet);
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
   const cards = [];
   const cardNumbers = {};
 
@@ -362,8 +384,8 @@ function readCards_(sheet) {
     if (row.every(function (cell) { return cell === ''; })) return;
 
     const card = {};
-    CARD_SCHEMA.forEach(function (field, index) {
-      card[field] = normalizeCellValue_(row[index]);
+    CARD_SCHEMA.forEach(function (field) {
+      card[field] = normalizeCellValue_(row[headerIndexMap[field]]);
     });
 
     if (!card.cardNumber) {
@@ -381,33 +403,41 @@ function readCards_(sheet) {
 
 function upsertCard_(sheet, card) {
   const normalized = normalizeCard_(card);
+  const headerIndexMap = getHeaderIndexMap_(sheet);
   const rowIndex = findCardRow_(sheet, normalized.cardNumber);
   const targetRow = rowIndex || sheet.getLastRow() + 1;
-  const existing = rowIndex ? sheet.getRange(rowIndex, 1, 1, CARD_SCHEMA.length).getValues()[0] : CARD_SCHEMA.map(function () { return ''; });
-  const nextRow = CARD_SCHEMA.map(function (field, index) {
+  const lastColumn = sheet.getLastColumn();
+  const existing = rowIndex ? sheet.getRange(rowIndex, 1, 1, lastColumn).getValues()[0] : Array(lastColumn).fill('');
+  const nextRow = existing.slice();
+
+  CARD_SCHEMA.forEach(function (field) {
     if (Object.prototype.hasOwnProperty.call(normalized, field)) {
-      return normalized[field];
+      nextRow[headerIndexMap[field]] = normalized[field];
     }
-    return existing[index];
   });
 
-  sheet.getRange(targetRow, 1, 1, CARD_SCHEMA.length).setValues([nextRow]);
+  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([nextRow]);
 }
 
 function replaceCards_(sheet, cards) {
   const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  const headerIndexMap = getHeaderIndexMap_(sheet);
+
   if (lastRow > 1) {
-    sheet.getRange(2, 1, lastRow - 1, CARD_SCHEMA.length).clearContent();
+    sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
   }
 
   if (cards.length > 0) {
     const values = cards.map(function (card) {
       const normalized = normalizeCard_(card);
-      return CARD_SCHEMA.map(function (field) {
-        return Object.prototype.hasOwnProperty.call(normalized, field) ? normalized[field] : '';
+      const row = Array(lastColumn).fill('');
+      CARD_SCHEMA.forEach(function (field) {
+        row[headerIndexMap[field]] = Object.prototype.hasOwnProperty.call(normalized, field) ? normalized[field] : '';
       });
+      return row;
     });
-    sheet.getRange(2, 1, values.length, CARD_SCHEMA.length).setValues(values);
+    sheet.getRange(2, 1, values.length, lastColumn).setValues(values);
   }
 }
 
@@ -415,7 +445,9 @@ function findCardRow_(sheet, cardNumber) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return null;
 
-  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const headerIndexMap = getHeaderIndexMap_(sheet);
+  const cardNumberColumn = headerIndexMap.cardNumber + 1;
+  const values = sheet.getRange(2, cardNumberColumn, lastRow - 1, 1).getValues();
   for (let i = 0; i < values.length; i += 1) {
     if (String(values[i][0]).trim() === String(cardNumber).trim()) {
       return i + 2;
