@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This guide covers the active Phase 11 Worker-backed Google OAuth + `drive.file` sync path. Apps Script troubleshooting is historical only and does not apply to the active Phase 11 app.
+This guide covers the intended active Phase 11 Worker-backed Google OAuth + `drive.file` sync path. Apps Script is not the active default architecture, but exact live error strings and observed behavior override architecture assumptions while identifying the active runtime.
 
 ## Active URLs
 
@@ -28,6 +28,27 @@ The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` is fal
 
 Do not use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
 
+
+
+## Runtime Debugging Priority
+
+Use this priority order for live failures:
+
+1. Exact live error string / observed behavior
+2. Current workspace/repo files
+3. Active deployment/config
+4. Repo docs / intended architecture
+5. Prior assumptions
+
+Worker is the intended Phase 11 architecture. If an exact live error string exists only in `apps-script/Code.gs`, inspect and debug Apps Script first until the active runtime is disproven.
+
+## Schema/Header Errors
+
+When a schema or header error appears, search for the exact error string first.
+
+- If the string is in `worker/src/index.js`, use the Worker deploy/debug path.
+- If the string is in `apps-script/Code.gs`, use the Apps Script redeploy/debug path.
+- Do not recommend `wrangler`, `clasp`, Apps Script deploys, or Cloudflare changes until the active runtime is confirmed.
 
 ## Worker KV Binding Problems
 
@@ -159,4 +180,4 @@ Offline behavior remains supported:
 
 ## Historical Apps Script Notes
 
-Apps Script was part of the historical MVP and may appear in historical reference files. It is retired from the active Phase 11 architecture and should not be presented as an active setup, diagnostic, or sync path.
+Apps Script was part of the historical MVP and may appear in historical reference files. It is retired from the active Phase 11 architecture and should not be presented as the default setup or sync path. If live evidence, such as an exact error string, points only to Apps Script, debug that runtime until the active deployment path is confirmed or disproven.

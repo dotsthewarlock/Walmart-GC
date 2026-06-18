@@ -6,6 +6,19 @@ Walmart-GC uses a lightweight static frontend plus Cloudflare Worker architectur
 
 Phase 11 is the active development phase on `phase-11`; `main` is protected. Phase 11 is limited to fixing OAuth/session flow until fully functional and durable. Core product functionality should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
+
+## Runtime Debugging Priority
+
+The Cloudflare Worker remains the intended Phase 11 runtime for OAuth, sessions, Drive, and Sheets access. For live incidents, do not let intended architecture override direct runtime evidence. Debug in this order:
+
+1. Exact live error string / observed behavior
+2. Current workspace/repo files
+3. Active deployment/config
+4. Repo docs / intended architecture
+5. Prior assumptions
+
+If an exact live error string exists only in `apps-script/Code.gs`, inspect and debug Apps Script first until the active runtime is disproven. This does not make Apps Script the active default architecture; it only prevents ignoring live evidence.
+
 ## Current Phase 11 Architecture
 
 ```text
