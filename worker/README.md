@@ -1,6 +1,6 @@
 # Walmart-GC OAuth Worker
 
-Cloudflare Worker backend for the active Phase 11 durable OAuth/session and Sheets sync contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com`; Cloudflare routes same-origin `/auth/*` and `/api/*` paths on that host to this Worker. The Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout and Sheet sync endpoints.
+Cloudflare Worker backend (`walmart-gc-oauth`) for the active Phase 11 durable OAuth/session and Sheets sync contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com`; Cloudflare routes same-origin `/auth/*` and `/api/*` paths on that host to this Worker. The Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout and Sheet sync endpoints.
 
 ## Active Contract
 
@@ -50,12 +50,14 @@ Vars:
 - `FRONTEND_ORIGIN=https://walmart-gc.dotsthewarlock.com`
 - `REDIRECT_URI=https://walmart-gc.dotsthewarlock.com/auth/callback`
 
-Required Cloudflare route rules:
+Required Cloudflare route rules for Worker `walmart-gc-oauth`:
 
 ```text
-walmart-gc.dotsthewarlock.com/auth/*
 walmart-gc.dotsthewarlock.com/api/*
+walmart-gc.dotsthewarlock.com/auth/*
 ```
+
+Do not route `walmart-gc.dotsthewarlock.com/*` to the Worker because GitHub Pages serves the static frontend at the custom-domain root. The frontend can deploy successfully even when `/api/*` and `/auth/*` are not routed to the Worker, so route configuration must be checked independently from static frontend deployment.
 
 The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain available only as fallback/legacy routing; normal frontend calls do not depend on it.
 
@@ -162,11 +164,12 @@ curl -sS https://walmart-gc.dotsthewarlock.com/api/status
 The response should include the current `workerVersion` and
 `schemaMode: "header-name"`. If the live app shows the current frontend
 fingerprint but reports Worker version or schema mode as unavailable, the static
-frontend has updated but the Worker serving `/api/*` is stale or not returning
-the current status contract. Re-deploy the Worker through the confirmed
-Cloudflare deployment path, ensuring the real `SESSIONS` and `OAUTH_STATE` KV
-bindings are used instead of the placeholder IDs in `worker/wrangler.toml`, then
-run **Set up / check Sheet** in the app to trigger safe header migration.
+frontend has updated but `/api/*` is stale, unavailable, or not routed to Worker
+`walmart-gc-oauth`. Check the Cloudflare Worker routes before changing app code.
+Then re-deploy the Worker through the confirmed Cloudflare deployment path if
+needed, ensuring the real `SESSIONS` and `OAUTH_STATE` KV bindings are used
+instead of the placeholder IDs in `worker/wrangler.toml`, then run **Set up /
+check Sheet** in the app to trigger safe header migration.
 
 Completed-action sync only:
 

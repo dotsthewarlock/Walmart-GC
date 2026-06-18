@@ -31,6 +31,26 @@ Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and
 
 Exact live error strings and observed behavior outrank assumptions. Current repo files and active deployment/config outrank older docs. Do not assume Worker, Apps Script, Wrangler, or GitHub Pages deployment details without confirming the active runtime/config path relevant to the task.
 
+
+## Worker Route Operations
+
+Active Worker name: `walmart-gc-oauth`. Cloudflare must route only these custom-domain paths to the Worker:
+
+```text
+walmart-gc.dotsthewarlock.com/api/*
+walmart-gc.dotsthewarlock.com/auth/*
+```
+
+Do not route `walmart-gc.dotsthewarlock.com/*` to the Worker because GitHub Pages serves the static frontend at the root. Required Worker KV bindings are `SESSIONS` and `OAUTH_STATE`; required secrets are `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `SESSION_SECRET`.
+
+Smoke test the live same-origin status route:
+
+```sh
+curl -sS https://walmart-gc.dotsthewarlock.com/api/status
+```
+
+Expected diagnostics include `workerVersion` and `schemaMode: "header-name"`. If the frontend version is current but Worker version/schema mode are unavailable, check Worker routes before changing app code.
+
 ## Auth and Sync Source of Truth
 
 - Worker-managed Google OAuth only.
