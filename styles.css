@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.40 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.41 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -723,7 +723,7 @@ dd,
 
 .fullscreen-card-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin: 0;
 }
@@ -757,6 +757,40 @@ dd,
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+
+.fullscreen-card-identifier {
+  margin: -0.3rem 0 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: clamp(0.95rem, 2.4vw, 1.08rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.fullscreen-card-meta {
+  max-width: 42rem;
+  width: 100%;
+  justify-self: center;
+}
+
+.fullscreen-card-meta dt {
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.fullscreen-card-meta dd {
+  font-size: clamp(1.05rem, 4vw, 1.55rem);
+}
+
+.fullscreen-actions .primary-button {
+  min-height: 3.25rem;
+}
+
+.fullscreen-actions .danger-button {
+  min-height: 3rem;
 }
 
 @media (max-width: 42rem) {
@@ -836,7 +870,33 @@ dd,
   .panel {
     padding: 1.25rem;
   }
+
+  .detail-panel,
+  .settings-panel,
+  .data-panel {
+    justify-self: center;
+    width: 100%;
+  }
+
+  .settings-panel {
+    max-width: 52rem;
+  }
+
+  .detail-panel {
+    max-width: 60rem;
+  }
+
+  .data-panel {
+    max-width: 62rem;
+  }
+
+  .settings-list,
+  .data-layout,
+  .card-detail {
+    width: 100%;
+  }
 }
+
 
 .data-layout {
   display: grid;
@@ -1029,7 +1089,17 @@ dd,
     align-items: start;
   }
 
+  .setting-row-stacked .secondary-button {
+    justify-self: start;
+    width: auto;
+  }
+
+  .app-reload-button {
+    width: auto;
+  }
+
 }
+
 
 .connection-card,
 .oauth-card {
