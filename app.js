@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.46 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.47 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.46";
-const DEBUG_VERSION_CSS = "1.01.46";
+const DEBUG_VERSION_JS = "1.01.47";
+const DEBUG_VERSION_CSS = "1.01.47";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -100,6 +100,9 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const navButtons = document.querySelectorAll(".nav-button");
+const settingsOpenButton = document.querySelector("#open-settings");
+const settingsCloseButton = document.querySelector("#close-settings");
+const appShell = document.querySelector(".app-shell");
 const panelSections = document.querySelectorAll("[data-panel-name]");
 const cardList = document.querySelector("#card-list");
 const appSyncSummary = document.querySelector("#app-sync-summary");
@@ -189,6 +192,8 @@ const googleSyncSection = document.querySelector("#google-sync-section");
 const googleAccountPanel = document.querySelector("#google-account-panel");
 const googleSheetPanel = document.querySelector("#google-sheet-panel");
 const googleSyncOverview = document.querySelector("#google-sync-overview");
+const backupSyncSection = document.querySelector("#backup-sync-section");
+const backupSyncOverview = document.querySelector("#backup-sync-overview");
 const backupRestoreSection = document.querySelector("#backup-restore-section");
 const csvRecoveryPanel = document.querySelector("#csv-recovery-panel");
 
@@ -1499,6 +1504,7 @@ function updateBackupPanelOpenState() {
   const sheetNeedsAttention = hasWorkerGoogleSession() && directSheetsState.status !== directSheetsStatuses.ready;
 
   const syncNeedsAttention = accountNeedsAttention || sheetNeedsAttention || syncState.status === syncStatuses.conflict || Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
+  setDetailsOpen(backupSyncSection, syncNeedsAttention);
   setDetailsOpen(googleSyncSection, syncNeedsAttention);
   setDetailsOpen(googleAccountPanel, accountNeedsAttention);
   setDetailsOpen(googleSheetPanel, sheetNeedsAttention);
@@ -2413,6 +2419,26 @@ function ensureVisibleSelection(preferredIndex = selectedCardIndex) {
   selectedCardIndex = visibleIndexes[0];
 }
 
+let currentPanelName = "list";
+let previousPrimaryPanelName = "list";
+
+function getActivePrimaryPanelName() {
+  return currentPanelName === "detail" ? "detail" : "list";
+}
+
+function openSettingsPanel(options = {}) {
+  previousPrimaryPanelName = getActivePrimaryPanelName();
+  showPanel("settings", options);
+}
+
+function closeSettingsPanel() {
+  showPanel(previousPrimaryPanelName || "list");
+}
+
+function openBackupAndSyncSettings() {
+  openSettingsPanel({ focusBackupSync: true });
+}
+
 function showPanel(panelName, options = {}) {
   if (panelName === "detail" && options.selectFirstVisible) {
     const firstVisibleIndex = getVisibleCardIndexes()[0];
@@ -2422,18 +2448,33 @@ function showPanel(panelName, options = {}) {
     }
   }
 
+  const nextPanelName = panelName === "data" ? "settings" : panelName;
+
+  if (["list", "detail"].includes(nextPanelName)) {
+    previousPrimaryPanelName = nextPanelName;
+  }
+
+  currentPanelName = nextPanelName;
+
   panelSections.forEach((panel) => {
-    panel.hidden = panel.dataset.panelName !== panelName;
+    panel.hidden = panel.dataset.panelName !== nextPanelName;
   });
 
+
   navButtons.forEach((button) => {
-    const isActive = button.dataset.panel === panelName;
+    const isActive = button.dataset.panel === nextPanelName;
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
 
-  if (panelName === "detail") {
+  if (nextPanelName === "detail") {
     renderCardDetail();
+  }
+
+  if (nextPanelName === "settings" && options.focusBackupSync) {
+    setDetailsOpen(backupSyncSection, true);
+    backupSyncSection?.scrollIntoView({ block: "start", behavior: "smooth" });
+    backupSyncSection?.querySelector("summary")?.focus?.();
   }
 }
 
@@ -3021,11 +3062,67 @@ function isInteractiveGestureTarget(target) {
   return Boolean(target.closest("button, a, input, textarea, select, [role='button'], [contenteditable='true']"));
 }
 
+let primarySwipeStart = null;
+
+function shouldIgnorePrimarySwipe(target) {
+  if (currentPanelName !== "list" && currentPanelName !== "detail") {
+    return true;
+  }
+
+  if (isModalOpen() || !fullscreenBarcode.hidden) {
+    return true;
+  }
+
+  return isInteractiveGestureTarget(target) || Boolean(target.closest(".modal-backdrop, #raw-data-input, .notes-block"));
+}
+
+function handlePrimarySwipeStart(event) {
+  if (event.touches.length !== 1 || shouldIgnorePrimarySwipe(event.target)) {
+    primarySwipeStart = null;
+    return;
+  }
+
+  primarySwipeStart = {
+    x: event.touches[0].clientX,
+    y: event.touches[0].clientY,
+    panel: currentPanelName,
+  };
+}
+
+function handlePrimarySwipeEnd(event) {
+  if (!primarySwipeStart || shouldIgnorePrimarySwipe(event.target)) {
+    primarySwipeStart = null;
+    return;
+  }
+
+  const touch = event.changedTouches[0];
+  const deltaX = touch.clientX - primarySwipeStart.x;
+  const deltaY = touch.clientY - primarySwipeStart.y;
+  primarySwipeStart = null;
+
+  if (Math.abs(deltaX) < 80 || Math.abs(deltaY) > 55 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
+    return;
+  }
+
+  if (deltaX < 0 && currentPanelName === "list") {
+    showPanel("detail", { selectFirstVisible: true });
+  } else if (deltaX > 0 && currentPanelName === "detail") {
+    showPanel("list");
+  }
+}
+
+appShell?.addEventListener("touchstart", handlePrimarySwipeStart, { passive: true });
+appShell?.addEventListener("touchend", handlePrimarySwipeEnd, { passive: true });
+
+
 navButtons.forEach((button) => {
   button.addEventListener("click", () => {
     showPanel(button.dataset.panel, { selectFirstVisible: button.dataset.panel === "detail" });
   });
 });
+
+settingsOpenButton?.addEventListener("click", () => openSettingsPanel());
+settingsCloseButton?.addEventListener("click", closeSettingsPanel);
 
 previousButton.addEventListener("click", () => moveSelection(-1));
 nextButton.addEventListener("click", () => moveSelection(1));
@@ -3115,7 +3212,7 @@ syncDirectSheetButton.addEventListener("click", () => openConfirmModal({
 connectGoogleButton.addEventListener("click", connectGoogleAccount);
 disconnectGoogleButton.addEventListener("click", disconnectGoogleAccount);
 if (appSyncSummary) {
-  appSyncSummary.addEventListener("click", () => showPanel("data"));
+  appSyncSummary.addEventListener("click", openBackupAndSyncSettings);
 }
 
 syncRecoveryActions.addEventListener("click", (event) => {
