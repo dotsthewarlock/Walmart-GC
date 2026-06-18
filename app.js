@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.42 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.43 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.42";
-const DEBUG_VERSION_CSS = "1.01.42";
+const DEBUG_VERSION_JS = "1.01.43";
+const DEBUG_VERSION_CSS = "1.01.43";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -125,6 +125,7 @@ const nextButton = document.querySelector("#next-card");
 const cardPosition = document.querySelector("#card-position");
 const markUsedButton = document.querySelector("#mark-used");
 const openBalanceModalButton = document.querySelector("#open-balance-modal");
+const checkoutFeedback = document.querySelector("#checkout-feedback");
 const balanceModal = document.querySelector("#balance-modal");
 const balanceModalContext = document.querySelector("#balance-modal-context");
 const amountUsedInput = document.querySelector("#amount-used-input");
@@ -178,6 +179,7 @@ const directSheetStatusArea = document.querySelector("#direct-sheet-status");
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
 let hideUsedCards = true;
+let checkoutFeedbackTimer = null;
 let hideZeroBalanceCards = false;
 let sortMode = "balance-asc";
 let amountUsedEditedLast = false;
@@ -2513,6 +2515,29 @@ function renderApp(preferredIndex) {
   renderCardDetail();
 }
 
+function showCheckoutFeedback(message, options = {}) {
+  if (!checkoutFeedback) {
+    return;
+  }
+
+  window.clearTimeout(checkoutFeedbackTimer);
+  checkoutFeedback.classList.remove("is-hiding");
+  checkoutFeedback.textContent = message;
+  checkoutFeedback.hidden = false;
+
+  const dismissMs = options.dismissMs ?? 3000;
+  if (dismissMs > 0) {
+    checkoutFeedbackTimer = window.setTimeout(() => {
+      checkoutFeedback.classList.add("is-hiding");
+      checkoutFeedbackTimer = window.setTimeout(() => {
+        checkoutFeedback.hidden = true;
+        checkoutFeedback.classList.remove("is-hiding");
+        checkoutFeedback.textContent = "";
+      }, 240);
+    }, dismissMs);
+  }
+}
+
 function selectCard(index) {
   detailNumberRevealed = false;
   selectedCardIndex = index;
@@ -2544,6 +2569,7 @@ function toggleSelectedUsed() {
   card.used = !card.used;
   card.dateUsed = card.used ? todayString() : "";
   const updatedCard = cloneStateValue(card);
+  const feedbackMessage = updatedCard.used ? "Marked used locally." : "Marked unused locally.";
   saveAppState();
 
   if (card.used && advanceOnMarkUsed) {
@@ -2554,6 +2580,7 @@ function toggleSelectedUsed() {
   } else {
     renderApp(selectedCardIndex);
   }
+  showCheckoutFeedback(feedbackMessage);
 
   postCompletedActionToSheets(
     "updateCard",
@@ -2692,6 +2719,7 @@ function saveBalanceUpdate() {
   closeBalanceModal();
 
   if (updatedCard) {
+    showCheckoutFeedback("Balance updated locally.");
     postCompletedActionToSheets(
       "updateCard",
       { card: updatedCard },
