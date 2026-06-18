@@ -14,7 +14,7 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WALMART_GIFT_CARD_NUMBER_PATTERN = /^635\d{13}$/;
+const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
 const CARD_HEADERS = [
   "cardNumber",
@@ -28,6 +28,7 @@ const CARD_HEADERS = [
   "used",
   "notes",
 ];
+const DEFAULT_MERCHANT = "walmart-ca";
 const DEFAULT_FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
 const DEFAULT_REDIRECT_URI = "https://walmart-gc.dotsthewarlock.com/auth/callback";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
@@ -725,6 +726,32 @@ function columnNumberToA1(columnNumber) {
   return label;
 }
 
+function normalizePinValue(pin) {
+  return String(pin ?? "").trim();
+}
+
+function normalizeMerchantValue(merchant, cardNumber) {
+  const normalizedMerchant = String(merchant ?? "").trim();
+  if (normalizedMerchant) {
+    return normalizedMerchant;
+  }
+  return WALMART_GIFT_CARD_NUMBER_PATTERN.test(String(cardNumber ?? "").trim()) ? DEFAULT_MERCHANT : "";
+}
+
+function normalizeOptionalMoneyString(value) {
+  const normalizedValue = String(value ?? "").trim();
+  if (!normalizedValue) {
+    return "";
+  }
+  const parsedValue = Number(normalizedValue);
+  return Number.isFinite(parsedValue) ? String(Math.round(parsedValue * 100) / 100) : normalizedValue;
+}
+
+function normalizeCurrentBalanceValue(currentBalance, startingBalance) {
+  const normalizedCurrentBalance = normalizeOptionalMoneyString(currentBalance);
+  return normalizedCurrentBalance || normalizeOptionalMoneyString(startingBalance);
+}
+
 function validateCards(cards) {
   const seen = new Set();
   return cards.map((card, index) => {
@@ -740,12 +767,19 @@ function validateCards(cards) {
       }
     });
     normalized.cardNumber = normalized.cardNumber.trim();
+    normalized.pin = normalizePinValue(normalized.pin);
     if (!normalized.cardNumber) {
       throw new HttpError(400, { ok: false, error: `Card ${index + 1} is missing cardNumber.` });
     }
     if (!WALMART_GIFT_CARD_NUMBER_PATTERN.test(normalized.cardNumber)) {
-      throw new HttpError(400, { ok: false, error: `Card ${index + 1}: Card number must start with 635 and be exactly 16 digits.` });
+      throw new HttpError(400, { ok: false, error: `Card ${index + 1}: Card number must start with 63 and be exactly 16 digits.` });
     }
+    if (normalized.pin.length < 4) {
+      throw new HttpError(400, { ok: false, error: `Card ${index + 1}: PIN must be at least 4 characters.` });
+    }
+    normalized.merchant = normalizeMerchantValue(normalized.merchant, normalized.cardNumber);
+    normalized.startingBalance = normalizeOptionalMoneyString(normalized.startingBalance);
+    normalized.currentBalance = normalizeCurrentBalanceValue(normalized.currentBalance, normalized.startingBalance);
     if (seen.has(normalized.cardNumber)) {
       throw new HttpError(400, { ok: false, error: `Duplicate cardNumber ${normalized.cardNumber}.` });
     }
@@ -768,11 +802,19 @@ function cardsFromSheetRows(rows, headerMap) {
         ? String(row[headerIndex] || "").toLowerCase() === "true"
         : String(row[headerIndex] ?? "");
     });
-    if (!card.cardNumber.trim()) {
+    card.cardNumber = card.cardNumber.trim();
+    card.pin = normalizePinValue(card.pin);
+    card.merchant = normalizeMerchantValue(card.merchant, card.cardNumber);
+    card.startingBalance = normalizeOptionalMoneyString(card.startingBalance);
+    card.currentBalance = normalizeCurrentBalanceValue(card.currentBalance, card.startingBalance);
+    if (!card.cardNumber) {
       throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} is missing cardNumber.` });
     }
-    if (!WALMART_GIFT_CARD_NUMBER_PATTERN.test(card.cardNumber.trim())) {
-      throw new HttpError(409, { ok: false, error: `Cards row ${index + 2}: Card number must start with 635 and be exactly 16 digits.` });
+    if (!WALMART_GIFT_CARD_NUMBER_PATTERN.test(card.cardNumber)) {
+      throw new HttpError(409, { ok: false, error: `Cards row ${index + 2}: Card number must start with 63 and be exactly 16 digits.` });
+    }
+    if (card.pin.length < 4) {
+      throw new HttpError(409, { ok: false, error: `Cards row ${index + 2}: PIN must be at least 4 characters.` });
     }
     if (seen.has(card.cardNumber)) {
       throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} duplicates cardNumber ${card.cardNumber}.` });
