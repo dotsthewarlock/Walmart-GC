@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.24 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.25 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.24";
+const DEBUG_VERSION_JS = "1.01.25";
 const DEBUG_VERSION_CSS = "1.01.04";
 
 function renderDebugVersionFingerprint() {
@@ -202,7 +202,7 @@ const legacyCsvHeaders = [
 ];
 const prototypeDefaultMerchant = "walmart-ca";
 const walmartCaBarcodePrefix = "79936686504000";
-const walmartGiftCardNumberPattern = /^635\d{13}$/;
+const walmartGiftCardNumberPattern = /^63\d{14}$/;
 const code128Patterns = [
   "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213",
   "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221", "223211", "221132",
@@ -318,7 +318,26 @@ function normalizeCardNumber(cardNumber) {
 }
 
 function isValidWalmartGiftCardNumber(cardNumber) {
-  return walmartGiftCardNumberPattern.test(String(cardNumber ?? ""));
+  return walmartGiftCardNumberPattern.test(String(cardNumber ?? "").trim());
+}
+
+function normalizePinValue(pin) {
+  return String(pin ?? "").trim();
+}
+
+function normalizeMerchantValue(merchant, cardNumber) {
+  const normalizedMerchant = String(merchant ?? "").trim();
+  if (normalizedMerchant) {
+    return normalizedMerchant;
+  }
+  return isValidWalmartGiftCardNumber(cardNumber) ? prototypeDefaultMerchant : "";
+}
+
+function parseOptionalMoney(value) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+  return Number(value);
 }
 
 function getBarcodeFallbackMessage(card) {
@@ -545,11 +564,12 @@ function normalizeStoredCard(card) {
   }
 
   const cardNumber = String(card.cardNumber ?? "").trim();
-  const pin = String(card.pin ?? "").trim();
-  const startingBalance = Number(card.startingBalance);
-  const currentBalance = Number(card.currentBalance);
+  const pin = normalizePinValue(card.pin);
+  const startingBalance = parseOptionalMoney(card.startingBalance);
+  const currentBalanceRaw = parseOptionalMoney(card.currentBalance);
+  const currentBalance = currentBalanceRaw === null ? startingBalance : currentBalanceRaw;
 
-  if (!cardNumber || !pin || !Number.isFinite(startingBalance) || !Number.isFinite(currentBalance)) {
+  if (!cardNumber || pin.length < 4 || !Number.isFinite(startingBalance) || !Number.isFinite(currentBalance)) {
     return null;
   }
 
@@ -558,7 +578,7 @@ function normalizeStoredCard(card) {
   return {
     cardNumber,
     pin,
-    merchant: String(card.merchant || prototypeDefaultMerchant),
+    merchant: normalizeMerchantValue(card.merchant, cardNumber),
     startingBalance: normalizeMoney(startingBalance),
     currentBalance: normalizeMoney(currentBalance),
     dateAdded,
@@ -1027,21 +1047,25 @@ function parseRawCardData(rawCsv) {
       warnings.push(`Row ${displayRow}: missing card number.`);
       hasError = true;
     } else if (!isValidWalmartGiftCardNumber(cardNumber)) {
-      warnings.push(`Row ${displayRow}: Card number must start with 635 and be exactly 16 digits.`);
+      warnings.push(`Row ${displayRow}: Card number must start with 63 and be exactly 16 digits.`);
       hasError = true;
     } else if (seenCardNumbers.has(cardNumber)) {
       warnings.push(`Row ${displayRow}: duplicate card number ${cardNumber}.`);
       hasError = true;
     }
 
-    if (!pin) {
+    const normalizedPin = normalizePinValue(pin);
+    if (!normalizedPin) {
       warnings.push(`Row ${displayRow}: missing PIN.`);
+      hasError = true;
+    } else if (normalizedPin.length < 4) {
+      warnings.push(`Row ${displayRow}: PIN must be at least 4 characters.`);
       hasError = true;
     }
 
-    const merchant = merchantRaw || prototypeDefaultMerchant;
-    if (!merchantRaw) {
-      warnings.push(`Row ${displayRow}: missing merchant; defaulted to ${prototypeDefaultMerchant} for prototype import.`);
+    const merchant = normalizeMerchantValue(merchantRaw, cardNumber);
+    if (!merchantRaw && isValidWalmartGiftCardNumber(cardNumber)) {
+      warnings.push(`Row ${displayRow}: missing merchant; defaulted to ${prototypeDefaultMerchant}.`);
     }
 
     const startingBalance = readCsvMoney(startingBalanceRaw);
@@ -1077,7 +1101,7 @@ function parseRawCardData(rawCsv) {
 
     parsedCards.push({
       cardNumber,
-      pin,
+      pin: normalizedPin,
       merchant,
       startingBalance,
       currentBalance,
