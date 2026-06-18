@@ -134,12 +134,39 @@ pin
 startingBalance
 currentBalance
 merchant
+merchantInferred
 dateAdded
 dateUpdated
 dateUsed
 used
 notes
 ```
+
+Sheets that still have the previous 10-column header row are safe additive
+migration candidates only when that old header set is present exactly once and
+contains no unsupported, duplicate, blank-gap, or ambiguous headers. The Worker
+adds `merchantInferred` immediately after `merchant`, preserves existing card
+row values by header name, keeps explicit `merchant` values intact, and derives
+`merchantInferred` from `cardNumber`. Malformed or ambiguous header rows must
+fail with schema diagnostics instead of being rewritten.
+
+## Deployment Verification
+
+After deploying the Worker source of truth from `worker/src/index.js`, verify the
+same-origin API path that the live app uses:
+
+```sh
+curl -sS https://walmart-gc.dotsthewarlock.com/api/status
+```
+
+The response should include the current `workerVersion` and
+`schemaMode: "header-name"`. If the live app shows the current frontend
+fingerprint but reports Worker version or schema mode as unavailable, the static
+frontend has updated but the Worker serving `/api/*` is stale or not returning
+the current status contract. Re-deploy the Worker through the confirmed
+Cloudflare deployment path, ensuring the real `SESSIONS` and `OAUTH_STATE` KV
+bindings are used instead of the placeholder IDs in `worker/wrangler.toml`, then
+run **Set up / check Sheet** in the app to trigger safe header migration.
 
 Completed-action sync only:
 
