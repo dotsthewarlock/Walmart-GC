@@ -13,6 +13,8 @@
 const DATA_SHEET_NAME = 'Cards';
 const META_SHEET_NAME = '_META';
 const SCHEMA_VERSION = '1';
+const APPS_SCRIPT_VERSION = '2026-06-18.header-name.1';
+const SCHEMA_MODE = 'header-name';
 const WRITE_SOURCE = 'apps-script';
 
 const CARD_SCHEMA = [
@@ -104,6 +106,8 @@ function handleHealth_() {
     spreadsheetName: context.spreadsheet.getName(),
     sheetName: sheet ? sheet.getName() : null,
     schemaVersion: meta.schemaVersion || SCHEMA_VERSION,
+    appsScriptVersion: APPS_SCRIPT_VERSION,
+    schemaMode: SCHEMA_MODE,
     schemaValid: Boolean(sheet),
     setupStatus: context.setupStatus,
     lastWriteSource: meta.lastWriteSource || '',
@@ -270,35 +274,16 @@ function ensureHeaderStructure_(sheet) {
     return;
   }
 
-  if (isExactHeaderPrefix_(headerValues)) {
-    return;
-  }
-
-  if (!isRepairableApprovedHeaderSubset_(headerValues)) {
-    validateRequiredHeaderNames_(headerValues);
-  }
-
-  repairMissingSchemaColumns_(sheet, headerValues);
+  validateRequiredHeaderNames_(headerValues);
 }
 
 function writeSchemaHeaders_(sheet) {
   sheet.getRange(1, 1, 1, CARD_SCHEMA.length).setValues([CARD_SCHEMA]);
 }
 
-function repairMissingSchemaColumns_(sheet, headerValues) {
-  validateRequiredHeaderNames_(headerValues);
-}
-
 function isExactSchemaSheet_(sheet) {
-  return isExactHeaderPrefix_(getHeaderValues_(sheet));
-}
-
-function isExactHeaderPrefix_(headerValues) {
-  return getRequiredHeaderValidation_(headerValues).valid;
-}
-
-function isRepairableApprovedHeaderSubset_(headerValues) {
-  return getRequiredHeaderValidation_(headerValues).valid;
+  const headerValues = getHeaderValues_(sheet);
+  return headerValues.length > 0 && getRequiredHeaderValidation_(headerValues).valid;
 }
 
 function getRequiredHeaderValidation_(headerValues) {
@@ -339,18 +324,21 @@ function validateRequiredHeaderNames_(headerValues) {
   }
 }
 
-function getHeaderIndexMap_(sheet) {
-  const headerValues = getHeaderValues_(sheet);
-  validateRequiredHeaderNames_(headerValues);
+function buildHeaderIndexMap_(sheet) {
+  const headers = getHeaderValues_(sheet);
+  validateRequiredHeaderNames_(headers);
 
-  const headerIndexMap = {};
-  headerValues.forEach(function (header, index) {
+  const indexByHeader = {};
+  headers.forEach(function (header, index) {
     if (CARD_SCHEMA.indexOf(header) !== -1) {
-      headerIndexMap[header] = index;
+      indexByHeader[header] = index;
     }
   });
 
-  return headerIndexMap;
+  return {
+    headers: headers,
+    indexByHeader: indexByHeader
+  };
 }
 
 function getHeaderValues_(sheet) {
@@ -375,7 +363,8 @@ function readCards_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const headerIndexMap = getHeaderIndexMap_(sheet);
+  const headerMap = buildHeaderIndexMap_(sheet);
+  const indexByHeader = headerMap.indexByHeader;
   const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
   const cards = [];
   const cardNumbers = {};
@@ -385,7 +374,7 @@ function readCards_(sheet) {
 
     const card = {};
     CARD_SCHEMA.forEach(function (field) {
-      card[field] = normalizeCellValue_(row[headerIndexMap[field]]);
+      card[field] = normalizeCellValue_(row[indexByHeader[field]]);
     });
 
     if (!card.cardNumber) {
@@ -403,7 +392,8 @@ function readCards_(sheet) {
 
 function upsertCard_(sheet, card) {
   const normalized = normalizeCard_(card);
-  const headerIndexMap = getHeaderIndexMap_(sheet);
+  const headerMap = buildHeaderIndexMap_(sheet);
+  const indexByHeader = headerMap.indexByHeader;
   const rowIndex = findCardRow_(sheet, normalized.cardNumber);
   const targetRow = rowIndex || sheet.getLastRow() + 1;
   const lastColumn = sheet.getLastColumn();
@@ -412,7 +402,7 @@ function upsertCard_(sheet, card) {
 
   CARD_SCHEMA.forEach(function (field) {
     if (Object.prototype.hasOwnProperty.call(normalized, field)) {
-      nextRow[headerIndexMap[field]] = normalized[field];
+      nextRow[indexByHeader[field]] = normalized[field];
     }
   });
 
@@ -422,7 +412,8 @@ function upsertCard_(sheet, card) {
 function replaceCards_(sheet, cards) {
   const lastRow = sheet.getLastRow();
   const lastColumn = sheet.getLastColumn();
-  const headerIndexMap = getHeaderIndexMap_(sheet);
+  const headerMap = buildHeaderIndexMap_(sheet);
+  const indexByHeader = headerMap.indexByHeader;
 
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
@@ -433,7 +424,7 @@ function replaceCards_(sheet, cards) {
       const normalized = normalizeCard_(card);
       const row = Array(lastColumn).fill('');
       CARD_SCHEMA.forEach(function (field) {
-        row[headerIndexMap[field]] = Object.prototype.hasOwnProperty.call(normalized, field) ? normalized[field] : '';
+        row[indexByHeader[field]] = Object.prototype.hasOwnProperty.call(normalized, field) ? normalized[field] : '';
       });
       return row;
     });
@@ -445,8 +436,9 @@ function findCardRow_(sheet, cardNumber) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return null;
 
-  const headerIndexMap = getHeaderIndexMap_(sheet);
-  const cardNumberColumn = headerIndexMap.cardNumber + 1;
+  const headerMap = buildHeaderIndexMap_(sheet);
+  const indexByHeader = headerMap.indexByHeader;
+  const cardNumberColumn = indexByHeader.cardNumber + 1;
   const values = sheet.getRange(2, cardNumberColumn, lastRow - 1, 1).getValues();
   for (let i = 0; i < values.length; i += 1) {
     if (String(values[i][0]).trim() === String(cardNumber).trim()) {
