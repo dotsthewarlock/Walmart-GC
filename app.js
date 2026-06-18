@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.39 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.40 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.39";
-const DEBUG_VERSION_CSS = "1.01.39";
+const DEBUG_VERSION_JS = "1.01.40";
+const DEBUG_VERSION_CSS = "1.01.40";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2809,6 +2809,14 @@ function handleSwipeEnd(event, action) {
   action(deltaX < 0 ? 1 : -1);
 }
 
+function isModalOpen() {
+  return !balanceModal.hidden || !confirmModal.hidden;
+}
+
+function isInteractiveGestureTarget(target) {
+  return Boolean(target.closest("button, a, input, textarea, select, [role='button'], [contenteditable='true']"));
+}
+
 navButtons.forEach((button) => {
   button.addEventListener("click", () => {
     showPanel(button.dataset.panel, { selectFirstVisible: button.dataset.panel === "detail" });
@@ -2920,23 +2928,23 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-cardDetail.addEventListener("touchstart", (event) => {
-  const touch = event.changedTouches[0];
-  touchStartX = touch.screenX;
-  touchStartY = touch.screenY;
-}, { passive: true });
-
-cardDetail.addEventListener("touchend", (event) => {
-  handleSwipeEnd(event, moveSelection);
-}, { passive: true });
-
 fullscreenBarcode.addEventListener("touchstart", (event) => {
+  if (fullscreenBarcode.hidden || isModalOpen() || isInteractiveGestureTarget(event.target)) {
+    touchStartX = 0;
+    touchStartY = 0;
+    return;
+  }
+
   const touch = event.changedTouches[0];
   touchStartX = touch.screenX;
   touchStartY = touch.screenY;
 }, { passive: true });
 
 fullscreenBarcode.addEventListener("touchend", (event) => {
+  if (fullscreenBarcode.hidden || isModalOpen() || isInteractiveGestureTarget(event.target) || (touchStartX === 0 && touchStartY === 0)) {
+    return;
+  }
+
   handleSwipeEnd(event, moveSelection);
 }, { passive: true });
 
