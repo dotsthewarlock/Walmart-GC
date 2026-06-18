@@ -1,5 +1,8 @@
 # AI Handoff
 
+For compact current context, read `docs/CODEX_ACTIVE_CONTEXT.md` first. This handoff provides expanded Phase 11 guidance only when needed. Archived docs under `docs/archive/` are historical and should not be read for normal tasks.
+
+
 ## Current Branch Context
 
 Active branch: `phase-11`.
@@ -135,14 +138,14 @@ Cards
 _META
 ```
 
-Do not change the card schema without explicit approval. Sheets are mapped by header name; new Sheets use this preferred order:
+Do not change the card schema without explicit approval. Sheets are mapped by header name; approved order:
 
 ```text
 cardNumber
 pin
+merchant
 startingBalance
 currentBalance
-merchant
 dateAdded
 dateUpdated
 dateUsed
@@ -215,7 +218,7 @@ OAuth is fixed when:
 
 ## Retired/Historical Paths
 
-Apps Script materials may remain only as historical MVP references, including `apps-script/Code.gs`, `docs/APPS_SCRIPT_SETUP.md`, and `docs/PHASE_6_SCHEMA_API_DECISIONS.md`. Apps Script must not appear as an active setup, sync, diagnostic, or user-facing option in Phase 11.
+Apps Script materials may remain only as historical MVP references, including `apps-script/Code.gs`, `docs/archive/apps-script-retired/APPS_SCRIPT_SETUP.md`, and `docs/archive/phase-6/PHASE_6_SCHEMA_API_DECISIONS.md`. Apps Script must not appear as an active setup, sync, diagnostic, or user-facing option in Phase 11.
 
 Do not reintroduce:
 

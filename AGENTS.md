@@ -1,5 +1,21 @@
 # Walmart-GC Agent Instructions
 
+## Current Source of Truth / Fast Path
+
+Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 11 context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
+
+Fast rules:
+
+* Exact error string / live behavior outranks assumptions.
+* Current repo files and active deployment/config outrank older docs.
+* Do not assume Worker, Apps Script, Wrangler, or GitHub Pages deployment path without confirming active runtime.
+* Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, or CSV backup/recovery without discussion.
+* Preserve offline/local usability and CSV backup/recovery.
+* For small UI/docs tasks, inspect only targeted files.
+* Read only task-relevant files; prefer exact-string search over broad scans; avoid `docs/archive/` unless history is required.
+
+---
+
 ## Repository
 
 Repository: `dotsthewarlock/Walmart-GC`
@@ -279,15 +295,14 @@ OAuth is fixed when:
 
 ## Documentation Authority
 
-Before recommending architecture, schema, sync, onboarding, or implementation changes, review:
+Before recommending architecture, schema, sync, onboarding, or implementation changes, review only the current files needed for the task:
 
-1. `AGENTS.md`
-2. `docs/AI_HANDOFF.md`
-3. `docs/ARCHITECTURE.md`
-4. `docs/ROADMAP.md`
-5. `docs/PHASE_6_SCHEMA_API_DECISIONS.md` for historical MVP schema/API decisions only
+1. `docs/CODEX_ACTIVE_CONTEXT.md` for compact current context
+2. `AGENTS.md` for mandatory guardrails
+3. `docs/ARCHITECTURE.md` for current architecture details
+4. `docs/AI_HANDOFF.md` or `docs/ROADMAP.md` only when the task needs handoff/roadmap context
 
-Historical Apps Script docs may remain, but they must clearly say they are historical and not part of the active Phase 11 architecture.
+Historical Apps Script and Phase 6 docs live under `docs/archive/` and are not current source of truth. Read archived docs only for exact old error strings, regression comparison, explicit historical requests, or migration/history tasks.
 
 ---
 

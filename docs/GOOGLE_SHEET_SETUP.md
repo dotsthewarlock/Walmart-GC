@@ -58,9 +58,9 @@ The `Cards` tab requires these header names. New or empty Sheets initialize with
 ```text
 cardNumber
 pin
+merchant
 startingBalance
 currentBalance
-merchant
 dateAdded
 dateUpdated
 dateUsed
@@ -71,7 +71,7 @@ notes
 As a CSV header row, the preferred order is:
 
 ```csv
-cardNumber,pin,startingBalance,currentBalance,merchant,dateAdded,dateUpdated,dateUsed,used,notes
+cardNumber,pin,merchant,startingBalance,currentBalance,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
 Do not rename, add, or remove schema fields during Phase 11.

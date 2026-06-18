@@ -119,14 +119,14 @@ Tabs:
 - `Cards`: the approved card data schema.
 - `_META`: sheet metadata, including the optimistic `sheetVersion` value used for conflict detection.
 
-Approved `Cards` schema (header-name based; new Sheets use this preferred order):
+Approved `Cards` schema (header-name based; approved order):
 
 ```text
 cardNumber
 pin
+merchant
 startingBalance
 currentBalance
-merchant
 dateAdded
 dateUpdated
 dateUsed
@@ -177,5 +177,7 @@ Conflict model:
 - Low maintenance.
 
 ## Historical Context
+
+Current active architecture is Worker-managed OAuth/session and Worker-backed Drive/Sheets access. Apps Script is retired as the intended Phase 11 sync path. Historical Apps Script and Phase 6 docs live under `docs/archive/` and should be consulted only when an exact live error string points there, a regression requires historical comparison, the user asks for history, or the task is specifically about migration/history.
 
 Phase 9, Phase 10, Phase 10E, and Apps Script MVP documentation are historical only. Apps Script sync is retired from the active architecture and must not be recommended as the Phase 11 sync path.
