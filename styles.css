@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css version 1.01.03 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css version 1.01.04 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -452,6 +452,10 @@ dd,
 
 .setting-row {
   background: #ffffff;
+}
+
+#force-refresh-app-shell {
+  width: 100%;
 }
 
 .setting-row span {

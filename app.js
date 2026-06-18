@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js version 1.01.23 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.24 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.23";
-const DEBUG_VERSION_CSS = "1.01.03";
+const DEBUG_VERSION_JS = "1.01.24";
+const DEBUG_VERSION_CSS = "1.01.04";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2584,12 +2584,17 @@ async function forceRefreshAppShell() {
       await Promise.all(registrations.map((registration) => registration.unregister()));
     }
   } catch {
-    // Reload anyway.
-  }
+    // Cache cleanup is best-effort; always continue to a page reload.
+  } finally {
+    const url = new URL(window.location.href);
+    url.searchParams.set("refresh", Date.now().toString());
 
-  const url = new URL(window.location.href);
-  url.searchParams.set("refresh", Date.now().toString());
-  window.location.replace(url.toString());
+    try {
+      window.location.replace(url.toString());
+    } catch {
+      window.location.reload();
+    }
+  }
 }
 
 function updateBalanceFromCheckout() {
