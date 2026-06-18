@@ -1451,3 +1451,186 @@ dd,
   min-width: 6.5rem;
   box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.28);
 }
+
+/* Phase 11.3b compact UX hardening */
+.card-button {
+  padding: 0.72rem 0.85rem;
+}
+
+.card-row-top {
+  min-height: 2.15rem;
+}
+
+.card-row-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  text-align: right;
+}
+
+.card-balance {
+  font-size: 1.08rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.settings-compact-action-row {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 1rem;
+  text-align: left;
+}
+
+.settings-compact-action-row:hover,
+.settings-compact-action-row:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  outline: none;
+}
+
+.settings-compact-action-row .compact-row-action {
+  width: auto;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.75rem;
+  pointer-events: none;
+}
+
+.setting-row small {
+  line-height: 1.2;
+}
+
+.barcode-action {
+  gap: 0.45rem;
+  min-height: 0;
+  padding: 0.7rem;
+}
+
+.barcode-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.barcode-meta-row > :last-child {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.barcode-placeholder .barcode-meta-row span,
+.barcode-placeholder .barcode-meta-row strong {
+  display: inline;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.barcode-render {
+  margin: 0.15rem 0;
+}
+
+.sync-overview {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 0.4rem;
+  border: 1px solid rgba(122, 74, 0, 0.3);
+  border-radius: 999px;
+  background: #fffaf0;
+  color: #7a4a00;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.1;
+  padding: 0.38rem 0.62rem;
+}
+
+.sync-overview::before {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.sync-overview[data-sync-overview="connected"] {
+  border-color: rgba(15, 123, 63, 0.32);
+  background: rgba(15, 123, 63, 0.08);
+  color: var(--unused);
+}
+
+.sync-overview[data-sync-overview="conflict"],
+.sync-overview[data-sync-overview="unavailable"] {
+  border-color: rgba(180, 35, 24, 0.28);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.barcode-focus-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.88);
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+}
+
+.barcode-focus-backdrop[hidden] {
+  display: none;
+}
+
+.barcode-focus-content {
+  display: grid;
+  gap: 0.7rem;
+  width: min(100%, 50rem);
+}
+
+.barcode-focus-close {
+  justify-self: end;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.barcode-focus-frame {
+  border: 0;
+  border-radius: 1rem;
+  background: #ffffff;
+  gap: 0.55rem;
+  min-height: 0;
+  padding: clamp(0.85rem, 2vw, 1.25rem);
+}
+
+.barcode-focus-frame .barcode-render,
+.fullscreen-barcode-render {
+  width: 100%;
+  min-height: clamp(7.5rem, 22vh, 13rem);
+}
+
+.fullscreen-barcode-render .barcode-svg {
+  height: clamp(7.5rem, 22vh, 13rem);
+}
+
+.archived-fullscreen-control {
+  display: none !important;
+}
+
+.advanced-diagnostics-content > details > summary {
+  margin: -0.15rem;
+  padding: 0.15rem;
+  border-radius: 0.7rem;
+}
+
+.advanced-diagnostics-content > details > summary h4 {
+  margin: 0;
+}
