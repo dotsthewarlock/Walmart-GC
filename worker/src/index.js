@@ -14,16 +14,16 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WORKER_VERSION = "2026-06-18.schema-header-name.1";
+const WORKER_VERSION = "2026-06-18.schema-header-name.2";
 const SCHEMA_MODE = "header-name";
 const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
 const CARD_HEADERS = [
   "cardNumber",
   "pin",
-  "merchant",
   "startingBalance",
   "currentBalance",
+  "merchant",
   "dateAdded",
   "dateUpdated",
   "dateUsed",
@@ -707,19 +707,27 @@ function validateCardHeaders(row) {
   if (duplicates.size > 0) {
     throw new HttpError(409, {
       ok: false,
-      error: `Cards header row has duplicate required header(s): ${Array.from(duplicates).join(", ")}.`,
+      error: formatCardsHeaderError(`Duplicate required Cards header(s): ${Array.from(duplicates).join(", ")}. Keep each approved header exactly once; column order can be changed.`),
     });
   }
 
   const missing = CARD_HEADERS.filter((header) => !headerMap.has(header));
   if (missing.length > 0) {
+    const recognizedHeaderCount = headerMap.size;
+    const recoveryHint = recognizedHeaderCount === 0
+      ? " The Cards header row has no recognized approved headers; fix row 1 or clear the tab only after exporting a CSV backup."
+      : " Add the missing header(s) to row 1; column order can be changed.";
     throw new HttpError(409, {
       ok: false,
-      error: `Cards header row is missing required header(s): ${missing.join(", ")}.`,
+      error: formatCardsHeaderError(`Missing required Cards header(s): ${missing.join(", ")}.${recoveryHint}`),
     });
   }
 
   return headerMap;
+}
+
+function formatCardsHeaderError(detail) {
+  return `${detail} Local data remains available. Export a CSV backup before any destructive Sheet recovery.`;
 }
 
 function columnNumberToA1(columnNumber) {
