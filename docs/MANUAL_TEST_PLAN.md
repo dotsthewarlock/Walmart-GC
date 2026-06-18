@@ -95,14 +95,14 @@ OAuth is fixed when every item in this section passes:
 
 ## Approved Sheet Schema
 
-Confirm `Cards` uses exactly:
+Confirm `Cards` includes the required header names. New or empty Sheets initialize with this preferred order, but existing Sheets may keep these required headers in any order:
 
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed

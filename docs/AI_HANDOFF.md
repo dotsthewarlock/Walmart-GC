@@ -135,14 +135,14 @@ Cards
 _META
 ```
 
-Do not change the card schema without explicit approval:
+Do not change the card schema without explicit approval. Sheets are mapped by header name; new Sheets use this preferred order:
 
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed

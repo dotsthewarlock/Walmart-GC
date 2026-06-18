@@ -19,9 +19,9 @@ const WALMART_GIFT_CARD_NUMBER_PATTERN = /^635\d{13}$/;
 const CARD_HEADERS = [
   "cardNumber",
   "pin",
-  "merchant",
   "startingBalance",
   "currentBalance",
+  "merchant",
   "dateAdded",
   "dateUpdated",
   "dateUsed",
@@ -269,13 +269,11 @@ async function handleCardsLoad(request, env) {
   const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
   await saveSession(env, sessionContext, sheet.sessionPatch);
 
-  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A1:J1`);
-  if (!areHeadersValid(headerRows[0])) {
-    throw new HttpError(409, { ok: false, error: "Cards headers do not match the approved schema." });
-  }
+  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!1:1`);
+  const headerMap = validateCardHeaders(headerRows[0]);
 
-  const rows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:J`);
-  const cards = cardsFromSheetRows(rows);
+  const rows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:ZZ`);
+  const cards = cardsFromSheetRows(rows, headerMap);
   const meta = await readSheetMeta(token, sheet.sheetId);
 
   return jsonResponse({
@@ -307,9 +305,15 @@ async function handleCardsSave(request, env) {
     return jsonResponse({ ok: false, conflict: true, remoteSheetVersion }, 409);
   }
 
-  const rows = cardsToSheetRows(cards);
-  await clearSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A:J`);
-  await writeSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A1:J${rows.length}`, rows);
+  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!1:1`);
+  const headerMap = validateCardHeaders(headerRows[0]);
+  const headerRow = normalizeHeaderRow(headerRows[0]);
+  const rows = cardsToSheetRows(cards, headerRow, headerMap);
+  const lastColumn = columnNumberToA1(headerRow.length);
+  await clearSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:${lastColumn}`);
+  if (cards.length > 0) {
+    await writeSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:${lastColumn}${cards.length + 1}`, rows);
+  }
   const nextMeta = await writeSheetMeta(token, sheet.sheetId, { sheetVersion: generateSheetVersion() });
   await saveSession(env, sessionContext, {
     sheetId: sheet.sheetId,
@@ -607,11 +611,11 @@ async function ensureSheetStructure(accessToken, spreadsheetId) {
     metaProperties = getSheetProperties(metadata, META_TAB);
   }
 
-  const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:J1`);
+  const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!1:1`);
   if (!headerRows.length || headerRows[0].every((cell) => !String(cell || "").trim())) {
     await writeSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:J1`, [CARD_HEADERS]);
-  } else if (!areHeadersValid(headerRows[0])) {
-    throw new HttpError(409, { ok: false, error: "Cards headers do not match the approved schema." });
+  } else {
+    validateCardHeaders(headerRows[0]);
   }
 
   const metaHeaderRows = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B1`);
@@ -672,8 +676,53 @@ async function writeSheetMeta(accessToken, spreadsheetId, nextMeta = {}) {
   return meta;
 }
 
-function areHeadersValid(row) {
-  return CARD_HEADERS.every((header, index) => String(row?.[index] || "").trim() === header);
+function normalizeHeaderRow(row) {
+  return Array.isArray(row) ? row.map((header) => String(header || "").trim()) : [];
+}
+
+function validateCardHeaders(row) {
+  const headers = normalizeHeaderRow(row);
+  const headerMap = new Map();
+  const duplicates = new Set();
+
+  headers.forEach((header, index) => {
+    if (!header || !CARD_HEADERS.includes(header)) {
+      return;
+    }
+    if (headerMap.has(header)) {
+      duplicates.add(header);
+      return;
+    }
+    headerMap.set(header, index);
+  });
+
+  if (duplicates.size > 0) {
+    throw new HttpError(409, {
+      ok: false,
+      error: `Cards header row has duplicate required header(s): ${Array.from(duplicates).join(", ")}.`,
+    });
+  }
+
+  const missing = CARD_HEADERS.filter((header) => !headerMap.has(header));
+  if (missing.length > 0) {
+    throw new HttpError(409, {
+      ok: false,
+      error: `Cards header row is missing required header(s): ${missing.join(", ")}.`,
+    });
+  }
+
+  return headerMap;
+}
+
+function columnNumberToA1(columnNumber) {
+  let number = Math.max(1, Number(columnNumber) || 1);
+  let label = "";
+  while (number > 0) {
+    const remainder = (number - 1) % 26;
+    label = String.fromCharCode(65 + remainder) + label;
+    number = Math.floor((number - 1) / 26);
+  }
+  return label;
 }
 
 function validateCards(cards) {
@@ -705,7 +754,7 @@ function validateCards(cards) {
   });
 }
 
-function cardsFromSheetRows(rows) {
+function cardsFromSheetRows(rows, headerMap) {
   const cards = [];
   const seen = new Set();
   rows.forEach((row, index) => {
@@ -713,7 +762,8 @@ function cardsFromSheetRows(rows) {
       return;
     }
     const card = {};
-    CARD_HEADERS.forEach((header, headerIndex) => {
+    CARD_HEADERS.forEach((header) => {
+      const headerIndex = headerMap.get(header);
       card[header] = header === "used"
         ? String(row[headerIndex] || "").toLowerCase() === "true"
         : String(row[headerIndex] ?? "");
@@ -733,13 +783,16 @@ function cardsFromSheetRows(rows) {
   return cards;
 }
 
-function cardsToSheetRows(cards) {
-  return [CARD_HEADERS, ...cards.map((card) => CARD_HEADERS.map((header) => {
+function cardsToSheetRows(cards, headerRow, headerMap) {
+  return cards.map((card) => headerRow.map((header) => {
+    if (!headerMap.has(header)) {
+      return "";
+    }
     if (header === "used") {
       return card.used ? "TRUE" : "FALSE";
     }
     return card[header] ?? "";
-  }))];
+  }));
 }
 
 function isSheetValuesEmpty(values) {
