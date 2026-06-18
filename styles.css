@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.32 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.33 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -68,15 +68,7 @@ button:disabled {
 }
 
 .debug-version-fingerprint {
-  margin-bottom: 0.55rem;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: clamp(0.62rem, 2.4vw, 0.74rem);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.25;
-  text-align: right;
-  text-transform: uppercase;
-  user-select: text;
+  display: none;
 }
 
 .intro {
@@ -105,7 +97,7 @@ button:disabled {
 
 .top-nav {
   display: grid;
-  grid-template-columns: minmax(4.6rem, 1fr) minmax(5.2rem, 1fr) 2.8rem 2.8rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.3rem;
   position: fixed;
   top: 0;
@@ -125,12 +117,13 @@ button:disabled {
   background: transparent;
   color: var(--primary-dark);
   cursor: pointer;
-  font-size: clamp(0.78rem, 3vw, 0.98rem);
+  font-size: clamp(0.72rem, 2.7vw, 0.95rem);
   font-weight: 800;
   padding: 0.58rem 0.35rem;
   text-align: center;
   transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
-  white-space: nowrap;
+  line-height: 1.1;
+  white-space: normal;
 }
 
 .icon-nav-button {
