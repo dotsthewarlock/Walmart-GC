@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.45 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.46 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -1633,4 +1633,217 @@ dd,
 
 .advanced-diagnostics-content > details > summary h4 {
   margin: 0;
+}
+
+/* Phase 11.3c compact UI and backup safety polish */
+.cards-heading {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.card-count-summary {
+  justify-self: center;
+  min-width: 4.25rem;
+  text-align: center;
+}
+
+.card-total-balance {
+  justify-self: end;
+  color: var(--primary-dark);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.card-row-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.card-number,
+.card-balance {
+  line-height: 1.2;
+}
+
+.card-balance {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.settings-list {
+  gap: 0.55rem;
+}
+
+.setting-row,
+.settings-compact-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3.1rem;
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+}
+
+.setting-row strong,
+.settings-compact-action-row strong {
+  white-space: nowrap;
+}
+
+.setting-row small {
+  display: none;
+}
+
+.sort-setting-row select {
+  width: min(100%, 15rem);
+  padding: 0.55rem 0.7rem;
+  text-align: right;
+}
+
+.compact-row-action,
+.app-reload-button {
+  flex: 0 0 auto;
+  min-width: 4.75rem;
+  width: auto;
+  padding: 0.5rem 0.7rem;
+  text-align: center;
+}
+
+.settings-compact-action-row {
+  width: 100%;
+  border-color: var(--border);
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.compact-checkout-details,
+.checkout-priority-grid {
+  gap: 0.35rem 0.8rem;
+}
+
+.detail-grid.compact-checkout-details div,
+.compact-checkout-details .checkout-primary-detail,
+.compact-checkout-details .checkout-secondary-detail {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.compact-checkout-details dt {
+  margin: 0;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.compact-checkout-details dd,
+.compact-checkout-details .checkout-primary-detail dd,
+.compact-checkout-details .checkout-secondary-detail dd {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.compact-checkout-details #detail-current-balance {
+  font-size: 1.15rem;
+}
+
+.date-line {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.barcode-placeholder span {
+  display: inline;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.barcode-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.barcode-meta-bottom {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.notes-button {
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  background: #fbfcfe;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.notes-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.notes-heading {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.notes-input {
+  width: 100%;
+  min-height: 9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  color: var(--text);
+  font: inherit;
+  padding: 0.75rem;
+  resize: vertical;
+}
+
+.data-section summary.data-section-heading {
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.data-section[open] summary.data-section-heading {
+  margin-bottom: 0.75rem;
+}
+
+.sync-overview {
+  justify-self: start;
+  border-radius: 999px;
+  background: #fff7d6;
+  color: #7a4a00;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 0.28rem 0.62rem;
+}
+
+.sync-overview[data-sync-overview="connected"] {
+  background: rgba(15, 123, 63, 0.12);
+  color: var(--unused);
+}
+
+.sync-overview[data-sync-overview="conflict"],
+.sync-overview[data-sync-overview="unavailable"] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.data-card-heading,
+.data-section-heading {
+  gap: 0.25rem;
 }
