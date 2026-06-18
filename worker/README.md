@@ -131,9 +131,9 @@ Approved `Cards` schema:
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
 dateAdded
 dateUpdated
 dateUsed
