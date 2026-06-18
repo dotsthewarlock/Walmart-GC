@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css version 1.01.04 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css version 1.01.05 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -454,7 +454,8 @@ dd,
   background: #ffffff;
 }
 
-#force-refresh-app-shell {
+.app-reload-button {
+  box-sizing: border-box;
   width: 100%;
 }
 
