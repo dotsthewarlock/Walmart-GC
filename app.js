@@ -1,6 +1,6 @@
-// Debug file fingerprint: app.js version 1.01.22 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.23 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.22";
+const DEBUG_VERSION_JS = "1.01.23";
 const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
@@ -100,6 +100,7 @@ const hideUsedCheckbox = document.querySelector("#hide-used");
 const hideZeroBalanceCheckbox = document.querySelector("#hide-zero-balance");
 const sortCardsSelect = document.querySelector("#sort-cards");
 const markZeroUsedButton = document.querySelector("#mark-zero-used");
+const forceRefreshAppShellButton = document.querySelector("#force-refresh-app-shell");
 const detailStatus = document.querySelector("#detail-status");
 const detailNumber = document.querySelector("#detail-number");
 const detailPin = document.querySelector("#detail-pin");
@@ -2571,6 +2572,26 @@ function markUsedFromCheckout() {
   }
 }
 
+async function forceRefreshAppShell() {
+  try {
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+    }
+
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+  } catch {
+    // Reload anyway.
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("refresh", Date.now().toString());
+  window.location.replace(url.toString());
+}
+
 function updateBalanceFromCheckout() {
   openBalanceModal();
 }
@@ -2632,6 +2653,7 @@ remainingBalanceInput.addEventListener("input", () => calculateModalCounterpart(
 cancelBalanceUpdateButton.addEventListener("click", closeBalanceModal);
 saveBalanceUpdateButton.addEventListener("click", saveBalanceUpdate);
 markZeroUsedButton.addEventListener("click", openZeroBalanceConfirm);
+forceRefreshAppShellButton.addEventListener("click", forceRefreshAppShell);
 cancelConfirmButton.addEventListener("click", closeConfirmModal);
 confirmZeroUsedButton.addEventListener("click", markZeroBalanceCardsUsed);
 barcodeOpenButton.addEventListener("click", openFullscreenBarcode);
