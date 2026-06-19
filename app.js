@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js version 1.01.02 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js version 1.01.03 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.02";
-const DEBUG_VERSION_CSS = "1.01.02";
+const DEBUG_VERSION_JS = "1.01.03";
+const DEBUG_VERSION_CSS = "1.01.03";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -95,6 +95,7 @@ const navButtons = document.querySelectorAll(".nav-button");
 const panelSections = document.querySelectorAll("[data-panel-name]");
 const cardList = document.querySelector("#card-list");
 const cardCount = document.querySelector("#card-count");
+const cardTotalBalance = document.querySelector("#card-total-balance");
 const advanceOnUsedCheckbox = document.querySelector("#advance-on-used");
 const hideUsedCheckbox = document.querySelector("#hide-used");
 const hideZeroBalanceCheckbox = document.querySelector("#hide-zero-balance");
@@ -2049,12 +2050,15 @@ function renderUsedIndicator(card) {
 
 function renderCardList() {
   const visibleIndexes = getVisibleCardIndexes();
-  const hiddenCount = sampleGiftCards.length - visibleIndexes.length;
-  const countLabel = hiddenCount > 0
-    ? `${visibleIndexes.length} of ${sampleGiftCards.length} cards`
-    : `${sampleGiftCards.length} cards`;
+  const countLabel = `${visibleIndexes.length}/${sampleGiftCards.length}`;
+
+  const totalVisibleBalance = visibleIndexes.reduce(
+    (total, cardIndex) => total + normalizeMoney(sampleGiftCards[cardIndex].currentBalance),
+    0,
+  );
 
   cardCount.textContent = countLabel;
+  cardTotalBalance.textContent = formatBalance(totalVisibleBalance);
   cardList.innerHTML = "";
 
   if (visibleIndexes.length === 0) {

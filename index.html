@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html version 1.01.02 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html version 1.01.03 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Walmart-GC</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=1.01.03" />
   </head>
   <body>
     <nav class="top-nav" aria-label="Panel navigation">
@@ -20,10 +20,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.02"
+          data-html-version="1.01.03"
           aria-label="Debug file fingerprint versions"
         >
-          HTML 1.01.02 · JS loading · CSS 1.01.02
+          HTML 1.01.03 · JS loading · CSS 1.01.03
         </div>
         <p class="eyebrow">Walmart-GC</p>
         <h1>Gift card manager</h1>
@@ -37,12 +37,24 @@
 
     <main class="container app-shell" aria-live="polite">
       <section id="list-panel" class="panel list-panel" aria-labelledby="card-list-heading" data-panel-name="list">
-        <div class="section-heading">
+        <div class="section-heading compact-heading">
           <div>
-            <p class="eyebrow">Cards</p>
-            <h2 id="card-list-heading">Card list</h2>
+            <h2 id="card-list-heading">Cards</h2>
           </div>
+        </div>
+
+        <div class="panel-toolbar cards-toolbar" aria-label="Card list controls">
+          <select id="sort-cards" class="cards-sort-select" aria-label="Sort cards">
+            <option value="balance-asc">Balance ↑</option>
+            <option value="balance-desc">Balance ↓</option>
+            <option value="date-added-asc">Added old</option>
+            <option value="date-added-desc">Added new</option>
+            <option value="date-updated-asc">Updated old</option>
+            <option value="date-updated-desc">Updated new</option>
+            <option value="card-number">Card #</option>
+          </select>
           <span id="card-count" class="count-badge">0 cards</span>
+          <span id="card-total-balance" class="toolbar-total-balance">$0.00</span>
         </div>
 
         <div id="card-list" class="card-list"></div>
@@ -53,7 +65,7 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">Selected card</p>
-              <h2 id="card-detail-heading">Card detail</h2>
+              <h2 id="card-detail-heading">Checkout</h2>
             </div>
             <span id="detail-status" class="status-badge" hidden></span>
           </div>
@@ -140,22 +152,6 @@
                 <small>Hide cards where Current Balance = $0.00.</small>
               </span>
               <input id="hide-zero-balance" type="checkbox" />
-            </label>
-
-            <label class="setting-row setting-row-stacked" for="sort-cards">
-              <span>
-                <strong>Sort Cards</strong>
-                <small>Affects list and Prev / Next navigation.</small>
-              </span>
-              <select id="sort-cards">
-                <option value="balance-asc">Balance (Low → High)</option>
-                <option value="balance-desc">Balance (High → Low)</option>
-                <option value="date-added-asc">Date Added (Oldest First)</option>
-                <option value="date-added-desc">Date Added (Newest First)</option>
-                <option value="date-updated-asc">Date Updated (Oldest First)</option>
-                <option value="date-updated-desc">Date Updated (Newest First)</option>
-                <option value="card-number">Card Number</option>
-              </select>
             </label>
 
             <div class="setting-row setting-row-stacked">
@@ -316,12 +312,12 @@
           <button id="fullscreen-next" class="secondary-button" type="button">Next</button>
         </div>
         <div class="fullscreen-actions" aria-label="Checkout actions">
-          <button id="fullscreen-mark-used" class="danger-button" type="button">Mark Used</button>
-          <button id="fullscreen-update-balance" class="primary-button" type="button">Update Balance</button>
+          <button id="fullscreen-mark-used" class="danger-button compact-checkout-button" type="button" aria-label="Mark used" title="Mark used">Mark used</button>
+          <button id="fullscreen-update-balance" class="primary-button compact-checkout-button" type="button" aria-label="Update balance" title="Update balance">Update</button>
         </div>
       </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=1.01.03"></script>
   </body>
 </html>
