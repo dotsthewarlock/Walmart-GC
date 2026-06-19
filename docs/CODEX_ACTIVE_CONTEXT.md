@@ -82,7 +82,7 @@ used
 notes
 ```
 
-Merchant model: `merchant` is the explicit user-entered/user-selected override only; `merchantInferred` is app/Worker-derived from `cardNumber`; `effectiveMerchant` is runtime-only (`merchant || merchantInferred`) and must not be stored. Existing old-schema Sheets missing only `merchantInferred` are safe additive migration candidates.
+Merchant model: `merchant` is the explicit user-entered/user-selected override only and must not be inferred/defaulted to `walmart-ca` when blank; `merchantInferred` is app/Worker-derived from `cardNumber` and is `walmart-ca` for valid Walmart Canada cards; `effectiveMerchant = merchant || merchantInferred` is runtime-only and must not be stored. Existing old-schema Sheets missing only `merchantInferred` are safe additive migration candidates.
 
 Barcode payload is derived only and must not be stored: `79936686504000 + cardNumber`. Conflict handling uses `_META.sheetVersion`: no silent overwrite, no automatic merge, user chooses recovery, CSV backup before destructive recovery.
 
@@ -97,6 +97,20 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - Branches use lowercase kebab-case, for example `phase-11-fix-sync-status`; PR/task names use imperative verb phrases, for example “Clarify Apps Script diagnostic docs”.
 - JavaScript functions/variables use `camelCase`; JavaScript constants use `SCREAMING_SNAKE_CASE`.
 - Preserve approved schema field names as existing `camelCase`; do not rename schema fields for style.
+
+## Design and CSS Governance
+
+For design decisions, consult Material 3 guidance. Flag likely Material 3 violations, and ask for clarification when a requested design choice conflicts with Material 3 or compliance is ambiguous.
+
+For CSS cleanup, remove only confirmed-unused selectors. Consolidate duplicate or phase-layered overrides only when final behavior is clear. Preserve visual and behavior baselines unless the task explicitly requests a change.
+
+## Current UI Baseline
+
+- Settings gear: accepted placement and opacity behavior should remain stable.
+- Cards toolbar: accepted alignment and sort dropdown presentation should remain stable.
+- Barcode focus modal: accepted visible centered counter should remain stable.
+- Raw CSV lock button: accepted lock/unlock state indicators should remain stable.
+- Global status, sync, diagnostics, barcode, checkout, and CSV recovery behavior should not change during cleanup/refactor tasks unless explicitly requested.
 
 ## Docs Update Authority
 

@@ -135,7 +135,7 @@ used
 notes
 ```
 
-Merchant model: `merchant` stores only the explicit user override, `merchantInferred` stores the app/Worker-derived merchant from `cardNumber`, and runtime-only `effectiveMerchant` must not be stored. Old Sheets missing only `merchantInferred` can be additively migrated by header name.
+Merchant model: `merchant` stores only the explicit user-entered/user-selected override and must not be inferred/defaulted to `walmart-ca` when blank; `merchantInferred` stores the app/Worker-derived merchant from `cardNumber` and is `walmart-ca` for valid Walmart Canada cards; runtime-only `effectiveMerchant = merchant || merchantInferred` must not be stored. Old Sheets missing only `merchantInferred` can be additively migrated by header name.
 
 Barcode payload is derived only and must not be stored:
 

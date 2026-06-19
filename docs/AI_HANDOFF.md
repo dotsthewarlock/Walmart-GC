@@ -146,6 +146,7 @@ pin
 startingBalance
 currentBalance
 merchant
+merchantInferred
 dateAdded
 dateUpdated
 dateUsed
@@ -156,7 +157,9 @@ notes
 Rules:
 
 - `cardNumber` is the unique ID.
-- `merchant` is a required approved header. Blank merchant values on valid Walmart Canada gift card numbers are inferred/defaulted to `walmart-ca`; runtime barcode/UI behavior uses the same Walmart Canada inference.
+- `merchant` is explicit user-entered/user-selected override only. Do not infer or default blank `merchant` values to `walmart-ca`.
+- `merchantInferred` is system-derived from `cardNumber`; for valid Walmart Canada cards, it is `walmart-ca`.
+- `effectiveMerchant = merchant || merchantInferred` is runtime-only and must not be stored.
 - `currentBalance` is authoritative.
 - `startingBalance` is historical.
 - `used` is independent of balance.

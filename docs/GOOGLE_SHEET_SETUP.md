@@ -61,6 +61,7 @@ pin
 startingBalance
 currentBalance
 merchant
+merchantInferred
 dateAdded
 dateUpdated
 dateUsed
@@ -71,7 +72,7 @@ notes
 As a CSV header row, the preferred order is:
 
 ```csv
-cardNumber,pin,startingBalance,currentBalance,merchant,dateAdded,dateUpdated,dateUsed,used,notes
+cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
 Do not rename, add, or remove schema fields during Phase 11.
@@ -80,7 +81,9 @@ Do not rename, add, or remove schema fields during Phase 11.
 
 - `cardNumber` is required, must be unique, must start with `63`, must be exactly 16 numeric digits, and is the record ID.
 - `pin` is required for practical checkout use.
-- `merchant` is required as a header, but individual cells may be blank. Blank merchant values on valid Walmart Canada gift card numbers are inferred/defaulted to `walmart-ca`; runtime barcode/UI behavior uses the same Walmart Canada inference.
+- `merchant` is explicit user-entered/user-selected override only. Do not infer or default blank `merchant` values to `walmart-ca`.
+- `merchantInferred` is system-derived from `cardNumber`; for valid Walmart Canada cards, it is `walmart-ca`.
+- `effectiveMerchant = merchant || merchantInferred` is runtime-only and must not be stored.
 - `startingBalance` is the historical starting value.
 - `currentBalance` is the authoritative remaining balance.
 - `dateAdded`, `dateUpdated`, and `dateUsed` should use `YYYY-MM-DD` when populated.
@@ -91,10 +94,10 @@ Do not rename, add, or remove schema fields during Phase 11.
 ## Example Rows
 
 ```csv
-cardNumber,pin,startingBalance,currentBalance,merchant,dateAdded,dateUpdated,dateUsed,used,notes
-6351234567890123,1234,50.00,50.00,walmart-ca,2026-06-01,2026-06-01,,false,New card
-6352234567890123,5678,100.00,37.42,walmart-ca,2026-06-02,2026-06-09,,false,Partial balance after grocery trip
-6353234567890123,9999,25.00,0.00,walmart-ca,2026-06-03,2026-06-08,2026-06-08,true,Fully used
+cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes
+6351234567890123,1234,50.00,50.00,,walmart-ca,2026-06-01,2026-06-01,,false,New card
+6352234567890123,5678,100.00,37.42,,walmart-ca,2026-06-02,2026-06-09,,false,Partial balance after grocery trip
+6353234567890123,9999,25.00,0.00,,walmart-ca,2026-06-03,2026-06-08,2026-06-08,true,Fully used
 ```
 
 ## Data Safety
