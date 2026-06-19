@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.49 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.50 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.49" />
+    <link rel="stylesheet" href="styles.css?v=1.01.50" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,25 +21,15 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.49"
+          data-html-version="1.01.50"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.49 · JS loading · CSS 1.01.49
+          HTML 1.01.50 · JS loading · CSS 1.01.50
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
           <button id="open-settings" class="settings-gear-button" type="button" aria-label="Open settings" title="Open settings">⚙</button>
         </div>
-        <button
-          id="app-sync-summary"
-          class="app-sync-summary"
-          type="button"
-          aria-live="polite"
-          aria-label="Sync status. Open backup and sync"
-        >
-          <span class="app-sync-summary-label">Local only</span>
-          <span class="app-sync-summary-help">Open backup and sync</span>
-        </button>
         <div id="checkout-feedback" class="checkout-feedback global-status-banner" role="status" aria-live="polite">Local only</div>
       </div>
     </header>
@@ -99,7 +89,6 @@
             </div>
 
             <button id="open-notes-modal" class="notes-block notes-button" type="button">
-              <span class="notes-heading">Notes</span>
               <span id="detail-notes">Select a card to view notes.</span>
             </button>
           </article>
@@ -110,7 +99,6 @@
             <div>
               <h2 id="settings-heading">Settings</h2>
             </div>
-            <button id="close-settings" class="secondary-button" type="button">Done</button>
           </div>
 
           <div class="settings-list">
@@ -121,10 +109,10 @@
               <select id="sort-cards">
                 <option value="balance-asc">Balance (low → high)</option>
                 <option value="balance-desc">Balance (high → low)</option>
-                <option value="date-added-asc">Date added (oldest)</option>
-                <option value="date-added-desc">Date added (newest)</option>
-                <option value="date-updated-asc">Date updated (oldest)</option>
-                <option value="date-updated-desc">Date updated (newest)</option>
+                <option value="date-added-asc">Date added (old)</option>
+                <option value="date-added-desc">Date added (new)</option>
+                <option value="date-updated-asc">Date updated (old)</option>
+                <option value="date-updated-desc">Date updated (new)</option>
                 <option value="card-number">Card number</option>
               </select>
             </label>
@@ -168,7 +156,6 @@
           <details id="backup-sync-section" class="data-section backup-sync-section" aria-labelledby="backup-sync-heading">
             <summary class="data-section-heading">
               <h3 id="backup-sync-heading">Backup and sync</h3>
-              <p>Google Sheets sync, CSV backup, recovery, and diagnostics.</p>
               <div id="backup-sync-overview" class="sync-overview" role="status" aria-live="polite">Setup needed</div>
             </summary>
 
@@ -176,70 +163,38 @@
           <details id="google-sync-section" class="data-section google-sync-section" aria-labelledby="google-sync-heading">
             <summary class="data-section-heading">
               <h3 id="google-sync-heading">Google sync</h3>
-              <p>Google Sheets sync across devices.</p>
               <div id="google-sync-overview" class="sync-overview" role="status" aria-live="polite">Setup needed</div>
             </summary>
 
-            <details id="google-account-panel" class="data-card collapsible-data-card oauth-card">
-              <summary>
-              <div class="data-card-heading">
-                <div>
-                  <h4>Google account</h4>
-                  <p>Connect Google for sync.</p>
-                </div>
-              </div>
-
-              </summary>
-
+            <div id="google-account-panel" class="data-card oauth-card flat-data-card">
               <div class="connection-actions oauth-actions" aria-label="Google account actions">
                 <button id="connect-google" class="primary-button" type="button">Connect Google</button>
-                <button id="disconnect-google" class="secondary-button" type="button">Disconnect</button>
+                <button id="disconnect-google" class="secondary-button" type="button">Disconnect Google</button>
               </div>
+              <div id="google-oauth-status" class="connection-status oauth-status subtle-identity" role="status" aria-live="polite"></div>
+            </div>
 
-              <div id="google-oauth-status" class="connection-status oauth-status" role="status" aria-live="polite"></div>
-            </details>
-
-            <details id="google-sheet-panel" class="data-card collapsible-data-card direct-sheets-card">
-              <summary>
-              <div class="data-card-heading">
-                <div>
-                  <h4>Google Sheet</h4>
-                  <p>Verify or sync <code>Walmart-GC Data</code>.</p>
-                </div>
-              </div>
-
-              </summary>
-
+            <div id="google-sheet-panel" class="data-card direct-sheets-card flat-data-card">
+              <h4>Google Sheet</h4>
               <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
-                <button id="initialize-direct-sheet" class="secondary-button" type="button">Verify / Initialize</button>
+                <button id="initialize-direct-sheet" class="secondary-button" type="button">Fix Google Sheet</button>
                 <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
                 <button id="load-direct-sheet" class="primary-button" type="button">Import from Google</button>
                 <button id="sync-direct-sheet" class="secondary-button" type="button">Export to Google</button>
               </div>
 
-              <div id="direct-sheet-status" class="connection-status" role="status" aria-live="polite"></div>
+              <div id="direct-sheet-status" class="connection-status sheet-status-compact" role="status" aria-live="polite"></div>
               <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
-            </details>
+            </div>
           </details>
 
           <details id="backup-restore-section" class="data-section backup-restore-section" aria-labelledby="backup-restore-heading">
             <summary class="data-section-heading">
-              <h3 id="backup-restore-heading">Backup and restore</h3>
-              <p>CSV backup and local restore.</p>
+              <h3 id="backup-restore-heading">CSV backup</h3>
               <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
             </summary>
 
-            <details id="csv-recovery-panel" class="data-card collapsible-data-card csv-recovery-card">
-              <summary>
-              <div class="data-card-heading">
-                <div>
-                  <h4>CSV backup and recovery</h4>
-                  <p>Export is safe. Import replaces local cards after confirmation.</p>
-                </div>
-              </div>
-
-              </summary>
-
+            <div id="csv-recovery-panel" class="data-card csv-recovery-card flat-data-card">
               <div class="data-actions" aria-label="CSV backup and recovery actions">
                 <div class="data-action-row">
                   <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
@@ -247,14 +202,13 @@
                   <button id="export-csv" class="secondary-button" type="button">Export CSV</button>
                 </div>
               </div>
-            </details>
+            </div>
           </details>
 
           <details class="data-section advanced-diagnostics-section">
             <summary aria-label="Show advanced diagnostics tools">
               <span>
                 <strong>Advanced diagnostics</strong>
-                <small>Raw CSV, warnings, headers, and sync details.</small>
               </span>
             </summary>
 
@@ -264,7 +218,6 @@
                 <div class="data-card-heading">
                   <div>
                     <h4>Raw CSV editor</h4>
-                    <p>Review or edit raw local CSV.</p>
                   </div>
                 </div>
                 </summary>
@@ -310,7 +263,7 @@
           </details>
             </div>
           </details>
-          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.49 · JS 1.01.49 · CSS 1.01.49</p>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.50 · JS 1.01.50 · CSS 1.01.50</p>
       </section>
     </main>
 
@@ -383,6 +336,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.49"></script>
+    <script src="app.js?v=1.01.50"></script>
   </body>
 </html>

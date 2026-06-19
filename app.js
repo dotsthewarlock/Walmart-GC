@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.49 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.50 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.49";
-const DEBUG_VERSION_CSS = "1.01.49";
+const DEBUG_VERSION_JS = "1.01.50";
+const DEBUG_VERSION_CSS = "1.01.50";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -101,7 +101,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 const navButtons = document.querySelectorAll(".nav-button");
 const settingsOpenButton = document.querySelector("#open-settings");
-const settingsCloseButton = document.querySelector("#close-settings");
 const appShell = document.querySelector(".app-shell");
 const panelSections = document.querySelectorAll("[data-panel-name]");
 const cardList = document.querySelector("#card-list");
@@ -1494,7 +1493,7 @@ function getDirectSheetsDisplayUrl() {
 }
 
 function setDetailsOpen(detailsElement, shouldOpen) {
-  if (detailsElement) {
+  if (detailsElement?.tagName === "DETAILS") {
     detailsElement.open = Boolean(shouldOpen);
   }
 }
@@ -1506,10 +1505,7 @@ function updateBackupPanelOpenState() {
   const syncNeedsAttention = accountNeedsAttention || sheetNeedsAttention || syncState.status === syncStatuses.conflict || Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
   setDetailsOpen(backupSyncSection, syncNeedsAttention);
   setDetailsOpen(googleSyncSection, syncNeedsAttention);
-  setDetailsOpen(googleAccountPanel, accountNeedsAttention);
-  setDetailsOpen(googleSheetPanel, sheetNeedsAttention);
   setDetailsOpen(backupRestoreSection, false);
-  setDetailsOpen(csvRecoveryPanel, false);
   renderAppSyncSummary();
 }
 
@@ -1572,21 +1568,19 @@ function renderGoogleOAuthState() {
   }
 
   const isBusy = [googleOAuthStatuses.connecting, googleOAuthStatuses.restoring].includes(googleOAuthState.status);
+  const isConnected = googleOAuthState.status === googleOAuthStatuses.connected;
   connectGoogleButton.disabled = isBusy;
+  connectGoogleButton.hidden = isConnected;
   disconnectGoogleButton.disabled = isBusy;
-  disconnectGoogleButton.hidden = googleOAuthState.status === googleOAuthStatuses.disconnected && !googleOAuthState.connectedEmail;
+  disconnectGoogleButton.hidden = !isConnected;
 
   renderAdvancedSyncDiagnostics(getGoogleOAuthDiagnosticRows(), getDirectSheetsDiagnosticRows());
   updateBackupPanelOpenState();
 
-  googleOAuthStatusArea.className = `connection-status oauth-status is-${getGoogleOAuthStatusClass()}`;
-  googleOAuthStatusArea.innerHTML = `
-    <div class="connection-status-header">
-      <span class="connection-status-dot" aria-hidden="true"></span>
-      <strong>${escapeHtml(googleOAuthState.status)}</strong>
-    </div>
-    <p>${escapeHtml(googleOAuthState.message || defaultGoogleOAuthState.message)}</p>
-  `;
+  googleOAuthStatusArea.className = `connection-status oauth-status subtle-identity is-${getGoogleOAuthStatusClass()}`;
+  const connectedIdentity = googleOAuthState.connectedEmail || googleOAuthState.connectedName;
+  googleOAuthStatusArea.hidden = !isConnected || !connectedIdentity;
+  googleOAuthStatusArea.textContent = connectedIdentity ? `Connected as ${connectedIdentity}` : "";
 }
 
 function getWorkerApiUrl(path) {
@@ -1940,7 +1934,7 @@ function getAppSyncSummaryState() {
     };
   }
 
-  if (hasWorkerGoogleSession() && directSheetsState.status === directSheetsStatuses.ready && syncState.status === syncStatuses.connected) {
+  if (hasWorkerGoogleSession() && directSheetsState.status === directSheetsStatuses.ready) {
     return {
       key: "connected",
       label: "Connected",
@@ -2046,7 +2040,7 @@ async function ensureWalmartGcDataSheet() {
 }
 
 // Post-connect Sheet setup intentionally remains user-directed during Phase 11:
-// after OAuth returns, users choose Verify / Initialize, Import from Google, or Export to Google so
+// after OAuth returns, users choose Fix Google Sheet, Import from Google, or Export to Google so
 // local cards are never replaced or uploaded automatically.
 
 function openActiveGoogleSheet() {
@@ -3078,7 +3072,7 @@ function isInteractiveGestureTarget(target) {
 let primarySwipeStart = null;
 
 function shouldIgnorePrimarySwipe(target) {
-  if (currentPanelName !== "list" && currentPanelName !== "detail") {
+  if (!["list", "detail", "settings"].includes(currentPanelName)) {
     return true;
   }
 
@@ -3086,7 +3080,7 @@ function shouldIgnorePrimarySwipe(target) {
     return true;
   }
 
-  return isInteractiveGestureTarget(target) || Boolean(target.closest(".modal-backdrop, #raw-data-input, .notes-block"));
+  return isInteractiveGestureTarget(target) || Boolean(target.closest(".modal-backdrop, #raw-data-input, .notes-block, .advanced-diagnostics-section, .raw-data-card, .diagnostics-detail-card"));
 }
 
 function handlePrimarySwipeStart(event) {
@@ -3111,15 +3105,20 @@ function handlePrimarySwipeEnd(event) {
   const touch = event.changedTouches[0];
   const deltaX = touch.clientX - primarySwipeStart.x;
   const deltaY = touch.clientY - primarySwipeStart.y;
+  const swipePanel = primarySwipeStart.panel;
   primarySwipeStart = null;
 
   if (Math.abs(deltaX) < 80 || Math.abs(deltaY) > 55 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
     return;
   }
 
-  if (deltaX < 0 && currentPanelName === "list") {
+  if (deltaX < 0 && swipePanel === "list") {
     showPanel("detail", { selectFirstVisible: true });
-  } else if (deltaX > 0 && currentPanelName === "detail") {
+  } else if (deltaX > 0 && swipePanel === "detail") {
+    showPanel("list");
+  } else if (swipePanel === "settings" && previousPrimaryPanelName === "list" && deltaX < 0) {
+    showPanel("detail", { selectFirstVisible: true });
+  } else if (swipePanel === "settings" && previousPrimaryPanelName === "detail" && deltaX > 0) {
     showPanel("list");
   }
 }
@@ -3134,8 +3133,14 @@ navButtons.forEach((button) => {
   });
 });
 
-settingsOpenButton?.addEventListener("click", () => openSettingsPanel());
-settingsCloseButton?.addEventListener("click", closeSettingsPanel);
+settingsOpenButton?.addEventListener("click", () => {
+  if (currentPanelName === "settings") {
+    closeSettingsPanel();
+    return;
+  }
+
+  openSettingsPanel();
+});
 
 previousButton.addEventListener("click", () => moveSelection(-1));
 nextButton.addEventListener("click", () => moveSelection(1));
