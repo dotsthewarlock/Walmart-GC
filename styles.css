@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.49 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.51 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -1961,4 +1961,239 @@ dd,
 .settings-app-shell-fingerprint {
   margin: 0.85rem auto 0;
   text-align: center;
+}
+
+/* Phase 11.3f settings and status simplification */
+.settings-heading-row {
+  grid-template-columns: 1fr;
+}
+
+.settings-list {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.15rem;
+  background: #ffffff;
+  box-shadow: 0 0.5rem 1.4rem rgba(23, 32, 51, 0.06);
+}
+
+.settings-list .setting-row,
+.settings-list .settings-compact-action-row {
+  min-height: 2.7rem;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(217, 224, 234, 0.72);
+  background: transparent;
+  padding: 0.45rem 0.7rem;
+}
+
+.settings-list .setting-row:last-child,
+.settings-list .settings-compact-action-row:last-child {
+  border-bottom: 0;
+}
+
+.sort-setting-row {
+  min-height: 2.55rem;
+}
+
+.sort-setting-row select {
+  flex: 0 1 11.5rem;
+  width: 11.5rem;
+  max-width: 54vw;
+  min-height: 2.15rem;
+  padding: 0.38rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+.compact-row-action,
+.app-reload-button {
+  min-width: 3.75rem;
+  min-height: 2.15rem;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+.settings-compact-action-row:hover,
+.settings-compact-action-row:focus-visible {
+  background: rgba(11, 125, 255, 0.06);
+}
+
+.flat-data-card {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.oauth-actions,
+.sheet-normal-actions,
+.csv-recovery-card .data-action-row {
+  margin: 0;
+}
+
+.direct-sheets-card {
+  padding-bottom: 1.1rem;
+}
+
+.direct-sheets-card h4,
+.raw-data-card h4 {
+  margin: 0;
+}
+
+.subtle-identity {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.subtle-identity[hidden] {
+  display: none;
+}
+
+.sheet-status-compact p:first-of-type {
+  display: none;
+}
+
+.notes-button {
+  justify-content: flex-start;
+  min-height: 3rem;
+}
+
+.notes-button #detail-notes {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.notes-button #detail-notes:empty::before {
+  content: "Add note";
+  color: var(--muted);
+}
+
+.global-status-banner {
+  position: static;
+  display: block;
+  width: 100%;
+  margin: 0.65rem 0 0;
+  box-shadow: none;
+  padding: 0.42rem 0.7rem;
+  font-size: 0.88rem;
+}
+
+/* Phase 11.3f-fix polish */
+.app-header .container {
+  padding-right: calc(4rem + env(safe-area-inset-right, 0px));
+}
+
+.settings-gear-button {
+  position: fixed;
+  top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  right: calc(0.75rem + env(safe-area-inset-right, 0px));
+  z-index: 32;
+  width: 2.875rem;
+  height: 2.875rem;
+  border-color: rgba(255, 255, 255, 0.45);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0.35rem 1rem rgba(23, 32, 51, 0.12);
+}
+
+.settings-gear-button:hover,
+.settings-gear-button:focus-visible {
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18), 0 0.35rem 1rem rgba(23, 32, 51, 0.12);
+}
+
+.global-status-banner {
+  min-height: 2rem;
+  border-color: rgba(80, 96, 125, 0.16);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.global-status-banner[data-sync-summary="connected"],
+.global-status-banner[data-sync-summary="local-only"] {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.global-status-banner[data-sync-summary="unsynced"],
+.global-status-banner[data-sync-summary="checking"] {
+  border-color: rgba(255, 214, 128, 0.34);
+  color: #fff3d2;
+}
+
+.global-status-banner[data-sync-summary="conflict"],
+.global-status-banner[data-sync-summary="unavailable"] {
+  border-color: rgba(255, 190, 184, 0.42);
+  color: #ffe4e1;
+}
+
+.google-sync-actions,
+.csv-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.google-sync-section > .google-sync-actions,
+.google-sync-section > .subtle-identity,
+.google-sync-section > .sheet-status-compact,
+.google-sync-section > .sync-recovery-actions,
+.backup-restore-section > .csv-backup-actions {
+  margin-top: 0.7rem;
+}
+
+.google-sync-actions > button,
+.csv-backup-actions > button {
+  flex: 1 1 9.5rem;
+}
+
+#sort-cards {
+  text-align: center;
+  text-align-last: center;
+}
+
+.sheet-status-compact[hidden] {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .app-header .container {
+    padding-right: calc(3.6rem + env(safe-area-inset-right, 0px));
+  }
+
+  .settings-gear-button {
+    top: calc(0.55rem + env(safe-area-inset-top, 0px));
+    right: calc(0.55rem + env(safe-area-inset-right, 0px));
+  }
+}
+
+.backup-sync-section {
+  background: #f8fbff;
+  color: var(--text);
+}
+
+.backup-sync-section > summary .sync-overview {
+  border-color: rgba(80, 96, 125, 0.16);
+  background: rgba(80, 96, 125, 0.06);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.backup-sync-section > summary .sync-overview[data-sync-overview="connected"] {
+  border-color: rgba(15, 123, 63, 0.18);
+  background: rgba(15, 123, 63, 0.07);
+  color: var(--unused);
 }
