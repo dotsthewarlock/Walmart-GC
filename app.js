@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.57 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.58 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.57";
-const DEBUG_VERSION_CSS = "1.01.57";
+const DEBUG_VERSION_JS = "1.01.58";
+const DEBUG_VERSION_CSS = "1.01.58";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -166,8 +166,13 @@ const fullscreenPreviousButton = document.querySelector("#fullscreen-prev");
 const fullscreenNextButton = document.querySelector("#fullscreen-next");
 const fullscreenMarkUsedButton = document.querySelector("#fullscreen-mark-used");
 const fullscreenUpdateBalanceButton = document.querySelector("#fullscreen-update-balance");
+const fullscreenNotes = document.querySelector("#fullscreen-notes");
 const cardDetail = document.querySelector("#card-detail");
+const rawDataModal = document.querySelector("#raw-data-modal");
+const openRawDataModalButton = document.querySelector("#open-raw-data-modal");
 const rawDataInput = document.querySelector("#raw-data-input");
+const cancelRawDataUpdateButton = document.querySelector("#cancel-raw-data-update");
+const doneRawDataUpdateButton = document.querySelector("#done-raw-data-update");
 const toggleDataLockButton = document.querySelector("#toggle-data-lock");
 const refreshCardDataButton = document.querySelector("#refresh-card-data");
 const updateCardDataButton = document.querySelector("#update-card-data");
@@ -202,6 +207,7 @@ let pendingConfirmAction = null;
 let confirmReturnFocusElement = null;
 let amountUsedEditedLast = false;
 let rawDataLocked = true;
+let rawDataModalInitialValue = "";
 let detailNumberRevealed = false;
 let wakeLock = null;
 let balanceOpenedFromCheckout = false;
@@ -922,7 +928,7 @@ function getDataRowCount(rawCsv) {
 }
 
 function updateDataCountSummary(displayedCount = 0) {
-  dataCountSummary.textContent = `Total cards: ${sampleGiftCards.length} · Displayed: ${displayedCount}`;
+  dataCountSummary.textContent = `Total ${sampleGiftCards.length}`;
 }
 
 function parseCsvLine(line) {
@@ -987,7 +993,7 @@ function readCsvMoney(value) {
 function setRawDataLocked(isLocked) {
   rawDataLocked = isLocked;
   rawDataInput.readOnly = rawDataLocked;
-  toggleDataLockButton.textContent = rawDataLocked ? "Unlock editing" : "Lock editing";
+  toggleDataLockButton.textContent = rawDataLocked ? "Unlock editing 🔓" : "Lock editing 🔒";
 }
 
 function renderValidationWarnings(warnings, summary = "No validation run yet.") {
@@ -1209,7 +1215,7 @@ async function updateRawCardData() {
       `Update rejected: ${suppliedRows} rows supplied; maximum is ${dataPanelRowLimit}.`,
     );
     updateDataCountSummary(Math.min(sampleGiftCards.length, dataPanelRowLimit));
-    return;
+    return false;
   }
 
   const { parsedCards, warnings } = parseRawCardData(rawDataInput.value);
@@ -1246,6 +1252,7 @@ async function updateRawCardData() {
         : "Imported data saved locally. Connect Google and load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current sheet version.",
     },
   );
+  return true;
 }
 
 function importCsvFile(file) {
@@ -1255,8 +1262,12 @@ function importCsvFile(file) {
 
   const reader = new FileReader();
   reader.addEventListener("load", () => {
+    rawDataModalInitialValue = cardsToCsv(sampleGiftCards, dataPanelRowLimit);
     rawDataInput.value = String(reader.result ?? "");
-    renderValidationWarnings([], "CSV imported into the raw data area. Press Update to validate and load it into this session.");
+    setRawDataLocked(true);
+    rawDataModal.hidden = false;
+    renderValidationWarnings([], "CSV imported into the raw CSV editor. Press Update or Done to validate and load it into this session.");
+    doneRawDataUpdateButton.focus();
   });
   reader.addEventListener("error", () => {
     renderValidationWarnings(["Unable to read the selected CSV file."], "CSV import failed.");
@@ -2547,6 +2558,9 @@ function clearCardDetail() {
   detailCurrentDate && (detailCurrentDate.textContent = "—");
   currentBalanceCard?.classList.remove("used-balance-card");
   detailNotes.textContent = "No card selected.";
+  if (fullscreenNotes) {
+    fullscreenNotes.textContent = "No notes";
+  }
   if (openNotesModalButton) {
     openNotesModalButton.disabled = true;
   }
@@ -2625,6 +2639,9 @@ function renderCardDetail() {
   fullscreenNextButton.disabled = visiblePosition === visibleIndexes.length - 1;
   fullscreenMarkUsedButton.disabled = card.used;
   fullscreenUpdateBalanceButton.disabled = false;
+  if (fullscreenNotes) {
+    fullscreenNotes.textContent = card.notes || "No notes";
+  }
 }
 
 
@@ -3016,6 +3033,61 @@ function closeBarcodeFocusMode(options = {}) {
   }
 }
 
+function openRawDataModal() {
+  refreshRawCardData("Raw CSV editor opened with current local session data.");
+  rawDataModalInitialValue = rawDataInput.value;
+  setRawDataLocked(true);
+  rawDataModal.hidden = false;
+  toggleDataLockButton.focus();
+}
+
+function closeRawDataModal(options = {}) {
+  rawDataModal.hidden = true;
+  setRawDataLocked(true);
+  rawDataModalInitialValue = "";
+
+  if (!options.skipFocus) {
+    openRawDataModalButton?.focus();
+  }
+}
+
+function cancelRawDataModal() {
+  if (rawDataInput.value === rawDataModalInitialValue) {
+    closeRawDataModal();
+    return;
+  }
+
+  openConfirmModal({
+    title: "Discard raw CSV edits?",
+    message: "Discard raw CSV edits and close the editor?",
+    confirmLabel: "Discard",
+    confirmClass: "danger-button",
+    onConfirm: () => closeRawDataModal(),
+    returnFocusElement: cancelRawDataUpdateButton,
+  });
+}
+
+function doneRawDataModal() {
+  if (rawDataInput.value === rawDataModalInitialValue) {
+    closeRawDataModal();
+    return;
+  }
+
+  openConfirmModal({
+    title: "Apply raw CSV changes?",
+    message: "Apply raw CSV changes using the existing validation and import path?",
+    confirmLabel: "Apply",
+    confirmClass: "secondary-button",
+    onConfirm: async () => {
+      const applied = await updateRawCardData();
+      if (applied) {
+        closeRawDataModal();
+      }
+    },
+    returnFocusElement: doneRawDataUpdateButton,
+  });
+}
+
 function markUsedFromCheckout() {
   if (selectedCardIndex < 0 || sampleGiftCards[selectedCardIndex].used) {
     return;
@@ -3069,7 +3141,7 @@ function updateBalanceFromCheckout() {
 }
 
 function isModalOpen() {
-  return !balanceModal.hidden || !confirmModal.hidden || !notesModal.hidden;
+  return !balanceModal.hidden || !confirmModal.hidden || !notesModal.hidden || !rawDataModal.hidden;
 }
 
 function isEditableGestureTarget(target) {
@@ -3231,14 +3303,26 @@ forceRefreshAppShellButton.addEventListener("click", forceRefreshAppShell);
 cancelConfirmButton.addEventListener("click", closeConfirmModal);
 confirmZeroUsedButton.addEventListener("click", runPendingConfirmAction);
 barcodeOpenButton.addEventListener("click", openBarcodeFocusMode);
+openRawDataModalButton?.addEventListener("click", openRawDataModal);
 toggleDataLockButton.addEventListener("click", () => setRawDataLocked(!rawDataLocked));
-refreshCardDataButton.addEventListener("click", refreshRawCardData);
+cancelRawDataUpdateButton.addEventListener("click", cancelRawDataModal);
+doneRawDataUpdateButton.addEventListener("click", doneRawDataModal);
+refreshCardDataButton.addEventListener("click", () => {
+  refreshRawCardData();
+  rawDataModalInitialValue = rawDataInput.value;
+});
 updateCardDataButton.addEventListener("click", () => openConfirmModal({
   title: "Import CSV?",
   message: "This may replace local card data after validation.",
   confirmLabel: "Import",
-  confirmClass: "primary-button",
-  onConfirm: updateRawCardData,
+  confirmClass: "secondary-button",
+  onConfirm: async () => {
+    const applied = await updateRawCardData();
+    if (applied) {
+      rawDataModalInitialValue = rawDataInput.value;
+      setRawDataLocked(true);
+    }
+  },
   returnFocusElement: updateCardDataButton,
 }));
 importCsvButton.addEventListener("click", () => openConfirmModal({
