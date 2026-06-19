@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.55 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.56 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.55" />
+    <link rel="stylesheet" href="styles.css?v=1.01.56" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,10 +21,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.55"
+          data-html-version="1.01.56"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.55 · JS loading · CSS 1.01.55
+          HTML 1.01.56 · JS loading · CSS 1.01.56
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
@@ -40,6 +40,17 @@
           <div>
             <h2 id="card-list-heading">Cards</h2>
           </div>
+        </div>
+        <div class="panel-toolbar cards-toolbar" aria-label="Cards controls">
+          <select id="sort-cards" aria-label="Sort cards">
+            <option value="balance-asc">Balance ↑</option>
+            <option value="balance-desc">Balance ↓</option>
+            <option value="date-added-asc">Added old</option>
+            <option value="date-added-desc">Added new</option>
+            <option value="date-updated-asc">Updated old</option>
+            <option value="date-updated-desc">Updated new</option>
+            <option value="card-number">Card #</option>
+          </select>
           <span id="card-count" class="count-badge card-count-summary">0/0</span>
           <span id="card-total-balance" class="card-total-balance">$0.00</span>
         </div>
@@ -102,21 +113,6 @@
           </div>
 
           <div class="settings-list">
-            <label class="setting-row setting-row-inline sort-setting-row" for="sort-cards">
-              <span>
-                <strong>Sort order</strong>
-              </span>
-              <select id="sort-cards">
-                <option value="balance-asc">Balance (low → high)</option>
-                <option value="balance-desc">Balance (high → low)</option>
-                <option value="date-added-asc">Date added (old)</option>
-                <option value="date-added-desc">Date added (new)</option>
-                <option value="date-updated-asc">Date updated (old)</option>
-                <option value="date-updated-desc">Date updated (new)</option>
-                <option value="card-number">Card number</option>
-              </select>
-            </label>
-
             <label class="setting-row">
               <span>
                 <strong>Hide used cards</strong>
@@ -243,7 +239,7 @@
           </details>
             </div>
           </details>
-          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.55 · JS 1.01.55 · CSS 1.01.55</p>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.56 · JS 1.01.56 · CSS 1.01.56</p>
       </section>
     </main>
 
@@ -305,8 +301,10 @@
         <p id="fullscreen-position" class="fullscreen-position" hidden>0/0</p>
         <button id="fullscreen-prev" class="secondary-button archived-fullscreen-control" type="button" hidden>Previous</button>
         <button id="fullscreen-next" class="secondary-button archived-fullscreen-control" type="button" hidden>Next</button>
-        <button id="fullscreen-update-balance" class="primary-button barcode-focus-action" type="button">Update balance</button>
-        <button id="fullscreen-mark-used" class="danger-button barcode-focus-action" type="button">Mark used</button>
+        <div class="barcode-focus-actions" aria-label="Focused barcode actions">
+          <button id="fullscreen-update-balance" class="primary-button barcode-focus-action" type="button" aria-label="Update balance" title="Update balance">Update</button>
+          <button id="fullscreen-mark-used" class="danger-button barcode-focus-action" type="button" aria-label="Mark used" title="Mark used">Mark used</button>
+        </div>
       </div>
     </div>
 
@@ -315,6 +313,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.55"></script>
+    <script src="app.js?v=1.01.56"></script>
   </body>
 </html>
