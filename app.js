@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.58 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.59 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.58";
-const DEBUG_VERSION_CSS = "1.01.58";
+const DEBUG_VERSION_JS = "1.01.59";
+const DEBUG_VERSION_CSS = "1.01.59";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -993,7 +993,10 @@ function readCsvMoney(value) {
 function setRawDataLocked(isLocked) {
   rawDataLocked = isLocked;
   rawDataInput.readOnly = rawDataLocked;
-  toggleDataLockButton.textContent = rawDataLocked ? "Unlock editing 🔓" : "Lock editing 🔒";
+  toggleDataLockButton.textContent = rawDataLocked ? "Lock 🔒" : "Unlock 🔓";
+  toggleDataLockButton.dataset.lockState = rawDataLocked ? "locked" : "unlocked";
+  toggleDataLockButton.setAttribute("aria-label", rawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked");
+  toggleDataLockButton.title = rawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked";
 }
 
 function renderValidationWarnings(warnings, summary = "No validation run yet.") {
@@ -2578,7 +2581,7 @@ function clearCardDetail() {
   fullscreenCardNumber.textContent = "Card —";
   fullscreenPin.textContent = "PIN —";
   fullscreenCurrentBalance.textContent = "—";
-  fullscreenPosition.textContent = "Card 0 of 0";
+  fullscreenPosition.textContent = "0/0";
   fullscreenPreviousButton.disabled = true;
   fullscreenNextButton.disabled = true;
   fullscreenMarkUsedButton.disabled = true;
@@ -2628,7 +2631,7 @@ function renderCardDetail() {
   renderBarcode(detailBarcodeRender, detailBarcodeStatus, detailBarcodeCaption, card, { height: 82 });
   detailBarcodeCaption.textContent = maskCardNumber(card.cardNumber);
   renderBarcode(fullscreenBarcodeRender, fullscreenBarcodeStatus, fullscreenBarcodeCaption, card, { height: 132, moduleWidth: 3 });
-  fullscreenPosition.textContent = `Card ${visiblePosition + 1} of ${visibleIndexes.length}`;
+  fullscreenPosition.textContent = `${visiblePosition + 1}/${visibleIndexes.length}`;
   const fullscreenCardIdentifier = maskCardNumber(card.cardNumber);
   fullscreenCardNumber.textContent = fullscreenCardIdentifier;
   fullscreenBarcodeCaption.textContent = "";
