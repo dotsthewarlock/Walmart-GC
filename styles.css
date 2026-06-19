@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.57 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.58 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -2614,4 +2614,226 @@ dd,
 
 .settings-gear-button {
   top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 1.05rem));
+}
+
+/* Phase 11.3k panel density, barcode focus, and diagnostics polish */
+.settings-gear-button {
+  top: max(1.7rem, calc(env(safe-area-inset-top, 0px) + 1.45rem));
+  border-color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0.55rem 1.35rem rgba(15, 23, 42, 0.22);
+}
+
+.settings-gear-button:hover,
+.settings-gear-button:focus-visible {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.settings-gear-icon {
+  opacity: 0.7;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+  min-height: 3rem;
+  border-radius: 0.85rem;
+  font-weight: 700;
+}
+
+.list-panel .section-heading,
+.detail-panel .section-heading,
+.settings-panel .settings-heading-row {
+  margin-bottom: 0.55rem;
+}
+
+.cards-toolbar {
+  grid-template-columns: 6.9rem minmax(3.25rem, auto) 5.5rem;
+  align-items: center;
+  padding-inline: 0.85rem;
+}
+
+.cards-toolbar #sort-cards {
+  width: 6.9rem;
+  max-width: 6.9rem;
+  min-height: 2.75rem;
+  padding-inline: 0.5rem 0.25rem;
+}
+
+.cards-toolbar .card-total-balance,
+.card-row-right {
+  width: 5.5rem;
+  min-width: 5.5rem;
+  text-align: right;
+}
+
+.card-button {
+  min-height: 3rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.card-row-top {
+  min-height: 2rem;
+}
+
+.card-balance {
+  font-size: 1.08rem;
+  line-height: 1.15;
+}
+
+.card-row-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.action-row > button,
+.barcode-focus-action {
+  min-height: 3rem;
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.85rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.barcode-focus-content {
+  width: min(100%, 54rem);
+  justify-items: stretch;
+}
+
+.barcode-focus-frame {
+  width: 100%;
+  border: 0 !important;
+  box-shadow: none;
+  padding: clamp(0.75rem, 2.5vw, 1.25rem);
+}
+
+.barcode-focus-frame .barcode-render,
+.fullscreen-barcode-render {
+  border: 0;
+  border-radius: 0;
+  padding: 0.25rem;
+  min-height: clamp(8rem, 28vh, 15rem);
+}
+
+.fullscreen-barcode-render .barcode-svg {
+  height: clamp(8rem, 28vh, 15rem);
+}
+
+.barcode-focus-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  max-width: 100%;
+  gap: 0.75rem;
+}
+
+.barcode-focus-notes {
+  width: 100%;
+  border: 0;
+  border-radius: 0.85rem;
+  background: rgba(248, 250, 252, 0.9);
+  color: rgba(99, 112, 131, 0.92);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  padding: 0.65rem 0.75rem;
+  pointer-events: none;
+}
+
+.settings-panel .backup-sync-section[open],
+.settings-panel .google-sync-section[open],
+.settings-panel .backup-restore-section[open],
+.settings-panel .advanced-diagnostics-section[open] {
+  padding: 0.45rem 0.6rem 0.6rem;
+}
+
+.settings-panel .settings-backup-layout,
+.settings-panel .advanced-diagnostics-content,
+.settings-panel .data-actions {
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.settings-panel .data-section-heading,
+.settings-panel .advanced-diagnostics-section > summary {
+  min-height: 3rem;
+  padding-block: 0.45rem;
+}
+
+.google-sync-heading-row,
+.backup-restore-section > summary.data-section-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.google-sync-identity,
+.data-count-summary {
+  min-width: 0;
+  max-width: min(50vw, 16rem);
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.google-sync-helper {
+  display: none !important;
+}
+
+.csv-backup-actions,
+.sheet-normal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.csv-backup-actions .compact-sync-button,
+.sheet-normal-actions .compact-sync-button {
+  min-height: 3rem;
+  width: 100%;
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--primary-dark);
+}
+
+.raw-data-card-compact {
+  padding: 0.65rem;
+}
+
+.raw-data-compact-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.raw-data-open-button {
+  min-height: 3rem;
+  white-space: nowrap;
+}
+
+.raw-data-modal-card {
+  width: min(100%, 42rem);
+}
+
+.raw-data-modal-card .raw-data-input {
+  min-height: min(55vh, 24rem);
+}
+
+.raw-csv-actions button,
+.raw-csv-modal-actions button {
+  min-height: 3rem;
+}
+
+#confirm-modal {
+  z-index: 70;
 }
