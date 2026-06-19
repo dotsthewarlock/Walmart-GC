@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.53 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.54 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.53" />
+    <link rel="stylesheet" href="styles.css?v=1.01.54" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,10 +21,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.53"
+          data-html-version="1.01.54"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.53 · JS loading · CSS 1.01.53
+          HTML 1.01.54 · JS loading · CSS 1.01.54
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
@@ -169,11 +169,12 @@
                   <button id="connect-google" class="primary-button" type="button">Connect Google</button>
                   <button id="disconnect-google" class="secondary-button" type="button">Disconnect Google</button>
                 </div>
+                <p id="google-sync-helper" class="google-sync-helper" hidden></p>
                 <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
-                  <button id="initialize-direct-sheet" class="secondary-button" type="button">Fix Google Sheet</button>
-                  <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
-                  <button id="load-direct-sheet" class="primary-button" type="button">Import from Google</button>
-                  <button id="sync-direct-sheet" class="secondary-button" type="button">Export to Google</button>
+                  <button id="initialize-direct-sheet" class="secondary-button compact-sync-button" type="button" aria-label="Fix Google Sheet" title="Fix Google Sheet">🔧 Fix</button>
+                  <button id="open-direct-sheet" class="secondary-button compact-sync-button" type="button" aria-label="Open Google Sheet" title="Open Google Sheet">▦ Sheet</button>
+                  <button id="load-direct-sheet" class="primary-button compact-sync-button" type="button" aria-label="Import from Google" title="Import from Google">↓ Import</button>
+                  <button id="sync-direct-sheet" class="secondary-button compact-sync-button" type="button" aria-label="Export to Google" title="Export to Google">↑ Export</button>
                 </div>
                 <div id="google-oauth-status" class="connection-status oauth-status subtle-identity" role="status" aria-live="polite"></div>
                 <div id="direct-sheet-status" class="connection-status sheet-status-compact" role="status" aria-live="polite"></div>
@@ -188,8 +189,8 @@
 
                 <div class="data-actions csv-backup-actions" aria-label="CSV backup and recovery actions">
                   <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
-                  <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
-                  <button id="export-csv" class="secondary-button" type="button">Export CSV</button>
+                  <button id="import-csv" class="secondary-button compact-sync-button" type="button" aria-label="Import CSV" title="Import CSV">↓ Import</button>
+                  <button id="export-csv" class="secondary-button compact-sync-button" type="button" aria-label="Export CSV" title="Export CSV">↑ Export</button>
                 </div>
               </details>
 
@@ -242,7 +243,7 @@
           </details>
             </div>
           </details>
-          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.53 · JS 1.01.53 · CSS 1.01.53</p>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.54 · JS 1.01.54 · CSS 1.01.54</p>
       </section>
     </main>
 
@@ -314,6 +315,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.53"></script>
+    <script src="app.js?v=1.01.54"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.53 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.54 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -2182,6 +2182,120 @@ dd,
 
 .global-status-banner[data-sync-summary="conflict"],
 .global-status-banner[data-sync-summary="unavailable"] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Phase 11.3h settings density and status legibility polish */
+.settings-gear-button {
+  border-color: rgba(11, 125, 255, 0.22);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--primary-dark);
+  box-shadow: 0 0.55rem 1.35rem rgba(15, 23, 42, 0.16), 0 0.08rem 0.25rem rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.settings-gear-button:hover,
+.settings-gear-button:focus-visible {
+  border-color: rgba(11, 125, 255, 0.42);
+  background: #ffffff;
+  color: var(--primary-dark);
+  box-shadow: 0 0 0 3px rgba(11, 125, 255, 0.16), 0 0.55rem 1.35rem rgba(15, 23, 42, 0.16);
+}
+
+.settings-heading-row {
+  margin-bottom: 0.42rem;
+}
+
+.backup-sync-section {
+  margin-top: 0.55rem;
+}
+
+.backup-sync-section > .data-section-heading {
+  margin-bottom: 0;
+}
+
+.settings-backup-layout {
+  gap: 0.55rem;
+  margin-top: 0.45rem;
+}
+
+.google-sync-section,
+.backup-restore-section {
+  gap: 0.5rem;
+}
+
+.google-sync-section > .data-section-heading,
+.backup-restore-section > .data-section-heading {
+  min-height: 2.35rem;
+  padding-block: 0.52rem;
+}
+
+.google-sync-helper {
+  margin: -0.1rem 0 0.35rem;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.google-sync-helper[hidden] {
+  display: none;
+}
+
+.oauth-actions {
+  margin-bottom: 0.35rem;
+}
+
+.google-sync-section .connection-actions,
+.backup-restore-section .data-actions {
+  gap: 0.45rem;
+}
+
+.google-sync-section .compact-sync-button,
+.backup-restore-section .compact-sync-button {
+  flex: 1 1 6.25rem;
+  min-height: 2.3rem;
+  min-width: max-content;
+  padding: 0.42rem 0.62rem;
+  font-size: 0.9rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.csv-backup-actions .secondary-button.compact-sync-button {
+  flex: 1 1 6.25rem;
+}
+
+.global-status-banner {
+  min-height: 2rem;
+  margin: 0.42rem 0 0;
+  border-color: rgba(99, 112, 131, 0.28);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text);
+  padding: 0.34rem 0.65rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.global-status-banner[data-sync-summary="connected"] {
+  border-color: rgba(15, 123, 63, 0.24);
+  background: rgba(15, 123, 63, 0.1);
+  color: #155f39;
+}
+
+.global-status-banner[data-sync-summary="unsynced"],
+.global-status-banner[data-sync-summary="checking"] {
+  border-color: rgba(122, 74, 0, 0.24);
+  background: rgba(122, 74, 0, 0.1);
+  color: #6b4100;
+}
+
+.global-status-banner[data-sync-summary="conflict"],
+.global-status-banner[data-sync-summary="unavailable"] {
+  border-color: rgba(180, 35, 24, 0.26);
   background: var(--danger-bg);
   color: var(--danger);
 }
