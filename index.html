@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.51 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.52 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.51" />
+    <link rel="stylesheet" href="styles.css?v=1.01.52" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,10 +21,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.51"
+          data-html-version="1.01.52"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.51 · JS loading · CSS 1.01.51
+          HTML 1.01.52 · JS loading · CSS 1.01.52
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
@@ -163,29 +163,21 @@
               <section id="google-sync-section" class="data-section google-sync-section" aria-labelledby="google-sync-heading">
                 <div class="data-section-heading simple-section-heading">
                   <h3 id="google-sync-heading">Google sync</h3>
-                  <div id="google-sync-overview" class="sync-overview" role="status" aria-live="polite">Setup needed</div>
                 </div>
 
-                <div id="google-account-panel" class="data-card oauth-card flat-data-card">
-              <div class="connection-actions oauth-actions" aria-label="Google account actions">
-                <button id="connect-google" class="primary-button" type="button">Connect Google</button>
-                <button id="disconnect-google" class="secondary-button" type="button">Disconnect Google</button>
-              </div>
-              <div id="google-oauth-status" class="connection-status oauth-status subtle-identity" role="status" aria-live="polite"></div>
-            </div>
-
-            <div id="google-sheet-panel" class="data-card direct-sheets-card flat-data-card">
-              <h4>Google Sheet</h4>
-              <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
-                <button id="initialize-direct-sheet" class="secondary-button" type="button">Fix Google Sheet</button>
-                <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
-                <button id="load-direct-sheet" class="primary-button" type="button">Import from Google</button>
-                <button id="sync-direct-sheet" class="secondary-button" type="button">Export to Google</button>
-              </div>
-
-              <div id="direct-sheet-status" class="connection-status sheet-status-compact" role="status" aria-live="polite"></div>
-              <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
+                <div class="connection-actions oauth-actions" aria-label="Google account actions">
+                  <button id="connect-google" class="primary-button" type="button">Connect Google</button>
+                  <button id="disconnect-google" class="secondary-button" type="button">Disconnect Google</button>
                 </div>
+                <div class="connection-actions sheet-normal-actions" aria-label="Google Sheet setup and sync actions">
+                  <button id="initialize-direct-sheet" class="secondary-button" type="button">Fix Google Sheet</button>
+                  <button id="open-direct-sheet" class="secondary-button" type="button">Open Google Sheet</button>
+                  <button id="load-direct-sheet" class="primary-button" type="button">Import from Google</button>
+                  <button id="sync-direct-sheet" class="secondary-button" type="button">Export to Google</button>
+                </div>
+                <div id="google-oauth-status" class="connection-status oauth-status subtle-identity" role="status" aria-live="polite"></div>
+                <div id="direct-sheet-status" class="connection-status sheet-status-compact" role="status" aria-live="polite"></div>
+                <div id="sync-recovery-actions" class="sync-recovery-actions" hidden></div>
               </section>
 
               <section id="backup-restore-section" class="data-section backup-restore-section" aria-labelledby="backup-restore-heading">
@@ -194,14 +186,10 @@
                   <p id="data-count-summary" class="data-count-summary">Total cards: 0 · Displayed: 0</p>
                 </div>
 
-                <div id="csv-recovery-panel" class="data-card csv-recovery-card flat-data-card">
-              <div class="data-actions" aria-label="CSV backup and recovery actions">
-                <div class="data-action-row">
+                <div class="data-actions csv-backup-actions" aria-label="CSV backup and recovery actions">
                   <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
                   <button id="import-csv" class="secondary-button" type="button">Import CSV</button>
                   <button id="export-csv" class="secondary-button" type="button">Export CSV</button>
-                </div>
-              </div>
                 </div>
               </section>
 
@@ -234,14 +222,10 @@
                 <div class="data-actions" aria-label="Raw data diagnostic actions">
                   <div class="data-action-row">
                     <button id="toggle-data-lock" class="secondary-button" type="button">Unlock editing</button>
-                    <button id="scan-new-card" class="secondary-button" type="button" disabled title="Scan feature in development">Scan *</button>
-                  </div>
-                  <div class="data-action-row">
                     <button id="refresh-card-data" class="secondary-button" type="button">Refresh data</button>
                     <button id="update-card-data" class="primary-button" type="button">Update data</button>
                   </div>
                 </div>
-                <p class="data-footnote">* Scan remains disabled for the MVP; use CSV import/export for backup and recovery.</p>
               </details>
 
               <details class="validation-card collapsible-data-card">
@@ -251,8 +235,7 @@
 
               <details class="data-card schema-detail-card collapsible-data-card">
                 <summary><h4>CSV and Sheet header details</h4></summary>
-                <p>Preferred CSV/export order: <code>cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes</code>.</p>
-                <p>Sheets sync matches approved headers by name, so columns may be rearranged.</p>
+                <p>Columns may be rearranged.</p>
               </details>
 
               <details class="data-card diagnostics-detail-card collapsible-data-card">
@@ -263,7 +246,7 @@
           </details>
             </div>
           </details>
-          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.51 · JS 1.01.51 · CSS 1.01.51</p>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.52 · JS 1.01.52 · CSS 1.01.52</p>
       </section>
     </main>
 
@@ -336,6 +319,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.51"></script>
+    <script src="app.js?v=1.01.52"></script>
   </body>
 </html>
