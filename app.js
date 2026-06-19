@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.52 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.53 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.52";
-const DEBUG_VERSION_CSS = "1.01.52";
+const DEBUG_VERSION_JS = "1.01.53";
+const DEBUG_VERSION_CSS = "1.01.53";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -149,7 +149,6 @@ const cancelNotesUpdateButton = document.querySelector("#cancel-notes-update");
 const saveNotesUpdateButton = document.querySelector("#save-notes-update");
 const barcodeOpenButton = document.querySelector("#barcode-open");
 const fullscreenBarcode = document.querySelector("#fullscreen-barcode");
-const barcodeCloseButton = document.querySelector("#barcode-close");
 const fullscreenCardNumber = document.querySelector("#fullscreen-card-number");
 const fullscreenPin = document.querySelector("#fullscreen-pin");
 const fullscreenCurrentBalance = document.querySelector("#fullscreen-current-balance");
@@ -181,6 +180,7 @@ const syncRecoveryActions = document.querySelector("#sync-recovery-actions");
 const connectGoogleButton = document.querySelector("#connect-google");
 const disconnectGoogleButton = document.querySelector("#disconnect-google");
 const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
+const googleSyncIdentity = document.querySelector("#google-sync-identity");
 const advancedSyncDiagnostics = document.querySelector("#advanced-sync-diagnostics");
 const initializeDirectSheetButton = document.querySelector("#initialize-direct-sheet");
 const openDirectSheetButton = document.querySelector("#open-direct-sheet");
@@ -189,7 +189,6 @@ const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
 const directSheetStatusArea = document.querySelector("#direct-sheet-status");
 const googleSyncSection = document.querySelector("#google-sync-section");
 const backupSyncSection = document.querySelector("#backup-sync-section");
-const backupSyncOverview = document.querySelector("#backup-sync-overview");
 const backupRestoreSection = document.querySelector("#backup-restore-section");
 
 let selectedCardIndex = -1;
@@ -205,6 +204,7 @@ let rawDataLocked = true;
 let detailNumberRevealed = false;
 let wakeLock = null;
 let balanceOpenedFromCheckout = false;
+let lastBackupSyncAttentionSignature = "";
 
 const dataPanelRowLimit = 100;
 const csvHeaders = [
@@ -1255,7 +1255,7 @@ function importCsvFile(file) {
   const reader = new FileReader();
   reader.addEventListener("load", () => {
     rawDataInput.value = String(reader.result ?? "");
-    renderValidationWarnings([], "CSV imported into the raw data area. Press Update data to validate and load it into this session.");
+    renderValidationWarnings([], "CSV imported into the raw data area. Press Update to validate and load it into this session.");
   });
   reader.addEventListener("error", () => {
     renderValidationWarnings(["Unable to read the selected CSV file."], "CSV import failed.");
@@ -1495,13 +1495,31 @@ function setDetailsOpen(detailsElement, shouldOpen) {
 }
 
 function updateBackupPanelOpenState() {
-  const accountNeedsAttention = googleOAuthState.status !== googleOAuthStatuses.connected;
+  const accountNeedsSetup = googleOAuthState.status !== googleOAuthStatuses.connected;
   const sheetNeedsAttention = hasWorkerGoogleSession() && directSheetsState.status !== directSheetsStatuses.ready;
+  const hasUrgentSyncState = syncState.status === syncStatuses.conflict
+    || googleOAuthState.status === googleOAuthStatuses.error
+    || directSheetsState.status === directSheetsStatuses.error
+    || directSheetsState.status === directSheetsStatuses.conflict
+    || Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
+  const syncNeedsAttention = accountNeedsSetup || sheetNeedsAttention || hasUrgentSyncState;
+  const attentionSignature = syncNeedsAttention
+    ? [
+      googleOAuthState.status,
+      directSheetsState.status,
+      syncState.status,
+      syncState.pendingOperation?.action || "",
+      directSheetsState.pendingUnsynced ? "pending-unsynced" : "",
+      directSheetsState.lastErrorMessage || googleOAuthState.lastErrorMessage || syncState.lastErrorMessage || "",
+    ].join("|")
+    : "";
 
-  const syncNeedsAttention = accountNeedsAttention || sheetNeedsAttention || syncState.status === syncStatuses.conflict || Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
-  setDetailsOpen(backupSyncSection, syncNeedsAttention);
-  setDetailsOpen(googleSyncSection, syncNeedsAttention);
-  setDetailsOpen(backupRestoreSection, false);
+  if (syncNeedsAttention && attentionSignature !== lastBackupSyncAttentionSignature) {
+    setDetailsOpen(backupSyncSection, true);
+    setDetailsOpen(googleSyncSection, true);
+  }
+
+  lastBackupSyncAttentionSignature = attentionSignature;
   renderAppSyncSummary();
 }
 
@@ -1582,8 +1600,13 @@ function renderGoogleOAuthState() {
 
   googleOAuthStatusArea.className = `connection-status oauth-status subtle-identity is-${getGoogleOAuthStatusClass()}`;
   const connectedIdentity = googleOAuthState.connectedEmail || googleOAuthState.connectedName;
-  googleOAuthStatusArea.hidden = !isConnected || !connectedIdentity;
-  googleOAuthStatusArea.textContent = connectedIdentity ? `Connected as ${connectedIdentity}` : "";
+  if (googleSyncIdentity) {
+    googleSyncIdentity.hidden = !isConnected || !connectedIdentity;
+    googleSyncIdentity.textContent = connectedIdentity || "";
+    googleSyncIdentity.title = connectedIdentity || "";
+  }
+  googleOAuthStatusArea.hidden = isConnected;
+  googleOAuthStatusArea.textContent = isConnected ? "" : googleOAuthState.message;
 }
 
 function getWorkerApiUrl(path) {
@@ -1683,9 +1706,7 @@ async function refreshWorkerSessionStatus(options = {}) {
         lastAuthorizedAt: now,
         tokenExpiresAt: "",
         userDisconnectedGoogle: false,
-        message: status.email || status.name
-          ? `Connected as ${status.email || status.name}.`
-          : "Google connected",
+        message: "Google account connected.",
         lastErrorMessage: "",
         workerVersion,
         schemaMode,
@@ -1964,10 +1985,6 @@ function renderAppSyncSummary() {
     `;
   }
 
-  if (backupSyncOverview) {
-    backupSyncOverview.dataset.syncOverview = summary.key;
-    backupSyncOverview.textContent = getGoogleSyncOverviewText(summary.key);
-  }
 
   if (checkoutFeedback && checkoutFeedback.dataset.temporary !== "true") {
     checkoutFeedback.dataset.syncSummary = summary.key;
@@ -1976,18 +1993,6 @@ function renderAppSyncSummary() {
   }
 }
 
-function getGoogleSyncOverviewText(summaryKey) {
-  const labels = {
-    connected: "Connected · Sheet ready",
-    conflict: "Conflict",
-    unavailable: "Error",
-    checking: "Checking",
-    unsynced: "Sync pending",
-    "local-only": "Setup needed",
-  };
-
-  return labels[summaryKey] || "Needs attention";
-}
 
 function renderConnectionState() {
   const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
@@ -2994,7 +2999,7 @@ function openBarcodeFocusMode() {
   renderCardDetail();
   fullscreenBarcode.hidden = false;
   requestCheckoutWakeLock();
-  barcodeCloseButton.focus();
+  fullscreenUpdateBalanceButton.focus();
 }
 
 function closeBarcodeFocusMode(options = {}) {
@@ -3062,9 +3067,8 @@ function isModalOpen() {
   return !balanceModal.hidden || !confirmModal.hidden || !notesModal.hidden;
 }
 
-function isInteractiveGestureTarget(target) {
-  const interactiveTarget = target.closest("button, a, input, textarea, select, [role='button'], [contenteditable='true']");
-  return Boolean(interactiveTarget && !interactiveTarget.classList.contains("card-button"));
+function isEditableGestureTarget(target) {
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
 let primarySwipeStart = null;
@@ -3078,7 +3082,7 @@ function shouldIgnorePrimarySwipe(target) {
     return true;
   }
 
-  return isInteractiveGestureTarget(target) || Boolean(target.closest(".modal-backdrop, #raw-data-input, .notes-block, .advanced-diagnostics-section, .raw-data-card, .diagnostics-detail-card"));
+  return isEditableGestureTarget(target) || Boolean(target.closest(".modal-backdrop"));
 }
 
 function handlePrimarySwipeStart(event) {
@@ -3114,10 +3118,46 @@ function handlePrimarySwipeEnd(event) {
     showPanel("detail", { selectFirstVisible: true });
   } else if (deltaX > 0 && swipePanel === "detail") {
     showPanel("list");
-  } else if (swipePanel === "settings" && previousPrimaryPanelName === "list" && deltaX < 0) {
+  } else if (swipePanel === "settings" && deltaX < 0) {
     showPanel("detail", { selectFirstVisible: true });
-  } else if (swipePanel === "settings" && previousPrimaryPanelName === "detail" && deltaX > 0) {
+  } else if (swipePanel === "settings" && deltaX > 0) {
     showPanel("list");
+  }
+}
+
+let barcodeFocusSwipeStart = null;
+
+function handleBarcodeFocusSwipeStart(event) {
+  if (event.touches.length !== 1 || fullscreenBarcode.hidden || isModalOpen() || isEditableGestureTarget(event.target)) {
+    barcodeFocusSwipeStart = null;
+    return;
+  }
+
+  barcodeFocusSwipeStart = {
+    x: event.touches[0].clientX,
+    y: event.touches[0].clientY,
+  };
+}
+
+function handleBarcodeFocusSwipeEnd(event) {
+  if (!barcodeFocusSwipeStart || fullscreenBarcode.hidden) {
+    barcodeFocusSwipeStart = null;
+    return;
+  }
+
+  const touch = event.changedTouches[0];
+  const deltaX = touch.clientX - barcodeFocusSwipeStart.x;
+  const deltaY = touch.clientY - barcodeFocusSwipeStart.y;
+  barcodeFocusSwipeStart = null;
+
+  if (Math.abs(deltaX) < 80 || Math.abs(deltaY) > 55 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
+    return;
+  }
+
+  if (deltaX < 0) {
+    moveSelection(1);
+  } else if (deltaX > 0) {
+    moveSelection(-1);
   }
 }
 
@@ -3186,7 +3226,6 @@ forceRefreshAppShellButton.addEventListener("click", forceRefreshAppShell);
 cancelConfirmButton.addEventListener("click", closeConfirmModal);
 confirmZeroUsedButton.addEventListener("click", runPendingConfirmAction);
 barcodeOpenButton.addEventListener("click", openBarcodeFocusMode);
-barcodeCloseButton.addEventListener("click", closeBarcodeFocusMode);
 toggleDataLockButton.addEventListener("click", () => setRawDataLocked(!rawDataLocked));
 refreshCardDataButton.addEventListener("click", refreshRawCardData);
 updateCardDataButton.addEventListener("click", () => openConfirmModal({
@@ -3197,7 +3236,14 @@ updateCardDataButton.addEventListener("click", () => openConfirmModal({
   onConfirm: updateRawCardData,
   returnFocusElement: updateCardDataButton,
 }));
-importCsvButton.addEventListener("click", () => csvFileInput.click());
+importCsvButton.addEventListener("click", () => openConfirmModal({
+  title: "Import CSV?",
+  message: "Importing CSV can replace this browser’s current cards. Export a backup first if needed.",
+  confirmLabel: "Choose CSV",
+  confirmClass: "primary-button",
+  onConfirm: () => csvFileInput.click(),
+  returnFocusElement: importCsvButton,
+}));
 csvFileInput.addEventListener("change", (event) => {
   importCsvFile(event.target.files[0]);
   event.target.value = "";
@@ -3240,10 +3286,12 @@ syncRecoveryActions.addEventListener("click", (event) => {
   handleSyncRecoveryAction(recoveryButton.dataset.syncRecovery);
 });
 fullscreenBarcode.addEventListener("click", (event) => {
-  if (event.target === fullscreenBarcode) {
+  if (!event.target.closest(".barcode-focus-content")) {
     closeBarcodeFocusMode();
   }
 });
+fullscreenBarcode.addEventListener("touchstart", handleBarcodeFocusSwipeStart, { passive: true });
+fullscreenBarcode.addEventListener("touchend", handleBarcodeFocusSwipeEnd, { passive: true });
 balanceModal.addEventListener("click", (event) => {
   if (event.target === balanceModal) {
     closeBalanceModal();
