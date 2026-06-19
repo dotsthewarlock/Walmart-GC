@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.50 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.51 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.50";
-const DEBUG_VERSION_CSS = "1.01.50";
+const DEBUG_VERSION_JS = "1.01.51";
+const DEBUG_VERSION_CSS = "1.01.51";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -3061,7 +3061,7 @@ function updateBalanceFromCheckout() {
 }
 
 function isModalOpen() {
-  return !balanceModal.hidden || !confirmModal.hidden;
+  return !balanceModal.hidden || !confirmModal.hidden || !notesModal.hidden;
 }
 
 function isInteractiveGestureTarget(target) {
