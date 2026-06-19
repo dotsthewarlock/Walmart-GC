@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.51 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.52 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.51";
-const DEBUG_VERSION_CSS = "1.01.51";
+const DEBUG_VERSION_JS = "1.01.52";
+const DEBUG_VERSION_CSS = "1.01.52";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -188,13 +188,9 @@ const loadDirectSheetButton = document.querySelector("#load-direct-sheet");
 const syncDirectSheetButton = document.querySelector("#sync-direct-sheet");
 const directSheetStatusArea = document.querySelector("#direct-sheet-status");
 const googleSyncSection = document.querySelector("#google-sync-section");
-const googleAccountPanel = document.querySelector("#google-account-panel");
-const googleSheetPanel = document.querySelector("#google-sheet-panel");
-const googleSyncOverview = document.querySelector("#google-sync-overview");
 const backupSyncSection = document.querySelector("#backup-sync-section");
 const backupSyncOverview = document.querySelector("#backup-sync-overview");
 const backupRestoreSection = document.querySelector("#backup-restore-section");
-const csvRecoveryPanel = document.querySelector("#csv-recovery-panel");
 
 let selectedCardIndex = -1;
 let advanceOnMarkUsed = true;
@@ -1529,6 +1525,13 @@ function renderDirectSheetsState() {
   updateBackupPanelOpenState();
 
   const sheetLink = getDirectSheetsDisplayUrl();
+  const hasSheetAttention = [
+    directSheetsStatuses.needsAttention,
+    directSheetsStatuses.conflict,
+    directSheetsStatuses.error,
+  ].includes(directSheetsState.status) || isCardsHeaderError(directSheetsState.lastErrorMessage);
+  const hasSyncAttention = syncState.status === syncStatuses.conflict || Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
+  directSheetStatusArea.hidden = !hasSheetAttention && !hasSyncAttention;
   directSheetStatusArea.className = `connection-status is-${getDirectSheetsStatusClass()} sync-${syncState.status}`;
   directSheetStatusArea.innerHTML = `
     <div class="connection-status-header">
@@ -1959,11 +1962,6 @@ function renderAppSyncSummary() {
       <span class="app-sync-summary-label">${escapeHtml(summary.label)}</span>
       <span class="app-sync-summary-help">${escapeHtml(summary.help)}</span>
     `;
-  }
-
-  if (googleSyncOverview) {
-    googleSyncOverview.dataset.syncOverview = summary.key;
-    googleSyncOverview.textContent = getGoogleSyncOverviewText(summary.key);
   }
 
   if (backupSyncOverview) {
