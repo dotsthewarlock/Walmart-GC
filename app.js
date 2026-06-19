@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.53 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.54 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.53";
-const DEBUG_VERSION_CSS = "1.01.53";
+const DEBUG_VERSION_JS = "1.01.54";
+const DEBUG_VERSION_CSS = "1.01.54";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -181,6 +181,7 @@ const connectGoogleButton = document.querySelector("#connect-google");
 const disconnectGoogleButton = document.querySelector("#disconnect-google");
 const googleOAuthStatusArea = document.querySelector("#google-oauth-status");
 const googleSyncIdentity = document.querySelector("#google-sync-identity");
+const googleSyncHelper = document.querySelector("#google-sync-helper");
 const advancedSyncDiagnostics = document.querySelector("#advanced-sync-diagnostics");
 const initializeDirectSheetButton = document.querySelector("#initialize-direct-sheet");
 const openDirectSheetButton = document.querySelector("#open-direct-sheet");
@@ -1604,6 +1605,10 @@ function renderGoogleOAuthState() {
     googleSyncIdentity.hidden = !isConnected || !connectedIdentity;
     googleSyncIdentity.textContent = connectedIdentity || "";
     googleSyncIdentity.title = connectedIdentity || "";
+  }
+  if (googleSyncHelper) {
+    googleSyncHelper.hidden = !isConnected || !connectedIdentity;
+    googleSyncHelper.textContent = connectedIdentity ? `Connected to ${connectedIdentity}` : "";
   }
   googleOAuthStatusArea.hidden = isConnected;
   googleOAuthStatusArea.textContent = isConnected ? "" : googleOAuthState.message;
