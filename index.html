@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.58 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.59 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.58" />
+    <link rel="stylesheet" href="styles.css?v=1.01.59" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,10 +21,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.58"
+          data-html-version="1.01.59"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.58 · JS loading · CSS 1.01.58
+          HTML 1.01.59 · JS loading · CSS 1.01.59
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
@@ -222,7 +222,7 @@
           </details>
             </div>
           </details>
-          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.58 · JS 1.01.58 · CSS 1.01.58</p>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.59 · JS 1.01.59 · CSS 1.01.59</p>
       </section>
     </main>
 
@@ -265,7 +265,7 @@
           placeholder="Paste or import card data here..."
         ></textarea>
         <div class="data-actions raw-csv-actions" aria-label="Raw data diagnostic actions">
-          <button id="toggle-data-lock" class="secondary-button raw-csv-unlock-button" type="button">Unlock editing 🔓</button>
+          <button id="toggle-data-lock" class="secondary-button raw-csv-unlock-button" type="button" data-lock-state="locked" aria-label="Raw CSV editor locked" title="Raw CSV editor locked">Lock 🔒</button>
           <div class="data-action-row raw-csv-secondary-row">
             <button id="refresh-card-data" class="secondary-button" type="button">Refresh</button>
             <button id="update-card-data" class="secondary-button" type="button">Update</button>
@@ -294,6 +294,7 @@
 
     <div id="fullscreen-barcode" class="barcode-focus-backdrop" hidden>
       <div class="barcode-focus-content" role="dialog" aria-modal="true" aria-label="Focused checkout barcode">
+        <p id="fullscreen-position" class="fullscreen-position">0/0</p>
         <div id="fullscreen-barcode-frame" class="barcode-placeholder barcode-focus-frame" aria-label="Focused barcode">
           <div class="barcode-meta-row barcode-meta-top">
             <span id="fullscreen-barcode-status">Barcode unavailable</span>
@@ -306,7 +307,6 @@
           </div>
           <small id="fullscreen-barcode-caption" hidden></small>
         </div>
-        <p id="fullscreen-position" class="fullscreen-position" hidden>0/0</p>
         <button id="fullscreen-prev" class="secondary-button archived-fullscreen-control" type="button" hidden>Previous</button>
         <button id="fullscreen-next" class="secondary-button archived-fullscreen-control" type="button" hidden>Next</button>
         <div class="barcode-focus-actions" aria-label="Focused barcode actions">
@@ -322,6 +322,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.58"></script>
+    <script src="app.js?v=1.01.59"></script>
   </body>
 </html>
