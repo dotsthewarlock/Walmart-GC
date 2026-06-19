@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.56 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.57 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.56";
-const DEBUG_VERSION_CSS = "1.01.56";
+const DEBUG_VERSION_JS = "1.01.57";
+const DEBUG_VERSION_CSS = "1.01.57";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -1608,7 +1608,7 @@ function renderGoogleOAuthState() {
   }
   if (googleSyncHelper) {
     googleSyncHelper.hidden = !isConnected || !connectedIdentity;
-    googleSyncHelper.textContent = connectedIdentity ? `Connected to ${connectedIdentity}` : "";
+    googleSyncHelper.textContent = connectedIdentity ? `Connected: ${connectedIdentity}` : "";
   }
   googleOAuthStatusArea.hidden = isConnected;
   googleOAuthStatusArea.textContent = isConnected ? "" : googleOAuthState.message;
