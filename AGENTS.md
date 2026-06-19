@@ -215,14 +215,15 @@ Cards
 _META
 ```
 
-Approved schema:
+Approved schema and preferred order:
 
 ```text
 cardNumber
 pin
-merchant
 startingBalance
 currentBalance
+merchant
+merchantInferred
 dateAdded
 dateUpdated
 dateUsed
@@ -231,6 +232,14 @@ notes
 ```
 
 Do not change schema.
+
+Merchant model:
+
+* `merchant` is explicit user-entered/user-selected override only.
+* `merchantInferred` is system-derived from `cardNumber`; for valid Walmart Canada cards, it is `walmart-ca`.
+* `effectiveMerchant = merchant || merchantInferred` is runtime-only.
+* Do not store `effectiveMerchant`.
+* Do not infer or default blank `merchant` values to `walmart-ca`.
 
 Worker owns sheet discovery, creation, initialization, metadata, and Google API access.
 
@@ -418,6 +427,18 @@ When uncertain, treat as Major.
 
 ---
 
+## Review Outcome Taxonomy
+
+For review-mode responses, use one of these outcomes:
+
+* `merge` — safe to merge as-is.
+* `fix first` — potentially mergeable after specific blocking fixes.
+* `reject` — not safe or not aligned with project direction.
+
+Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and user-data safety risks.
+
+---
+
 ## GitHub Update Discipline
 
 Codex should minimize GitHub update interactions.
@@ -437,12 +458,13 @@ Avoid repeated small pushes unless fixing review feedback or failed verification
 
 ---
 
-## Core File Debug Versions
+## App-Shell Debug Version Convention
 
-- `index.html`, `app.js`, and `styles.css` each carry an independent manual debug file version in `#.##.##` format.
-- The live app displays these versions near the top-right of the app header as a cache/debug fingerprint, for example `HTML 1.01.00 · JS 1.01.00 · CSS 1.01.00`.
-- These values are only for confirming which static files GitHub Pages and the browser loaded; they are not release management or product version numbers.
-- Increment only the core-file debug versions for core files changed in a PR; leave unchanged core-file versions at their current values.
+- Frontend runtime changes bump all app-shell cache/debug fingerprints together in `index.html`, `app.js`, and `styles.css`, including CSS/JS query strings.
+- Worker runtime changes bump `WORKER_VERSION` in `worker/src/index.js`.
+- Frontend plus Worker changes bump both the frontend app-shell fingerprints and `WORKER_VERSION`.
+- Docs-only changes bump neither.
+- App-shell fingerprints are lightweight cache/debug aids for confirming which static files GitHub Pages and the browser loaded; they are not product release numbers.
 
 ---
 
