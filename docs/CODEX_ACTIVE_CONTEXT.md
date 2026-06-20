@@ -100,7 +100,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 ## Design and CSS Governance
 
-For design decisions, consult Material 3 guidance. Flag likely Material 3 violations, and ask for clarification when a requested design choice conflicts with Material 3 or compliance is ambiguous.
+For design decisions, consult Material 3 guidance. UI/UX reviews and design reviews must evaluate Material 3 alignment, explain likely Material 3 conflicts, identify tradeoffs for intentional deviations, and ask for clarification when compliance is ambiguous.
 
 For CSS cleanup, remove only confirmed-unused selectors. Consolidate duplicate or phase-layered overrides only when final behavior is clear. Preserve visual and behavior baselines unless the task explicitly requests a change.
 

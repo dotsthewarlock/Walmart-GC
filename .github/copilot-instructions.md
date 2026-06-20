@@ -66,6 +66,7 @@ OAuth/session rules:
 Requirements:
 
 - Mobile-first
+- For UI/design decisions, follow the Material 3 governance guidance in `docs/CODEX_ACTIVE_CONTEXT.md`.
 - Fast loading
 - Minimal dependencies
 - Small PRs
