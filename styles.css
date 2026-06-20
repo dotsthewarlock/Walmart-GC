@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.61 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.62 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -336,7 +336,11 @@ button:disabled {
 .setting-row select:focus-visible,
 .cards-toolbar select:focus-visible,
 .collapsible-data-card summary:focus-visible,
-.modal-card input:focus-visible {
+.modal-card input:focus-visible,
+.raw-data-input:focus-visible,
+.connection-input:focus-visible,
+.settings-compact-action-row:hover,
+.settings-compact-action-row:focus-visible {
   border-color: var(--primary);
   box-shadow: var(--focus-ring);
   outline: none;
@@ -1072,11 +1076,6 @@ dd,
   color: var(--muted);
 }
 
-.raw-data-input:focus-visible {
-  border-color: var(--primary);
-  box-shadow: var(--focus-ring);
-  outline: none;
-}
 
 .data-actions {
   display: grid;
@@ -1161,11 +1160,6 @@ dd,
   padding: 0.8rem;
 }
 
-.connection-input:focus-visible {
-  border-color: var(--primary);
-  box-shadow: var(--focus-ring);
-  outline: none;
-}
 
 .connection-actions {
   display: grid;
@@ -1454,13 +1448,6 @@ dd,
   cursor: pointer;
   padding: 1rem;
   text-align: left;
-}
-
-.settings-compact-action-row:hover,
-.settings-compact-action-row:focus-visible {
-  border-color: var(--primary);
-  box-shadow: var(--focus-ring);
-  outline: none;
 }
 
 .settings-compact-action-row .compact-row-action {
@@ -2357,7 +2344,8 @@ dd,
   line-height: 1;
 }
 
-.google-sync-section .sheet-normal-actions {
+.google-sync-section .sheet-normal-actions,
+.backup-restore-section .csv-backup-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.45rem;
@@ -2374,17 +2362,7 @@ dd,
   white-space: nowrap;
 }
 
-.google-sync-section .sheet-normal-actions .compact-sync-button {
-  width: 100%;
-  min-width: 0;
-}
-
-.backup-restore-section .csv-backup-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
+.google-sync-section .sheet-normal-actions .compact-sync-button,
 .backup-restore-section .csv-backup-actions .compact-sync-button {
   width: 100%;
   min-width: 0;
