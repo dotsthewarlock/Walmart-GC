@@ -39,6 +39,15 @@ Garbage-collection triggers:
 - Guardrails: do not touch Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, or deployment config.
 - Acceptance: one clear active-state style path remains for Settings gear; visible behavior remains unchanged; `git diff --check` and conflict-marker scan pass.
 
+### P3 / Low / Validation: browser visual check unavailable for Diagnostics helper
+
+- Source: Task `Compact Diagnostics deploy/app-shell helper text` on 2026-06-20.
+- Status: Open.
+- Context: The Diagnostics helper was validated with static review, `node --check app.js`, `git diff --check`, conflict-marker scan, and a local HTTP/curl smoke check. No Chromium, Google Chrome, or Firefox binary was available in the container, so the requested desktop/mobile browser visual check could not be completed here.
+- Suggested action: perform a quick manual browser check at desktop width and narrow mobile width before or after PR review.
+- Guardrails: visual verification only; do not touch Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, or deployment config.
+- Acceptance: Diagnostics heading shows `phase-12 · 1.01.77` in the normal case, wraps cleanly on narrow screens, and shows `phase-12 · shell mismatch` plus split HTML/JS/CSS technical detail when a fingerprint is unavailable or mismatched.
+
 ## Resolved items
 
 No resolved maintenance-log items yet.
