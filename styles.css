@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.62 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.63 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -166,18 +166,6 @@ button:disabled {
 
 .settings-gear-icon {
   opacity: 1;
-}
-
-.settings-heading-row {
-  grid-template-columns: 1fr auto;
-}
-
-.backup-sync-section {
-  margin-top: 0.75rem;
-}
-
-.settings-backup-layout {
-  margin-top: 0.75rem;
 }
 
 
@@ -1950,25 +1938,10 @@ dd,
   background: rgba(11, 125, 255, 0.06);
 }
 
-.google-sync-section,
-.backup-restore-section {
-  gap: 0.7rem;
-}
-
 .oauth-actions,
 .sheet-normal-actions,
 .csv-backup-actions {
   margin: 0;
-}
-
-.csv-backup-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.csv-backup-actions .secondary-button {
-  flex: 1 1 8rem;
 }
 
 .raw-data-card h4 {
@@ -2111,26 +2084,8 @@ dd,
 }
 
 /* Phase 11.3h settings density and status legibility polish */
-.settings-heading-row {
-  margin-bottom: 0.42rem;
-}
-
-.backup-sync-section {
-  margin-top: 0.55rem;
-}
-
 .backup-sync-section > .data-section-heading {
   margin-bottom: 0;
-}
-
-.settings-backup-layout {
-  gap: 0.55rem;
-  margin-top: 0.45rem;
-}
-
-.google-sync-section,
-.backup-restore-section {
-  gap: 0.5rem;
 }
 
 .google-sync-section > .data-section-heading,
@@ -2246,10 +2201,6 @@ dd,
   color: var(--danger);
 }
 
-.settings-panel .settings-heading-row {
-  margin-bottom: 0.3rem;
-}
-
 .settings-panel .settings-list {
   margin-bottom: 0.45rem;
 }
@@ -2291,13 +2242,6 @@ dd,
   padding-block: 0.68rem;
 }
 
-.settings-panel .google-sync-section:not([open]) > summary.data-section-heading,
-.settings-panel .backup-restore-section:not([open]) > summary.data-section-heading,
-.settings-panel .advanced-diagnostics-section:not([open]) > summary {
-  min-height: 3rem;
-  padding-block: 0.65rem;
-}
-
 .settings-panel .backup-restore-section > summary.data-section-heading {
   gap: 0.08rem;
 }
@@ -2308,47 +2252,6 @@ dd,
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.2;
-}
-
-.settings-panel .advanced-diagnostics-content {
-  gap: 0.5rem;
-  margin-top: 0.2rem;
-}
-
-.settings-panel .collapsible-data-card:not([open]) {
-  min-height: 0;
-  gap: 0;
-  padding: 0.12rem 0.62rem;
-}
-
-.settings-panel .collapsible-data-card:not([open]) > summary {
-  min-height: 3rem;
-  padding: 0.42rem 0.12rem;
-}
-
-.settings-panel .collapsible-data-card:not([open]) > summary h4 {
-  margin: 0;
-}
-
-.settings-list .compact-row-action,
-.settings-list .app-reload-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 4.25rem;
-  min-height: 2.2rem;
-  border-radius: var(--shape-sm);
-  padding: 0.4rem 0.7rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.google-sync-section .sheet-normal-actions,
-.backup-restore-section .csv-backup-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
 }
 
 .google-sync-section .connection-actions button,
@@ -2409,12 +2312,16 @@ dd,
 
 .settings-list .compact-row-action,
 .settings-list .app-reload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 6.5rem;
   min-height: var(--control-height-compact);
   padding: 0.45rem 0.75rem;
   border-radius: 0.8rem;
   font-size: 0.9rem;
   font-weight: 650;
+  line-height: 1;
 }
 
 .settings-panel details.data-section:not([open]) {
@@ -2447,12 +2354,14 @@ dd,
 }
 
 .settings-panel .collapsible-data-card:not([open]) {
+  min-height: 0;
+  gap: 0;
   padding: 0 0.62rem;
 }
 
 .settings-panel .collapsible-data-card:not([open]) > summary {
   min-height: 3rem;
-  padding-block: 0;
+  padding: 0 0.12rem;
   align-items: center;
 }
 
