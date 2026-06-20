@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.74 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.75 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.74";
-const DEBUG_VERSION_CSS = "1.01.74";
+const DEBUG_VERSION_JS = "1.01.75";
+const DEBUG_VERSION_CSS = "1.01.75";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2483,6 +2483,18 @@ function closeSettingsPanel() {
   showPanel(previousPrimaryPanelName || "list");
 }
 
+function updateSettingsButtonState(isOpen) {
+  if (!settingsOpenButton) {
+    return;
+  }
+
+  const label = isOpen ? "Close settings" : "Open settings";
+  settingsOpenButton.classList.toggle("is-active", isOpen);
+  settingsOpenButton.setAttribute("aria-label", label);
+  settingsOpenButton.setAttribute("aria-expanded", String(isOpen));
+  settingsOpenButton.title = label;
+}
+
 function openBackupAndSyncSettings() {
   openSettingsPanel({ focusBackupSync: true });
 }
@@ -2514,6 +2526,8 @@ function showPanel(panelName, options = {}) {
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
+
+  updateSettingsButtonState(nextPanelName === "settings");
 
   if (nextPanelName === "detail") {
     renderCardDetail();
