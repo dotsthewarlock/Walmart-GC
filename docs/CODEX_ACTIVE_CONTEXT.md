@@ -1,13 +1,14 @@
-# Codex Active Context — Phase 11
+# Codex Active Context
 
-Read this first for current Walmart-GC tasks. It is the compact Phase 11 source-of-truth for future Codex work. Preferred source-of-truth chain: `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
+Read this first for current Walmart-GC tasks. It is the compact source of truth for future Codex work. Preferred source-of-truth chain: `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
 
 ## Current Basics
 
 - Repo: `dotsthewarlock/Walmart-GC`
 - Active/base branch: `main`
+- Historical/archival/protected branch: `phase-11`
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
-- Phase 11 goal: fix OAuth/session durability and Google Sheets access/sync hardening.
+- OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
 - Plain HTML/CSS/JavaScript frontend, no framework, no build system.
 - Do not redesign core product behavior unless it directly blocks OAuth, session, Google Sheets access, or sync.
 
@@ -26,6 +27,18 @@ Walmart-GC Web App
 ```
 
 Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and `/api/*` to the Worker while GitHub Pages serves static files at the root. The legacy Worker subdomain may exist only as fallback/legacy.
+
+## Latest Infrastructure Audit
+
+Verified current infrastructure state:
+
+- GitHub Pages serves the frontend root from `main`.
+- App shell fingerprint: `1.01.74`.
+- Cloudflare routes only `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
+- No wildcard `/*` Worker route.
+- Worker version: `2026-06-18.merchant-inferred-schema.1`.
+- Schema mode: `header-name`.
+- Worker-managed OAuth/session is active.
 
 ## Runtime Confirmation Rule
 
@@ -100,7 +113,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 ## Repo Workflow Safety
 
-- The expected repository base branch for active Phase 11 work is `main`. Determine the expected base branch from active project context, confirm the local working branch before implementation, review, audit, verification, or PR tasks, and alert the user when it appears to differ from the intended workflow. Do not assume branch changes are intentional; if branch intent is unclear, ask before proceeding.
+- The expected repository base branch for active work is `main`; `phase-11` is historical/archival/protected and must not be used as the active base. Determine the expected base branch from active project context, confirm the local working branch before implementation, review, audit, verification, or PR tasks, and alert the user when it appears to differ from the intended workflow. Do not assume branch changes are intentional; if branch intent is unclear, ask before proceeding.
 - Distinguish the local working branch from GitHub PR branches. Codex may use a local/internal staging branch such as `work`; a local `work` branch is not by itself a blocker when it is only internal staging. Before PR creation or auto-merge, report all three branch identities: local working branch, GitHub PR head branch, and GitHub PR base branch.
 - Before any task requiring PR creation or auto-merge, confirm the intended PR base is `main`, the intended PR head is a `codex/*` branch, and a GitHub PR creation mechanism is available. For local/CLI workflows, `git remote get-url origin` may be used as a push preflight and should point to `dotsthewarlock/Walmart-GC`; do not require local `origin` as a universal Codex Cloud preflight because Codex Cloud may use platform-managed PR creation. If no PR path exists, stop before implementation and report `blocked: PR creation unavailable` unless local-only output is explicitly approved; if Codex Cloud can commit/prepare changes but requires the user to manually click `Create PR`, continue the task and finish with PR-ready output.
 - Distinguish Codex Cloud workspace commits and PR metadata from GitHub PRs. A commit reported by Codex Cloud is not enough to prove a branch was pushed to GitHub. In Codex Cloud, “Created PR metadata” is not a successful PR creation result; if changes are committed/prepared but no GitHub PR URL/number exists, or the UI still shows `Create PR`, Codex must report `PR not created; PR-ready only` and tell the user to click `Create PR`; this is a normal handoff state, not a failed task.
@@ -199,4 +212,4 @@ Read only files listed by the task unless evidence points elsewhere. Prefer exac
 
 ## Archive Policy
 
-Historical docs live under `docs/archive/` and are retained for reference, not normal Phase 11 context. Do not read archived docs for normal tasks. Consult them only for exact old error strings, historical regressions, explicit user requests, or migration/history tasks.
+Historical docs live under `docs/archive/` and are retained for reference, not normal current-work context. Do not read archived docs for normal tasks. Consult them only for exact old error strings, historical regressions, explicit user requests, or migration/history tasks.

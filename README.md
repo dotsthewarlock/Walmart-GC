@@ -6,15 +6,11 @@ Walmart-GC is a static web application that helps users manage large numbers of 
 
 ## Current Status
 
-Phase 11 is the active development phase, and `main` is the active/base branch.
+`main` is the active/base branch. `phase-11` is historical/archival/protected and must not be used as the active base.
 
-Phase 11 focus:
+OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
 
-```text
-Fix OAuth/session flow until fully functional and durable.
-```
-
-Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only.
+Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Phase 9, Phase 10, Phase 10E, `phase-11`, and the Apps Script MVP are historical context only.
 
 ## Features
 
@@ -64,7 +60,7 @@ Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script s
 
 ## Runtime Debugging Priority
 
-Worker-backed OAuth and sync are the intended Phase 11 architecture. When debugging a live failure, however, evidence wins over architecture notes. Use this priority order:
+Worker-backed OAuth and sync are the current `main` architecture. When debugging a live failure, however, evidence wins over architecture notes. Use this priority order:
 
 1. Exact live error string / observed behavior
 2. Current workspace/repo files
@@ -105,7 +101,7 @@ OAuth testing is cloud-only. Do not document or use localhost OAuth, alternate O
 
 ## Documentation
 
-Start with [Codex Active Context](docs/CODEX_ACTIVE_CONTEXT.md) for compact current Phase 11 context. Archived docs are historical references only and are not current setup guidance.
+Start with [Codex Active Context](docs/CODEX_ACTIVE_CONTEXT.md) for compact current context. Archived docs are historical references only and are not current setup guidance.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
