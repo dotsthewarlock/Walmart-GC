@@ -98,6 +98,16 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - JavaScript functions/variables use `camelCase`; JavaScript constants use `SCREAMING_SNAKE_CASE`.
 - Preserve approved schema field names as existing `camelCase`; do not rename schema fields for style.
 
+## Repo Workflow Safety
+
+- Determine the expected branch from active project context, confirm the current branch before implementation, review, audit, verification, or PR tasks, and alert the user when they differ. Do not assume branch changes are intentional; if branch intent is unclear, ask before proceeding, and state PR source and target branches.
+- When the primary development branch or phase changes, update active branch references in active docs first; preserve historical branch or phase references only when intentionally historical.
+- Confidence reports should include score, rationale, files touched, validation performed, and remaining uncertainty. PR creation is allowed at confidence >=60%; auto-merge is allowed at confidence >=80% only when all safety gates pass.
+- Block auto-merge when merge conflicts exist, validation fails, checks/CI fail, branches mismatch, scope is unclear, or restricted-risk areas are touched. Restricted-risk areas require explicit user approval before implementation or merge: schema changes, OAuth/session, Worker auth/cookies, sync/conflict handling, deployment/routes, migration/recovery, broad UI redesign, and destructive cleanup. Approval may be provided in chat or task follow-up.
+- Report merged or stale `codex/*` branches. Auto-delete only verified merged `codex/*` branches while retaining the 5 most recent merged Codex branches and any merged Codex branch newer than 30 days. Never auto-delete failed, conflicted, abandoned, unresolved, or ambiguous branches.
+- Keep the 5 most recent completed Codex instances visible and archive older completed instances. Never auto-archive failed/error tasks, blocked tasks, unresolved reviews, active investigations, or ambiguous-status tasks. Never auto-delete Codex instances.
+- Prefer existing CSS tokens and component/layout patterns before introducing new raw values or variants. Minimize one-off styling values, consolidate duplicates only when computed output remains unchanged, preserve accepted UI baselines unless visual change is requested, and use Material 3 as a consistency lens rather than a redesign mandate.
+
 ## Design and CSS Governance
 
 For design decisions, consult Material 3 guidance. UI/UX reviews and design reviews must evaluate Material 3 alignment, explain likely Material 3 conflicts, identify tradeoffs for intentional deviations, and ask for clarification when compliance is ambiguous.
