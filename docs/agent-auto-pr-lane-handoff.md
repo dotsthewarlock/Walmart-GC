@@ -91,3 +91,35 @@ jobs:
           fi
 
           echo "Low-risk guard passed."
+
+          
+## Handoff protocol
+
+Keyword: `handoff`
+
+When the user says `handoff` or explicitly asks for a handoff, generate a token-efficient handoff for the current bounded manual task.
+
+ChatGPT remains the source of policy, scope, architecture, and risk decisions.
+
+Gemini is only a screen/terminal execution assistant for bounded manual tasks.
+
+Gemini must:
+- follow only the handoff plus visible screen/terminal context
+- not extrapolate
+- not invent commands, UI steps, labels, settings, or policy
+- prefer exact CLI commands over manual UI only when commands are provided
+- stop and return to ChatGPT on drift, unexpected files, errors, scope changes, or uncertainty
+- when steps are complete or the user asks "what next?", provide a compact report back to ChatGPT
+
+Default work routing:
+- Codex for repo implementation
+- ChatGPT for architecture, review, merge decisions, policy, and risk
+- Gemini for manual execution only
+- Gemini/terminal lane for micro changes only when ChatGPT provides exact file/path/content/commands
+
+Model guidance:
+- Flash Lite: observe/report only
+- Flash: guided manual execution
+- Pro: bounded troubleshooting
+- ChatGPT: decisions/review
+- Codex: repo updates
