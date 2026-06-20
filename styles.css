@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.63 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.64 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -24,11 +24,18 @@
   --elevation-subtle: 0 0.5rem 1.4rem rgba(23, 32, 51, 0.06);
   --state-success: #0f7b3f;
   --state-success-border: rgba(15, 123, 63, 0.32);
+  --state-success-border-soft: rgba(15, 123, 63, 0.26);
   --state-success-bg: rgba(15, 123, 63, 0.08);
+  --state-success-bg-strong: rgba(15, 123, 63, 0.12);
   --state-warning: #7a4a00;
+  --state-warning-strong: #6b4100;
+  --state-warning-border: rgba(122, 74, 0, 0.25);
+  --state-warning-border-strong: rgba(122, 74, 0, 0.34);
   --state-warning-bg: #fffaf0;
+  --state-warning-bg-strong: #fff7d6;
   --state-danger: #b42318;
   --state-danger-border: rgba(180, 35, 24, 0.28);
+  --state-danger-border-soft: rgba(180, 35, 24, 0.26);
   --state-danger-bg: #fff1f0;
   --shadow: var(--elevation-panel);
   --unused: var(--state-success);
@@ -285,7 +292,7 @@ button:disabled {
 }
 
 .status-badge[data-used="false"] {
-  background: rgba(15, 123, 63, 0.12);
+  background: var(--state-success-bg-strong);
   color: var(--unused);
 }
 
@@ -587,9 +594,9 @@ dd,
 }
 
 .danger-button {
-  background: var(--danger-bg);
+  background: var(--state-danger-bg);
   border-color: var(--state-danger-border);
-  color: var(--danger);
+  color: var(--state-danger);
 }
 
 .compact-danger {
@@ -692,7 +699,7 @@ dd,
 
 .form-error {
   min-height: 1.4rem;
-  color: var(--danger);
+  color: var(--state-danger);
   font-weight: 600;
 }
 
@@ -1228,7 +1235,7 @@ dd,
 }
 
 .connection-status.is-needs-reconnect {
-  border-color: rgba(122, 74, 0, 0.25);
+  border-color: var(--state-warning-border);
   background: var(--state-warning-bg);
 }
 
@@ -1237,7 +1244,7 @@ dd,
 }
 
 .connection-status.is-needs-attention {
-  border-color: rgba(122, 74, 0, 0.34);
+  border-color: var(--state-warning-border-strong);
   background: var(--state-warning-bg);
 }
 
@@ -1260,11 +1267,11 @@ dd,
 
 .connection-status.is-error {
   border-color: var(--state-danger-border);
-  background: var(--danger-bg);
+  background: var(--state-danger-bg);
 }
 
 .connection-status.is-error .connection-status-dot {
-  background: var(--danger);
+  background: var(--state-danger);
 }
 
 .data-action-row:has(> :only-child) {
@@ -1293,13 +1300,13 @@ dd,
 }
 
 .connection-status.sync-unsynced .sync-badge {
-  background: #fff7d6;
+  background: var(--state-warning-bg-strong);
   color: var(--state-warning);
 }
 
 .connection-status.sync-conflict .sync-badge {
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: var(--state-danger-bg);
+  color: var(--state-danger);
 }
 
 .sync-message {
@@ -1332,13 +1339,13 @@ dd,
 }
 
 .recovery-panel.is-unsynced {
-  border-color: rgba(122, 74, 0, 0.25);
+  border-color: var(--state-warning-border);
   background: var(--state-warning-bg);
 }
 
 .recovery-panel.is-conflict {
   border-color: var(--state-danger-border);
-  background: var(--danger-bg);
+  background: var(--state-danger-bg);
 }
 
 .recovery-status {
@@ -1346,7 +1353,7 @@ dd,
 }
 
 .recovery-warning {
-  color: var(--danger);
+  color: var(--state-danger);
 }
 
 .recovery-action-grid {
@@ -1517,8 +1524,8 @@ dd,
 .sync-overview[data-sync-overview="conflict"],
 .sync-overview[data-sync-overview="unavailable"] {
   border-color: var(--state-danger-border);
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: var(--state-danger-bg);
+  color: var(--state-danger);
 }
 
 .barcode-focus-backdrop {
@@ -1782,7 +1789,7 @@ dd,
 .sync-overview {
   justify-self: start;
   border-radius: var(--shape-pill);
-  background: #fff7d6;
+  background: var(--state-warning-bg-strong);
   color: var(--state-warning);
   font-size: 0.86rem;
   font-weight: 800;
@@ -1790,14 +1797,14 @@ dd,
 }
 
 .sync-overview[data-sync-overview="connected"] {
-  background: rgba(15, 123, 63, 0.12);
+  background: var(--state-success-bg-strong);
   color: var(--unused);
 }
 
 .sync-overview[data-sync-overview="conflict"],
 .sync-overview[data-sync-overview="unavailable"] {
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: var(--state-danger-bg);
+  color: var(--state-danger);
 }
 
 .data-card-heading,
@@ -1837,7 +1844,7 @@ dd,
 .global-status-banner[data-sync-summary="conflict"],
 .global-status-banner[data-sync-summary="unavailable"] {
   border-color: rgba(180, 35, 24, 0.24);
-  color: var(--danger);
+  color: var(--state-danger);
 }
 
 .card-count-summary {
@@ -2079,8 +2086,8 @@ dd,
 
 .global-status-banner[data-sync-summary="conflict"],
 .global-status-banner[data-sync-summary="unavailable"] {
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: var(--state-danger-bg);
+  color: var(--state-danger);
 }
 
 /* Phase 11.3h settings density and status legibility polish */
@@ -2153,14 +2160,14 @@ dd,
 .global-status-banner[data-sync-summary="checking"] {
   border-color: rgba(122, 74, 0, 0.24);
   background: rgba(122, 74, 0, 0.1);
-  color: #6b4100;
+  color: var(--state-warning-strong);
 }
 
 .global-status-banner[data-sync-summary="conflict"],
 .global-status-banner[data-sync-summary="unavailable"] {
-  border-color: rgba(180, 35, 24, 0.26);
-  background: var(--danger-bg);
-  color: var(--danger);
+  border-color: var(--state-danger-border-soft);
+  background: var(--state-danger-bg);
+  color: var(--state-danger);
 }
 
 /* Phase 11.3h follow-up settings density and persistent chrome polish */
@@ -2182,7 +2189,7 @@ dd,
 }
 
 .global-status-banner[data-sync-summary="connected"] {
-  border-color: rgba(15, 123, 63, 0.26);
+  border-color: var(--state-success-border-soft);
   background: rgba(230, 246, 236, 0.96);
   color: #155f39;
 }
@@ -2191,14 +2198,14 @@ dd,
 .global-status-banner[data-sync-summary="checking"] {
   border-color: rgba(122, 74, 0, 0.26);
   background: rgba(255, 247, 214, 0.96);
-  color: #6b4100;
+  color: var(--state-warning-strong);
 }
 
 .global-status-banner[data-sync-summary="conflict"],
 .global-status-banner[data-sync-summary="unavailable"] {
   border-color: var(--state-danger-border);
   background: rgba(255, 241, 240, 0.96);
-  color: var(--danger);
+  color: var(--state-danger);
 }
 
 .settings-panel .settings-list {
