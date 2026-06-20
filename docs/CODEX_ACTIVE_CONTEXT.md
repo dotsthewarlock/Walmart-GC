@@ -132,6 +132,9 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Codex Cloud is first choice for implementation. GitHub-native automation owns PR lifecycle steps. The ChatGPT/GitHub connector is a secondary convenience path for small edits, and ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*`.
 
+
+GitHub Actions UI registration note: Phase 12 AI workflows may need workflow files present on the default branch so `workflow_dispatch` entries appear in the Actions UI, but their runtime guards must still target `phase-12` and never `main`. Treat the workflow source branch (where GitHub loads the workflow definition) and the workflow target branch (the PR base or cleanup base the workflow acts on) as separate concepts; active-context lookups must read `docs/CODEX_ACTIVE_CONTEXT.md` from the intended target branch.
+
 Workflow lanes:
 
 - Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-12` PRs.
