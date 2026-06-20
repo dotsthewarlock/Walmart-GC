@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.74 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.75 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -143,8 +143,8 @@ button:disabled {
   z-index: 30;
   display: inline-grid;
   place-items: center;
-  width: 2.875rem;
-  height: 2.875rem;
+  width: 3rem;
+  height: 3rem;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: var(--shape-md);
   background: rgba(235, 246, 255, 0.66);
@@ -159,7 +159,8 @@ button:disabled {
 }
 
 .settings-gear-button:hover,
-.settings-gear-button:focus-visible {
+.settings-gear-button:focus-visible,
+.settings-gear-button.is-active {
   border-color: rgba(0, 113, 220, 0.44);
   background: rgba(235, 246, 255, 0.82);
   box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.16), 0 0.35rem 1rem rgba(0, 79, 154, 0.2);
@@ -2702,7 +2703,8 @@ dd,
   box-shadow: 0 0.55rem 1.25rem rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.38);
 }
 
-.settings-gear-button:hover {
+.settings-gear-button:hover,
+.settings-gear-button.is-active {
   border-color: rgba(0, 113, 220, 0.5);
   background: rgba(235, 246, 255, 1);
   box-shadow: 0 0.7rem 1.45rem rgba(0, 79, 154, 0.24), 0 0 0 1px rgba(0, 113, 220, 0.16);
