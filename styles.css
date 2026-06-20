@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.65 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.66 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -216,7 +216,7 @@ button:disabled {
   background: transparent;
   color: var(--primary-dark);
   cursor: pointer;
-  font-size: clamp(0.78rem, 2.9vw, 0.95rem);
+  font-size: clamp(0.95rem, 2.9vw, 1rem);
   font-weight: 600;
   min-height: 3.2rem;
   padding: 0.62rem 0.35rem;
@@ -1880,8 +1880,16 @@ dd,
 }
 
 .checkout-nav .secondary-button {
-  min-height: var(--control-height-compact);
-  padding: 0.45rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.65rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: var(--type-button-weight);
+  line-height: 1.15;
+  text-align: center;
 }
 
 .position-indicator {
@@ -2277,6 +2285,7 @@ dd,
   width: 100%;
   min-width: 0;
 }
+
 
 /* Phase 11.3j panel consistency and settings density cleanup */
 .list-panel .section-heading,
@@ -2735,4 +2744,33 @@ dd,
 .used-balance-card dd {
   color: var(--used);
   text-decoration: line-through;
+}
+
+/* Phase 11.4b navigation and settings button consistency */
+.settings-panel .connection-actions button,
+.settings-panel .csv-backup-actions button,
+.settings-panel .raw-data-open-button,
+.settings-list .app-reload-button,
+.settings-list .compact-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height-compact);
+  border-radius: var(--shape-sm);
+  padding: 0.45rem 0.75rem;
+  font-size: 1rem;
+  font-weight: var(--type-button-weight);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.settings-panel .sheet-normal-actions .compact-sync-button,
+.settings-panel .csv-backup-actions .compact-sync-button {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.settings-panel .raw-data-open-button {
+  min-height: var(--control-height-compact);
 }
