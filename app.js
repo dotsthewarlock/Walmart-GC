@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.73 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.74 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.73";
-const DEBUG_VERSION_CSS = "1.01.73";
+const DEBUG_VERSION_JS = "1.01.74";
+const DEBUG_VERSION_CSS = "1.01.74";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2001,8 +2001,8 @@ function getAppSyncSummaryState() {
   if (hasWorkerGoogleSession() && directSheetsState.status === directSheetsStatuses.ready) {
     return {
       key: "connected",
-      label: "Connected",
-      help: "Google Sheets sync ready",
+      label: "✓ Sync ready",
+      help: "",
     };
   }
 
@@ -2028,7 +2028,7 @@ function renderAppSyncSummary() {
 
   if (checkoutFeedback && checkoutFeedback.dataset.temporary !== "true") {
     checkoutFeedback.dataset.syncSummary = summary.key;
-    checkoutFeedback.textContent = `${summary.label} · ${summary.help}`;
+    checkoutFeedback.textContent = summary.help ? `${summary.label} · ${summary.help}` : summary.label;
     checkoutFeedback.hidden = false;
   }
 }
