@@ -10,11 +10,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check frontend JavaScript
         run: node --check app.js
+
       - name: Check Worker JavaScript
         run: node --check worker/src/index.js
-      - name: Check whitespace
-        run: git diff --check
+
+      - name: Check changed-file whitespace
+        run: git diff --check "origin/${{ github.base_ref }}...HEAD"
+
       - name: Check conflict markers
-        run: '! grep -R "<<<<<<<\|=======\|>>>>>>>" .'
+        run: |
+          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- .; then
+            echo "Conflict markers found."
+            exit 1
+          fi

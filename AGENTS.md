@@ -385,7 +385,7 @@ Shared Google Sheets are allowed when Google Sheets grants access. Walmart-GC op
 * Flag security, deployment, OAuth, session, schema, migration, sync, or user-data risks before implementation.
 * Prioritize maintainability and simplicity.
 * Prioritize mobile usability.
-* Review all generated changes before merge.
+* Review all generated changes before merge or before enabling GitHub auto-merge.
 * Do not change app behavior, Worker behavior, schema, OAuth scope, or sync behavior unless explicitly requested.
 
 ---
@@ -456,6 +456,45 @@ Before committing, pushing, or opening a PR:
 8. Open one PR.
 
 Avoid repeated small pushes unless fixing review feedback or failed verification.
+
+---
+
+## Auto-Merge Discipline
+
+Repository settings allow GitHub squash auto-merge into `phase-11` when the required `static-checks` GitHub Actions check passes and branch rules are satisfied.
+
+Codex may enable GitHub squash auto-merge only when all of the following are true:
+
+* The task explicitly authorizes auto-merge, or the task is clearly low-risk under the Minor Changes framework.
+* The PR targets `phase-11`.
+* The PR uses squash merge.
+* Confidence is >=80%.
+* Required GitHub Actions checks pass.
+* The branch is up to date with `phase-11`.
+* No merge conflicts exist.
+* All PR conversations are resolved.
+* The final diff has been reviewed once by Codex.
+* Changed files match the requested scope.
+* No restricted-risk area is touched.
+
+Restricted-risk areas must not be auto-merged unless the user explicitly approves auto-merge for that specific task. Restricted-risk areas include:
+
+* Schema changes
+* OAuth/session behavior
+* Worker auth/cookies
+* Sync/conflict handling
+* Google Sheet migration/recovery
+* CSV import/export/recovery
+* Deployment/routes/hosting
+* Cloudflare Worker replacement
+* Framework/build-system changes
+* Broad UI redesign
+* Destructive cleanup
+* Anything that could cause user-data loss
+
+When auto-merge is allowed, Codex should enable GitHub squash auto-merge rather than direct-merging. Do not repeatedly poll checks. If checks are still pending, enable auto-merge if GitHub allows it, or report that checks are pending.
+
+When auto-merge is blocked, Codex should leave the PR open and briefly report the blocker.
 
 ---
 
