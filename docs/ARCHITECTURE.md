@@ -4,7 +4,7 @@
 
 Walmart-GC uses a lightweight static frontend plus Cloudflare Worker architecture that avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, build tooling, frameworks, and app-managed user accounts.
 
-Phase 11 is the active development phase on `phase-11`; `main` is protected. Phase 11 is limited to fixing OAuth/session flow until fully functional and durable. Core product functionality should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
+Phase 11 is the active development phase on `main`; `main` is protected. Phase 11 is limited to fixing OAuth/session flow until fully functional and durable. Core product functionality should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
 
 ## Runtime Debugging Priority

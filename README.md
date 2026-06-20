@@ -6,7 +6,7 @@ Walmart-GC is a static web application that helps users manage large numbers of 
 
 ## Current Status
 
-Phase 11 is the active development phase on the `phase-11` branch. The protected branch is `main`.
+Phase 11 is the active development phase on the `main` branch. The protected branch is `main`.
 
 Phase 11 focus:
 

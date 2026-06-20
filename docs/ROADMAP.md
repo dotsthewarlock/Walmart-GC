@@ -7,7 +7,7 @@ Phase 11 is the only active development phase.
 Active branch:
 
 ```text
-phase-11
+main
 ```
 
 Protected branch:

@@ -35,7 +35,7 @@ Normal users should only need to open the custom-domain app, select **Connect Go
 
 ## Branches
 
-- Active development branch: `phase-11`.
+- Active development branch: `main`.
 - Protected branch: `main`.
 
 Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only. Do not deploy or document Apps Script sync as the active path.

@@ -5,7 +5,7 @@ For compact current context, read `docs/CODEX_ACTIVE_CONTEXT.md` first. This han
 
 ## Current Branch Context
 
-Active branch: `phase-11`.
+Active branch: `main`.
 
 Protected branch: `main`.
 

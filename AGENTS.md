@@ -46,7 +46,7 @@ Phase 11 is the only active development phase.
 Active branch:
 
 ```text
-phase-11
+main
 ```
 
 Protected branch:
@@ -444,7 +444,7 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 Codex should minimize GitHub update interactions.
 
-Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `phase-11` base, intended `codex/*` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Codex Cloud blocker. In Codex Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
+Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `main` base, intended `codex/*` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Codex Cloud blocker. In Codex Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
 
 Before committing, pushing, or opening a PR:
 
@@ -463,16 +463,16 @@ Avoid repeated small pushes unless fixing review feedback or failed verification
 
 ## Auto-Merge Discipline
 
-Repository settings allow GitHub squash auto-merge into `phase-11` when the required `static-checks` GitHub Actions check passes and branch rules are satisfied.
+Repository settings allow GitHub squash auto-merge into `main` when the required `static-checks` GitHub Actions check passes and branch rules are satisfied.
 
 Codex may enable GitHub squash auto-merge only when all of the following are true:
 
 * The task explicitly authorizes auto-merge, or the task is clearly low-risk under the Minor Changes framework.
-* The PR targets `phase-11`.
+* The PR targets `main`.
 * The PR uses squash merge.
 * Confidence is >=80%.
 * Required GitHub Actions checks pass.
-* The branch is up to date with `phase-11`.
+* The branch is up to date with `main`.
 * No merge conflicts exist.
 * All PR conversations are resolved.
 * The final diff has been reviewed once by Codex.
