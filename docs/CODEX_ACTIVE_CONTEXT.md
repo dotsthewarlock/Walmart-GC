@@ -135,6 +135,8 @@ Why: <one short reason>
 Reply with: <exact approval phrase or next instruction, when useful>
 ```
 
+Shorthand: when the user says `next`, respond with a short, concise summary of the next user action items, who acts next, and confidence. When the next step is clear, low-risk, and covered by a discussed multi-step plan, ask the user to reply `y` or `n` to proceed. After completing a step, give a concise completion report, recommend follow-up action items, state confidence when useful, and ask for `y`/`n` approval to continue only when the next action is clear and safe.
+
 Avoid report-style endings when the user needs to choose an action. Keep responses concise by default; offer or provide an expanded summary only when the user requests it or the risk warrants it.
 
 ## Design and CSS Governance
