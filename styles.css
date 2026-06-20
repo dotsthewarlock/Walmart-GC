@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.73 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.74 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -2791,24 +2791,40 @@ dd,
   }
 }
 
-/* Phase 11.4i sticky global status and toolbar balance inset */
-.status-bar-shell {
-  position: sticky;
-  top: 0;
-  z-index: 25;
-  margin-top: -4.35rem;
-  margin-bottom: 1.15rem;
-  pointer-events: none;
+/* Phase 11.4j inline Material 3 sync status row and toolbar balance inset */
+.checkout-feedback.global-status-banner {
+  width: 100%;
+  min-width: 0;
+  margin: 0.62rem 0 0.88rem;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  padding: 0.1rem 0.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
-.status-bar-shell .global-status-banner {
-  pointer-events: auto;
+.checkout-feedback.global-status-banner[data-sync-summary="connected"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
 }
 
-.status-bar-shell .global-status-banner[data-sync-summary="checking"] {
-  border-color: rgba(99, 112, 131, 0.28);
-  background: rgba(255, 255, 255, 0.96);
-  color: var(--text);
+.checkout-feedback.global-status-banner[data-sync-summary="unsynced"],
+.checkout-feedback.global-status-banner[data-sync-summary="checking"] {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-strong);
+  padding: 0.45rem 0.65rem;
+}
+
+.checkout-feedback.global-status-banner[data-sync-summary="conflict"],
+.checkout-feedback.global-status-banner[data-sync-summary="unavailable"] {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger);
+  padding: 0.45rem 0.65rem;
 }
 
 .cards-toolbar .card-total-balance {
