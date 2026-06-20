@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.75 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.76 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.75";
-const DEBUG_VERSION_CSS = "1.01.75";
+const DEBUG_VERSION_JS = "1.01.76";
+const DEBUG_VERSION_CSS = "1.01.76";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2488,7 +2488,8 @@ function updateSettingsButtonState(isOpen) {
     return;
   }
 
-  const label = isOpen ? "Close settings" : "Open settings";
+  const returnPanelLabel = previousPrimaryPanelName === "detail" ? "Checkout" : "Cards";
+  const label = isOpen ? `Close settings and return to ${returnPanelLabel}` : "Open settings";
   settingsOpenButton.classList.toggle("is-active", isOpen);
   settingsOpenButton.setAttribute("aria-label", label);
   settingsOpenButton.setAttribute("aria-expanded", String(isOpen));
