@@ -13,6 +13,7 @@ Fast rules:
 * Preserve offline/local usability and CSV backup/recovery.
 * For small UI/docs tasks, inspect only targeted files.
 * Read only task-relevant files; prefer exact-string search over broad scans; avoid `docs/archive/` unless history is required.
+* UI/UX recommendations should consider Material 3 guidance; identify likely conflicts and note tradeoffs for intentional deviations.
 
 ---
 
