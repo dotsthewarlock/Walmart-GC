@@ -61,29 +61,52 @@ jobs:
           gh api --paginate "/repos/${owner_repo}/branches?per_page=100" \
             --jq '[.[] | select(.name | startswith("codex/"))] | .[]' > "${branches_json}"
 
-          : > "${branch_report_tsv}"
-          while IFS= read -r branch; do
-            [ -n "${branch}" ] || continue
-            commit_date="$(gh api "/repos/${owner_repo}/commits/${branch}" --jq '.commit.committer.date')"
-            commit_sha="$(gh api "/repos/${owner_repo}/commits/${branch}" --jq '.sha')"
-            compare_status="$(gh api "/repos/${owner_repo}/compare/${BASE_BRANCH}...${branch}" --jq '.status')"
-            ahead_by="$(gh api "/repos/${owner_repo}/compare/${BASE_BRANCH}...${branch}" --jq '.ahead_by')"
-            behind_by="$(gh api "/repos/${owner_repo}/compare/${BASE_BRANCH}...${branch}" --jq '.behind_by')"
+          url_encode() {
+            jq -rn --arg value "$1" '$value | @uri'
+          }
 
-            commit_epoch="$(date -u -d "${commit_date}" +%s)"
-            stale="no"
-            if [ "${commit_epoch}" -lt "${stale_cutoff_epoch}" ]; then
-              stale="yes"
+          : > "${branch_report_tsv}"
+          while IFS=$'\t' read -r branch commit_sha; do
+            [ -n "${branch}" ] || continue
+
+            commit_json="$(gh api "/repos/${owner_repo}/commits/${commit_sha}")"
+            commit_date="$(jq -r '.commit.committer.date // .commit.author.date // "unknown"' <<< "${commit_json}")"
+            commit_sha="$(jq -r '.sha' <<< "${commit_json}")"
+
+            base_ref_encoded="$(url_encode "${BASE_BRANCH}")"
+            branch_ref_encoded="$(url_encode "${branch}")"
+            compare_endpoint="/repos/${owner_repo}/compare/${base_ref_encoded}...${branch_ref_encoded}"
+            compare_error_file="${tmp_dir}/compare-error.txt"
+
+            ahead_by="n/a"
+            behind_by="n/a"
+            merged="no"
+            if compare_json="$(gh api "${compare_endpoint}" 2> "${compare_error_file}")"; then
+              compare_status="$(jq -r '.status' <<< "${compare_json}")"
+              ahead_by="$(jq -r '.ahead_by' <<< "${compare_json}")"
+              behind_by="$(jq -r '.behind_by' <<< "${compare_json}")"
+
+              if [ "${compare_status}" = "behind" ] || [ "${compare_status}" = "identical" ]; then
+                merged="yes"
+              fi
+            else
+              compare_status="compare_error"
+              echo "::warning::Compare failed for ${branch} against ${BASE_BRANCH}; adding a compare_error report row and continuing."
+              sed 's/^/::warning::  /' "${compare_error_file}" || true
             fi
 
-            merged="no"
-            if [ "${compare_status}" = "behind" ] || [ "${compare_status}" = "identical" ]; then
-              merged="yes"
+            stale="unknown"
+            if [ "${commit_date}" != "unknown" ]; then
+              commit_epoch="$(date -u -d "${commit_date}" +%s)"
+              stale="no"
+              if [ "${commit_epoch}" -lt "${stale_cutoff_epoch}" ]; then
+                stale="yes"
+              fi
             fi
 
             printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
               "${branch}" "${commit_date}" "${commit_sha}" "${compare_status}" "${ahead_by}" "${behind_by}" "${merged}" "${stale}" >> "${branch_report_tsv}"
-          done < <(jq -r '.name' "${branches_json}" | sort)
+          done < <(jq -r '[.name, .commit.sha] | @tsv' "${branches_json}" | sort)
 
           gh pr list --repo "${owner_repo}" --state open --base "${BASE_BRANCH}" \
             --json number,title,url,headRefName,baseRefName,updatedAt,createdAt,isDraft \
