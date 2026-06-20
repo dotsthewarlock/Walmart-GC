@@ -29,6 +29,27 @@ jobs:
           fi
 
           owner_repo="${GITHUB_REPOSITORY}"
+
+          echo "Reading active phase branch from docs/CODEX_ACTIVE_CONTEXT.md at cleanup target ref: ${BASE_BRANCH}"
+          active_context="$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${owner_repo}/contents/docs/CODEX_ACTIVE_CONTEXT.md?ref=${BASE_BRANCH}" \
+            --jq '.content' | base64 --decode)"
+
+          active_phase_branch="$(printf '%s\n' "${active_context}" | sed -n 's/^- Active phase branch: `\([^`]*\)`.*/\1/p' | head -n 1)"
+
+          if [ -z "${active_phase_branch}" ]; then
+            echo "::error::Could not determine the active phase branch from docs/CODEX_ACTIVE_CONTEXT.md on ${BASE_BRANCH}."
+            exit 1
+          fi
+
+          echo "Documented active phase branch on ${BASE_BRANCH}: ${active_phase_branch}"
+
+          if [ "${active_phase_branch}" != "phase-12" ]; then
+            echo "::error::Refusing cleanup reporting because ${BASE_BRANCH} documents active phase branch '${active_phase_branch}', not 'phase-12'."
+            exit 1
+          fi
+
           now_epoch="$(date -u +%s)"
           stale_cutoff_epoch="$((now_epoch - 30 * 24 * 60 * 60))"
           stale_cutoff_iso="$(date -u -d "@${stale_cutoff_epoch}" +%Y-%m-%dT%H:%M:%SZ)"

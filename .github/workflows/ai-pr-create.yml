@@ -47,11 +47,11 @@ jobs:
           set -euo pipefail
 
           OWNER="${GITHUB_REPOSITORY%%/*}"
-          CONTEXT_REF="${GITHUB_REF_NAME:-${BASE_BRANCH}}"
+          CONTEXT_REF="${BASE_BRANCH}"
 
           echo "Requested head branch: ${HEAD_BRANCH}"
           echo "Requested base branch: ${BASE_BRANCH}"
-          echo "Reading active phase branch from docs/CODEX_ACTIVE_CONTEXT.md at ref: ${CONTEXT_REF}"
+          echo "Reading active phase branch from docs/CODEX_ACTIVE_CONTEXT.md at target base ref: ${CONTEXT_REF}"
 
           active_context="$(gh api \
             -H "Accept: application/vnd.github+json" \
