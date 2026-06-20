@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.76 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.77 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -1017,6 +1017,25 @@ dd,
   min-width: 0;
 }
 
+.advanced-diagnostics-section summary > span {
+  flex: 1 1 auto;
+}
+
+.advanced-diagnostics-section summary .settings-app-shell-fingerprint {
+  flex: 0 1 auto;
+  margin: 0 0 0 auto;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.advanced-diagnostics-section summary .settings-app-shell-fingerprint[data-shell-status="mismatch"] {
+  color: var(--state-warning-strong);
+}
+
 .advanced-diagnostics-section summary strong {
   color: var(--text);
   font-size: 1.05rem;
@@ -1245,6 +1264,14 @@ dd,
 .diagnostic-group h5 {
   margin: 0;
   font-size: 0.9rem;
+}
+
+.diagnostic-group-warning {
+  border: 1px solid var(--state-warning-border);
+  border-radius: var(--shape-sm);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-strong);
+  padding: 0.6rem;
 }
 
 .diagnostic-row {
@@ -2791,6 +2818,19 @@ dd,
 }
 
 @media (max-width: 420px) {
+  .advanced-diagnostics-section summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+  }
+
+  .advanced-diagnostics-section summary .settings-app-shell-fingerprint {
+    flex-basis: 100%;
+    margin: 0 0 0 1.15rem;
+    text-align: left;
+    white-space: normal;
+  }
+
   .google-sync-heading-row,
   .backup-restore-section > summary.data-section-heading {
     grid-template-columns: minmax(0, 1fr) auto;

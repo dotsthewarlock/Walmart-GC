@@ -1,19 +1,38 @@
-// Debug file fingerprint: app.js app-shell version 1.01.76 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.77 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.76";
-const DEBUG_VERSION_CSS = "1.01.76";
+const DEBUG_DEPLOY_BRANCH = "phase-12";
+const DEBUG_VERSION_JS = "1.01.77";
+const DEBUG_VERSION_CSS = "1.01.77";
+
+function getAppShellDiagnostics() {
+  const fingerprint = document.querySelector("#debug-version-fingerprint");
+  const htmlVersion = fingerprint?.dataset.htmlVersion || "unknown";
+  const versions = [htmlVersion, DEBUG_VERSION_JS, DEBUG_VERSION_CSS];
+  const isAvailable = versions.every((version) => version && version !== "unknown");
+  const isMatching = isAvailable && versions.every((version) => version === htmlVersion);
+
+  return {
+    htmlVersion,
+    jsVersion: DEBUG_VERSION_JS,
+    cssVersion: DEBUG_VERSION_CSS,
+    isMatching,
+    compactLabel: isMatching ? `${DEBUG_DEPLOY_BRANCH} · ${htmlVersion}` : `${DEBUG_DEPLOY_BRANCH} · shell mismatch`,
+    splitLabel: `HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`,
+  };
+}
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
   const settingsFingerprint = document.querySelector("#settings-app-shell-fingerprint");
-  const htmlVersion = fingerprint?.dataset.htmlVersion || "unknown";
+  const appShellDiagnostics = getAppShellDiagnostics();
 
   if (fingerprint) {
-    fingerprint.textContent = `HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
+    fingerprint.textContent = appShellDiagnostics.splitLabel;
   }
 
   if (settingsFingerprint) {
-    settingsFingerprint.textContent = `App shell: HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
+    settingsFingerprint.textContent = appShellDiagnostics.compactLabel;
+    settingsFingerprint.dataset.shellStatus = appShellDiagnostics.isMatching ? "matching" : "mismatch";
   }
 }
 
@@ -1347,7 +1366,17 @@ function renderAdvancedSyncDiagnostics(googleRows = [], sheetRows = []) {
     return;
   }
 
+  const appShellDiagnostics = getAppShellDiagnostics();
+  const appShellRows = appShellDiagnostics.isMatching
+    ? ""
+    : `
+    <div class="diagnostic-group diagnostic-group-warning">
+      <h5>App shell diagnostics</h5>
+      <ul class="diagnostic-list">${renderDiagnosticRow("Asset versions", appShellDiagnostics.splitLabel)}</ul>
+    </div>`;
+
   advancedSyncDiagnostics.innerHTML = `
+    ${appShellRows}
     <div class="diagnostic-group">
       <h5>Google account diagnostics</h5>
       <ul class="diagnostic-list">${googleRows.join("")}</ul>
