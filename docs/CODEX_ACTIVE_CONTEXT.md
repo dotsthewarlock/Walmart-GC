@@ -115,7 +115,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 ## Execution Lane Selection
 
-Prefer the lowest-friction safe lane for each task:
+Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
 
 1. ChatGPT direct tool action when a safe tool is available, especially metadata-only actions such as closing stale PRs.
 2. Codex for repository file edits, including docs, code, workflow, and configuration changes.
