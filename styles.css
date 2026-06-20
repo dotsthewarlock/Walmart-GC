@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.69 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.70 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -333,7 +333,6 @@ button:disabled {
 .collapsible-data-card summary:focus-visible,
 .modal-card input:focus-visible,
 .raw-data-input:focus-visible,
-.connection-input:focus-visible,
 .settings-compact-action-row:hover,
 .settings-compact-action-row:focus-visible {
   border-color: var(--primary);
@@ -1204,31 +1203,6 @@ dd,
 
 }
 
-
-.connection-card,
-.oauth-card {
-  background: #fbfdff;
-}
-
-.oauth-card {
-  border-color: rgba(0, 113, 220, 0.18);
-}
-
-.connection-label {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.connection-input {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--shape-md);
-  color: var(--text);
-  padding: 0.8rem;
-}
 
 
 .connection-actions {
