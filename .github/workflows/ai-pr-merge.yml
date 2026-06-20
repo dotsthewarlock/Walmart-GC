@@ -1,0 +1,153 @@
+name: AI PR squash merge prototype
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to squash-merge"
+        required: true
+        type: string
+      require_label:
+        description: "Require the ai:auto-merge approval label before merging"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+jobs:
+  squash-merge:
+    name: Squash merge eligible AI PR
+    runs-on: ubuntu-latest
+    outputs:
+      pr_url: ${{ steps.merge.outputs.pr_url }}
+      pr_number: ${{ steps.merge.outputs.pr_number }}
+      merged: ${{ steps.merge.outputs.merged }}
+    steps:
+      - name: Validate gates and squash merge
+        id: merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REQUIRE_LABEL: ${{ inputs.require_label }}
+        run: |
+          set -euo pipefail
+
+          echo "merged=false" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+
+          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::pr_number must be a numeric pull request number."
+            exit 1
+          fi
+
+          pr_json="$(gh pr view "${PR_NUMBER}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --json number,url,state,isDraft,merged,baseRefName,headRefName,headRefOid,labels)"
+          pr_url="$(printf '%s' "${pr_json}" | jq -r '.url')"
+          pr_state="$(printf '%s' "${pr_json}" | jq -r '.state')"
+          pr_merged="$(printf '%s' "${pr_json}" | jq -r '.merged')"
+          pr_draft="$(printf '%s' "${pr_json}" | jq -r '.isDraft')"
+          base_branch="$(printf '%s' "${pr_json}" | jq -r '.baseRefName')"
+          head_branch="$(printf '%s' "${pr_json}" | jq -r '.headRefName')"
+          head_sha="$(printf '%s' "${pr_json}" | jq -r '.headRefOid')"
+
+          echo "pr_url=${pr_url}" >> "${GITHUB_OUTPUT}"
+          echo "Evaluating PR #${PR_NUMBER}: ${pr_url}"
+          echo "Base branch: ${base_branch}"
+          echo "Head branch: ${head_branch}"
+          echo "Head SHA: ${head_sha}"
+
+          active_context="$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/contents/docs/CODEX_ACTIVE_CONTEXT.md?ref=${base_branch}" \
+            --jq '.content' | base64 --decode)"
+          active_phase_branch="$(printf '%s\n' "${active_context}" | sed -n 's/^- Active phase branch: `\([^`]*\)`.*/\1/p' | head -n 1)"
+
+          if [ -z "${active_phase_branch}" ]; then
+            echo "::error::Could not determine the active phase branch from docs/CODEX_ACTIVE_CONTEXT.md."
+            exit 1
+          fi
+
+          echo "Documented active phase branch: ${active_phase_branch}"
+
+          if [ "${base_branch}" = "main" ]; then
+            echo "::error::Refusing to merge an AI PR into main."
+            exit 1
+          fi
+
+          if [ "${base_branch}" != "${active_phase_branch}" ]; then
+            echo "::error::Refusing to merge into '${base_branch}'. docs/CODEX_ACTIVE_CONTEXT.md documents active phase branch '${active_phase_branch}'."
+            exit 1
+          fi
+
+          case "${head_branch}" in
+            codex/*) ;;
+            *)
+              echo "::error::Refusing to merge PR from '${head_branch}'. Head branch must start with 'codex/'."
+              exit 1
+              ;;
+          esac
+
+          if [ "${pr_state}" != "OPEN" ] || [ "${pr_merged}" = "true" ]; then
+            echo "::error::Refusing to merge because PR #${PR_NUMBER} is closed or already merged."
+            exit 1
+          fi
+
+          if [ "${pr_draft}" = "true" ]; then
+            echo "::error::Refusing to merge because PR #${PR_NUMBER} is a draft."
+            exit 1
+          fi
+
+          restricted_label="$(printf '%s' "${pr_json}" | jq -r '[.labels[].name] | map(select(. == "ai:restricted" or . == "ai:blocked" or . == "risk:red")) | first // empty')"
+          if [ -n "${restricted_label}" ]; then
+            echo "::error::Refusing to merge because PR has restricted-risk label '${restricted_label}'."
+            exit 1
+          fi
+
+          has_auto_merge_label="$(printf '%s' "${pr_json}" | jq -r '[.labels[].name] | index("ai:auto-merge") != null')"
+          if [ "${REQUIRE_LABEL}" = "true" ] && [ "${has_auto_merge_label}" != "true" ]; then
+            echo "merge blocked: missing required ai:auto-merge approval label."
+            exit 0
+          fi
+
+          status_json="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${head_sha}/status")"
+          status_state="$(printf '%s' "${status_json}" | jq -r '.state')"
+          status_count="$(printf '%s' "${status_json}" | jq -r '.statuses | length')"
+          checks_json="$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?per_page=100")"
+          checks_total="$(printf '%s' "${checks_json}" | jq -r '.total_count')"
+          non_success_checks="$(printf '%s' "${checks_json}" | jq -r '[.check_runs[] | select(.status != "completed" or .conclusion != "success")] | length')"
+
+          echo "Commit statuses: ${status_count} total, combined state '${status_state}'."
+          echo "Check runs: ${checks_total} total, non-success/pending ${non_success_checks}."
+
+          if [ "${status_count}" -gt 0 ] && [ "${status_state}" != "success" ]; then
+            echo "merge blocked: commit statuses are not all successful."
+            exit 0
+          fi
+
+          if [ "${checks_total}" -gt 0 ] && [ "${non_success_checks}" -ne 0 ]; then
+            echo "merge blocked: check runs are pending, failed, cancelled, skipped, neutral, timed out, or unknown."
+            exit 0
+          fi
+
+          if [ -n "${head_sha}" ] && [ "${head_sha}" != "null" ]; then
+            gh pr merge "${PR_NUMBER}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --squash \
+              --match-head-commit "${head_sha}"
+          else
+            gh pr merge "${PR_NUMBER}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --squash
+          fi
+
+          echo "Merged PR #${PR_NUMBER}: ${pr_url}"
+          echo "merged=true" >> "${GITHUB_OUTPUT}"
