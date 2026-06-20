@@ -444,7 +444,7 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 Codex should minimize GitHub update interactions.
 
-Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `phase-11` base, intended `codex/*` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Codex Cloud blocker. In Codex Cloud, distinguish workspace commits/PR metadata from confirmed GitHub PRs; confirm a PR URL/number before saying a PR exists or before auto-merge. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
+Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `phase-11` base, intended `codex/*` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Codex Cloud blocker. In Codex Cloud, distinguish workspace commits/PR metadata from confirmed GitHub PRs; confirm a PR URL/number before saying a PR exists or before auto-merge, then report the confirmed PR state and actual head branch. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
 
 Before committing, pushing, or opening a PR:
 
