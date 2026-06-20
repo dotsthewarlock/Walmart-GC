@@ -124,6 +124,19 @@ Prefer the lowest-friction safe lane for each task. These rules apply across Wal
 
 Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
 
+## User-Facing Action Layout
+
+When ChatGPT is ready for user input or approval, put the required action at the top of the response. Use this compact shape unless a deeper review is requested:
+
+```text
+Action needed: <what the user should do next, or none>
+Who acts: <ChatGPT direct tool | Codex | Gemini/manual | user>
+Why: <one short reason>
+Reply with: <exact approval phrase or next instruction, when useful>
+```
+
+Avoid report-style endings when the user needs to choose an action. Keep responses concise by default; offer or provide an expanded summary only when the user requests it or the risk warrants it.
+
 ## Design and CSS Governance
 
 For design decisions, consult Material 3 guidance. UI/UX reviews and design reviews must evaluate Material 3 alignment, explain likely Material 3 conflicts, identify tradeoffs for intentional deviations, and ask for clarification when compliance is ambiguous.
