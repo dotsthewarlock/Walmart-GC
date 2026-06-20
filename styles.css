@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.64 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.65 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -2640,4 +2640,99 @@ dd,
 .raw-csv-unlock-button[data-lock-state="unlocked"]::before {
   background: #d92d20;
   box-shadow: var(--focus-ring-danger);
+}
+
+/* Phase 11.4a typography, card count, and money consistency cleanup */
+.section-heading,
+.settings-heading-row {
+  align-items: center;
+}
+
+.section-heading h2,
+.settings-heading-row h2 {
+  font-size: var(--type-title-size);
+  font-weight: var(--type-title-weight);
+  line-height: var(--type-title-line-height);
+  letter-spacing: 0;
+}
+
+.card-button,
+.card-list-text,
+.card-number,
+.card-row-right,
+.card-balance {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.card-button {
+  font-weight: 600;
+}
+
+.card-list-text,
+.card-number {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button,
+.barcode-focus-action,
+.compact-sync-button,
+.compact-row-action,
+.app-reload-button {
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.count-value,
+.count-badge,
+.position-indicator,
+.fullscreen-position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  min-height: 1.85rem;
+  border-radius: var(--shape-pill);
+  padding: 0.35rem 0.55rem;
+  background: #eef4fb;
+  color: var(--primary-dark);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.money-value,
+.card-balance,
+.card-total-balance,
+#detail-current-balance,
+#detail-barcode-balance,
+#fullscreen-current-balance {
+  color: var(--primary-dark);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+#detail-current-balance {
+  font-size: 1.15rem;
+}
+
+#detail-barcode-balance,
+#fullscreen-current-balance {
+  font-size: inherit;
+}
+
+.is-used-balance,
+.used-balance-card .money-value,
+.used-balance-card dd {
+  color: var(--used);
+  text-decoration: line-through;
 }
