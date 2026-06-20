@@ -31,16 +31,6 @@ Garbage-collection triggers:
 
 ## Outstanding items
 
-### P3 / Low / Workflow validation: AI PR create and merge smoke test
-
-- Source: Task `Create a tiny docs-only smoke test branch for AI workflow validation` on 2026-06-20.
-- Status: Open.
-- Context: AI PR create and merge workflows need a harmless smoke test. This branch exists only to validate workflow automation.
-- Smoke marker: GitHub-visible branch `codex/add-ai-smoke-test-marker` created for PR-create workflow validation on 2026-06-20.
-- Suggested action: use the docs-only marker branch to exercise PR creation and merge automation, then resolve or remove this marker when validation is complete.
-- Guardrails: no runtime app, Worker, schema, OAuth/session, sync/conflict, deployment, workflow, or CSV recovery behavior is changed.
-- Acceptance: automation can create and merge the docs-only smoke-test PR without touching restricted-risk areas.
-
 ### P3 / Low / Validation: conflict-marker scan false positive in workflow file
 
 - Source: PR #153, merged to `phase-12` on 2026-06-20.
@@ -69,4 +59,8 @@ Garbage-collection triggers:
 
 ## Resolved items
 
-No resolved maintenance-log items yet.
+### P3 / Low / Workflow validation: AI PR create and merge smoke test
+
+- Source: Task `Create a tiny docs-only smoke test branch for AI workflow validation` and PR #160 on 2026-06-20.
+- Status: Resolved.
+- Context: Phase 12.1 AI workflow governance/progress: AI cleanup report workflow succeeds; AI PR create and squash merge workflows were smoke-tested successfully. PR #160 was created by the workflow and squash-merged into phase-12; merge correctly required the ai:auto-merge label.
