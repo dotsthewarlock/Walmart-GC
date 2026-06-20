@@ -1,0 +1,145 @@
+name: AI cleanup report
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  report:
+    name: Report AI cleanup candidates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate report-only cleanup summary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_BRANCH: phase-12
+        run: |
+          set -euo pipefail
+
+          echo "REPORT-ONLY AI cleanup scan. This workflow does not delete branches, close PRs, merge PRs, push commits, or modify repository files."
+
+          if [ "${BASE_BRANCH}" = "main" ]; then
+            echo "::error::Refusing to run cleanup reporting against main."
+            exit 1
+          fi
+
+          owner_repo="${GITHUB_REPOSITORY}"
+          now_epoch="$(date -u +%s)"
+          stale_cutoff_epoch="$((now_epoch - 30 * 24 * 60 * 60))"
+          stale_cutoff_iso="$(date -u -d "@${stale_cutoff_epoch}" +%Y-%m-%dT%H:%M:%SZ)"
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+
+          branches_json="${tmp_dir}/codex-branches.json"
+          branch_report_tsv="${tmp_dir}/branch-report.tsv"
+          open_prs_json="${tmp_dir}/open-prs.json"
+          closed_prs_json="${tmp_dir}/closed-prs.json"
+
+          gh api --paginate "/repos/${owner_repo}/branches?per_page=100" \
+            --jq '[.[] | select(.name | startswith("codex/"))] | .[]' > "${branches_json}"
+
+          : > "${branch_report_tsv}"
+          while IFS= read -r branch; do
+            [ -n "${branch}" ] || continue
+
+            commit_date="$(gh api "/repos/${owner_repo}/commits/${branch}" --jq '.commit.committer.date')"
+            commit_sha="$(gh api "/repos/${owner_repo}/commits/${branch}" --jq '.sha')"
+            compare_status="$(gh api "/repos/${owner_repo}/compare/${BASE_BRANCH}...${branch}" --jq '.status')"
+            ahead_by="$(gh api "/repos/${owner_repo}/compare/${BASE_BRANCH}...${branch}" --jq '.ahead_by')"
+            behind_by="$(gh api "/repos/${owner_repo}/compare/${BASE_BRANCH}...${branch}" --jq '.behind_by')"
+
+            commit_epoch="$(date -u -d "${commit_date}" +%s)"
+            stale="no"
+            if [ "${commit_epoch}" -lt "${stale_cutoff_epoch}" ]; then
+              stale="yes"
+            fi
+
+            merged="no"
+            if [ "${compare_status}" = "behind" ] || [ "${compare_status}" = "identical" ]; then
+              merged="yes"
+            fi
+
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "${branch}" "${commit_date}" "${commit_sha}" "${compare_status}" "${ahead_by}" "${behind_by}" "${merged}" "${stale}" >> "${branch_report_tsv}"
+          done < <(jq -r '.name' "${branches_json}" | sort)
+
+          gh pr list --repo "${owner_repo}" --state open --base "${BASE_BRANCH}" \
+            --json number,title,url,headRefName,baseRefName,updatedAt,createdAt,isDraft \
+            --jq '[.[] | select(.headRefName | startswith("codex/"))]' > "${open_prs_json}"
+
+          gh pr list --repo "${owner_repo}" --state closed --base "${BASE_BRANCH}" --limit 100 \
+            --json number,title,url,headRefName,baseRefName,updatedAt,createdAt,closedAt,mergedAt,merged \
+            --jq '[.[] | select(.headRefName | startswith("codex/"))]' > "${closed_prs_json}"
+
+          render_branch_table() {
+            local filter="$1"
+            if ! awk -F '\t' "${filter}" "${branch_report_tsv}" | grep -q .; then
+              echo "_None found._"
+              return
+            fi
+
+            echo "| Branch | Last commit UTC | Compare to ${BASE_BRANCH} | Ahead | Behind | Appears merged | Older than 30 days |"
+            echo "| --- | --- | --- | ---: | ---: | --- | --- |"
+            awk -F '\t' "${filter}" "${branch_report_tsv}" | while IFS=$'\t' read -r branch commit_date commit_sha status ahead behind merged stale; do
+              short_sha="${commit_sha:0:7}"
+              echo "| \`${branch}\` | ${commit_date} (${short_sha}) | ${status} | ${ahead} | ${behind} | ${merged} | ${stale} |"
+            done
+          }
+
+          render_pr_table() {
+            local file="$1"
+            local fields="$2"
+            if [ "$(jq 'length' "${file}")" -eq 0 ]; then
+              echo "_None found._"
+              return
+            fi
+            echo "| PR | Head | Updated/closed | Status | Title |"
+            echo "| --- | --- | --- | --- | --- |"
+            jq -r "${fields}" "${file}"
+          }
+
+          {
+            echo "# Report-only AI workflow cleanup summary"
+            echo
+            echo "**Report-only:** no branches are deleted, no PRs are closed, no PRs are merged, no commits are pushed, and no repository files are modified."
+            echo
+            echo "- Repository: \`${owner_repo}\`"
+            echo "- Cleanup target base: \`${BASE_BRANCH}\`"
+            echo "- Protected production branch: \`main\` is not targeted."
+            echo "- Stale branch signal: latest branch commit older than 30 days (before \`${stale_cutoff_iso}\`)."
+            echo
+            echo "## All codex/* branches"
+            render_branch_table '1'
+            echo
+            echo "## codex/* branches that appear merged into phase-12"
+            echo
+            echo "Branches are labeled as appearing merged when GitHub compare reports the branch is \`behind\` or \`identical\` relative to \`${BASE_BRANCH}\`. This is a cleanup candidate signal only."
+            render_branch_table '$7 == "yes"'
+            echo
+            echo "## codex/* branches older than 30 days"
+            echo
+            echo "Age is based on the latest commit timestamp available from the branch head, not branch creation time."
+            render_branch_table '$8 == "yes"'
+            echo
+            echo "## Open codex/* PRs targeting phase-12"
+            render_pr_table "${open_prs_json}" '.[] | "| [#\(.number)](\(.url)) | `\(.headRefName)` | \(.updatedAt) | open draft=\(.isDraft) | \(.title | gsub("\\|"; "\\\\|")) |"'
+            echo
+            echo "## Closed or merged codex/* PRs targeting phase-12"
+            echo
+            echo "These may indicate branch-prune candidates later, after separate human review and a future explicitly destructive workflow or manual action."
+            render_pr_table "${closed_prs_json}" '.[] | "| [#\(.number)](\(.url)) | `\(.headRefName)` | \(.closedAt // .updatedAt) | merged=\(.merged) mergedAt=\(.mergedAt // "n/a") | \(.title | gsub("\\|"; "\\\\|")) |"'
+            echo
+            echo "## Hard guards confirmed"
+            echo
+            echo "- No branch deletion commands are present."
+            echo "- No PR close commands are present."
+            echo "- No PR merge commands are present."
+            echo "- No checkout or file modification step is used."
+            echo "- Permissions are read-only: \`contents: read\`, \`pull-requests: read\`."
+          } | tee "${GITHUB_STEP_SUMMARY}"
