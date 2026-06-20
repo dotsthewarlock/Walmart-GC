@@ -1,19 +1,44 @@
-// Debug file fingerprint: app.js app-shell version 1.01.76 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.77 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.76";
-const DEBUG_VERSION_CSS = "1.01.76";
+const DEBUG_VERSION_JS = "1.01.77";
+const DEBUG_VERSION_CSS = "1.01.77";
+const FRONTEND_DEPLOY_BRANCH = "phase-12";
+
+function getAppShellFingerprintState() {
+  const fingerprint = document.querySelector("#debug-version-fingerprint");
+  const htmlVersion = fingerprint?.dataset.htmlVersion || "unknown";
+  const versions = {
+    html: htmlVersion,
+    js: DEBUG_VERSION_JS || "unknown",
+    css: DEBUG_VERSION_CSS || "unknown",
+  };
+  const versionValues = Object.values(versions);
+  const hasUnavailable = versionValues.some((version) => !version || version === "unknown");
+  const hasMismatch = new Set(versionValues).size > 1;
+
+  return {
+    versions,
+    hasIssue: hasUnavailable || hasMismatch,
+    compactVersion: hasUnavailable || hasMismatch ? "shell mismatch" : versions.html,
+  };
+}
+
+function formatAppShellAssetVersions(versions) {
+  return `HTML ${versions.html} · JS ${versions.js} · CSS ${versions.css}`;
+}
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
-  const settingsFingerprint = document.querySelector("#settings-app-shell-fingerprint");
-  const htmlVersion = fingerprint?.dataset.htmlVersion || "unknown";
+  const diagnosticsDeployHelper = document.querySelector("#diagnostics-deploy-helper");
+  const shellState = getAppShellFingerprintState();
 
   if (fingerprint) {
-    fingerprint.textContent = `HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
+    fingerprint.textContent = formatAppShellAssetVersions(shellState.versions);
   }
 
-  if (settingsFingerprint) {
-    settingsFingerprint.textContent = `App shell: HTML ${htmlVersion} · JS ${DEBUG_VERSION_JS} · CSS ${DEBUG_VERSION_CSS}`;
+  if (diagnosticsDeployHelper) {
+    diagnosticsDeployHelper.textContent = `${FRONTEND_DEPLOY_BRANCH} · ${shellState.compactVersion}`;
+    diagnosticsDeployHelper.classList.toggle("is-warning", shellState.hasIssue);
   }
 }
 
@@ -1331,12 +1356,13 @@ function valueOrFallback(value, fallback = "Not available") {
   return normalizedValue || fallback;
 }
 
-function renderDiagnosticRow(label, value) {
+function renderDiagnosticRow(label, value, level = "") {
   const diagnosticLabel = valueOrFallback(label);
   const diagnosticValue = valueOrFallback(value);
+  const levelClass = level ? ` diagnostic-row-${level}` : "";
 
   return `
-    <li class="diagnostic-row">
+    <li class="diagnostic-row${levelClass}">
       <strong class="diagnostic-label">${escapeHtml(diagnosticLabel)}:</strong>
       <span class="diagnostic-value">${escapeHtml(diagnosticValue)}</span>
     </li>`;
@@ -1347,7 +1373,17 @@ function renderAdvancedSyncDiagnostics(googleRows = [], sheetRows = []) {
     return;
   }
 
+  const shellState = getAppShellFingerprintState();
+  const appShellRows = shellState.hasIssue
+    ? `
+    <div class="diagnostic-group diagnostic-group-warning">
+      <h5>App shell diagnostics</h5>
+      <ul class="diagnostic-list">${renderDiagnosticRow("Loaded assets", formatAppShellAssetVersions(shellState.versions), "warning")}</ul>
+    </div>`
+    : "";
+
   advancedSyncDiagnostics.innerHTML = `
+    ${appShellRows}
     <div class="diagnostic-group">
       <h5>Google account diagnostics</h5>
       <ul class="diagnostic-list">${googleRows.join("")}</ul>

@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.76 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.77 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -643,13 +643,6 @@ dd,
   box-sizing: border-box;
 }
 
-.settings-app-shell-fingerprint {
-  margin: 0.1rem 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.35;
-}
-
 .checkout-feedback {
   border: 1px solid rgba(15, 123, 63, 0.16);
   border-radius: 0.85rem;
@@ -1022,6 +1015,33 @@ dd,
   font-size: 1.05rem;
 }
 
+.advanced-diagnostics-section > summary {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.diagnostics-deploy-helper {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.diagnostics-deploy-helper.is-warning {
+  color: var(--state-warning-strong);
+}
+
+@media (max-width: 34rem) {
+  .diagnostics-deploy-helper {
+    flex-basis: 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
 .advanced-diagnostics-section summary::-webkit-details-marker,
 .collapsible-data-card summary::-webkit-details-marker {
   color: var(--primary);
@@ -1268,6 +1288,18 @@ dd,
 
 .diagnostic-value {
   color: var(--text);
+}
+
+.diagnostic-group-warning {
+  border: 1px solid var(--state-warning-border);
+  background: var(--state-warning-bg);
+  border-radius: 0.75rem;
+  padding: 0.65rem;
+}
+
+.diagnostic-row-warning .diagnostic-label,
+.diagnostic-row-warning .diagnostic-value {
+  color: var(--state-warning-strong);
 }
 
 .connection-status.is-needs-reconnect {
@@ -1919,11 +1951,6 @@ dd,
 .notes-button #detail-notes:empty::before {
   content: "Add note";
   color: var(--muted);
-}
-
-.settings-app-shell-fingerprint {
-  margin: 0.85rem auto 0;
-  text-align: center;
 }
 
 /* Phase 11.3f settings and status simplification */
