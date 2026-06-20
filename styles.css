@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.66 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.67 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -147,12 +147,12 @@ button:disabled {
   height: 2.875rem;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: var(--shape-md);
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(235, 246, 255, 0.66);
   color: var(--primary-dark);
   cursor: pointer;
   font-size: 1.35rem;
   line-height: 1;
-  opacity: 0.8;
+  opacity: 0.9;
   box-shadow: 0 0.55rem 1.35rem rgba(15, 23, 42, 0.22);
   backdrop-filter: blur(14px);
   transition: opacity var(--motion-interactive), background var(--motion-interactive), border-color var(--motion-interactive), box-shadow var(--motion-interactive), transform var(--motion-interactive);
@@ -161,7 +161,7 @@ button:disabled {
 .settings-gear-button:hover,
 .settings-gear-button:focus-visible {
   border-color: rgba(0, 113, 220, 0.44);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(235, 246, 255, 0.82);
   box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.16), 0 0.35rem 1rem rgba(0, 79, 154, 0.2);
   opacity: 1;
   outline: none;
