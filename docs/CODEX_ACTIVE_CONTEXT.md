@@ -127,6 +127,30 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - Keep the 5 most recent completed Codex instances visible and archive older completed instances. Never auto-archive failed/error tasks, blocked tasks, unresolved reviews, active investigations, or ambiguous-status tasks. Never auto-delete Codex instances.
 - Prefer existing CSS tokens and component/layout patterns before introducing new raw values or variants. Minimize one-off styling values, consolidate duplicates only when computed output remains unchanged, preserve accepted UI baselines unless visual change is requested, and use Material 3 as a consistency lens rather than a redesign mandate.
 
+
+## Phase 12 AI Workflow Handshake
+
+Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Codex Cloud is first choice for implementation. GitHub-native automation owns PR lifecycle steps. The ChatGPT/GitHub connector is a secondary convenience path for small edits, and ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*`.
+
+Workflow lanes:
+
+- Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-12` PRs.
+- Lane B — ChatGPT/GitHub connector small edits: use only for compact low-risk changes when a PR path is clear.
+- Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, or workflow-permission changes.
+- Lane D — GitHub-native PR lifecycle automation: create PRs, validate, squash-merge when approved/eligible, report cleanup.
+
+Risk tiers:
+
+- Green: docs, copy, and tiny safe edits.
+- Yellow: small runtime changes.
+- Red: auth/session, sync/conflict, schema, deployment, destructive cleanup, or workflow-permission changes.
+
+PR lifecycle states: changes prepared, workspace commit created, GitHub PR created, PR-ready only, validation passed, validation failed, merged, merge blocked, prune completed, prune skipped.
+
+Staged roadmap: (1) docs handshake, (2) auto-create PR workflow, (3) auto-squash merge workflow, (4) cleanup reporting, (5) prune verified merged `codex/*` branches.
+
+Cleanup policy: report stale or merged `codex/*` branches first. Later pruning may delete only verified merged `codex/*` branches. Never delete failed, conflicted, abandoned, unresolved, ambiguous, unmerged, or non-`codex/*` branches.
+
 ## Maintenance Log and Deferred Work
 
 `docs/MAINTENANCE_LOG.md` is the durable repo location for unfinished cleanup, artifacts, validation gaps, and minor follow-up concerns that should not live only in chat or PR memory. It is not a changelog and must not duplicate completed PR summaries.
