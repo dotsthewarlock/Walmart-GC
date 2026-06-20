@@ -1,6 +1,6 @@
 # Walmart-GC Development Instructions
 
-Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 11 context. Use `docs/archive/` only for historical/regression tasks, not normal implementation guidance.
+Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 12 context. Use `docs/archive/` only for historical/regression tasks, not normal implementation guidance.
 
 
 Project type:
@@ -9,10 +9,10 @@ Static website hosted on GitHub Pages with a Cloudflare Worker OAuth/session bac
 
 Active phase:
 
-- Phase 11 is the active development phase.
-- Active branch: `phase-11`.
-- Protected branch: `main`.
-- Phase 11 focus: fix OAuth/session flow until fully functional and durable.
+- Phase 12 is the active workflow-planning phase.
+- Active branch: `phase-12`.
+- Protected production branch: `main`.
+- Phase 12 focus: document and stage AI workflow automation without changing runtime architecture.
 
 Stack:
 
@@ -72,7 +72,7 @@ Requirements:
 - Small PRs
 - Maintainability over complexity
 - Offline usability and CSV backup/recovery remain available
-- Do not redesign core product behavior during Phase 11 unless it directly blocks OAuth, session management, Google Sheets access, or sync
+- Do not redesign core product behavior during Phase 12 unless it directly blocks OAuth, session management, Google Sheets access, or sync
 
 Before making changes:
 
