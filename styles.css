@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.70 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.71 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -421,7 +421,7 @@ button:disabled {
   width: 100%;
   min-height: 10rem;
   place-items: center;
-  border: 2px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: 1rem;
   background: #ffffff;
   color: var(--text);
@@ -1149,20 +1149,6 @@ dd,
 
 .settings-panel .data-count-summary {
   margin: 0.04rem 0 0;
-}
-
-@media (max-width: 420px) {
-  .google-sync-heading-row,
-  .backup-restore-section > summary.data-section-heading {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.18rem;
-  }
-
-  .google-sync-identity,
-  .data-count-summary {
-    max-width: 100%;
-    text-align: left;
-  }
 }
 
 .data-actions button:disabled {
