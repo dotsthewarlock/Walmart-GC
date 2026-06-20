@@ -31,6 +31,15 @@ Garbage-collection triggers:
 
 ## Outstanding items
 
+### P3 / Low / Workflow validation: AI PR create and merge smoke test
+
+- Source: Task `Create a tiny docs-only smoke test branch for AI workflow validation` on 2026-06-20.
+- Status: Open.
+- Context: AI PR create and merge workflows need a harmless smoke test. This branch exists only to validate workflow automation.
+- Suggested action: use the docs-only marker branch to exercise PR creation and merge automation, then resolve or remove this marker when validation is complete.
+- Guardrails: no runtime app, Worker, schema, OAuth/session, sync/conflict, deployment, workflow, or CSV recovery behavior is changed.
+- Acceptance: automation can create and merge the docs-only smoke-test PR without touching restricted-risk areas.
+
 ### P3 / Low / Validation: conflict-marker scan false positive in workflow file
 
 - Source: PR #153, merged to `phase-12` on 2026-06-20.
