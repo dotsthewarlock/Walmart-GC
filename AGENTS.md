@@ -2,7 +2,7 @@
 
 ## Current Source of Truth / Fast Path
 
-Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 11 context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
+Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
 
 Fast rules:
 
@@ -39,9 +39,9 @@ This is a gift card management system, not merely a barcode generator.
 
 ---
 
-## Current Phase 11 Context
+## Current Branch and Hardening Context
 
-Phase 11 is the only active development phase.
+`main` is the active/base branch. `phase-11` is historical/archival/protected and must not be used as the active base. OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
 
 Active/base branch:
 
@@ -49,15 +49,15 @@ Active/base branch:
 main
 ```
 
-Current goal:
+Current hardening focus:
 
 ```text
-Fix OAuth/session flow until fully functional and durable.
+Maintain durable OAuth/session flow and Google Sheets access/sync on main.
 ```
 
-Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Do not redesign the product during Phase 11.
+Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Do not redesign the product during this hardening work.
 
-Historical references to Phase 9, `phase-9-oauth`, Phase 10, Phase 10E, and the Apps Script MVP are historical only.
+Historical references to Phase 9, `phase-9-oauth`, Phase 10, Phase 10E, `phase-11`, and the Apps Script MVP are historical only.
 
 ---
 
@@ -276,9 +276,9 @@ Rules:
 
 ---
 
-## Phase 11 Success Criteria
+## OAuth/Session/Sync Success Criteria
 
-OAuth is fixed when:
+OAuth/session/sync hardening is successful when:
 
 * Connect Google starts OAuth
 * Consent requests only `drive.file`
@@ -566,8 +566,12 @@ Completed/historical:
 
 Current:
 
-* Phase 11 – OAuth/session durability and Google Sheets access/sync hardening
+* `main` – Current architecture with Worker-managed OAuth/session and Google Sheets access/sync hardening
+
+Historical/archival/protected:
+
+* `phase-11` – Historical branch for OAuth/session durability and Google Sheets access/sync hardening
 
 Upcoming:
 
-* Post-MVP enhancements only after Phase 11 OAuth/session flow is fully functional and durable
+* Post-MVP enhancements only after OAuth/session flow is fully functional and durable on `main`
