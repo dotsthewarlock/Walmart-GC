@@ -113,6 +113,32 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - Keep the 5 most recent completed Codex instances visible and archive older completed instances. Never auto-archive failed/error tasks, blocked tasks, unresolved reviews, active investigations, or ambiguous-status tasks. Never auto-delete Codex instances.
 - Prefer existing CSS tokens and component/layout patterns before introducing new raw values or variants. Minimize one-off styling values, consolidate duplicates only when computed output remains unchanged, preserve accepted UI baselines unless visual change is requested, and use Material 3 as a consistency lens rather than a redesign mandate.
 
+## Execution Lane Selection
+
+Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
+
+1. ChatGPT direct tool action when a safe tool is available, especially metadata-only actions such as closing stale PRs.
+2. Codex for repository file edits, including docs, code, workflow, and configuration changes.
+3. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
+4. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
+
+Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
+
+## User-Facing Action Layout
+
+When ChatGPT is ready for user input or approval, put the required action at the top of the response. Use this compact shape unless a deeper review is requested:
+
+```text
+Action needed: <what the user should do next, or none>
+Who acts: <ChatGPT direct tool | Codex | Gemini/manual | user>
+Why: <one short reason>
+Reply with: <exact approval phrase or next instruction, when useful>
+```
+
+Shorthand: when the user says `next`, respond with a short, concise summary of the next user action items, who acts next, and confidence. When the next step is clear, low-risk, and covered by a discussed multi-step plan, ask the user to reply `y` or `n` to proceed. After completing a step, give a concise completion report, recommend follow-up action items, state confidence when useful, and ask for `y`/`n` approval to continue only when the next action is clear and safe.
+
+Avoid report-style endings when the user needs to choose an action. Keep responses concise by default; offer or provide an expanded summary only when the user requests it or the risk warrants it.
+
 ## Design and CSS Governance
 
 For design decisions, consult Material 3 guidance. UI/UX reviews and design reviews must evaluate Material 3 alignment, explain likely Material 3 conflicts, identify tradeoffs for intentional deviations, and ask for clarification when compliance is ambiguous.
