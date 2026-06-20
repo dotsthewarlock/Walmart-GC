@@ -31,6 +31,15 @@ Garbage-collection triggers:
 
 ## Outstanding items
 
+### P3 / Low / Validation: conflict-marker scan false positive in workflow file
+
+- Source: PR #153, merged to `phase-12` on 2026-06-20.
+- Status: Open.
+- Context: `grep -R "<<<<<<<\\|=======\\|>>>>>>>" .` reported a literal marker-like detector pattern inside `.github/workflows/validate.yml`, not an actual merge conflict marker.
+- Suggested action: during the next validation cleanup, standardize future conflict-marker scans to an anchored pattern such as `grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' . --exclude-dir=.git` or an equivalent command that does not match the detector command itself.
+- Guardrails: validation/docs cleanup only; do not touch runtime files, Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, deployment config, or automation permissions.
+- Acceptance: validation reports no longer flag the conflict-marker detector command itself, while real conflict markers are still detected.
+
 ### P2 / Low / UI-CSS: consolidate Settings gear active CSS
 
 - Source: PR #148, merged to `main` on 2026-06-20.
