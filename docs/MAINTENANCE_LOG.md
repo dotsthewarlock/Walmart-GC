@@ -36,6 +36,7 @@ Garbage-collection triggers:
 - Source: Task `Create a tiny docs-only smoke test branch for AI workflow validation` on 2026-06-20.
 - Status: Open.
 - Context: AI PR create and merge workflows need a harmless smoke test. This branch exists only to validate workflow automation.
+- Smoke marker: GitHub-visible branch `codex/add-ai-smoke-test-marker` created for PR-create workflow validation on 2026-06-20.
 - Suggested action: use the docs-only marker branch to exercise PR creation and merge automation, then resolve or remove this marker when validation is complete.
 - Guardrails: no runtime app, Worker, schema, OAuth/session, sync/conflict, deployment, workflow, or CSV recovery behavior is changed.
 - Acceptance: automation can create and merge the docs-only smoke-test PR without touching restricted-risk areas.
