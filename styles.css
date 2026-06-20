@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.68 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.69 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -957,6 +957,27 @@ dd,
   gap: 0.2rem;
 }
 
+.data-section summary.data-section-heading {
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.data-section[open] summary.data-section-heading {
+  margin-bottom: 0.75rem;
+}
+
+.backup-sync-section > .data-section-heading {
+  margin-bottom: 0;
+}
+
+.google-sync-heading-row,
+.backup-restore-section > summary.data-section-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .data-section-heading h3,
 .data-section-heading p,
 .advanced-diagnostics-section summary p {
@@ -1015,6 +1036,16 @@ dd,
   display: grid;
   gap: 0.75rem;
   margin-top: 0.85rem;
+}
+
+.advanced-diagnostics-content > details > summary {
+  margin: -0.15rem;
+  padding: 0.15rem;
+  border-radius: 0.7rem;
+}
+
+.advanced-diagnostics-content > details > summary h4 {
+  margin: 0;
 }
 
 .data-card,
@@ -1089,6 +1120,50 @@ dd,
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.google-sync-helper {
+  margin: -0.1rem 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.google-sync-helper[hidden] {
+  display: none;
+}
+
+.google-sync-identity,
+.data-count-summary {
+  min-width: 0;
+  max-width: min(50vw, 16rem);
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-panel .data-count-summary {
+  margin: 0.04rem 0 0;
+}
+
+@media (max-width: 420px) {
+  .google-sync-heading-row,
+  .backup-restore-section > summary.data-section-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.18rem;
+  }
+
+  .google-sync-identity,
+  .data-count-summary {
+    max-width: 100%;
+    text-align: left;
+  }
 }
 
 .data-actions button:disabled {
@@ -1577,16 +1652,6 @@ dd,
   display: none !important;
 }
 
-.advanced-diagnostics-content > details > summary {
-  margin: -0.15rem;
-  padding: 0.15rem;
-  border-radius: 0.7rem;
-}
-
-.advanced-diagnostics-content > details > summary h4 {
-  margin: 0;
-}
-
 /* Phase 11.3c compact UI and backup safety polish */
 .cards-heading {
   grid-template-columns: 1fr;
@@ -1775,15 +1840,6 @@ dd,
   font: inherit;
   padding: 0.75rem;
   resize: vertical;
-}
-
-.data-section summary.data-section-heading {
-  cursor: pointer;
-  list-style-position: outside;
-}
-
-.data-section[open] summary.data-section-heading {
-  margin-bottom: 0.75rem;
 }
 
 .sync-overview {
@@ -2008,25 +2064,6 @@ dd,
 }
 
 /* Phase 11.3g settings, barcode focus, and status polish */
-.google-sync-heading-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.google-sync-identity {
-  min-width: 0;
-  max-width: min(52vw, 22rem);
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .google-sync-identity[hidden] {
   display: none;
 }
@@ -2099,28 +2136,6 @@ dd,
 }
 
 /* Phase 11.3h settings density and status legibility polish */
-.backup-sync-section > .data-section-heading {
-  margin-bottom: 0;
-}
-
-.google-sync-section > .data-section-heading,
-.backup-restore-section > .data-section-heading {
-  min-height: var(--control-height-compact);
-  padding-block: 0.52rem;
-}
-
-.google-sync-helper {
-  margin: -0.1rem 0 0.35rem;
-  color: var(--text);
-  font-size: 0.86rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.google-sync-helper[hidden] {
-  display: none;
-}
-
 .oauth-actions {
   margin-bottom: 0.35rem;
 }
@@ -2226,10 +2241,10 @@ dd,
   padding: 0.7rem;
 }
 
-.settings-panel .backup-sync-section > summary.data-section-heading,
-.settings-panel .data-section:not([open]) > summary.data-section-heading {
+.settings-panel .data-section-heading,
+.settings-panel .advanced-diagnostics-section > summary {
   min-height: 3rem;
-  padding-block: 0.72rem;
+  padding-block: 0.45rem;
 }
 
 .settings-panel .backup-sync-section[open] > summary.data-section-heading {
@@ -2248,25 +2263,6 @@ dd,
 .settings-panel .advanced-diagnostics-section {
   gap: 0.45rem;
   padding: 0.68rem;
-}
-
-.settings-panel .google-sync-section > summary.data-section-heading,
-.settings-panel .backup-restore-section > summary.data-section-heading,
-.settings-panel .advanced-diagnostics-section > summary {
-  min-height: 3rem;
-  padding-block: 0.68rem;
-}
-
-.settings-panel .backup-restore-section > summary.data-section-heading {
-  gap: 0.08rem;
-}
-
-.settings-panel .data-count-summary {
-  margin: 0.04rem 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1.2;
 }
 
 .google-sync-section .connection-actions button,
@@ -2380,14 +2376,6 @@ dd,
 
 .settings-panel .advanced-diagnostics-content .collapsible-data-card:not([open]) > summary h4 {
   margin: 0;
-}
-
-.google-sync-helper {
-  margin: -0.1rem 0 0.35rem;
-  color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 500;
-  line-height: 1.35;
 }
 
 /* Phase 11.3k panel density, barcode focus, and diagnostics polish */
@@ -2525,48 +2513,6 @@ dd,
 .settings-panel .data-actions {
   gap: 0.5rem;
   margin-top: 0.5rem;
-}
-
-.settings-panel .data-section-heading,
-.settings-panel .advanced-diagnostics-section > summary {
-  min-height: 3rem;
-  padding-block: 0.45rem;
-}
-
-.google-sync-heading-row,
-.backup-restore-section > summary.data-section-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.google-sync-identity,
-.data-count-summary {
-  min-width: 0;
-  max-width: min(50vw, 16rem);
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 600;
-  line-height: 1.25;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 420px) {
-  .google-sync-heading-row,
-  .backup-restore-section > summary.data-section-heading {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.18rem;
-  }
-
-  .google-sync-identity,
-  .data-count-summary {
-    max-width: 100%;
-    text-align: left;
-  }
 }
 
 
