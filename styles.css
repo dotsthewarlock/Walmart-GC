@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.60 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.61 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -10,8 +10,28 @@
   --border: #d8e0ea;
   --danger: #b42318;
   --danger-bg: #fff1f0;
-  --shadow: 0 18px 45px rgba(23, 32, 51, 0.08);
-  --unused: #0f7b3f;
+  --focus-ring: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  --focus-ring-strong: 0 0 0 3px rgba(0, 113, 220, 0.18);
+  --focus-ring-success: 0 0 0 3px rgba(17, 140, 79, 0.13);
+  --focus-ring-danger: 0 0 0 3px rgba(217, 45, 32, 0.13);
+  --motion-interactive: 160ms ease;
+  --control-height: 3.25rem;
+  --control-height-compact: 2.35rem;
+  --shape-sm: 0.75rem;
+  --shape-md: 0.9rem;
+  --shape-pill: 999px;
+  --elevation-panel: 0 18px 45px rgba(23, 32, 51, 0.08);
+  --elevation-subtle: 0 0.5rem 1.4rem rgba(23, 32, 51, 0.06);
+  --state-success: #0f7b3f;
+  --state-success-border: rgba(15, 123, 63, 0.32);
+  --state-success-bg: rgba(15, 123, 63, 0.08);
+  --state-warning: #7a4a00;
+  --state-warning-bg: #fffaf0;
+  --state-danger: #b42318;
+  --state-danger-border: rgba(180, 35, 24, 0.28);
+  --state-danger-bg: #fff1f0;
+  --shadow: var(--elevation-panel);
+  --unused: var(--state-success);
   --used: #6d7480;
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   --type-body-size: 1rem;
@@ -119,7 +139,7 @@ button:disabled {
   width: 2.875rem;
   height: 2.875rem;
   border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 0.9rem;
+  border-radius: var(--shape-md);
   background: rgba(255, 255, 255, 0.5);
   color: var(--primary-dark);
   cursor: pointer;
@@ -128,7 +148,7 @@ button:disabled {
   opacity: 0.8;
   box-shadow: 0 0.55rem 1.35rem rgba(15, 23, 42, 0.22);
   backdrop-filter: blur(14px);
-  transition: opacity 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: opacity var(--motion-interactive), background var(--motion-interactive), border-color var(--motion-interactive), box-shadow var(--motion-interactive), transform var(--motion-interactive);
 }
 
 .settings-gear-button:hover,
@@ -197,7 +217,7 @@ button:disabled {
 
 .nav-button {
   border: 1px solid transparent;
-  border-radius: 0.75rem;
+  border-radius: var(--shape-sm);
   background: transparent;
   color: var(--primary-dark);
   cursor: pointer;
@@ -206,7 +226,7 @@ button:disabled {
   min-height: 3.2rem;
   padding: 0.62rem 0.35rem;
   text-align: center;
-  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+  transition: background var(--motion-interactive), border-color var(--motion-interactive), box-shadow var(--motion-interactive), color var(--motion-interactive);
   line-height: 1.1;
   white-space: normal;
 }
@@ -233,7 +253,7 @@ button:disabled {
 }
 
 .nav-button:focus-visible {
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  box-shadow: var(--focus-ring);
 }
 
 .panel {
@@ -267,7 +287,7 @@ button:disabled {
 .position-indicator {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   padding: 0.35rem 0.65rem;
   background: #eef4fb;
   color: var(--primary-dark);
@@ -302,7 +322,7 @@ button:disabled {
   cursor: pointer;
   padding: 0.78rem 0.85rem;
   text-align: left;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color var(--motion-interactive), box-shadow var(--motion-interactive), transform var(--motion-interactive);
 }
 
 .card-button:hover,
@@ -318,7 +338,7 @@ button:disabled {
 .collapsible-data-card summary:focus-visible,
 .modal-card input:focus-visible {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 
@@ -420,7 +440,7 @@ button:disabled {
   margin-bottom: 1rem;
   min-height: clamp(12rem, 42vw, 17rem);
   padding: clamp(0.9rem, 3vw, 1.35rem);
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color var(--motion-interactive), box-shadow var(--motion-interactive), transform var(--motion-interactive);
 }
 
 .barcode-action:disabled {
@@ -431,13 +451,13 @@ button:disabled {
 .barcode-action:hover,
 .barcode-action:focus-visible {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14), 0 1rem 2rem rgba(0, 113, 220, 0.16);
+  box-shadow: var(--focus-ring), 0 1rem 2rem rgba(0, 113, 220, 0.16);
 }
 
 .barcode-placeholder span {
   display: block;
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   padding: 0.4rem 0.75rem;
   font-weight: 600;
 }
@@ -479,7 +499,7 @@ button:disabled {
 .notes-block,
 .setting-row {
   border: 1px solid var(--border);
-  border-radius: 0.9rem;
+  border-radius: var(--shape-md);
   padding: 0.85rem;
 }
 
@@ -530,7 +550,7 @@ dd,
 
 .card-number-toggle:focus-visible {
   border-radius: 0.35rem;
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.18);
+  box-shadow: var(--focus-ring-strong);
   outline: none;
 }
 
@@ -560,7 +580,7 @@ dd,
   cursor: pointer;
   font-weight: var(--type-button-weight);
   padding: 0.75rem 1rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color var(--motion-interactive), box-shadow var(--motion-interactive), transform var(--motion-interactive);
 }
 
 .primary-button {
@@ -576,7 +596,7 @@ dd,
 
 .danger-button {
   background: var(--danger-bg);
-  border-color: rgba(180, 35, 24, 0.28);
+  border-color: var(--state-danger-border);
   color: var(--danger);
 }
 
@@ -634,7 +654,7 @@ dd,
 .checkout-feedback {
   border: 1px solid rgba(15, 123, 63, 0.16);
   border-radius: 0.85rem;
-  background: rgba(15, 123, 63, 0.08);
+  background: var(--state-success-bg);
   color: var(--unused);
   margin: -0.35rem 0 0.85rem;
   padding: 0.55rem 0.7rem;
@@ -727,7 +747,7 @@ dd,
 
 .fullscreen-position {
   margin: 0;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: #ffffff;
   color: #07111f;
   font-size: clamp(1rem, 4vw, 1.45rem);
@@ -801,7 +821,7 @@ dd,
 }
 
 .fullscreen-actions .primary-button {
-  min-height: 3.25rem;
+  min-height: var(--control-height);
 }
 
 .fullscreen-actions .danger-button {
@@ -1040,7 +1060,7 @@ dd,
   overflow: auto;
   white-space: pre;
   border: 1px solid var(--border);
-  border-radius: 0.9rem;
+  border-radius: var(--shape-md);
   color: var(--text);
   font: 0.88rem/1.45 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   padding: 0.8rem;
@@ -1054,7 +1074,7 @@ dd,
 
 .raw-data-input:focus-visible {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 
@@ -1136,14 +1156,14 @@ dd,
 .connection-input {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 0.9rem;
+  border-radius: var(--shape-md);
   color: var(--text);
   padding: 0.8rem;
 }
 
 .connection-input:focus-visible {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 
@@ -1157,7 +1177,7 @@ dd,
   display: grid;
   gap: 0.5rem;
   border: 1px solid var(--border);
-  border-radius: 0.9rem;
+  border-radius: var(--shape-md);
   background: #f8fafc;
   color: var(--text);
   padding: 0.8rem;
@@ -1172,7 +1192,7 @@ dd,
 .connection-status-dot {
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: var(--used);
 }
 
@@ -1227,25 +1247,25 @@ dd,
 
 .connection-status.is-needs-reconnect {
   border-color: rgba(122, 74, 0, 0.25);
-  background: #fffaf0;
+  background: var(--state-warning-bg);
 }
 
 .connection-status.is-needs-reconnect .connection-status-dot {
-  background: #7a4a00;
+  background: var(--state-warning);
 }
 
 .connection-status.is-needs-attention {
   border-color: rgba(122, 74, 0, 0.34);
-  background: #fffaf0;
+  background: var(--state-warning-bg);
 }
 
 .connection-status.is-needs-attention .connection-status-dot {
-  background: #7a4a00;
+  background: var(--state-warning);
 }
 
 .connection-status.is-connected {
-  border-color: rgba(15, 123, 63, 0.32);
-  background: rgba(15, 123, 63, 0.08);
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
 }
 
 .connection-status.is-connected .connection-status-dot {
@@ -1257,7 +1277,7 @@ dd,
 }
 
 .connection-status.is-error {
-  border-color: rgba(180, 35, 24, 0.28);
+  border-color: var(--state-danger-border);
   background: var(--danger-bg);
 }
 
@@ -1282,7 +1302,7 @@ dd,
 }
 
 .sync-badge {
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: rgba(0, 113, 220, 0.12);
   color: var(--primary-dark);
   font-size: 0.75rem;
@@ -1292,7 +1312,7 @@ dd,
 
 .connection-status.sync-unsynced .sync-badge {
   background: #fff7d6;
-  color: #7a4a00;
+  color: var(--state-warning);
 }
 
 .connection-status.sync-conflict .sync-badge {
@@ -1321,7 +1341,7 @@ dd,
   display: grid;
   gap: 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 0.9rem;
+  border-radius: var(--shape-md);
   padding: 0.85rem;
 }
 
@@ -1331,11 +1351,11 @@ dd,
 
 .recovery-panel.is-unsynced {
   border-color: rgba(122, 74, 0, 0.25);
-  background: #fffaf0;
+  background: var(--state-warning-bg);
 }
 
 .recovery-panel.is-conflict {
-  border-color: rgba(180, 35, 24, 0.28);
+  border-color: var(--state-danger-border);
   background: var(--danger-bg);
 }
 
@@ -1439,13 +1459,13 @@ dd,
 .settings-compact-action-row:hover,
 .settings-compact-action-row:focus-visible {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 113, 220, 0.14);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 
 .settings-compact-action-row .compact-row-action {
   width: auto;
-  min-height: 2.35rem;
+  min-height: var(--control-height-compact);
   padding: 0.45rem 0.75rem;
   pointer-events: none;
 }
@@ -1496,9 +1516,9 @@ dd,
   justify-self: start;
   gap: 0.4rem;
   border: 1px solid rgba(122, 74, 0, 0.3);
-  border-radius: 999px;
-  background: #fffaf0;
-  color: #7a4a00;
+  border-radius: var(--shape-pill);
+  background: var(--state-warning-bg);
+  color: var(--state-warning);
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1.1;
@@ -1508,20 +1528,20 @@ dd,
 .sync-overview::before {
   width: 0.55rem;
   height: 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: currentColor;
   content: "";
 }
 
 .sync-overview[data-sync-overview="connected"] {
-  border-color: rgba(15, 123, 63, 0.32);
-  background: rgba(15, 123, 63, 0.08);
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
   color: var(--unused);
 }
 
 .sync-overview[data-sync-overview="conflict"],
 .sync-overview[data-sync-overview="unavailable"] {
-  border-color: rgba(180, 35, 24, 0.28);
+  border-color: var(--state-danger-border);
   background: var(--danger-bg);
   color: var(--danger);
 }
@@ -1601,9 +1621,9 @@ dd,
 
 .cards-toolbar select {
   width: min(9.25rem, 100%);
-  min-height: 2.35rem;
+  min-height: var(--control-height-compact);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: #ffffff;
   color: var(--text);
   padding: 0.38rem 0.65rem;
@@ -1786,9 +1806,9 @@ dd,
 
 .sync-overview {
   justify-self: start;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: #fff7d6;
-  color: #7a4a00;
+  color: var(--state-warning);
   font-size: 0.86rem;
   font-weight: 800;
   padding: 0.28rem 0.62rem;
@@ -1820,7 +1840,7 @@ dd,
   display: block;
   margin: 0;
   border: 1px solid rgba(15, 123, 63, 0.2);
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 0.9rem 2.2rem rgba(23, 32, 51, 0.16);
   color: var(--text);
@@ -1836,7 +1856,7 @@ dd,
 .global-status-banner[data-sync-summary="unsynced"],
 .global-status-banner[data-sync-summary="checking"] {
   border-color: rgba(122, 74, 0, 0.22);
-  color: #7a4a00;
+  color: var(--state-warning);
 }
 
 .global-status-banner[data-sync-summary="conflict"],
@@ -1878,7 +1898,7 @@ dd,
 }
 
 .checkout-nav .secondary-button {
-  min-height: 2.35rem;
+  min-height: var(--control-height-compact);
   padding: 0.45rem 0.75rem;
 }
 
@@ -1911,7 +1931,7 @@ dd,
   border: 1px solid var(--border);
   border-radius: 1.15rem;
   background: #ffffff;
-  box-shadow: 0 0.5rem 1.4rem rgba(23, 32, 51, 0.06);
+  box-shadow: var(--elevation-subtle);
 }
 
 .settings-list .setting-row,
@@ -2071,7 +2091,7 @@ dd,
 
 .barcode-focus-action {
   width: 100%;
-  min-height: 2.35rem;
+  min-height: var(--control-height-compact);
   padding: 0.42rem 0.7rem;
   font-size: 0.9rem;
 }
@@ -2079,7 +2099,7 @@ dd,
 .global-status-banner {
   min-height: 1.8rem;
   margin: 0.42rem 0 0;
-  border-radius: 0.75rem;
+  border-radius: var(--shape-sm);
   padding: 0.28rem 0.55rem;
   color: var(--muted);
   font-size: 0.8rem;
@@ -2128,7 +2148,7 @@ dd,
 
 .google-sync-section > .data-section-heading,
 .backup-restore-section > .data-section-heading {
-  min-height: 2.35rem;
+  min-height: var(--control-height-compact);
   padding-block: 0.52rem;
 }
 
@@ -2234,7 +2254,7 @@ dd,
 
 .global-status-banner[data-sync-summary="conflict"],
 .global-status-banner[data-sync-summary="unavailable"] {
-  border-color: rgba(180, 35, 24, 0.28);
+  border-color: var(--state-danger-border);
   background: rgba(255, 241, 240, 0.96);
   color: var(--danger);
 }
@@ -2260,7 +2280,7 @@ dd,
 }
 
 .settings-panel .backup-sync-section[open] > summary.data-section-heading {
-  min-height: 3.25rem;
+  min-height: var(--control-height);
   padding-block: 0.78rem;
   margin-bottom: 0;
 }
@@ -2330,7 +2350,7 @@ dd,
   justify-content: center;
   min-width: 4.25rem;
   min-height: 2.2rem;
-  border-radius: 0.75rem;
+  border-radius: var(--shape-sm);
   padding: 0.4rem 0.7rem;
   font-size: 0.9rem;
   font-weight: 600;
@@ -2346,7 +2366,7 @@ dd,
 .google-sync-section .connection-actions button,
 .backup-restore-section .csv-backup-actions button {
   min-height: 2.3rem;
-  border-radius: 0.75rem;
+  border-radius: var(--shape-sm);
   padding: 0.42rem 0.58rem;
   font-size: 0.9rem;
   font-weight: 600;
@@ -2412,7 +2432,7 @@ dd,
 .settings-list .compact-row-action,
 .settings-list .app-reload-button {
   min-width: 6.5rem;
-  min-height: 2.35rem;
+  min-height: var(--control-height-compact);
   padding: 0.45rem 0.75rem;
   border-radius: 0.8rem;
   font-size: 0.9rem;
@@ -2694,7 +2714,7 @@ dd,
   min-width: 3.25rem;
   min-height: 1.85rem;
   margin: 0 auto 0.15rem;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   padding: 0.35rem 0.55rem;
   background: #eef4fb;
   color: var(--primary-dark);
@@ -2717,13 +2737,13 @@ dd,
   content: "";
   width: 0.62rem;
   height: 0.62rem;
-  border-radius: 999px;
+  border-radius: var(--shape-pill);
   background: #118c4f;
-  box-shadow: 0 0 0 3px rgba(17, 140, 79, 0.13);
+  box-shadow: var(--focus-ring-success);
   flex: 0 0 auto;
 }
 
 .raw-csv-unlock-button[data-lock-state="unlocked"]::before {
   background: #d92d20;
-  box-shadow: 0 0 0 3px rgba(217, 45, 32, 0.13);
+  box-shadow: var(--focus-ring-danger);
 }
