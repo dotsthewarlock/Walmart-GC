@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.71 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.72 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.71";
-const DEBUG_VERSION_CSS = "1.01.71";
+const DEBUG_VERSION_JS = "1.01.72";
+const DEBUG_VERSION_CSS = "1.01.72";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
