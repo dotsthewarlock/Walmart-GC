@@ -444,6 +444,8 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 Codex should minimize GitHub update interactions.
 
+Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify origin, intended `phase-11` base, intended `codex/*` head, and GitHub auth / PR creation availability before editing files; otherwise stop with `blocked: PR creation unavailable` unless local-only output is explicitly approved.
+
 Before committing, pushing, or opening a PR:
 
 1. Inspect current repository state.
