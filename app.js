@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.64 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.65 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.64";
-const DEBUG_VERSION_CSS = "1.01.64";
+const DEBUG_VERSION_JS = "1.01.65";
+const DEBUG_VERSION_CSS = "1.01.65";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -2534,10 +2534,10 @@ function renderCardList() {
 
     cardButton.innerHTML = `
       <div class="card-row-top">
-        <span class="card-number">${maskCardNumber(card.cardNumber)}</span>
+        <span class="card-number card-list-text">${maskCardNumber(card.cardNumber)}</span>
         <span class="card-row-right">
           ${renderUsedIndicator(card)}
-          <span class="card-balance${card.used ? " is-used-balance" : ""}">${formatBalance(card.currentBalance)}</span>
+          <span class="money-value card-balance${card.used ? " is-used-balance" : ""}">${formatBalance(card.currentBalance)}</span>
         </span>
       </div>
     `;

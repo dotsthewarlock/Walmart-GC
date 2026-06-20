@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Debug file fingerprint: index.html app-shell version 1.01.64 (cache/debug only, not a product release). -->
+<!-- Debug file fingerprint: index.html app-shell version 1.01.65 (cache/debug only, not a product release). -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0B7DFF" />
-    <link rel="stylesheet" href="styles.css?v=1.01.64" />
+    <link rel="stylesheet" href="styles.css?v=1.01.65" />
   </head>
   <body>
     <nav class="top-nav" aria-label="App sections">
@@ -21,10 +21,10 @@
         <div
           id="debug-version-fingerprint"
           class="debug-version-fingerprint"
-          data-html-version="1.01.64"
+          data-html-version="1.01.65"
           aria-label="Debug file fingerprint versions" aria-hidden="true"
         >
-          HTML 1.01.64 · JS loading · CSS 1.01.64
+          HTML 1.01.65 · JS loading · CSS 1.01.65
         </div>
         <div class="app-header-title-row">
           <h1>Gift Card Manager</h1>
@@ -51,8 +51,8 @@
             <option value="date-updated-desc">Updated ↓</option>
             <option value="card-number">Card #</option>
           </select>
-          <span id="card-count" class="count-badge card-count-summary">0/0</span>
-          <span id="card-total-balance" class="card-total-balance">$0.00</span>
+          <span id="card-count" class="count-badge count-value card-count-summary">0/0</span>
+          <span id="card-total-balance" class="money-value card-total-balance">$0.00</span>
         </div>
 
         <div id="card-list" class="card-list"></div>
@@ -70,7 +70,7 @@
           <article id="card-detail" class="card-detail">
             <div class="checkout-nav" aria-label="Checkout navigation">
               <button id="prev-card" class="secondary-button" type="button">Previous</button>
-              <span id="card-position" class="position-indicator">0/0</span>
+              <span id="card-position" class="position-indicator count-value">0/0</span>
               <button id="next-card" class="secondary-button" type="button">Next</button>
             </div>
 
@@ -82,7 +82,7 @@
             >
               <div class="barcode-meta-row barcode-meta-top">
                 <span id="detail-barcode-status">Barcode unavailable</span>
-                <strong id="detail-barcode-balance">—</strong>
+                <strong id="detail-barcode-balance" class="money-value">—</strong>
               </div>
               <div id="detail-barcode-render" class="barcode-render" aria-hidden="true"></div>
               <div class="barcode-meta-row barcode-meta-bottom">
@@ -222,7 +222,7 @@
           </details>
             </div>
           </details>
-          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.64 · JS 1.01.64 · CSS 1.01.64</p>
+          <p id="settings-app-shell-fingerprint" class="settings-app-shell-fingerprint">App shell: HTML 1.01.65 · JS 1.01.65 · CSS 1.01.65</p>
       </section>
     </main>
 
@@ -294,11 +294,11 @@
 
     <div id="fullscreen-barcode" class="barcode-focus-backdrop" hidden>
       <div class="barcode-focus-content" role="dialog" aria-modal="true" aria-label="Focused checkout barcode">
-        <p id="fullscreen-position" class="fullscreen-position">0/0</p>
+        <p id="fullscreen-position" class="fullscreen-position count-value">0/0</p>
         <div id="fullscreen-barcode-frame" class="barcode-placeholder barcode-focus-frame" aria-label="Focused barcode">
           <div class="barcode-meta-row barcode-meta-top">
             <span id="fullscreen-barcode-status">Barcode unavailable</span>
-            <strong id="fullscreen-current-balance">—</strong>
+            <strong id="fullscreen-current-balance" class="money-value">—</strong>
           </div>
           <div id="fullscreen-barcode-render" class="barcode-render fullscreen-barcode-render" aria-hidden="true"></div>
           <div class="barcode-meta-row barcode-meta-bottom">
@@ -322,6 +322,6 @@
       <div class="fullscreen-barcode archived-fullscreen-barcode-dialog" hidden></div>
     </template>
 
-    <script src="app.js?v=1.01.64"></script>
+    <script src="app.js?v=1.01.65"></script>
   </body>
 </html>
