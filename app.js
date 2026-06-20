@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.67 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.68 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.67";
-const DEBUG_VERSION_CSS = "1.01.67";
+const DEBUG_VERSION_JS = "1.01.68";
+const DEBUG_VERSION_CSS = "1.01.68";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -928,7 +928,7 @@ function getDataRowCount(rawCsv) {
 }
 
 function updateDataCountSummary(displayedCount = 0) {
-  dataCountSummary.textContent = `Total ${sampleGiftCards.length}`;
+  dataCountSummary.textContent = `Import/export CSV · Total ${sampleGiftCards.length}`;
 }
 
 function parseCsvLine(line) {
@@ -1598,6 +1598,27 @@ function getGoogleOAuthStatusClass() {
   return "not-connected";
 }
 
+
+function getGoogleOAuthPanelSummaryText() {
+  if ([googleOAuthStatuses.connecting, googleOAuthStatuses.restoring].includes(googleOAuthState.status)) {
+    return "Checking connection";
+  }
+
+  if (googleOAuthState.status === googleOAuthStatuses.needsReconnect) {
+    return "Reconnect to sync";
+  }
+
+  if (googleOAuthState.status === googleOAuthStatuses.error) {
+    return "Sync needs attention";
+  }
+
+  if (googleOAuthState.status === googleOAuthStatuses.notConfigured) {
+    return "Setup needed";
+  }
+
+  return "Not connected";
+}
+
 function renderGoogleOAuthState() {
   if (!googleOAuthStatusArea) {
     return;
@@ -1615,10 +1636,13 @@ function renderGoogleOAuthState() {
 
   googleOAuthStatusArea.className = `connection-status oauth-status subtle-identity is-${getGoogleOAuthStatusClass()}`;
   const connectedIdentity = googleOAuthState.connectedEmail || googleOAuthState.connectedName;
+  const summaryIdentity = isConnected
+    ? (connectedIdentity || "Connected")
+    : getGoogleOAuthPanelSummaryText();
   if (googleSyncIdentity) {
-    googleSyncIdentity.hidden = !isConnected || !connectedIdentity;
-    googleSyncIdentity.textContent = connectedIdentity || "";
-    googleSyncIdentity.title = connectedIdentity || "";
+    googleSyncIdentity.hidden = false;
+    googleSyncIdentity.textContent = summaryIdentity;
+    googleSyncIdentity.title = summaryIdentity;
   }
   if (googleSyncHelper) {
     googleSyncHelper.hidden = !isConnected || !connectedIdentity;

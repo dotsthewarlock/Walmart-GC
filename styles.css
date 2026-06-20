@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.67 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.68 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -2365,9 +2365,6 @@ dd,
   align-items: center;
 }
 
-.settings-panel .backup-restore-section:not([open]) #data-count-summary {
-  display: none;
-}
 
 .settings-panel .collapsible-data-card:not([open]) {
   min-height: 0;
@@ -2549,14 +2546,29 @@ dd,
   min-width: 0;
   max-width: min(50vw, 16rem);
   overflow: hidden;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.25;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.google-sync-helper {
-  display: none !important;
+@media (max-width: 420px) {
+  .google-sync-heading-row,
+  .backup-restore-section > summary.data-section-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.18rem;
+  }
+
+  .google-sync-identity,
+  .data-count-summary {
+    max-width: 100%;
+    text-align: left;
+  }
 }
+
 
 .csv-backup-actions,
 .sheet-normal-actions {
