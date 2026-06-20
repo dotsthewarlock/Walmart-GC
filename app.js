@@ -1,7 +1,7 @@
-// Debug file fingerprint: app.js app-shell version 1.01.70 (cache/debug only, not a product release).
+// Debug file fingerprint: app.js app-shell version 1.01.71 (cache/debug only, not a product release).
 // These manually maintained values identify loaded static files for cache debugging; they are not product or release versions.
-const DEBUG_VERSION_JS = "1.01.70";
-const DEBUG_VERSION_CSS = "1.01.70";
+const DEBUG_VERSION_JS = "1.01.71";
+const DEBUG_VERSION_CSS = "1.01.71";
 
 function renderDebugVersionFingerprint() {
   const fingerprint = document.querySelector("#debug-version-fingerprint");
@@ -928,7 +928,7 @@ function getDataRowCount(rawCsv) {
 }
 
 function updateDataCountSummary(displayedCount = 0) {
-  dataCountSummary.textContent = `Import/export CSV · Total ${sampleGiftCards.length}`;
+  dataCountSummary.textContent = `Total ${sampleGiftCards.length}`;
 }
 
 function parseCsvLine(line) {
@@ -1635,18 +1635,15 @@ function renderGoogleOAuthState() {
   updateBackupPanelOpenState();
 
   googleOAuthStatusArea.className = `connection-status oauth-status subtle-identity is-${getGoogleOAuthStatusClass()}`;
-  const connectedIdentity = googleOAuthState.connectedEmail || googleOAuthState.connectedName;
-  const summaryIdentity = isConnected
-    ? (connectedIdentity || "Connected")
-    : getGoogleOAuthPanelSummaryText();
+  const summaryIdentity = isConnected ? "Connected" : getGoogleOAuthPanelSummaryText();
   if (googleSyncIdentity) {
     googleSyncIdentity.hidden = false;
     googleSyncIdentity.textContent = summaryIdentity;
     googleSyncIdentity.title = summaryIdentity;
   }
   if (googleSyncHelper) {
-    googleSyncHelper.hidden = !isConnected || !connectedIdentity;
-    googleSyncHelper.textContent = connectedIdentity ? `Connected: ${connectedIdentity}` : "";
+    googleSyncHelper.hidden = true;
+    googleSyncHelper.textContent = "";
   }
   googleOAuthStatusArea.hidden = isConnected;
   googleOAuthStatusArea.textContent = isConnected ? "" : googleOAuthState.message;

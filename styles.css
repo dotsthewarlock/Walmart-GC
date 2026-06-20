@@ -1,4 +1,4 @@
-/* Debug file fingerprint: styles.css app-shell version 1.01.70 (cache/debug only, not a product release). */
+/* Debug file fingerprint: styles.css app-shell version 1.01.71 (cache/debug only, not a product release). */
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -2705,4 +2705,102 @@ dd,
 
 .settings-panel .raw-data-open-button {
   min-height: var(--control-height-compact);
+}
+
+/* Phase 11.4h settings summary and checkout surface polish */
+.settings-gear-button {
+  border-color: rgba(255, 255, 255, 0.82);
+  background: rgba(235, 246, 255, 0.9);
+  color: var(--primary-dark);
+  opacity: 1;
+  box-shadow: 0 0.5rem 1.2rem rgba(15, 23, 42, 0.24), 0 0 0 1px rgba(0, 79, 154, 0.08);
+}
+
+.settings-gear-button:hover {
+  border-color: rgba(0, 113, 220, 0.48);
+  background: #ffffff;
+  box-shadow: 0 0.65rem 1.35rem rgba(0, 79, 154, 0.22), 0 0 0 1px rgba(0, 113, 220, 0.14);
+}
+
+.settings-gear-button:focus-visible {
+  border-color: var(--primary);
+  background: #ffffff;
+  box-shadow: var(--focus-ring-strong), 0 0.65rem 1.35rem rgba(0, 79, 154, 0.24);
+  outline: none;
+}
+
+.cards-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.cards-toolbar #sort-cards {
+  justify-self: start;
+}
+
+.cards-toolbar .card-count-summary {
+  justify-self: center;
+}
+
+.cards-toolbar .card-total-balance {
+  justify-self: end;
+}
+
+.barcode-placeholder {
+  border: 1px solid var(--border);
+}
+
+.barcode-action {
+  border-color: rgba(0, 113, 220, 0.34);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 0.75rem 1.65rem rgba(23, 32, 51, 0.1);
+}
+
+.barcode-action:hover,
+.barcode-action:focus-visible {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring-strong), 0 1rem 2rem rgba(0, 113, 220, 0.16);
+}
+
+.settings-panel .backup-sync-section {
+  margin-bottom: 1rem;
+}
+
+.settings-panel .backup-sync-section[open] > summary.data-section-heading {
+  min-height: 2.75rem;
+  padding-block: 0.45rem;
+  margin-bottom: 0;
+}
+
+.settings-panel .backup-sync-section[open] .settings-backup-layout {
+  margin-top: 0.1rem;
+}
+
+.settings-panel .advanced-diagnostics-section {
+  margin-top: 0.95rem;
+}
+
+.google-sync-heading-row,
+.backup-restore-section > summary.data-section-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.google-sync-identity,
+.data-count-summary {
+  max-width: min(45vw, 14rem);
+  text-align: right;
+}
+
+@media (max-width: 420px) {
+  .google-sync-heading-row,
+  .backup-restore-section > summary.data-section-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .google-sync-identity,
+  .data-count-summary {
+    max-width: 42vw;
+    text-align: right;
+  }
 }
