@@ -95,7 +95,7 @@ jobs:
             --jq '[.[] | select(.headRefName | startswith("codex/"))]' > "${open_prs_json}"
 
           gh pr list --repo "${owner_repo}" --state closed --base "${BASE_BRANCH}" --limit 100 \
-            --json number,title,url,headRefName,baseRefName,updatedAt,createdAt,closedAt,mergedAt,merged \
+            --json number,title,url,headRefName,baseRefName,updatedAt,createdAt,closedAt,mergedAt \
             --jq '[.[] | select(.headRefName | startswith("codex/"))]' > "${closed_prs_json}"
 
           render_branch_table() {
@@ -154,7 +154,7 @@ jobs:
             echo "## Closed or merged codex/* PRs targeting phase-12"
             echo
             echo "These may indicate branch-prune candidates later, after separate human review and a future explicitly destructive workflow or manual action."
-            render_pr_table "${closed_prs_json}" '.[] | "| [#\(.number)](\(.url)) | `\(.headRefName)` | \(.closedAt // .updatedAt) | merged=\(.merged) mergedAt=\(.mergedAt // "n/a") | \(.title | gsub("\\|"; "\\\\|")) |"'
+            render_pr_table "${closed_prs_json}" '.[] | "| [#\(.number)](\(.url)) | `\(.headRefName)` | \(.closedAt // .updatedAt) | mergedAt=\(.["mergedAt"] // "n/a") | \(.title | gsub("\\|"; "\\\\|")) |"'
             echo
             echo "## Hard guards confirmed"
             echo
