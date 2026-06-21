@@ -1,246 +1,113 @@
 # AI Handoff
 
-For compact current context, read `docs/CODEX_ACTIVE_CONTEXT.md` first. This handoff provides expanded Phase 11 guidance only when needed. Archived docs under `docs/archive/` are historical and should not be read for normal tasks.
+Read `docs/CODEX_ACTIVE_CONTEXT.md` first, then this file, before any in-scope AI lane action. This file is the rolling cross-lane handoff ledger for Phase 13. It should stay compact, current, and pruned.
 
+## Current State
 
-## Current Branch Context
+- Active branch: `phase-13`.
+- Protected production branch: `main`.
+- Phase direction: evaluate and stage a React + Tailwind + Material 3-aligned frontend migration while preserving the current Worker OAuth/session/sync architecture.
+- Current app architecture remains GitHub Pages frontend plus Cloudflare Worker same-origin `/auth/*` and `/api/*` routes.
+- Runtime guardrails remain unchanged: do not alter schema, OAuth scope, auth/session, sync/conflict behavior, CSV recovery, Worker routes, deployment, or hosting unless explicitly approved as a separate focused task.
 
-Active branch: `phase-11`.
+## AI Handoff-First Rule
 
-Protected branch: `main`.
+Before any in-scope action, all AI lanes must read:
 
-Current implementation phase: Phase 11 — OAuth/session durability and Google Sheets access hardening.
+1. `docs/CODEX_ACTIVE_CONTEXT.md`
+2. `docs/AI_HANDOFF.md`
 
-Phase 11 goal:
+This applies to ChatGPT discussion/review, ChatGPT/GitHub connector edits, Codex prompts, user terminal batches, and GitHub Actions lifecycle work. If these docs disagree, treat `CODEX_ACTIVE_CONTEXT.md` as the compact rule source and this file as the current operational ledger.
 
-```text
-Fix OAuth/session flow until fully functional and durable.
-```
+## Rolling Ledger Rules
 
-Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only. Do not treat them as the active development phase or active sync architecture.
+This file is not an append-only transcript. Update it by replacing stale section content with current facts.
 
-## Current Architecture
+Keep:
 
-```text
-User Google Account
-        ↕
-Google OAuth
-        ↕
-Cloudflare Worker
-        ↕
-Google Drive API / Google Sheets API
-        ↕
-Walmart-GC Web App
-```
+- current phase, branch, architecture direction, and guardrails
+- last 5-10 meaningful recent steps
+- latest diagnostic and validation result
+- next 3-5 immediate roadmap items
+- live risks that still affect the next decision
 
-Frontend:
+Move to `docs/MAINTENANCE_LOG.md`:
 
-- GitHub Pages at `https://walmart-gc.dotsthewarlock.com`.
-- Plain HTML, CSS, and JavaScript.
-- No framework and no build system.
+- deferred cleanup
+- non-immediate validation gaps
+- stale branch/docs concerns
+- unresolved risks that must not be forgotten but are not part of the next few steps
 
-Backend:
+Prune from this file:
 
-- Cloudflare Worker on same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and `https://walmart-gc.dotsthewarlock.com/api/*` routes; `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
-- Workers KV for OAuth state and sessions.
-- Worker owns Google OAuth, refresh tokens, session cookie, sheet discovery, sheet creation, schema initialization, metadata, and Google API calls.
+- old terminal tokens
+- superseded prompts
+- repeated status updates
+- completed stale diagnostics
+- duplicated architecture text already covered by `docs/ARCHITECTURE.md`
+- historical phase details unless directly relevant to the current step
 
-Do not introduce or recommend a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, or new hosting.
+Target size: 100-180 lines. Recent steps max: 10. Immediate roadmap max: 5. Open risks max: 10.
 
-## Active Product Scope
+## Phase 13 AI Lanes
 
-Required capabilities remain:
+- Lane 0 - User terminal batch: preferred for compact local inspection, validation, dependency/build experiments, and controlled migration spikes.
+- Lane 1 - ChatGPT discussion/review/command drafting: architecture, risk, Material 3 guidance, Codex prompt design, and merge-safety review.
+- Lane 2 - ChatGPT/GitHub connector: small, bounded docs/config edits where connector writes are safe.
+- Lane 3 - Codex: broader implementation, coordinated multi-file migration work, and validation-heavy changes.
+- Lane 4 - GitHub Actions lifecycle: PR creation, validation, merge, and cleanup automation when configured and eligible.
 
-- Gift card list view.
-- Gift card detail view.
-- Barcode rendering.
-- PIN display.
-- Remaining balance tracking.
-- Used flag tracking.
-- Google Sheet synchronization through Worker endpoints; local/CSV flows remain available.
-- Mobile-friendly interface.
-- Desktop-friendly interface.
-- CSV backup and recovery.
-- Offline/local browser usability.
-
-Core application functionality should not be redesigned during Phase 11 unless it directly blocks OAuth, session management, Google Sheets access, or sync.
-
-## OAuth and Session Rules
-
-Authentication is Worker-managed Google OAuth.
-
-- Frontend auth state comes from `GET /api/status`.
-- Logout uses `POST /api/logout`.
-- Worker API calls must use same-origin `/api/*` paths with `credentials: "include"`.
-- OAuth scope must remain `https://www.googleapis.com/auth/drive.file`.
-- The frontend must never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
-- The session model is an HttpOnly, Secure, SameSite=Lax, host-only cookie.
-- Do not use browser-side Google Identity Services token flow, direct browser Drive API calls, or direct browser Sheets API calls.
-
-## Cloud-Only OAuth Deployment
-
-Use only this frontend origin for production, development, and testing:
+Lane 0 terminal convention:
 
 ```text
-https://walmart-gc.dotsthewarlock.com
+wg13 <human-readable-token>
 ```
 
-Active Worker routing:
+Use one public function name, `wg13`, with exactly one armed token per iteration. The function should reject missing, wrong, stale, or already-used tokens; print its batch token; guard the expected repo/branch; mark the token used; run only the current iteration commands; and ask the user to paste output back before the next mutating step.
+
+## Recent Steps
+
+- Created branch `phase-13` from `phase-12` for contained future-direction discussion.
+- Discussed React + Tailwind + Material 3 migration as a Phase 13 architecture direction, not a Phase 12 change.
+- Agreed terminal-first AI lane is preferred when compact and safe.
+- Designed durable Lane 0 terminal batch pattern: stable `wg13` command, human-readable token, single-use state, stale-token rejection, and ChatGPT-issued rearming.
+- Agreed `next actions` behavior should provide concise action items, actor, and exact continuation prompt after in-scope project interactions unless explicitly suppressed.
+- Current doc update scope: update `docs/AI_HANDOFF.md` first only; do not touch runtime files.
+
+## Current Diagnostic
+
+- Actor: ChatGPT/GitHub connector.
+- Instruction: replace stale Phase 11 `docs/AI_HANDOFF.md` with a concise Phase 13 rolling handoff ledger.
+- Scope: docs-only, `docs/AI_HANDOFF.md` only.
+- Runtime files touched: none.
+- Validation target: fetch the updated file and confirm Phase 13 handoff-first, rolling ledger, pruning, Lane 0, recent steps, current diagnostic, roadmap, and open risks are present.
+
+## Immediate Roadmap
+
+1. Verify this `docs/AI_HANDOFF.md` update on `phase-13`.
+2. Update `docs/CODEX_ACTIVE_CONTEXT.md` with Phase 13 active context, AI handoff-first rule, Lane 0 terminal batch convention, and `next actions` behavior.
+3. Review docs-only diff for accidental runtime/config changes.
+4. Update project settings after repo docs are finalized so future ChatGPT behavior defaults to Phase 13 and handoff-first workflow.
+5. Begin React/Tailwind/M3 exploration with a read-only or low-risk `wg13 <token>` terminal batch.
+
+## Open Risks
+
+- `docs/CODEX_ACTIVE_CONTEXT.md` still contains stale Phase 12 references until the next docs update.
+- `docs/ARCHITECTURE.md` may still contain stale historical phase references and should be reviewed later, not in this step.
+- Project settings may still point to Phase 12 until updated after repo docs land.
+- Terminal lane depends on user running the exact pasted function and returning output; it cannot prevent manual bypass.
+- React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
+
+## Next Actions Behavior
+
+For in-scope Walmart-GC project interactions, end with a concise next-actions block unless the user explicitly asks not to or the topic is outside project workflow:
 
 ```text
-https://walmart-gc.dotsthewarlock.com/auth/*
-https://walmart-gc.dotsthewarlock.com/api/*
+Next actions:
+1. <immediate action>
+2. <follow-up action>
+Who acts: <user | ChatGPT | Codex | terminal>
+Continue with: "<exact prompt or command>"
 ```
 
-Required Cloudflare route rules:
-
-```text
-walmart-gc.dotsthewarlock.com/auth/*
-walmart-gc.dotsthewarlock.com/api/*
-```
-
-Legacy Worker subdomain fallback:
-
-```text
-https://walmart-gc-oauth.dotsthewarlock.com
-```
-
-Google Cloud settings:
-
-```text
-Authorized JavaScript origin:
-https://walmart-gc.dotsthewarlock.com
-
-Authorized redirect URI:
-https://walmart-gc.dotsthewarlock.com/auth/callback
-```
-
-Worker callback must return to:
-
-```text
-https://walmart-gc.dotsthewarlock.com/?auth=connected
-```
-
-Never document or recommend `/Walmart-GC/`, session IDs in query parameters, localhost OAuth, or alternate OAuth origins.
-
-## Active Data Model
-
-Spreadsheet name:
-
-```text
-Walmart-GC Data
-```
-
-Tabs:
-
-```text
-Cards
-_META
-```
-
-Do not change the card schema without explicit approval. Sheets are mapped by header name; approved order:
-
-```text
-cardNumber
-pin
-startingBalance
-currentBalance
-merchant
-merchantInferred
-dateAdded
-dateUpdated
-dateUsed
-used
-notes
-```
-
-Rules:
-
-- `cardNumber` is the unique ID.
-- `merchant` is explicit user-entered/user-selected override only. Do not infer or default blank `merchant` values to `walmart-ca`.
-- `merchantInferred` is system-derived from `cardNumber`; for valid Walmart Canada cards, it is `walmart-ca`.
-- `effectiveMerchant = merchant || merchantInferred` is runtime-only and must not be stored.
-- `currentBalance` is authoritative.
-- `startingBalance` is historical.
-- `used` is independent of balance.
-- Sort order is frontend-managed.
-- Barcode payload is derived only and must not be stored: `79936686504000 + cardNumber`.
-
-## Active Sync Behavior
-
-Worker-backed sync only.
-
-Completed actions should sync after:
-
-- Balance save.
-- Used-state change.
-- Notes save.
-- Merchant change.
-- New card save.
-- Accepted CSV import.
-
-Do not sync on every keystroke.
-
-If Walmart-GC Data is not configured yet, Google is disconnected, or the browser is offline:
-
-- Keep local changes.
-- Preserve cards/settings/saved Sheet configuration.
-- Mark unsynced where appropriate.
-- Show readable setup/reconnect guidance.
-- Do not erase data.
-- Keep CSV backup/recovery available.
-
-## Conflict Handling
-
-Preserve sheet-level optimistic concurrency through `_META.sheetVersion`:
-
-- No silent overwrites.
-- No automatic merge.
-- User chooses recovery.
-- CSV backup before destructive recovery.
-- Remote load and local overwrite remain explicit actions.
-
-## Phase 11 Success Criteria
-
-OAuth is fixed when:
-
-- Connect Google starts OAuth.
-- Consent requests only `drive.file`.
-- Callback succeeds.
-- Worker sets the session cookie.
-- `/api/status` reports connected.
-- Refresh preserves login.
-- Browser restart preserves login while the session is valid.
-- Logout clears the session.
-- Reconnect works.
-- Ensure Sheet works.
-- Load from Google Sheets works.
-- Save/sync works.
-- Offline behavior remains usable.
-- CSV backup/recovery remains available.
-
-## Retired/Historical Paths
-
-Apps Script materials may remain only as historical MVP references, including `apps-script/Code.gs`, `docs/archive/apps-script-retired/APPS_SCRIPT_SETUP.md`, and `docs/archive/phase-6/PHASE_6_SCHEMA_API_DECISIONS.md`. Apps Script must not appear as the default/current setup path, the active sync path, or a normal user-facing option in Phase 11. Apps Script may still be inspected for diagnostics only when exact live behavior or an exact error string points to `apps-script/Code.gs`. Preserve the debugging priority: (1) exact error string or observed live behavior, (2) current workspace/repo files, (3) active deployment/config files, (4) project instructions, and (5) prior architecture assumptions.
-
-Do not reintroduce:
-
-- Apps Script sync.
-- OAuth Client ID input for normal users.
-- Browser-stored Google tokens.
-- Browser-stored session IDs.
-- Google Identity Services browser token flow.
-- Direct browser Drive API access.
-- Direct browser Sheets API access.
-- Localhost OAuth.
-- Alternate development origins.
-
-## Verification Guidance
-
-For documentation-only changes, prefer:
-
-- Stale-reference search and review.
-- `git diff --check`.
-- Conflict-marker scan.
-
-Run code validation only if code is touched.
+Use `next` for a very short checkpoint. Use `next actions` for action items plus the exact continuation prompt.
