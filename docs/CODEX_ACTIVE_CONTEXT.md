@@ -129,13 +129,13 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 
 
-## AI Automation Risk Classifier Foundation
+## AI Automation Lifecycle Foundation
 
 - Automation risk knobs live in `.github/ai-automation-policy.yml`.
-- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for future `codex/*` PR risk checks.
-- PR 1 only adds the classifier and policy foundation.
-- Auto PR creation and auto-merge wiring are intentionally deferred to PR 2.
-- Human intervention remains required until PR 2 is implemented and reviewed; no new auto-create or auto-merge behavior is enabled by this foundation.
+- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for `codex/*` PR risk checks.
+- `.github/workflows/ai-pr-auto-create.yml` creates guarded `codex/*` -> `phase-12` PRs only when `auto_pr.enabled` is true and the requested base matches both policy `active_base` and the active context.
+- `.github/workflows/ai-pr-auto-merge.yml` handles guarded green-risk auto-merge only when policy auto-merge knobs are enabled and all workflow gates pass.
+- Human review remains required for yellow/red risk, restricted labels, branch/base mismatches, failed validation, conflicts, draft PRs, or ambiguous PR state.
 
 ## Phase 12 AI Workflow Handshake
 
