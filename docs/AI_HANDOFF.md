@@ -19,6 +19,12 @@ Before any in-scope action, all AI lanes must read:
 
 This applies to ChatGPT discussion/review, ChatGPT/GitHub connector edits, Codex prompts, user terminal batches, and GitHub Actions lifecycle work. If these docs disagree, treat `CODEX_ACTIVE_CONTEXT.md` as the compact rule source and this file as the current operational ledger.
 
+## Result Handoff Rule
+
+Codex, terminal, GitHub Actions, and connector tasks should write durable status into the repo when practical, preferably by updating `docs/AI_HANDOFF.md` and using `docs/MAINTENANCE_LOG.md` only for deferred or unresolved follow-up.
+
+Users do not paste task completion output by default. When the user says `next` or `next actions`, ChatGPT must determine prior task status from `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md` first, then ask for pasted output only if the repo docs are insufficient or contradictory.
+
 ## Rolling Ledger Rules
 
 This file is not an append-only transcript. Update it by replacing stale section content with current facts.
@@ -63,7 +69,7 @@ Lane 0 terminal convention:
 wg13 <human-readable-token>
 ```
 
-Use one public function name, `wg13`, with exactly one armed token per iteration. Prefer compact, safe `wg13 <token>` terminal batches when practical. The function should reject missing, wrong, stale, or already-used tokens; print its batch token; guard the expected repo/branch; mark the token used; run only the current iteration commands; and ask the user to paste output back before the next mutating step.
+Use one public function name, `wg13`, with exactly one armed token per iteration. Prefer compact, safe `wg13 <token>` terminal batches when practical. The function should reject missing, wrong, stale, or already-used tokens; print its batch token; guard the expected repo/branch; mark the token used; run only the current iteration commands; and report durable results in repo docs when practical before asking the user for pasted output.
 
 ## Recent Steps
 
@@ -73,27 +79,26 @@ Use one public function name, `wg13`, with exactly one armed token per iteration
 - Designed durable Lane 0 terminal batch pattern: stable `wg13` command, human-readable token, single-use state, stale-token rejection, and ChatGPT-issued rearming.
 - Agreed `next actions` behavior should provide concise action items, actor, and exact continuation prompt after in-scope project interactions unless explicitly suppressed.
 - Updated and reviewed both `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` for Phase 13 handoff-first workflow, hierarchy, Lane 0, and next-actions consistency.
-- Current doc update scope: docs-only consistency patch for `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md`; do not touch runtime files.
+- Clarified the result handoff workflow: task results should be durable in repo docs when practical, and users do not paste completion output by default.
 
 ## Current Diagnostic
 
 - Actor: ChatGPT/GitHub connector.
-- Instruction: apply a docs-only consistency patch to stale diagnostic, roadmap, open-risk, and Lane 0 wording.
-- Scope: docs-only, `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` only.
+- Instruction: docs-only update to clarify Result Handoff Rule, default completion-output behavior, `next` / `next actions` status discovery, and stale ledger cleanup.
+- Scope: docs-only, `docs/AI_HANDOFF.md` only.
 - Runtime files touched: none.
-- Validation target: fetch the updated files and confirm Phase 13 handoff-first, hierarchy rule, AI handoff-first workflow, Lane 0 `wg13 <token>` preference, next-actions behavior, stale-risk removal, roadmap order, and docs-only scope.
+- Validation target: fetch the updated file and confirm the new handoff rule, `next` status behavior, concise roadmap, current risks, and docs-only scope.
 
 ## Immediate Roadmap
 
-1. Review docs-only diff for accidental runtime/config changes.
+1. Review this docs-only diff for accidental runtime/config changes.
 2. Update project settings after repo docs are finalized so future ChatGPT behavior defaults to Phase 13 and handoff-first workflow.
 3. Begin React/Tailwind/M3 exploration with a read-only or low-risk `wg13 <token>` terminal batch when practical.
 
 ## Open Risks
 
-- `docs/ARCHITECTURE.md` may still contain stale historical phase references and should be reviewed later, not in this step.
 - Project settings may still point to Phase 12 until updated after repo docs land.
-- Terminal lane depends on user running the exact pasted function and returning output; it cannot prevent manual bypass.
+- Terminal lane depends on user running the exact pasted function and returning output when repo docs or tool results are insufficient.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
 
 ## Next Actions Behavior
@@ -108,4 +113,4 @@ Who acts: <user | ChatGPT | Codex | terminal>
 Continue with: "<exact prompt or command>"
 ```
 
-Use `next` for a very short checkpoint. Use `next actions` for action items plus the exact continuation prompt.
+Use `next` for a very short checkpoint. Use `next actions` for action items plus the exact continuation prompt. For both, first determine prior task status from `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md`; ask the user for pasted completion output only when the repo docs are missing, stale, or contradictory.
