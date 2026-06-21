@@ -114,8 +114,9 @@ jobs:
             echo "::error::gh pr list failed while reading open codex/* PRs targeting ${BASE_BRANCH}."
             exit 1
           fi
+          closed_pr_fields="number,title,url,headRefName,baseRefName,updatedAt,createdAt,closedAt,mergedAt"
           if ! gh pr list --repo "${owner_repo}" --state closed --base "${BASE_BRANCH}" --limit 100 \
-            --json number,title,url,headRefName,baseRefName,updatedAt,createdAt,closedAt,mergedAt \
+            --json "${closed_pr_fields}" \
             --jq '[.[] | select(.headRefName | startswith("codex/"))]' > "${closed_prs_json}"; then
             echo "::error::gh pr list failed while reading closed codex/* PRs targeting ${BASE_BRANCH}."
             exit 1
