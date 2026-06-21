@@ -130,7 +130,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 ## Phase 12 AI Workflow Handshake
 
-Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Codex Cloud is first choice for implementation. GitHub-native automation owns PR lifecycle steps. The ChatGPT/GitHub connector is a secondary convenience path for small edits, and ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*`.
+Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Prefer the ChatGPT/GitHub connector for small, bounded, connector-friendly edits where the PR path is clear. Use Codex Cloud for broader implementation, multi-file changes, local validation-heavy work, or edits the connector cannot safely apply. GitHub-native automation owns PR lifecycle steps. ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*` unless a ChatGPT connector branch is explicitly used for a small docs/config fix.
 
 
 GitHub Actions UI registration note: Phase 12 AI workflows may need workflow files present on the default branch so `workflow_dispatch` entries appear in the Actions UI, but their runtime guards must still target `phase-12` and never `main`. Treat the workflow source branch (where GitHub loads the workflow definition) and the workflow target branch (the PR base or cleanup base the workflow acts on) as separate concepts; active-context lookups must read `docs/CODEX_ACTIVE_CONTEXT.md` from the intended target branch.
@@ -138,7 +138,7 @@ GitHub Actions UI registration note: Phase 12 AI workflows may need workflow fil
 Workflow lanes:
 
 - Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-12` PRs.
-- Lane B — ChatGPT/GitHub connector small edits: use only for compact low-risk changes when a PR path is clear.
+- Lane B — ChatGPT/GitHub connector small edits: use for compact low-risk changes when the file shape is connector-friendly and a PR path is clear.
 - Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, or workflow-permission changes.
 - Lane D — GitHub-native PR lifecycle automation: create PRs, validate, squash-merge when approved/eligible, report cleanup.
 
@@ -166,12 +166,15 @@ Each maintenance entry should include priority/risk/area, source PR or task when
 
 Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
 
-1. ChatGPT direct tool action when a safe tool is available, especially metadata-only actions such as closing stale PRs.
-2. Codex for repository file edits, including docs, code, workflow, and configuration changes.
-3. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
-4. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
+1. ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector steps when possible: inspect, branch, edit, open PR, then review.
+2. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
+3. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
+4. Use Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
+5. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
+6. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
+7. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
 
-Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
+Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, connector actions, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
 
 ## User-Facing Action Layout
 
