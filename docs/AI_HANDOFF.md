@@ -80,14 +80,15 @@ Use one public function name, `wg13`, with exactly one armed token per iteration
 - Agreed `next actions` behavior should provide concise action items, actor, and exact continuation prompt after in-scope project interactions unless explicitly suppressed.
 - Updated and reviewed both `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` for Phase 13 handoff-first workflow, hierarchy, Lane 0, and next-actions consistency.
 - Clarified the result handoff workflow: task results should be durable in repo docs when practical, and users do not paste completion output by default.
+- Cleaned stale diagnostics, roadmap text, and resolved-risk wording from this handoff ledger.
 
 ## Current Diagnostic
 
 - Actor: ChatGPT/GitHub connector.
-- Instruction: docs-only update to clarify Result Handoff Rule, default completion-output behavior, `next` / `next actions` status discovery, and stale ledger cleanup.
+- Latest result: `docs/AI_HANDOFF.md` updated on `phase-13` for Result Handoff Rule, default completion-output behavior, `next` / `next actions` status discovery, and stale ledger cleanup.
 - Scope: docs-only, `docs/AI_HANDOFF.md` only.
 - Runtime files touched: none.
-- Validation target: fetch the updated file and confirm the new handoff rule, `next` status behavior, concise roadmap, current risks, and docs-only scope.
+- Verification target: fetch this file after update and confirm the requested rules, concise roadmap, current risks, and docs-only scope.
 
 ## Immediate Roadmap
 
@@ -98,7 +99,6 @@ Use one public function name, `wg13`, with exactly one armed token per iteration
 ## Open Risks
 
 - Project settings may still point to Phase 12 until updated after repo docs land.
-- Terminal lane depends on user running the exact pasted function and returning output when repo docs or tool results are insufficient.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
 
 ## Next Actions Behavior
