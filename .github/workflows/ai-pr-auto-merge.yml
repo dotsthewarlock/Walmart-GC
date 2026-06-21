@@ -1,0 +1,296 @@
+name: AI PR auto-merge
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_run:
+    workflows:
+      - validate
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+  statuses: read
+
+env:
+  POLICY_SOURCE_BRANCH: phase-12
+  COMMENT_MARKER: "<!-- ai-pr-auto-merge-report -->"
+
+jobs:
+  classify-and-merge:
+    name: Classify and green-gate auto-merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Classify PR and apply final gates
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_PR_STATE: ${{ github.event.pull_request.state }}
+          EVENT_PR_DRAFT: ${{ github.event.pull_request.draft }}
+          EVENT_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          EVENT_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+
+          policy_file="${tmp_dir}/ai-automation-policy.yml"
+          classifier_file="${tmp_dir}/ai_risk_classify.py"
+          changed_files_file="${tmp_dir}/changed-files.txt"
+          latest_changed_files_file="${tmp_dir}/changed-files.latest.txt"
+          diff_file="${tmp_dir}/diff.patch"
+          report_file="${tmp_dir}/classification.json"
+          comment_file="${tmp_dir}/comment.md"
+          blocked_reasons="${tmp_dir}/blocked-reasons.txt"
+          waiting_reasons="${tmp_dir}/waiting-reasons.txt"
+          : > "${blocked_reasons}"
+          : > "${waiting_reasons}"
+
+          post_comment() {
+            local body_file="$1"
+            local existing_id
+            existing_id="$(gh api --paginate "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+              --jq '.[] | select(.body | contains(env.COMMENT_MARKER)) | .id' | tail -n 1)"
+
+            if [ -n "${existing_id}" ]; then
+              gh api --method PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${existing_id}" \
+                -f body="$(cat "${body_file}")" >/dev/null
+            else
+              gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+                -f body="$(cat "${body_file}")" >/dev/null
+            fi
+          }
+
+          write_comment() {
+            local decision="$1"
+            local human_required="$2"
+            local extra_reasons_file="$3"
+            local risk auto_merge reasons files
+            risk="$(jq -r '.risk // "unknown"' "${report_file}" 2>/dev/null || echo unknown)"
+            auto_merge="$(jq -r '.auto_merge // false' "${report_file}" 2>/dev/null || echo false)"
+            reasons="$(jq -r '.reasons[]? | "- " + .' "${report_file}" 2>/dev/null || true)"
+            files="$(sed 's/^/- `/' "${changed_files_file}" | sed 's/$/`/' 2>/dev/null || true)"
+
+            {
+              echo "${COMMENT_MARKER}"
+              echo "## AI automation report"
+              echo
+              echo "- Risk: \`${risk}\`"
+              echo "- Classifier auto_merge: \`${auto_merge}\`"
+              echo "- Decision: **${decision}**"
+              echo "- Human review required: **${human_required}**"
+              echo "- Base: \`${BASE_BRANCH}\`"
+              echo "- Head: \`${HEAD_BRANCH}\`"
+              echo "- Classified head SHA: \`${HEAD_SHA}\`"
+              echo
+              echo "### Reasons"
+              if [ -n "${reasons}" ]; then
+                printf '%s\n' "${reasons}"
+              fi
+              if [ -s "${extra_reasons_file}" ]; then
+                sed 's/^/- /' "${extra_reasons_file}"
+              fi
+              echo
+              echo "### Changed files"
+              if [ -n "${files}" ]; then
+                printf '%s\n' "${files}"
+              else
+                echo "- _None reported._"
+              fi
+            } > "${comment_file}"
+
+            post_comment "${comment_file}"
+          }
+
+          resolve_workflow_run_pr() {
+            local pr_json pr_count
+            if [ -z "${WORKFLOW_RUN_HEAD_BRANCH}" ] || [ -z "${WORKFLOW_RUN_HEAD_SHA}" ]; then
+              echo "::notice::workflow_run event did not include a head branch and SHA."
+              exit 0
+            fi
+
+            pr_json="$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:${WORKFLOW_RUN_HEAD_BRANCH}&per_page=10")"
+            pr_count="$(printf '%s' "${pr_json}" | jq '[.[] | select(.head.sha == env.WORKFLOW_RUN_HEAD_SHA)] | length')"
+            if [ "${pr_count}" -eq 0 ]; then
+              echo "::notice::No matching open PR found for ${WORKFLOW_RUN_HEAD_BRANCH} at ${WORKFLOW_RUN_HEAD_SHA}."
+              exit 0
+            fi
+            if [ "${pr_count}" -gt 1 ]; then
+              echo "::error::Multiple matching open PRs found for ${WORKFLOW_RUN_HEAD_BRANCH} at ${WORKFLOW_RUN_HEAD_SHA}."
+              exit 1
+            fi
+            printf '%s' "${pr_json}" | jq -c '.[] | select(.head.sha == env.WORKFLOW_RUN_HEAD_SHA)' > "${tmp_dir}/pr.json"
+          }
+
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            resolve_workflow_run_pr
+            PR_NUMBER="$(jq -r '.number' "${tmp_dir}/pr.json")"
+            PR_STATE="$(jq -r '.state' "${tmp_dir}/pr.json")"
+            PR_DRAFT="$(jq -r '.draft' "${tmp_dir}/pr.json")"
+            BASE_BRANCH="$(jq -r '.base.ref' "${tmp_dir}/pr.json")"
+            HEAD_BRANCH="$(jq -r '.head.ref' "${tmp_dir}/pr.json")"
+            HEAD_SHA="$(jq -r '.head.sha' "${tmp_dir}/pr.json")"
+          else
+            PR_NUMBER="${EVENT_PR_NUMBER}"
+            PR_STATE="${EVENT_PR_STATE}"
+            PR_DRAFT="${EVENT_PR_DRAFT}"
+            BASE_BRANCH="${EVENT_BASE_BRANCH}"
+            HEAD_BRANCH="${EVENT_HEAD_BRANCH}"
+            HEAD_SHA="${EVENT_HEAD_SHA}"
+          fi
+
+          if [ -z "${PR_NUMBER}" ] || [ "${PR_NUMBER}" = "null" ]; then
+            echo "::notice::No pull request resolved for this event."
+            exit 0
+          fi
+
+          echo "PR #${PR_NUMBER}: ${HEAD_BRANCH} -> ${BASE_BRANCH} at ${HEAD_SHA}"
+
+          gh api -H "Accept: application/vnd.github.raw" \
+            "/repos/${GITHUB_REPOSITORY}/contents/.github/ai-automation-policy.yml?ref=${POLICY_SOURCE_BRANCH}" > "${policy_file}"
+          gh api -H "Accept: application/vnd.github.raw" \
+            "/repos/${GITHUB_REPOSITORY}/contents/.github/scripts/ai_risk_classify.py?ref=${POLICY_SOURCE_BRANCH}" > "${classifier_file}"
+
+          active_base="$(sed -n 's/^active_base:[[:space:]]*//p' "${policy_file}" | tr -d '"' | head -n 1)"
+          if [ "${active_base}" = "main" ]; then
+            echo "::error::Policy active_base is main; refusing automation."
+            exit 1
+          fi
+
+          if [ "${BASE_BRANCH}" != "${active_base}" ]; then
+            echo "::notice::Skipping PR #${PR_NUMBER}: base '${BASE_BRANCH}' does not match policy active_base '${active_base}'."
+            exit 0
+          fi
+          if [ "${BASE_BRANCH}" = "main" ]; then
+            echo "::error::Refusing to auto-merge into main."
+            exit 1
+          fi
+          case "${HEAD_BRANCH}" in
+            codex/*) ;;
+            *)
+              echo "::notice::Skipping PR #${PR_NUMBER}: head branch '${HEAD_BRANCH}' is not a codex/* branch."
+              exit 0
+              ;;
+          esac
+          if [ "${PR_STATE}" != "open" ]; then
+            echo "::notice::Skipping PR #${PR_NUMBER}: PR is not open."
+            exit 0
+          fi
+
+          gh pr diff "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --name-only > "${changed_files_file}"
+          gh pr diff "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --patch > "${diff_file}" || :
+
+          python "${classifier_file}" \
+            --policy "${policy_file}" \
+            --changed-files "${changed_files_file}" \
+            --base "${BASE_BRANCH}" \
+            --head "${HEAD_BRANCH}" \
+            --diff "${diff_file}" \
+            --json-output "${report_file}"
+
+          pr_json="$(gh pr view "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --json state,isDraft,mergeable,mergeStateStatus,headRefOid,labels)"
+          current_head_sha="$(printf '%s' "${pr_json}" | jq -r '.headRefOid')"
+          mergeable="$(printf '%s' "${pr_json}" | jq -r '.mergeable')"
+          merge_state="$(printf '%s' "${pr_json}" | jq -r '.mergeStateStatus')"
+          restricted_label="$(printf '%s' "${pr_json}" | jq -r '[.labels[].name] | map(select(. == "ai:restricted" or . == "ai:blocked" or . == "risk:red")) | first // empty')"
+
+          if [ "$(printf '%s' "${pr_json}" | jq -r '.state')" != "OPEN" ]; then
+            echo "blocked: PR is not open." >> "${blocked_reasons}"
+          fi
+          if [ "$(printf '%s' "${pr_json}" | jq -r '.isDraft')" = "true" ]; then
+            echo "blocked: PR is draft." >> "${blocked_reasons}"
+          fi
+          if [ -n "${restricted_label}" ]; then
+            echo "blocked: restricted label '${restricted_label}' is present." >> "${blocked_reasons}"
+          fi
+          if [ "${current_head_sha}" != "${HEAD_SHA}" ]; then
+            echo "blocked: head SHA changed after classification (${current_head_sha} != ${HEAD_SHA})." >> "${blocked_reasons}"
+          fi
+          if [ "${mergeable}" = "CONFLICTING" ] || [ "${merge_state}" = "DIRTY" ]; then
+            echo "blocked: PR has merge conflicts or dirty merge state (${mergeable}/${merge_state})." >> "${blocked_reasons}"
+          fi
+
+          risk="$(jq -r '.risk' "${report_file}")"
+          classifier_auto_merge="$(jq -r '.auto_merge' "${report_file}")"
+          if [ "${risk}" != "green" ]; then
+            echo "blocked: human review required because classifier risk is '${risk}', not green." >> "${blocked_reasons}"
+          fi
+          if [ "${classifier_auto_merge}" != "true" ]; then
+            echo "blocked: classifier auto_merge is not true." >> "${blocked_reasons}"
+          fi
+
+          while IFS= read -r changed_path; do
+            [ -n "${changed_path}" ] || continue
+            if git_check="$(gh api "/repos/${GITHUB_REPOSITORY}/contents/${changed_path}?ref=${HEAD_SHA}" --jq '.encoding // empty' 2>/dev/null)" && [ "${git_check}" = "base64" ]; then
+              if gh api "/repos/${GITHUB_REPOSITORY}/contents/${changed_path}?ref=${HEAD_SHA}" --jq '.content' 2>/dev/null | base64 --decode | LC_ALL=C grep -q $'\000'; then
+                echo "blocked: binary file detected: ${changed_path}." >> "${blocked_reasons}"
+              fi
+            fi
+          done < "${changed_files_file}"
+
+          status_json="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/status")"
+          status_state="$(printf '%s' "${status_json}" | jq -r '.state')"
+          status_count="$(printf '%s' "${status_json}" | jq -r '.statuses | length')"
+          checks_json="$(gh api -H "Accept: application/vnd.github+json" "/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100")"
+          checks_total="$(printf '%s' "${checks_json}" | jq -r '.total_count')"
+          failed_checks="$(printf '%s' "${checks_json}" | jq -r --arg run_id "${GITHUB_RUN_ID}" '[.check_runs[] | select((.details_url | contains($run_id) | not) and (.status == "completed") and (.conclusion != "success"))] | length')"
+          pending_checks="$(printf '%s' "${checks_json}" | jq -r --arg run_id "${GITHUB_RUN_ID}" '[.check_runs[] | select((.details_url | contains($run_id) | not) and (.status != "completed"))] | length')"
+
+          if [ "${status_count}" -gt 0 ]; then
+            case "${status_state}" in
+              success) ;;
+              pending)
+                echo "waiting: commit statuses are pending; automation will re-evaluate after checks complete." >> "${waiting_reasons}"
+                ;;
+              *)
+                echo "blocked: commit statuses are not successful (state: ${status_state})." >> "${blocked_reasons}"
+                ;;
+            esac
+          fi
+          if [ "${checks_total}" -gt 0 ]; then
+            if [ "${failed_checks}" -ne 0 ]; then
+              echo "blocked: one or more independent check runs failed, were cancelled, skipped, neutral, timed out, or require action." >> "${blocked_reasons}"
+            fi
+            if [ "${pending_checks}" -ne 0 ]; then
+              echo "waiting: checks pending; automation will re-evaluate after checks complete." >> "${waiting_reasons}"
+            fi
+          fi
+
+          gh pr diff "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --name-only > "${latest_changed_files_file}"
+          if ! cmp -s "${changed_files_file}" "${latest_changed_files_file}"; then
+            echo "blocked: changed files no longer match the classifier report." >> "${blocked_reasons}"
+          fi
+
+          if [ -s "${blocked_reasons}" ]; then
+            write_comment "blocked: human review required" "yes" "${blocked_reasons}"
+            cat "${blocked_reasons}"
+            exit 0
+          fi
+
+          if [ -s "${waiting_reasons}" ]; then
+            write_comment "waiting: checks pending; automation will re-evaluate after checks complete" "no" "${waiting_reasons}"
+            cat "${waiting_reasons}"
+            exit 0
+          fi
+
+          write_comment "green gates passed; squash merging" "no" "${blocked_reasons}"
+          gh pr merge "${PR_NUMBER}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --squash \
+            --match-head-commit "${HEAD_SHA}"
