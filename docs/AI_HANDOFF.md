@@ -81,25 +81,29 @@ Use one public function name, `wg13`, with exactly one armed token per iteration
 - Updated and reviewed both `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` for Phase 13 handoff-first workflow, hierarchy, Lane 0, and next-actions consistency.
 - Clarified the result handoff workflow: task results should be durable in repo docs when practical, and users do not paste completion output by default.
 - Cleaned stale diagnostics, roadmap text, and resolved-risk wording from this handoff ledger.
+- Added `scripts/wg13-readonly-phase13.sh` on `phase-13` as a connector-created helper for the first read-only local inspection batch.
 
 ## Current Diagnostic
 
 - Actor: ChatGPT/GitHub connector.
-- Latest result: `docs/AI_HANDOFF.md` updated on `phase-13` for Result Handoff Rule, default completion-output behavior, `next` / `next actions` status discovery, and stale ledger cleanup.
-- Scope: docs-only, `docs/AI_HANDOFF.md` only.
+- Latest result: created `scripts/wg13-readonly-phase13.sh` on `phase-13` and updated this handoff ledger with user follow-up instructions.
+- Scope: helper script plus docs handoff update.
 - Runtime files touched: none.
-- Verification target: fetch this file after update and confirm the requested rules, concise roadmap, current risks, and docs-only scope.
+- Validation target: user runs `bash scripts/wg13-readonly-phase13.sh phase13-readonly-01` from the local repo root after pulling `phase-13`; output should confirm repo identity, branch, source-of-truth excerpts, guardrail scan, local diff summary, and `main...HEAD` comparison when local `main` exists.
+- Limitation: GitHub connector created the script but cannot run it in the user's local workspace.
 
 ## Immediate Roadmap
 
-1. Review this docs-only diff for accidental runtime/config changes.
-2. Update project settings after repo docs are finalized so future ChatGPT behavior defaults to Phase 13 and handoff-first workflow.
-3. Begin React/Tailwind/M3 exploration with a read-only or low-risk `wg13 <token>` terminal batch when practical.
+1. User pulls latest `phase-13` locally.
+2. User runs the read-only helper script from the repo root with token `phase13-readonly-01`.
+3. If output is clean, continue with Phase 13 project-settings alignment or React/Tailwind/M3 exploration planning.
+4. If output shows wrong branch, unexpected dirty state, or stale/missing docs, inspect before starting exploration work.
 
 ## Open Risks
 
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
+- The helper script is intentionally read-only and does not mark the token used because that would modify the working tree.
 
 ## Next Actions Behavior
 
