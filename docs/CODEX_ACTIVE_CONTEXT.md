@@ -128,6 +128,15 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - Prefer existing CSS tokens and component/layout patterns before introducing new raw values or variants. Minimize one-off styling values, consolidate duplicates only when computed output remains unchanged, preserve accepted UI baselines unless visual change is requested, and use Material 3 as a consistency lens rather than a redesign mandate.
 
 
+
+## AI Automation Risk Classifier Foundation
+
+- Automation risk knobs live in `.github/ai-automation-policy.yml`.
+- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for future `codex/*` PR risk checks.
+- PR 1 only adds the classifier and policy foundation.
+- Auto PR creation and auto-merge wiring are intentionally deferred to PR 2.
+- Human intervention remains required until PR 2 is implemented and reviewed; no new auto-create or auto-merge behavior is enabled by this foundation.
+
 ## Phase 12 AI Workflow Handshake
 
 Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Prefer the ChatGPT/GitHub connector for small, bounded, connector-friendly edits where the PR path is clear. Use Codex Cloud for broader implementation, multi-file changes, local validation-heavy work, or edits the connector cannot safely apply. GitHub-native automation owns PR lifecycle steps. ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*` unless a ChatGPT connector branch is explicitly used for a small docs/config fix.

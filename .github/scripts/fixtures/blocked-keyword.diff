@@ -1,0 +1,2 @@
+diff --git a/docs/CODEX_ACTIVE_CONTEXT.md b/docs/CODEX_ACTIVE_CONTEXT.md
++Do not print GOOGLE_CLIENT_SECRET in logs.
