@@ -51,7 +51,7 @@ Target size: 100-180 lines. Recent steps max: 10. Immediate roadmap max: 5. Open
 
 ## Phase 13 AI Lanes
 
-- Lane 0 - User terminal batch: preferred for compact local inspection, validation, dependency/build experiments, and controlled migration spikes.
+- Lane 0 - User terminal batch: preferred for compact safe `wg13 <token>` terminal batches when practical, local inspection, validation, dependency/build experiments, and controlled migration spikes.
 - Lane 1 - ChatGPT discussion/review/command drafting: architecture, risk, Material 3 guidance, Codex prompt design, and merge-safety review.
 - Lane 2 - ChatGPT/GitHub connector: small, bounded docs/config edits where connector writes are safe.
 - Lane 3 - Codex: broader implementation, coordinated multi-file migration work, and validation-heavy changes.
@@ -63,7 +63,7 @@ Lane 0 terminal convention:
 wg13 <human-readable-token>
 ```
 
-Use one public function name, `wg13`, with exactly one armed token per iteration. The function should reject missing, wrong, stale, or already-used tokens; print its batch token; guard the expected repo/branch; mark the token used; run only the current iteration commands; and ask the user to paste output back before the next mutating step.
+Use one public function name, `wg13`, with exactly one armed token per iteration. Prefer compact, safe `wg13 <token>` terminal batches when practical. The function should reject missing, wrong, stale, or already-used tokens; print its batch token; guard the expected repo/branch; mark the token used; run only the current iteration commands; and ask the user to paste output back before the next mutating step.
 
 ## Recent Steps
 
@@ -72,27 +72,25 @@ Use one public function name, `wg13`, with exactly one armed token per iteration
 - Agreed terminal-first AI lane is preferred when compact and safe.
 - Designed durable Lane 0 terminal batch pattern: stable `wg13` command, human-readable token, single-use state, stale-token rejection, and ChatGPT-issued rearming.
 - Agreed `next actions` behavior should provide concise action items, actor, and exact continuation prompt after in-scope project interactions unless explicitly suppressed.
-- Current doc update scope: update `docs/AI_HANDOFF.md` first only; do not touch runtime files.
+- Updated and reviewed both `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` for Phase 13 handoff-first workflow, hierarchy, Lane 0, and next-actions consistency.
+- Current doc update scope: docs-only consistency patch for `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md`; do not touch runtime files.
 
 ## Current Diagnostic
 
 - Actor: ChatGPT/GitHub connector.
-- Instruction: replace stale Phase 11 `docs/AI_HANDOFF.md` with a concise Phase 13 rolling handoff ledger.
-- Scope: docs-only, `docs/AI_HANDOFF.md` only.
+- Instruction: apply a docs-only consistency patch to stale diagnostic, roadmap, open-risk, and Lane 0 wording.
+- Scope: docs-only, `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` only.
 - Runtime files touched: none.
-- Validation target: fetch the updated file and confirm Phase 13 handoff-first, rolling ledger, pruning, Lane 0, recent steps, current diagnostic, roadmap, and open risks are present.
+- Validation target: fetch the updated files and confirm Phase 13 handoff-first, hierarchy rule, AI handoff-first workflow, Lane 0 `wg13 <token>` preference, next-actions behavior, stale-risk removal, roadmap order, and docs-only scope.
 
 ## Immediate Roadmap
 
-1. Verify this `docs/AI_HANDOFF.md` update on `phase-13`.
-2. Update `docs/CODEX_ACTIVE_CONTEXT.md` with Phase 13 active context, AI handoff-first rule, Lane 0 terminal batch convention, and `next actions` behavior.
-3. Review docs-only diff for accidental runtime/config changes.
-4. Update project settings after repo docs are finalized so future ChatGPT behavior defaults to Phase 13 and handoff-first workflow.
-5. Begin React/Tailwind/M3 exploration with a read-only or low-risk `wg13 <token>` terminal batch.
+1. Review docs-only diff for accidental runtime/config changes.
+2. Update project settings after repo docs are finalized so future ChatGPT behavior defaults to Phase 13 and handoff-first workflow.
+3. Begin React/Tailwind/M3 exploration with a read-only or low-risk `wg13 <token>` terminal batch when practical.
 
 ## Open Risks
 
-- `docs/CODEX_ACTIVE_CONTEXT.md` still contains stale Phase 12 references until the next docs update.
 - `docs/ARCHITECTURE.md` may still contain stale historical phase references and should be reviewed later, not in this step.
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - Terminal lane depends on user running the exact pasted function and returning output; it cannot prevent manual bypass.
