@@ -151,7 +151,7 @@ GitHub Actions UI registration note: workflow files may need to exist on the def
 
 ## Workflow Lanes
 
-- Lane 0 — terminal batch convention: user-run or local-terminal batches use compact labels like `wg13 <token>` for Phase 13. Keep each batch narrow, pasteable, and report-oriented. Use Lane 0 only when direct tools/Codex cannot safely perform the action or when terminal evidence is specifically needed.
+- Lane 0 — terminal batch convention: prefer compact safe `wg13 <token>` terminal batches when practical for Phase 13 user-run or local-terminal batches. Keep each batch narrow, pasteable, and report-oriented. Use Lane 0 only when direct tools/Codex cannot safely perform the action or when terminal evidence is specifically needed.
 - Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-13` PRs.
 - Lane B — ChatGPT/GitHub connector small edits: use for compact low-risk changes when the file shape is connector-friendly and a PR path is clear.
 - Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, workflow-permission, framework, or build-step changes.
@@ -185,7 +185,7 @@ Prefer the lowest-friction safe lane for each task. These rules apply across Wal
 4. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
 5. Use Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
 6. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
-7. Use Lane 0 terminal batches for user-run terminal evidence, repo command batches, or external UI operations that ChatGPT and Codex cannot safely perform. Label Phase 13 terminal batches as `wg13 <token>`.
+7. Use Lane 0 terminal batches for user-run terminal evidence, repo command batches, or external UI operations that ChatGPT and Codex cannot safely perform. Prefer compact safe `wg13 <token>` terminal batches when practical.
 8. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
 9. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
 
