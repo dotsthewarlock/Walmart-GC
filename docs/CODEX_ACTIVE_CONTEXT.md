@@ -129,13 +129,16 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 
 
-## AI Automation Risk Classifier Foundation
+## AI Automation PR Lifecycle
 
-- Automation risk knobs live in `.github/ai-automation-policy.yml`.
-- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for future `codex/*` PR risk checks.
-- PR 1 only adds the classifier and policy foundation.
-- Auto PR creation and auto-merge wiring are intentionally deferred to PR 2.
-- Human intervention remains required until PR 2 is implemented and reviewed; no new auto-create or auto-merge behavior is enabled by this foundation.
+- Automation risk knobs live in `.github/ai-automation-policy.yml`. Adjust active base, allowed heads, low-risk paths, blocked paths, blocked keywords, binary extensions, restricted labels, and auto-create/auto-merge enablement there.
+- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for `codex/*` PR risk checks.
+- Pushes to `codex/**` can auto-create or reuse an open PR into the policy active base, currently `phase-12`; automation must never target `main`.
+- Green low-risk `codex/*` -> `phase-12` PRs can auto-merge after the classifier allows it and independent final gates pass. Final gates include open/non-draft PR state, matching classified head SHA, clean mergeability, no restricted labels, successful statuses/check runs when present, unchanged classified file scope, no blocked paths or keywords, and no binary file changes.
+- Human intervention is required for errors, conflicts, failed or pending checks, yellow/red risk, restricted labels, high-risk files or keywords, binary changes, unclear branch/base/scope, or any PR that is not an eligible `codex/*` -> `phase-12` automation candidate.
+- Yellow/red/blocked PRs remain open with a bot comment explaining why human review is required. Automation must not close PRs, delete branches, force-push, or push commits.
+- Existing manual workflows (`.github/workflows/ai-pr-create.yml` and `.github/workflows/ai-pr-merge.yml`) remain available as fallback while event-driven workflows prove stable.
+- The event-driven auto-merge workflow runs on pull request events. If checks complete after the workflow has already reported pending checks, a synchronize, reopen, ready-for-review event, or manual rerun may be needed to re-evaluate final merge gates.
 
 ## Phase 12 AI Workflow Handshake
 

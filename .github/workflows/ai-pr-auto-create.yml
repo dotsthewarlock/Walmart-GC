@@ -1,0 +1,114 @@
+name: AI PR auto-create
+
+on:
+  push:
+    branches:
+      - "codex/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Create or reuse Codex PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create or reuse PR for codex branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.ref_name }}
+          HEAD_SHA: ${{ github.sha }}
+          POLICY_SOURCE_BRANCH: phase-12
+        run: |
+          set -euo pipefail
+
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+
+          echo "Pushed head branch: ${HEAD_BRANCH}"
+          echo "Head SHA: ${HEAD_SHA}"
+          echo "Policy source branch: ${POLICY_SOURCE_BRANCH}"
+
+          case "${HEAD_BRANCH}" in
+            codex/*)
+              ;;
+            *)
+              echo "::error::Refusing to create PR from '${HEAD_BRANCH}'. Head branch must start with 'codex/'."
+              exit 1
+              ;;
+          esac
+
+          policy_text="$(gh api \
+            -H "Accept: application/vnd.github.raw" \
+            "/repos/${GITHUB_REPOSITORY}/contents/.github/ai-automation-policy.yml?ref=${POLICY_SOURCE_BRANCH}")"
+
+          active_base="$(printf '%s\n' "${policy_text}" | sed -n 's/^active_base:[[:space:]]*//p' | tr -d '"' | head -n 1)"
+          auto_pr_enabled="$(printf '%s\n' "${policy_text}" | awk '
+            /^auto_pr:/ { in_auto_pr=1; next }
+            /^[^[:space:]]/ { in_auto_pr=0 }
+            in_auto_pr && /^[[:space:]]+enabled:/ { print $2; exit }
+          ')"
+
+          if [ -z "${active_base}" ]; then
+            echo "::error::Could not determine active_base from .github/ai-automation-policy.yml at ${POLICY_SOURCE_BRANCH}."
+            exit 1
+          fi
+
+          echo "Policy active base: ${active_base}"
+          echo "Policy auto_pr.enabled: ${auto_pr_enabled:-unset}"
+
+          if [ "${active_base}" = "main" ]; then
+            echo "::error::Refusing to create AI PRs into main. Policy active_base must not be main."
+            exit 1
+          fi
+
+          if [ "${auto_pr_enabled}" != "true" ]; then
+            echo "::error::Refusing to auto-create PR because policy auto_pr.enabled is not true."
+            exit 1
+          fi
+
+          if [ "${HEAD_BRANCH}" = "${active_base}" ]; then
+            echo "::error::Refusing to create PR because head branch equals active base '${active_base}'."
+            exit 1
+          fi
+
+          existing_pr="$(gh pr list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --state open \
+            --head "${HEAD_BRANCH}" \
+            --base "${active_base}" \
+            --json number,url \
+            --jq '.[0] // empty')"
+
+          if [ -n "${existing_pr}" ]; then
+            pr_number="$(printf '%s' "${existing_pr}" | jq -r '.number')"
+            pr_url="$(printf '%s' "${existing_pr}" | jq -r '.url')"
+            echo "Existing open PR found for ${HEAD_BRANCH} -> ${active_base}: #${pr_number} ${pr_url}"
+            exit 0
+          fi
+
+          latest_subject="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq '.commit.message' | sed -n '1p')"
+          if [ -n "${latest_subject}" ]; then
+            pr_title="${latest_subject}"
+          else
+            safe_branch="${HEAD_BRANCH#codex/}"
+            pr_title="Codex automated changes: ${safe_branch}"
+          fi
+
+          pr_body="$(printf '%s\n\n%s\n\n%s\n%s\n' \
+            "This PR was auto-created from \`${HEAD_BRANCH}\` into \`${active_base}\` after a push to a \`codex/**\` branch." \
+            "Risk classification and auto-merge gates will decide the next action. Low-risk green PRs may squash-merge automatically after required checks and final gates pass. Yellow, red, blocked, conflicted, failed-check, pending-check, or unclear PRs remain open for human review." \
+            "Policy source: \`.github/ai-automation-policy.yml\` on \`${POLICY_SOURCE_BRANCH}\`." \
+            "Classified head SHA: pending classifier run.")"
+
+          echo "No existing open PR found. Creating PR from ${OWNER}:${HEAD_BRANCH} into ${active_base}."
+          pr_url="$(gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --head "${OWNER}:${HEAD_BRANCH}" \
+            --base "${active_base}" \
+            --title "${pr_title}" \
+            --body "${pr_body}")"
+
+          echo "Created PR: ${pr_url}"
