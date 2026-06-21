@@ -46,9 +46,10 @@ jobs:
             exit 1
           fi
 
+          pr_fields="number,url,state,isDraft,mergedAt,baseRefName,headRefName,headRefOid,labels"
           pr_json="$(gh pr view "${PR_NUMBER}" \
             --repo "${GITHUB_REPOSITORY}" \
-            --json number,url,state,isDraft,mergedAt,baseRefName,headRefName,headRefOid,labels)"
+            --json "${pr_fields}")"
           pr_url="$(printf '%s' "${pr_json}" | jq -r '.url')"
           pr_state="$(printf '%s' "${pr_json}" | jq -r '.state')"
           pr_merged_at="$(printf '%s' "${pr_json}" | jq -r '.mergedAt // empty')"
