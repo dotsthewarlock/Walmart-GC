@@ -1,156 +1,141 @@
-# Phase 13 Option D Stage 0: React + Tailwind + Material 3 Evidence Note
+# Phase 13 Option D Stage 0 / Stage 1: React + Tailwind + Material 3 Planning
 
 ## Status
 
-Stage 0 is evidence gathering and planning only. No runtime migration is approved yet, and this note does not authorize adopting React, Tailwind, Material 3 component libraries, package managers, build tooling, route changes, service-worker changes, hosting changes, Worker changes, OAuth/session changes, schema changes, sync changes, or CSV recovery changes.
+This is a docs-only planning artifact for Phase 13 Option D. It records current evidence, candidate exploration goals, guardrails, and Stage 1 decision gates for a possible future React + Tailwind + Material 3 direction.
 
-## Current architecture constraints
+No runtime migration is approved by this document. This document does not authorize React, Tailwind, package-manager files, build tooling, dependency installation, generated assets, component libraries, route changes, service-worker changes, hosting changes, Worker changes, OAuth/session changes, OAuth scope changes, same-origin API behavior changes, schema/header mapping changes, sync/conflict changes, CSV recovery changes, app-shell fingerprint changes, or workflow changes.
 
-- The active production and development URL remains `https://walmart-gc.dotsthewarlock.com`.
-- The frontend is currently a GitHub Pages-hosted static app using plain HTML, CSS, and JavaScript with no framework and no build system.
-- Cloudflare Worker routes are limited to same-origin `/auth/*` and `/api/*` paths while GitHub Pages serves the root static app.
-- Worker-managed Google OAuth/session and Worker-backed Drive/Sheets sync are current architecture boundaries, not migration targets.
-- Offline/local browser usability and CSV backup/recovery must remain available.
-- Phase 13 may explore React, Tailwind, and Material 3 directionally, but the active runtime must not be replaced without explicit discussion, approval, and a focused implementation plan.
+## Current architecture inventory
 
-## Migration goals for a future approved stage
+Evidence from the current repository shows these active constraints:
 
-A future migration would be viable only if it can:
-
-- Preserve static GitHub Pages delivery for the browser app.
-- Preserve the existing Cloudflare Worker-managed auth/sync architecture.
-- Improve maintainability by introducing clearer component boundaries without changing product behavior.
-- Preserve mobile-first gift-card workflows, fast barcode access, and desktop usability.
-- Preserve current data semantics, completed-action sync behavior, and CSV backup/recovery.
-- Use Material 3 as a design-system lens for consistency, accessibility, state layers, spacing, typography, and component behavior rather than as permission for a broad redesign.
-
-## Non-goals
-
-Stage 0 and any near-term Stage 1 architecture planning should not:
-
-- Migrate the active runtime.
-- Add React, Tailwind, build tooling, package managers, component libraries, service workers, deployment changes, or route changes.
-- Replace GitHub Pages or add new hosting.
-- Introduce a Node backend, database, Firebase, Cloud Functions, Apps Script sync, or app-managed user accounts.
-- Change Worker OAuth/session handling, OAuth scopes, cookies, same-origin API calls, schema/header mapping, sync/conflict behavior, CSV recovery, app-shell fingerprints, or Worker versioning.
-
-## GitHub Pages and static hosting constraints
-
-React and Tailwind are technically compatible with GitHub Pages only if a future stage introduces a static build output whose generated files can still be served at the site root. That future decision would require explicit approval because the current app intentionally has no package manager or build step.
-
-Any future static build plan must answer:
-
-- Where generated assets would live and whether source output is committed or built by CI.
-- How cache/debug fingerprints would map to generated HTML, JavaScript, and CSS.
-- How deep links or client-side routing would avoid breaking GitHub Pages root hosting. A no-router or hash-router approach is likely safer than path-based routing unless Pages fallback behavior is explicitly handled.
-- How the app remains usable when loaded as static files and when the Worker is unreachable.
-- How deployment keeps GitHub Pages at the root while Cloudflare routes only `/auth/*` and `/api/*` to the Worker.
-
-## Worker OAuth/session and same-origin API boundaries
-
-A future React app must treat auth and sync as external same-origin API boundaries, not as client-owned token flows.
-
-Guardrails that must remain intact:
-
-- Google OAuth starts and completes through Worker `/auth/*` routes.
-- Auth state comes from `/api/status`.
-- Logout uses `/api/logout`.
-- Frontend API calls use same-origin `/api/*` paths with `credentials: "include"`.
-- The browser must never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
+- The app shell is static `index.html`, `styles.css`, and `app.js` served at the site root, with manually maintained cache/debug fingerprints.
+- The frontend has no detected `package.json`, Vite config, Tailwind config, PostCSS config, or framework entrypoint in the repository root.
+- The app uses a mobile-first static interface with list, checkout/detail, settings, diagnostics, sync status, barcode, balance, used-state, notes, merchant, CSV import/export, and local/offline flows implemented in plain browser JavaScript and CSS.
+- GitHub Pages serves the static frontend root at `https://walmart-gc.dotsthewarlock.com`.
+- Cloudflare routes only same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and `https://walmart-gc.dotsthewarlock.com/api/*` to the Worker while static files remain at the root.
+- Worker-managed Google OAuth/session is the active auth model. The frontend must treat auth state as `/api/status`, logout as `/api/logout`, and all Worker API calls as same-origin `/api/*` requests with `credentials: "include"`.
+- The browser must not store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
 - The OAuth scope remains exactly `https://www.googleapis.com/auth/drive.file`.
+- Worker-backed Google Sheets sync is the active data path. The Worker owns sheet discovery, creation, initialization, metadata, Google API access, and conflict checks.
+- The approved Sheet schema and header-name model remain unchanged: `cardNumber`, `pin`, `startingBalance`, `currentBalance`, `merchant`, `merchantInferred`, `dateAdded`, `dateUpdated`, `dateUsed`, `used`, `notes`.
+- Sync remains completed-action only: balance save, used-state change, notes save, merchant change, new card save, and accepted CSV import.
+- Conflict handling remains sheet-level optimistic concurrency through `_META.sheetVersion`, with no silent overwrite and no automatic merge.
+- Local/offline usability and CSV backup/recovery are required product capabilities, not optional migration details.
 
-React component state could model connection status and loading/error UI, but it must not bypass the Worker or create direct browser Drive/Sheets API access.
+## Candidate exploration goals
 
-## Data, sync, schema, and CSV recovery guardrails
+A future approved Stage 1/Stage 2 exploration should be evidence-gathering first. Useful goals are:
 
-A future migration must preserve the current data contract:
+1. Determine whether React can improve component boundaries for card list, checkout/detail, settings, diagnostics, barcode rendering, sync status, conflict recovery, CSV recovery, and data import/export without changing behavior.
+2. Determine whether Tailwind can improve component-level styling velocity while preserving the current design-token discipline and avoiding arbitrary one-off utility sprawl.
+3. Determine whether Material 3 can serve as a consistency lens for color roles, typography, shape, elevation, focus states, touch targets, state layers, and accessible status messaging.
+4. Define a static-build strategy that remains compatible with GitHub Pages root hosting and Cloudflare Worker `/auth/*` and `/api/*` route boundaries.
+5. Define a parity checklist that proves mobile checkout speed, offline/local state, CSV backup/recovery, OAuth/session durability, Google Sheets sync, and conflict recovery before any active runtime replacement.
+6. Define rollback criteria that can restore the current plain HTML/CSS/JavaScript app shell if a migration regresses auth, sync, recovery, routing, performance, or checkout usability.
 
-- Spreadsheet name: `Walmart-GC Data`.
-- Tabs: `Cards` and `_META`.
-- Approved `Cards` schema: `cardNumber`, `pin`, `startingBalance`, `currentBalance`, `merchant`, `merchantInferred`, `dateAdded`, `dateUpdated`, `dateUsed`, `used`, `notes`.
-- `merchant` remains an explicit user-entered/user-selected override only.
-- `merchantInferred` remains system-derived from `cardNumber`.
-- `effectiveMerchant = merchant || merchantInferred` remains runtime-only and must not be stored.
-- Barcode payload remains derived only as `79936686504000 + cardNumber` and must not be stored.
-- Sync remains Worker-backed and completed-action only.
-- Conflict handling remains sheet-level optimistic concurrency via `_META.sheetVersion`, with no silent overwrite and no automatic merge.
-- CSV backup must remain available before destructive recovery.
+## Material 3 compliance opportunities and risks
 
-## Material 3 implications
+Material 3 should be used as a planning and audit lens before any component-library decision.
 
-Material 3 is useful for planning if it is treated as a guidance layer rather than an automatic component-library mandate.
+Opportunities:
 
-Likely useful areas:
-
-- Clear hierarchy for list, detail, settings, diagnostics, and sync states.
-- Consistent color roles, typography scale, shape, elevation, focus indicators, and state layers.
-- Better mobile ergonomics for high-frequency checkout actions.
-- Accessibility checks for contrast, touch targets, keyboard focus, and status messaging.
+- Map existing CSS custom properties to Material 3-like color roles so success, warning, danger, primary, surface, outline, and focus states become easier to audit.
+- Normalize typography roles for list rows, card balances, labels, form fields, section headings, diagnostics, and recovery prompts.
+- Align shape and elevation tokens for panels, dialogs, cards, buttons, status banners, barcode containers, and settings surfaces.
+- Improve touch-target consistency for high-frequency in-store actions such as previous/next card, barcode access, balance save, used toggle, and sync controls.
+- Audit focus indicators, state layers, disabled states, contrast, status announcements, and keyboard navigation against Material 3 accessibility expectations.
 
 Risks:
 
-- A full Material component library could add significant dependencies and bundle size.
-- Material defaults may conflict with the current fast in-store checkout workflow if applied as a broad redesign.
-- Material 3 theming may require a token bridge from existing CSS variables to avoid visual churn.
+- A Material component library could introduce dependencies, bundle weight, generated CSS/JS, and behavior defaults that conflict with the current no-build static runtime.
+- Material defaults may slow checkout flow or create visual churn if treated as a broad redesign instead of a consistency framework.
+- Material forms/dialogs/navigation patterns may conflict with the existing local/offline and conflict-recovery flows unless parity-tested.
+- Token migration could accidentally change accepted UI baselines if existing CSS variables are replaced too broadly.
+- Material motion or state-layer effects must respect fast mobile use and should not obscure barcode or balance information during checkout.
 
-## Tailwind implications
+## Tailwind exploration questions
 
-Tailwind could be viable in a future static build if it is introduced as compiled CSS only and if generated output remains GitHub Pages-compatible.
+Tailwind is not a runtime-free change in normal use. Before adoption, Stage 1 must answer:
 
-Potential benefits:
+- Which build tool would compile Tailwind, and where would generated CSS live?
+- Would generated CSS be committed, built by CI, or produced only in an experimental branch?
+- How would Tailwind theme tokens map to existing CSS variables and Material 3-style roles?
+- What policy prevents arbitrary values and duplicated utilities from weakening maintainability?
+- How would responsive, dark-mode, focus, and state variants be constrained for readability?
+- How would CSS output size be measured and kept acceptable for mobile-first checkout use?
 
-- Faster component-level layout iteration.
-- More explicit responsive and state styling near component markup.
-- Easier tokenization if mapped carefully to Material 3-style design tokens.
+## React exploration questions
 
-Risks and questions:
+React can be considered only as a static frontend layer that preserves existing Worker and data contracts. Before adoption, Stage 1 must answer:
 
-- Tailwind requires build tooling in normal use, which is currently outside the active runtime model.
-- Uncontrolled utility usage can create noisy markup and weaken the existing design-token discipline.
-- A migration needs a policy for preserving current CSS custom properties, avoiding arbitrary one-off values, and preventing visual regressions.
+- What component boundaries map to the current app without changing user-visible behavior?
+- What state model preserves completed-action sync instead of syncing every keystroke?
+- How are auth status, sheet status, pending saves, conflicts, offline mode, CSV recovery, and diagnostics represented without bypassing Worker APIs?
+- How are barcode rendering, card ordering, merchant inference display, and runtime-only `effectiveMerchant` behavior parity-tested?
+- Is navigation implemented without client-side path routing, or with a Pages-safe strategy that cannot capture `/auth/*` or `/api/*` paths?
+- What bundle-size and first-load budgets are acceptable for mobile in-store use?
 
-## React implications
+## Hard migration guardrails
 
-React could be viable only as a static frontend layer that continues to call the existing Worker APIs and preserves local/offline behavior.
+Any future implementation PR must preserve these guardrails unless the user explicitly approves a specific change after risk discussion:
 
-Potential benefits:
+- No OAuth/session architecture change.
+- No OAuth scope broadening beyond `drive.file`.
+- No frontend token, session ID, secret, or Google credential storage.
+- No direct browser Drive API or Sheets API calls.
+- No same-origin `/api/*` behavior change and no missing `credentials: "include"` on Worker API calls.
+- No Worker route, hosting, GitHub Pages, Cloudflare, or deployment change.
+- No schema/header mapping change.
+- No stored `effectiveMerchant` field and no barcode payload storage.
+- No sync timing change away from completed-action sync.
+- No conflict model change away from `_META.sheetVersion`, no silent overwrite, and no automatic merge.
+- No CSV backup/recovery removal or weakening.
+- No local/offline usability regression.
+- No app-shell fingerprint changes in docs-only planning PRs.
+- No dependency, package-manager, framework, build-step, or generated-asset change in Stage 0.
+- No GitHub workflow or PR-lifecycle automation change in this planning track.
 
-- Clearer component boundaries for card list, card detail, barcode display, data panel, settings, diagnostics, and sync status.
-- More predictable state management for auth state, card edits, pending saves, conflict prompts, and offline states.
-- Better testable separation between view components and existing data/sync logic if migration is staged carefully.
+## Stage 0 deliverables: no build and no runtime changes
 
-Risks and questions:
+Stage 0 is complete when the repository contains a docs-only plan that:
 
-- Introducing React normally implies package management and a build step, both currently out of scope.
-- Rewriting state flows may accidentally change completed-action sync, conflict prompts, or CSV recovery behavior.
-- Bundle size and initial load performance must remain acceptable for mobile in-store use.
-- Any client-side routing must avoid breaking GitHub Pages root hosting and Worker route boundaries.
+- Inventories the current static frontend, Worker-managed OAuth/session boundary, Worker-backed sync boundary, schema constraints, CSV recovery, and offline/local requirements.
+- Names React, Tailwind, and Material 3 opportunities without choosing an implementation stack.
+- Lists migration risks and guardrails that protect user data, auth/session durability, sync/conflict safety, and static hosting.
+- Defines Stage 1 decision gates before any runtime or tooling implementation.
+- Recommends a next PR that remains docs-only unless the user explicitly approves a scoped experiment.
 
-## Biggest risks
+Stage 0 must not modify `index.html`, `app.js`, `styles.css`, Worker files, manifests/assets, package/dependency files, generated output, hosting config, workflow files, app-shell fingerprints, schema docs, or runtime behavior.
 
-1. Build/deployment drift from the current no-build GitHub Pages model.
-2. Accidental OAuth/session boundary violations, especially direct browser token handling or missing `credentials: "include"`.
-3. Sync behavior regressions from changing local state and save timing.
-4. Schema or CSV compatibility regressions during data-layer refactoring.
-5. Material 3 or Tailwind causing a broad UI redesign instead of targeted consistency improvements.
-6. Bundle-size and performance regressions on mobile devices.
-7. Route conflicts with Cloudflare Worker `/auth/*` and `/api/*` paths or GitHub Pages root hosting.
+## Stage 1 decision gates before implementation
 
-## Recommended Stage 1 architecture-document questions
+Before any implementation or tooling PR, Stage 1 should produce an architecture-only decision record that answers these gates:
 
-Before any runtime migration spike, Stage 1 should answer these questions in architecture docs only:
+1. **Static hosting gate:** exact build/static-output strategy for GitHub Pages root hosting, including whether generated assets are committed or built by CI.
+2. **Route boundary gate:** proof that `/auth/*` and `/api/*` remain Worker-owned and cannot be captured by client routing.
+3. **Auth/session gate:** API contract for `/api/status`, `/api/logout`, and all `/api/*` calls with `credentials: "include"` and no browser token storage.
+4. **Data parity gate:** schema/header mapping, `merchant`/`merchantInferred`, runtime-only `effectiveMerchant`, barcode derivation, and date/balance/used-state behavior remain unchanged.
+5. **Sync parity gate:** completed-action sync, pending-save UI, conflict prompts, `_META.sheetVersion`, and no-silent-overwrite behavior remain unchanged.
+6. **CSV/offline gate:** CSV backup/export/import/recovery and disconnected local usability have a written parity test plan.
+7. **Material 3 token gate:** existing CSS variables are mapped or intentionally retained, with clear visual-drift limits.
+8. **Tailwind governance gate:** theme, arbitrary-value, generated-size, and utility-style policies are defined.
+9. **React state gate:** component and state boundaries are documented before rewriting flows.
+10. **Performance gate:** mobile bundle-size, initial-load, and barcode-access budgets are set.
+11. **Validation gate:** static checks, manual parity checks, and rollback checks are defined before code migration.
+12. **PR policy gate:** implementation branch/base, risk tier, review requirements, and auto-merge eligibility are explicit before package/build/runtime files are touched.
 
-1. What is the approved static build strategy, and does it commit generated assets, build in CI, or remain only a proposal?
-2. What branch and PR policy gates are required before adding package-manager or build-tool files?
-3. Will the future app use no router, hash routing, or another Pages-safe navigation model?
-4. What is the exact compatibility contract for Worker endpoints, cookies, and `credentials: "include"` calls?
-5. How will existing local storage, offline behavior, and CSV backup/recovery be parity-tested before runtime replacement?
-6. How will Material 3 tokens map to existing CSS variables and current accepted UI baselines?
-7. How will Tailwind utility usage be constrained to preserve maintainability and avoid arbitrary values?
-8. What minimum parity checklist must pass before replacing the active app shell?
-9. What rollback plan restores the current plain HTML/CSS/JavaScript runtime if a migration regresses auth, sync, CSV recovery, or mobile checkout usability?
-10. What bundle-size and load-performance budgets are acceptable for mobile-first checkout use?
+## Recommended next PR after planning
 
-## Stage 0 conclusion
+The recommended next PR is still docs-only: create a Stage 1 architecture decision record that compares at least three possible approaches:
 
-A future React + Tailwind + Material 3 migration appears directionally viable for Walmart-GC only as a static frontend migration that preserves GitHub Pages root hosting and the existing Cloudflare Worker-managed OAuth/session/sync architecture. The migration is not approved by this note. The safest next step is a Stage 1 architecture-only document that defines build/static-hosting strategy, routing constraints, API/auth boundaries, data parity requirements, design-token strategy, validation gates, and rollback criteria before any runtime files or tooling are changed.
+1. Keep the current plain HTML/CSS/JavaScript runtime and incrementally improve Material 3-aligned tokens/components in place.
+2. Add a future static React build with a strict no-router or hash-router strategy and committed/generated static output plan.
+3. Add a future React + Tailwind static build with explicit token mapping, generated CSS governance, and bundle/performance budgets.
+
+That PR should include a parity checklist and a rollback plan, but it should not add package files, dependencies, generated assets, build commands, workflow changes, or runtime edits unless separately approved.
+
+## Risk classification
+
+This Stage 0/1 planning artifact is green risk because it is docs-only and intentionally avoids runtime files, Worker files, OAuth/session behavior, sync/conflict behavior, schema/header mapping, CSV recovery behavior, hosting/deployment, workflow automation, app-shell fingerprints, framework/tooling adoption, dependencies, and generated assets.
