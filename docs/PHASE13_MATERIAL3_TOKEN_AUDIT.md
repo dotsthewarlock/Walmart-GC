@@ -12,7 +12,7 @@ This audit does **not** approve a runtime migration, framework adoption, build t
 | --- | --- | --- |
 | `docs/CODEX_ACTIVE_CONTEXT.md` | Read-only inspected | Confirmed Phase 13 branch context, no-build runtime, Worker/OAuth/sync guardrails, PR/validation expectations, and Material 3 planning posture. |
 | `docs/AI_HANDOFF.md` | Read-only inspected, then edited | Confirmed current handoff direction and added a compact pointer to this Stage 1A audit. |
-| `docs/MAINTENANCE_LOG.md` | Read-only inspected | Checked durable unresolved-work guidance; no new durable unresolved issue required a log entry. |
+| `docs/AI_HANDOFF.md` deferred-maintenance/backlog section | Read-only inspected, then edited | Checked durable unresolved-work guidance; no new durable unresolved issue required a backlog entry. |
 | `docs/phase-13-react-tailwind-m3-stage-0.md` | Read-only inspected | Confirmed Stage 0 frontend direction constraints and Material 3 token gate. |
 | `docs/PHASE13_REACT_TAILWIND_M3_ADR.md` | Read-only inspected | Confirmed the ADR recommends this docs-only Stage 1A audit as the next planning step. |
 | `index.html` | Read-only inspected | Identified current app shell surfaces, component hooks, dialogs, data/sync/recovery surfaces, and barcode/detail surfaces. |

@@ -5,9 +5,8 @@ Read this first for current Walmart-GC tasks. It is the compact source of truth 
 Preferred source-of-truth chain:
 
 1. `docs/CODEX_ACTIVE_CONTEXT.md` — current compact rules and branch context.
-2. `docs/AI_HANDOFF.md` — handoff-first workflow details, lane usage, and task-start protocol.
-3. `docs/MAINTENANCE_LOG.md` — durable deferred work, cleanup, artifacts, validation gaps, and unresolved follow-ups.
-4. `AGENTS.md`, `docs/ARCHITECTURE.md`, task-specific docs, then `docs/archive/` only when history or regression evidence requires it.
+2. `docs/AI_HANDOFF.md` — combined operational handoff, lane usage, task-start protocol, and deferred-maintenance/backlog ledger.
+3. Task-specific docs, `AGENTS.md`, `docs/ARCHITECTURE.md`, then `docs/archive/` only when history or regression evidence requires it.
 
 ## Current Basics
 
@@ -135,7 +134,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 ## Phase 13 AI Handoff-First Workflow
 
-Phase 13 uses a handoff-first workflow: before opening new implementation work, inspect `docs/CODEX_ACTIVE_CONTEXT.md`, then `docs/AI_HANDOFF.md`, then `docs/MAINTENANCE_LOG.md` when unresolved work may affect the next step. `docs/AI_HANDOFF.md` is the operational handoff surface for AI workflow status, lane choice, terminal batch instructions, and next-action sequencing. `docs/MAINTENANCE_LOG.md` remains the durable backlog for deferred or unresolved concerns and must not duplicate completed PR summaries.
+Phase 13 uses a handoff-first workflow: before opening new implementation work, inspect `docs/CODEX_ACTIVE_CONTEXT.md`, then `docs/AI_HANDOFF.md`. `docs/AI_HANDOFF.md` is the combined operational handoff and deferred-maintenance/backlog ledger for AI workflow status, lane choice, terminal batch instructions, next-action sequencing, unresolved follow-ups, validation gaps, and low-priority cleanup. The archived maintenance log at `docs/archive/maintenance/MAINTENANCE_LOG.md` is historical only and is not a routine read.
 
 Phase 13 may explore React, Tailwind, and Material 3 as a product/implementation direction. Exploration should be evidence-gathering and proposal-oriented first. Do not migrate the active app, introduce a build system, replace GitHub Pages routing, alter OAuth/session, or change sync/schema/conflict behavior without explicit user approval and a focused implementation plan.
 
@@ -183,19 +182,19 @@ PR lifecycle states: changes prepared, workspace commit created, GitHub PR creat
 
 Cleanup policy: report stale or merged `codex/*` branches first. Later pruning may delete only verified merged `codex/*` branches. Never delete failed, conflicted, abandoned, unresolved, ambiguous, unmerged, or non-`codex/*` branches.
 
-## Maintenance Log and Deferred Work
+## Deferred Maintenance and Backlog
 
-`docs/MAINTENANCE_LOG.md` is the durable repo location for unfinished cleanup, artifacts, validation gaps, and minor follow-up concerns that should not live only in chat or PR memory. It is not a changelog and must not duplicate completed PR summaries.
+`docs/AI_HANDOFF.md` is the single active repo location for unfinished cleanup, artifacts, validation gaps, and minor follow-up concerns that should not live only in chat or PR memory. It is not a changelog and must not duplicate completed PR summaries.
 
-For every Codex task and ChatGPT review, inspect or update `docs/MAINTENANCE_LOG.md` when the task discovers or leaves unresolved work. Add concise entries only for deferred or unfinished concerns, including cleanup not done, artifacts left behind, validation gaps, stale docs/branches, garbage-collection candidates, or follow-up risks. Do not add an entry when the concern is fully resolved in the same PR.
+For every Codex task and ChatGPT review, inspect or update `docs/AI_HANDOFF.md` when the task discovers or leaves unresolved work. Add concise entries only for deferred or unfinished concerns, including cleanup not done, artifacts left behind, validation gaps, stale docs/branches, garbage-collection candidates, or follow-up risks. Do not add an entry when the concern is fully resolved in the same PR. Use GitHub Issues instead of the handoff ledger for assigned, blocking, or soon-actionable work.
 
-Each maintenance entry should include priority/risk/area, source PR or task when known, status, concise context, suggested action, guardrails, and acceptance. Use GitHub Issues instead of the log for assigned, blocking, or soon-actionable work. During `next` checkpoints, ChatGPT should check this log and advise whether to continue feature work, inspect AI handoff state, or run cleanup before drift accumulates.
+Each backlog entry should include priority/risk/area when useful, source PR or task when known, status if not obvious, concise context, suggested action, guardrails, and acceptance. During `next` checkpoints, ChatGPT should check `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md` and advise whether to continue feature work, inspect AI handoff state, or run cleanup before drift accumulates.
 
 ## Execution Lane Selection
 
 Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
 
-1. Start with the hierarchy: `CODEX_ACTIVE_CONTEXT` -> `AI_HANDOFF` -> `MAINTENANCE_LOG`.
+1. Start with the hierarchy: `CODEX_ACTIVE_CONTEXT` -> `AI_HANDOFF` -> task-specific docs as needed.
 2. Use Lane 0 Codex terminal batches for repo command evidence, validation, dependency/build experiments, controlled migration spikes, and terminal checks that ChatGPT cannot run directly. State whether the batch is strict read-only or inspection plus docs-only handoff update.
 3. Use ChatGPT direct tool or connector action only for one-file or very small bounded, connector-friendly docs/config edits and metadata-only actions where repeated approval prompts are acceptable. The connector writes through one-file contents API updates and must not be treated as an atomic multi-file commit/PR lane.
 4. Route multi-file docs/config/workflow edits to Codex by default. Use Codex for coordinated edits, validation-heavy work, workflow edits, or any change where user approval friction matters.
@@ -221,7 +220,7 @@ Reply with: <exact approval phrase or next instruction, when useful>
 
 Only the exact next recommended user input should be formatted as Markdown/fenced text. Do not format the explanatory user-input summary or surrounding report text as Markdown just because it describes what the user should do.
 
-Shorthand: when the user says `next`, first inspect the active context/handoff/log hierarchy as needed, then respond with a short, concise summary of the next user action items, who acts next, and confidence. When the next step is clear, low-risk, and covered by a discussed multi-step plan, ask the user to reply `y` or `n` to proceed. After completing a step, give a concise completion report, recommend follow-up action items, state confidence when useful, and ask for `y`/`n` approval to continue only when the next action is clear and safe.
+Shorthand: when the user says `next`, first inspect the active context/handoff hierarchy as needed, then respond with a short, concise summary of the next user action items, who acts next, and confidence. When the next step is clear, low-risk, and covered by a discussed multi-step plan, ask the user to reply `y` or `n` to proceed. After completing a step, give a concise completion report, recommend follow-up action items, state confidence when useful, and ask for `y`/`n` approval to continue only when the next action is clear and safe.
 
 Avoid report-style endings when the user needs to choose an action. Keep responses concise by default; offer or provide an expanded summary only when the user requests it or the risk warrants it.
 
@@ -249,7 +248,7 @@ For CSS cleanup, remove only confirmed-unused selectors. Consolidate duplicate o
 
 ## Docs Update Authority
 
-When project architecture or context changes, update `docs/CODEX_ACTIVE_CONTEXT.md` first. Update `docs/AI_HANDOFF.md` next when workflow handoff, lane usage, next-action behavior, or terminal batch conventions change. Update `docs/MAINTENANCE_LOG.md` only for unresolved or deferred concerns. Update `README.md`, `docs/ARCHITECTURE.md`, and `.github/copilot-instructions.md` only when user-facing, expanded, or tool-specific details also need to change. Avoid duplicating long architecture blocks across active docs. Keep historical material in `docs/archive/`, and keep active docs compact and current.
+When project architecture or context changes, update `docs/CODEX_ACTIVE_CONTEXT.md` first. Update `docs/AI_HANDOFF.md` next when workflow handoff, lane usage, next-action behavior, or terminal batch conventions change. Update the `docs/AI_HANDOFF.md` deferred-maintenance/backlog section for unresolved or deferred concerns. Update `README.md`, `docs/ARCHITECTURE.md`, and `.github/copilot-instructions.md` only when user-facing, expanded, or tool-specific details also need to change. Avoid duplicating long architecture blocks across active docs. Keep historical material in `docs/archive/`, and keep active docs compact and current.
 
 ## Future Auth Hardening Note
 
