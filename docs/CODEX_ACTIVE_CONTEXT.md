@@ -151,11 +151,18 @@ GitHub Actions UI registration note: workflow files may need to exist on the def
 
 ## Workflow Lanes
 
-- Lane 0 — terminal batch convention: prefer compact safe `wg13 <token>` terminal batches when practical for Phase 13 user-run or local-terminal batches. Keep each batch narrow, pasteable, and report-oriented. Use Lane 0 only when direct tools/Codex cannot safely perform the action or when terminal evidence is specifically needed.
+- Lane 0 — Codex terminal batch: default terminal-command evidence lane for Phase 13. ChatGPT prepares compact command batches, Codex Cloud runs them in its workspace, and Codex reports results. Use for repo inspection, validation evidence, dependency/build experiments, controlled migration spikes, and other tasks where terminal evidence is needed.
 - Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-13` PRs.
 - Lane B — ChatGPT/GitHub connector small edits: use for compact low-risk changes when the file shape is connector-friendly and a PR path is clear.
 - Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, workflow-permission, framework, or build-step changes.
 - Lane D — GitHub-native PR lifecycle automation: create PRs, validate, squash-merge when approved/eligible, and report cleanup.
+
+Lane 0 mutation boundary:
+
+- Strict Lane 0 means Codex terminal commands only, inspection/validation only, and no file edits, commits, dependency installs, branch resets, cleanup, or `docs/AI_HANDOFF.md` update.
+- Lane 0 plus handoff update means Codex runs inspection-only terminal commands first, then may update only `docs/AI_HANDOFF.md` with result, validation, risks, and next action. This is not strictly read-only; call it “inspection plus docs-only handoff update.”
+- Lane 0 must not modify runtime files, schema, OAuth/session, sync/conflict behavior, CSV recovery, Worker routes, deployment, hosting, workflow permissions, app-shell fingerprints, or framework/build-step configuration unless a separate task explicitly authorizes that scope.
+- User-local terminal execution is not the default. Ask the user to run local terminal commands only when local-only state must be verified, such as uncommitted files, local branch state, local refs, private local environment, or machine-specific behavior.
 
 Risk tiers:
 
@@ -180,13 +187,13 @@ Each maintenance entry should include priority/risk/area, source PR or task when
 Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
 
 1. Start with the hierarchy: `CODEX_ACTIVE_CONTEXT` -> `AI_HANDOFF` -> `MAINTENANCE_LOG`.
-2. Use ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector steps when possible: inspect, branch/edit, verify, then review.
-3. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
-4. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
-5. Use Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
-6. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
-7. Use Lane 0 terminal batches for user-run terminal evidence, repo command batches, or external UI operations that ChatGPT and Codex cannot safely perform. Prefer compact safe `wg13 <token>` terminal batches when practical.
-8. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
+2. Use Lane 0 Codex terminal batches for repo command evidence, validation, dependency/build experiments, controlled migration spikes, and terminal checks that ChatGPT cannot run directly. State whether the batch is strict read-only or inspection plus docs-only handoff update.
+3. Use ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector steps when possible: inspect, branch/edit, verify, then review.
+4. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
+5. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
+6. Use Lane A Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
+7. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
+8. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings or environment access that ChatGPT and Codex cannot safely perform.
 9. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
 
 Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, connector actions, Codex, or Lane 0 terminal batches. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
@@ -197,7 +204,7 @@ When ChatGPT is ready for user input or approval, put the required action at the
 
 ```text
 Action needed: <what the user should do next, or none>
-Who acts: <ChatGPT direct tool | Codex | Lane 0 terminal | Gemini/manual | user>
+Who acts: <ChatGPT direct tool | Codex Lane 0 terminal | Codex implementation | Gemini/manual | user>
 Why: <one short reason>
 Reply with: <exact approval phrase or next instruction, when useful>
 ```
