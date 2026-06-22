@@ -15,6 +15,9 @@ on:
   check_suite:
     types:
       - completed
+  check_run:
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -46,6 +49,9 @@ jobs:
           WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           CHECK_SUITE_HEAD_BRANCH: ${{ github.event.check_suite.head_branch }}
           CHECK_SUITE_HEAD_SHA: ${{ github.event.check_suite.head_sha }}
+          CHECK_RUN_NAME: ${{ github.event.check_run.name }}
+          CHECK_RUN_HEAD_BRANCH: ${{ github.event.check_run.check_suite.head_branch }}
+          CHECK_RUN_HEAD_SHA: ${{ github.event.check_run.head_sha }}
         run: |
           set -euo pipefail
 
@@ -126,23 +132,59 @@ jobs:
             local head_sha="$3"
             local pr_json pr_count
             if [ -z "${head_branch}" ] || [ -z "${head_sha}" ] || [ "${head_branch}" = "null" ] || [ "${head_sha}" = "null" ]; then
-              echo "::notice::${event_label} event did not include a head branch and SHA."
+              echo "::notice::${event_label} event did not include a usable head branch and SHA (head_branch='${head_branch}', head_sha='${head_sha}')."
               exit 0
             fi
 
+            echo "Resolving ${event_label} event by head branch '${head_branch}' and SHA '${head_sha}'."
             pr_json="$(gh api \
               -H "Accept: application/vnd.github+json" \
               "/repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:${head_branch}&per_page=10")"
             pr_count="$(printf '%s' "${pr_json}" | jq --arg head_sha "${head_sha}" '[.[] | select(.head.sha == $head_sha)] | length')"
             if [ "${pr_count}" -eq 0 ]; then
-              echo "::notice::No matching open PR found for ${head_branch} at ${head_sha}."
+              echo "::notice::No matching open PR found for ${event_label} head '${head_branch}' at '${head_sha}'."
+              echo "::notice::Open PRs found for head branch: $(printf '%s' "${pr_json}" | jq -r 'map("#" + (.number | tostring) + "@" + .head.sha) | join(", ") // "none"')"
               exit 0
             fi
             if [ "${pr_count}" -gt 1 ]; then
-              echo "::notice::Multiple matching open PRs found for ${head_branch} at ${head_sha}; skipping to avoid ambiguous automation."
+              echo "::notice::Multiple matching open PRs found for ${event_label} head '${head_branch}' at '${head_sha}'; skipping to avoid ambiguous automation."
               exit 0
             fi
             printf '%s' "${pr_json}" | jq -c --arg head_sha "${head_sha}" '.[] | select(.head.sha == $head_sha)' > "${tmp_dir}/pr.json"
+          }
+
+          resolve_check_run_pr() {
+            local head_branch="$1"
+            local head_sha="$2"
+            local pr_numbers pr_count pr_number
+
+            if [ "${CHECK_RUN_NAME}" = "Classify and green-gate auto-merge" ]; then
+              echo "::notice::Ignoring check_run completed event for this auto-merge job to avoid self-triggered re-evaluation."
+              exit 0
+            fi
+
+            echo "Resolving check_run event for '${CHECK_RUN_NAME}' by pull_requests payload, then by head branch/SHA if needed."
+            pr_numbers="$(jq -r '.check_run.pull_requests[]?.number' "${GITHUB_EVENT_PATH}" | sort -n | uniq | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+            pr_count="$(printf '%s\n' "${pr_numbers}" | wc -w | tr -d ' ')"
+            if [ "${pr_count}" -eq 1 ]; then
+              pr_number="${pr_numbers}"
+              gh api -H "Accept: application/vnd.github+json" "/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "${tmp_dir}/pr.json"
+              if [ "$(jq -r '.state' "${tmp_dir}/pr.json")" != "open" ]; then
+                echo "::notice::check_run resolved PR #${pr_number}, but it is not open."
+                exit 0
+              fi
+              if [ "$(jq -r '.head.sha' "${tmp_dir}/pr.json")" != "${head_sha}" ]; then
+                echo "::notice::check_run resolved PR #${pr_number}, but its head SHA no longer matches '${head_sha}'."
+                exit 0
+              fi
+              return 0
+            fi
+            if [ "${pr_count}" -gt 1 ]; then
+              echo "::notice::check_run event listed multiple PRs (${pr_numbers}); falling back to head branch/SHA resolution."
+            else
+              echo "::notice::check_run event did not list a PR; falling back to head branch/SHA resolution."
+            fi
+            resolve_event_pr_by_head "check_run" "${head_branch}" "${head_sha}"
           }
 
           if [ "${EVENT_NAME}" = "workflow_run" ]; then
@@ -155,6 +197,14 @@ jobs:
             HEAD_SHA="$(jq -r '.head.sha' "${tmp_dir}/pr.json")"
           elif [ "${EVENT_NAME}" = "check_suite" ]; then
             resolve_event_pr_by_head "check_suite" "${CHECK_SUITE_HEAD_BRANCH}" "${CHECK_SUITE_HEAD_SHA}"
+            PR_NUMBER="$(jq -r '.number' "${tmp_dir}/pr.json")"
+            PR_STATE="$(jq -r '.state' "${tmp_dir}/pr.json")"
+            PR_DRAFT="$(jq -r '.draft' "${tmp_dir}/pr.json")"
+            BASE_BRANCH="$(jq -r '.base.ref' "${tmp_dir}/pr.json")"
+            HEAD_BRANCH="$(jq -r '.head.ref' "${tmp_dir}/pr.json")"
+            HEAD_SHA="$(jq -r '.head.sha' "${tmp_dir}/pr.json")"
+          elif [ "${EVENT_NAME}" = "check_run" ]; then
+            resolve_check_run_pr "${CHECK_RUN_HEAD_BRANCH}" "${CHECK_RUN_HEAD_SHA}"
             PR_NUMBER="$(jq -r '.number' "${tmp_dir}/pr.json")"
             PR_STATE="$(jq -r '.state' "${tmp_dir}/pr.json")"
             PR_DRAFT="$(jq -r '.draft' "${tmp_dir}/pr.json")"
