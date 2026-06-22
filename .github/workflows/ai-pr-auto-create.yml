@@ -1,6 +1,9 @@
 name: AI PR auto-create
 
 on:
+  push:
+    branches:
+      - "codex/**"
   workflow_dispatch:
     inputs:
       head_branch:
@@ -25,7 +28,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ai-pr-auto-create-${{ inputs.head_branch }}-${{ inputs.base_branch }}
+  group: "ai-pr-auto-create-${{ github.event_name == 'push' && github.ref_name || inputs.head_branch }}-${{ github.event_name == 'push' && 'phase-13' || inputs.base_branch }}"
   cancel-in-progress: false
 
 
@@ -44,10 +47,11 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_BRANCH: ${{ inputs.head_branch }}
-          BASE_BRANCH: ${{ inputs.base_branch }}
-          PR_TITLE: ${{ inputs.title }}
-          PR_BODY: ${{ inputs.body }}
+          HEAD_BRANCH: "${{ github.event_name == 'push' && github.ref_name || inputs.head_branch }}"
+          BASE_BRANCH: "${{ github.event_name == 'push' && 'phase-13' || inputs.base_branch }}"
+          PR_TITLE: "${{ github.event_name == 'push' && format('AI: {0}', github.ref_name) || inputs.title }}"
+          PR_BODY: "${{ github.event_name == 'push' && format('Automated guarded PR for `{0}` into `phase-13` after a codex/* branch push. Manual workflow_dispatch remains available as a fallback.', github.ref_name) || inputs.body }}"
+          TRIGGER_EVENT: "${{ github.event_name }}"
         run: |
           set -euo pipefail
 
@@ -58,6 +62,7 @@ jobs:
           policy_file="${tmp_dir}/ai-automation-policy.yml"
           active_context_file="${tmp_dir}/CODEX_ACTIVE_CONTEXT.md"
 
+          echo "Trigger event: ${TRIGGER_EVENT}"
           echo "Requested head branch: ${HEAD_BRANCH}"
           echo "Requested base branch: ${BASE_BRANCH}"
           echo "Reading policy from requested base branch ${BASE_BRANCH}."
