@@ -94,27 +94,29 @@ Lane 0 PR lifecycle durability:
 - Retargeted AI PR lifecycle automation policy for Phase 13 and generalized workflow policy/classifier loading from the requested or resolved PR base branch instead of a stale hardcoded Phase 12 source.
 - Reviewed PR #170 after merge and found no blocking issues in the active-phase automation retarget.
 - Batched a docs-only durability update for Lane 0 PR lifecycle support, default-branch workflow-registration caveat, connector edit batching, and Markdown-only recommended-user-input formatting.
+- Updated the AI PR auto-create workflow so pushes to `codex/**` branches create guarded PRs into `phase-13` automatically, while keeping `workflow_dispatch` as a manual fallback.
 
 ## Current Diagnostic
 
-- Actor: ChatGPT connector docs edit on `phase-13`.
-- Latest result: Lane 0 PR lifecycle durability was documented after PR #170 review.
-- Scope: docs-only update to active workflow/handoff docs; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, workflow, or policy changes.
-- Automation baseline: policy `active_base` is `phase-13`; auto-create reads policy from requested `BASE_BRANCH`; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH`; guarded green-risk `codex/*` -> active phase gates remain intact.
+- Actor: Codex implementation on local `work` branch for `codex/auto-create-pr-on-codex-push` -> `phase-13`.
+- Latest result: AI PR auto-create now has a `push` trigger for `codex/**` branches; push-triggered runs derive `HEAD_BRANCH` from `github.ref_name`, target `phase-13`, and still validate policy/context before creating a PR.
+- Scope: workflow/docs-only update; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, policy permissions, or app-shell fingerprint changes.
+- Automation baseline: policy `active_base` is `phase-13`; auto-create reads policy from requested/resolved `BASE_BRANCH`; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH`; guarded green-risk `codex/*` -> active phase gates remain intact.
 - Lane 0 baseline: strict Lane 0 does not produce PRs; Lane 0 plus handoff update may produce docs-only `codex/*` -> `phase-13` PRs when a confirmed GitHub PR URL/number exists.
 - GitHub Actions UI note: `workflow_dispatch` entries may require the workflow files to exist on the default branch before appearing in the Actions UI; workflow source branch visibility and target branch runtime guards are separate concerns.
 - Remaining risk: UI availability for manual workflow dispatch is not yet verified after retargeting; test with controlled docs-only dry-run before relying on unattended lifecycle automation for important changes.
 
 ## Immediate Roadmap
 
-1. Confirm whether GitHub Actions UI exposes the AI PR auto-create workflow after the Phase 13 retarget; if not, decide whether default-branch workflow registration is needed while keeping runtime guards pointed at `phase-13`.
-2. Run a controlled docs-only `codex/*` -> `phase-13` dry-run through PR auto-create/auto-merge before relying on automation for important work.
-3. Continue Option D Stage 0 evidence gathering for React/Tailwind/M3 migration planning after automation durability is settled.
-4. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
+1. Push this workflow/docs branch as `codex/auto-create-pr-on-codex-push` and confirm the new push-triggered auto-create run opens a guarded PR into `phase-13`.
+2. If the push-triggered run does not start or cannot create a PR, use the preserved `workflow_dispatch` fallback and record the blocker.
+3. After one controlled docs-only `codex/*` -> `phase-13` dry-run succeeds, rely on unattended PR creation for eligible Codex branches.
+4. Continue Option D Stage 0 evidence gathering for React/Tailwind/M3 migration planning after automation durability is settled.
+5. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
 
 ## Open Risks
 
-- GitHub Actions UI registration may still depend on default-branch workflow presence even when Phase 13 runtime guards are correct.
+- Push-triggered AI PR auto-create needs one controlled `codex/**` branch push validation; `workflow_dispatch` remains the fallback if GitHub Actions registration or trigger behavior blocks automation.
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
 - `scripts/wg13-readonly-phase13.sh` is now optional/stale relative to the direct Codex Lane 0 default and may be removed in a cleanup pass.

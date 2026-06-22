@@ -35,10 +35,10 @@ Garbage-collection triggers:
 
 - Source: PR #170 review and Lane 0 PR lifecycle durability docs update on 2026-06-22.
 - Status: Open.
-- Context: Phase 13 automation retarget is active-phase generalized: policy active_base is phase-13, auto-create reads policy from requested BASE_BRANCH, and auto-merge reads policy/classifier from resolved PR BASE_BRANCH. Remaining caveat: GitHub Actions workflow_dispatch visibility may depend on workflow files being registered on the default branch even though runtime guards must target phase-13.
-- Suggested action: confirm whether the AI PR auto-create workflow is visible/dispatchable in the GitHub Actions UI. If missing, decide whether to register the workflow on the default branch while keeping policy/context reads and PR targets active-branch scoped. Then run one controlled docs-only codex/* -> phase-13 dry-run before relying on unattended lifecycle automation for important work.
+- Context: Phase 13 automation retarget is active-phase generalized: policy active_base is phase-13, auto-create reads policy from requested/resolved BASE_BRANCH, push-triggered auto-create is intended for codex/** branch pushes, and auto-merge reads policy/classifier from resolved PR BASE_BRANCH. Remaining caveat: the new push-triggered path still needs one live controlled branch-push validation; manual workflow_dispatch remains the fallback.
+- Suggested action: push a controlled docs-only codex/* branch and confirm the push-triggered auto-create workflow opens a guarded PR into phase-13. If the push trigger is unavailable, use workflow_dispatch and document the blocker. Then run one controlled docs-only codex/* -> phase-13 auto-create/auto-merge dry-run before relying on unattended lifecycle automation for important work.
 - Guardrails: workflow validation only; do not change runtime files, Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, deployment routes, hosting, framework/build-step configuration, or app-shell fingerprints. Any workflow/default-branch registration change is safety-sensitive and should be reviewed separately.
-- Acceptance: AI PR lifecycle can be invoked or a documented fallback exists; a controlled docs-only dry-run proves create/merge behavior or documents the blocker; runtime guards still refuse main and require codex/* -> phase-13 eligibility.
+- Acceptance: a pushed codex/* branch automatically creates a guarded phase-13 PR, or workflow_dispatch fallback and the blocker are documented; a controlled docs-only dry-run proves create/merge behavior or documents the blocker; runtime guards still refuse main and require codex/* -> phase-13 eligibility.
 
 ### P3 / Low / Tooling: optional Lane 0 helper script superseded
 
