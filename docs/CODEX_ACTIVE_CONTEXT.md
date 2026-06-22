@@ -144,7 +144,7 @@ Phase 13 may explore React, Tailwind, and Material 3 as a product/implementation
 - Automation risk knobs live in `.github/ai-automation-policy.yml`.
 - `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for `codex/*` PR risk checks.
 - `.github/workflows/ai-pr-auto-create.yml` creates guarded `codex/*` -> `phase-13` PRs automatically on pushed `codex/**` branches, with `workflow_dispatch` preserved as a manual fallback, only when `auto_pr.enabled` is true and the requested/resolved base matches both policy `active_base` and the active context.
-- `.github/workflows/ai-pr-auto-merge.yml` handles guarded green-risk auto-merge only when policy auto-merge knobs are enabled and all workflow gates pass.
+- `.github/workflows/ai-pr-auto-merge.yml` handles guarded green-risk auto-merge only when policy auto-merge knobs are enabled and all workflow gates pass; it evaluates pull request changes and re-evaluates after completed validation signals via `workflow_run` and `check_suite` events that resolve exactly one open PR by head branch and head SHA.
 - Human review remains required for yellow/red risk, restricted labels, branch/base mismatches, failed validation, conflicts, draft PRs, or ambiguous PR state.
 
 GitHub Actions UI registration note: workflow files may need to exist on the default branch so `workflow_dispatch` entries appear in the Actions UI, but runtime guards must still target the active phase branch and never `main`. Treat the workflow source branch and workflow target branch as separate concepts; active-context lookups must read `docs/CODEX_ACTIVE_CONTEXT.md` from the intended target branch.
