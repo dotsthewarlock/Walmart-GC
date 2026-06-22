@@ -77,39 +77,39 @@ Lane 0 mutation boundary:
 - Lane 0 plus handoff update means Codex runs inspection-only terminal commands first, then may update only `docs/AI_HANDOFF.md` with result, validation, risks, and next action. This is not strictly read-only; call it “inspection plus docs-only handoff update.”
 - Lane 0 must not modify runtime files, schema, OAuth/session, sync/conflict behavior, CSV recovery, Worker routes, deployment, hosting, workflow permissions, app-shell fingerprints, or framework/build-step configuration unless a separate task explicitly authorizes that scope.
 
+Lane 0 PR lifecycle durability:
+
+- Strict Lane 0 should not create a PR because it has no edits or commits.
+- Lane 0 plus handoff update may create a docs-only `codex/*` branch, normally touching only `docs/AI_HANDOFF.md`, and may use guarded PR auto-create into `phase-13` when a GitHub PR URL/number can be confirmed.
+- Auto-merge may apply only to green-risk `codex/*` -> `phase-13` PRs that pass policy, classifier, branch/base, checks, conflict, label, changed-file, and `--match-head-commit` gates.
+- GitHub Actions UI `workflow_dispatch` registration may require workflow files on the default branch, but runtime policy/context reads and PR targets must remain active-branch scoped.
+
 ## Recent Steps
 
 - Created branch `phase-13` from `phase-12` for contained future-direction discussion.
 - Discussed React + Tailwind + Material 3 migration as a Phase 13 architecture direction, not a Phase 12 change.
-- Agreed terminal-first AI lane is preferred when compact and safe.
-- Designed durable Lane 0 terminal batch pattern with stable `wg13` command and token discipline; later narrowed Phase 13 default to Codex Cloud terminal batches rather than user-local terminal execution.
-- Agreed `next actions` behavior should provide concise action items, actor, and exact continuation prompt after in-scope project interactions unless explicitly suppressed.
-- Updated and reviewed both `docs/AI_HANDOFF.md` and `docs/CODEX_ACTIVE_CONTEXT.md` for Phase 13 handoff-first workflow, hierarchy, Lane 0, and next-actions consistency.
 - Clarified the result handoff workflow: task results should be durable in repo docs when practical, and users do not paste completion output by default.
 - Added `scripts/wg13-readonly-phase13.sh` on `phase-13` as a connector-created helper, then superseded it as the default path by adopting direct Codex Cloud Lane 0 terminal batches.
 - Updated active docs so Lane 0 now means Codex Cloud terminal-command batches by default, with user-local terminal only as an exception for local-only state.
 - Retargeted AI PR lifecycle automation policy for Phase 13 and generalized workflow policy/classifier loading from the requested or resolved PR base branch instead of a stale hardcoded Phase 12 source.
+- Reviewed PR #170 after merge and found no blocking issues in the active-phase automation retarget.
+- Batched a docs-only durability update for Lane 0 PR lifecycle support, default-branch workflow-registration caveat, connector edit batching, and Markdown-only recommended-user-input formatting.
 
 ## Current Diagnostic
 
-- Actor: Codex implementation in Codex Cloud workspace.
-- Latest result: Phase 13 AI PR lifecycle automation was retargeted and generalized on 2026-06-22.
-- Scope: workflow/policy/docs update only; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, or deployment route changes.
-- Workspace identity: repository root was `/workspace/Walmart-GC`; local working branch was `work`; intended active PR base is `phase-13` and eligible AI PR heads remain `codex/*`.
-- Files touched: `.github/ai-automation-policy.yml`, `.github/workflows/ai-pr-auto-create.yml`, `.github/workflows/ai-pr-auto-merge.yml`, and `docs/AI_HANDOFF.md`.
-- Policy result: `.github/ai-automation-policy.yml` now sets `active_base: phase-13` while keeping `auto_pr.enabled`, `auto_merge.enabled`, `auto_merge.green`, `codex/**` heads, blocked paths, blocked keywords, binary extensions, and restricted labels conservative.
-- Workflow result: PR auto-create now reads policy from the requested `BASE_BRANCH`; PR auto-merge now reads policy and classifier from the resolved PR `BASE_BRANCH`; stale `POLICY_SOURCE_BRANCH: phase-12` constants were removed.
-- Preserved guards: no automation into `main`, base must match policy `active_base`, create flow checks `docs/CODEX_ACTIVE_CONTEXT.md`, heads must be `codex/*`, duplicate open PRs are reported instead of recreated, draft/conflicted/restricted-label/non-green/pending-or-failed-check PRs do not auto-merge, and squash merge still uses `--match-head-commit`.
-- Validation performed: exact-reference inspection, classifier smoke tests for Phase 13 green/red and wrong-base cases, `git diff --check`, and targeted diff review. No real auto-create or auto-merge was triggered.
+- Actor: ChatGPT connector docs edit on `phase-13`.
+- Latest result: Lane 0 PR lifecycle durability was documented after PR #170 review.
+- Scope: docs-only update to active workflow/handoff docs; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, workflow, or policy changes.
+- Automation baseline: policy `active_base` is `phase-13`; auto-create reads policy from requested `BASE_BRANCH`; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH`; guarded green-risk `codex/*` -> active phase gates remain intact.
+- Lane 0 baseline: strict Lane 0 does not produce PRs; Lane 0 plus handoff update may produce docs-only `codex/*` -> `phase-13` PRs when a confirmed GitHub PR URL/number exists.
 - GitHub Actions UI note: `workflow_dispatch` entries may require the workflow files to exist on the default branch before appearing in the Actions UI; workflow source branch visibility and target branch runtime guards are separate concerns.
-- Remaining risk: workflow changes are safety-sensitive and should be reviewed carefully before relying on unattended PR creation/merge; Actions UI availability may still depend on default-branch workflow registration.
-- Next action: open/review a `codex/*` -> `phase-13` PR for this change; after merge, use only controlled dry-run or non-destructive inspection before any real lifecycle automation test.
+- Remaining risk: UI availability for manual workflow dispatch is not yet verified after retargeting; test with controlled docs-only dry-run before relying on unattended lifecycle automation for important changes.
 
 ## Immediate Roadmap
 
-1. Review and merge the Phase 13 AI PR lifecycle automation update into `phase-13`.
-2. If GitHub Actions UI entries are missing, confirm whether these workflow files also need to exist on the default branch for `workflow_dispatch` visibility while keeping runtime guards pointed at the active phase branch.
-3. Continue with Phase 13 project-settings alignment or React/Tailwind/M3 exploration planning after automation policy is settled.
+1. Confirm whether GitHub Actions UI exposes the AI PR auto-create workflow after the Phase 13 retarget; if not, decide whether default-branch workflow registration is needed while keeping runtime guards pointed at `phase-13`.
+2. Run a controlled docs-only `codex/*` -> `phase-13` dry-run through PR auto-create/auto-merge before relying on automation for important work.
+3. Continue Option D Stage 0 evidence gathering for React/Tailwind/M3 migration planning after automation durability is settled.
 4. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
 
 ## Open Risks
@@ -131,4 +131,8 @@ Who acts: <ChatGPT | Codex Lane 0 terminal | Codex implementation | GitHub Actio
 Continue with: "<exact prompt or command>"
 ```
 
+Only the exact next recommended user input should be formatted as Markdown/fenced text. Do not format explanatory user-input summaries as Markdown.
+
 Use `next` for a very short checkpoint. Use `next actions` for action items plus the exact continuation prompt. For both, first determine prior task status from `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md`; ask the user for pasted completion output only when the repo docs are missing, stale, or contradictory.
+
+Batch safe ChatGPT connector edits when possible so the user approves connector write permission once per prompt/session. Queue follow-up edits as next steps instead of repeatedly prompting for connector permissions.
