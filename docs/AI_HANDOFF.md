@@ -91,19 +91,20 @@ Lane 0 mutation boundary:
 
 ## Current Diagnostic
 
-- Actor: ChatGPT/GitHub connector.
-- Latest result: updated `docs/CODEX_ACTIVE_CONTEXT.md` and this handoff ledger to define Lane 0 as the Codex Cloud terminal-command evidence lane by default.
-- Scope: docs-only workflow clarification.
+- Actor: Codex Lane 0 terminal batch in Codex Cloud workspace.
+- Latest result: first Phase 13 Lane 0 inspection batch completed successfully on 2026-06-22.
+- Scope: inspection plus docs-only handoff update.
+- Workspace identity: repository root was `/workspace/Walmart-GC`; local working branch was `work`; no local `main` ref was present, so `main...HEAD` comparison was skipped.
+- Repo state: `git status --short --branch` reported a clean `work` branch before this handoff-only update; `git diff --name-status` and `git diff --stat` were empty before this update.
+- Evidence checked: required docs existed; active docs confirmed Phase 13, Codex Cloud Lane 0 default, mutation boundary, user-local terminal exception, React/Tailwind/Material 3 exploration guardrails, and schema/OAuth/sync/Worker/deployment/hosting restrictions.
 - Runtime files touched: none.
-- Validation target: fetch `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md` after update and confirm Lane 0 default, mutation boundary, user-local terminal exception, and immediate roadmap.
-- Limitation: Codex Cloud Lane 0 validates Codex workspace state only; it cannot verify user-local uncommitted files or machine-specific local state.
+- Limitation: this validates Codex Cloud workspace state only; it does not verify the user’s local checkout, uncommitted files, local refs, private environment, or machine-specific behavior.
 
 ## Immediate Roadmap
 
-1. Use a direct Codex Cloud Lane 0 terminal batch for the first Phase 13 repo inspection; do not ask the user to run local terminal commands.
-2. Have Codex update only `docs/AI_HANDOFF.md` after the batch if a durable result is useful.
-3. After Lane 0 inspection passes, continue with Phase 13 project-settings alignment or React/Tailwind/M3 exploration planning.
-4. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
+1. Continue with Phase 13 project-settings alignment or React/Tailwind/M3 exploration planning from the confirmed Lane 0 baseline.
+2. Use additional Codex Cloud Lane 0 terminal batches for any terminal evidence needed before implementation; do not ask the user to run local terminal commands unless local-only state must be verified.
+3. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
 
 ## Open Risks
 
