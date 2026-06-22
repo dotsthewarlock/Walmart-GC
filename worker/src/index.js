@@ -1,3 +1,4 @@
+
 const OAUTH_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -14,7 +15,7 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WORKER_VERSION = "2026-06-18.merchant-inferred-schema.1";
+const WORKER_VERSION = "2024-07-26.edit-notes.1";
 const SCHEMA_MODE = "header-name";
 const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
@@ -121,12 +122,16 @@ async function routeApiRequest(request, env, pathname) {
     return handleSheetEnsure(request, env);
   }
 
-  if (request.method === "GET" && pathname === "/api/cards/load") {
+  if (request.method === "GET" && pathname === "/api/cards") {
     return handleCardsLoad(request, env);
   }
 
-  if (request.method === "POST" && pathname === "/api/cards/save") {
+  if (request.method === "POST" && pathname === "/api/cards") {
     return handleCardsSave(request, env);
+  }
+  
+  if (request.method === "PUT" && pathname.startsWith("/api/cards/")) {
+    return handleCardUpdate(request, env, pathname);
   }
 
   return jsonResponse({ error: "not_found" }, 404);
@@ -313,7 +318,7 @@ async function handleCardsSave(request, env) {
     throw new HttpError(400, { ok: false, error: "Expected cards array." });
   }
 
-  const cards = validateCards(body.cards);
+  const cards = validateCardsForSave(body.cards);
   const baseSheetVersion = String(body.baseSheetVersion || "").trim();
   const token = await getGoogleAccessToken(env, sessionContext);
   const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
@@ -321,19 +326,12 @@ async function handleCardsSave(request, env) {
 
   const remoteMeta = await readSheetMeta(token, sheet.sheetId);
   const remoteSheetVersion = String(remoteMeta.sheetVersion || sheet.sheetVersion || "").trim();
-  if (remoteSheetVersion !== baseSheetVersion) {
+  if (baseSheetVersion && remoteSheetVersion && remoteSheetVersion !== baseSheetVersion) {
     return jsonResponse({ ok: false, conflict: true, remoteSheetVersion }, 409);
   }
 
-  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!1:1`);
-  const headerMap = validateCardHeaders(headerRows[0]);
-  const headerRow = normalizeHeaderRow(headerRows[0]);
-  const rows = cardsToSheetRows(cards, headerRow, headerMap);
-  const lastColumn = columnNumberToA1(headerRow.length);
-  await clearSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:${lastColumn}`);
-  if (cards.length > 0) {
-    await writeSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:${lastColumn}${cards.length + 1}`, rows);
-  }
+  const allCards = await addOrUpdateCards(token, sheet.sheetId, cards);
+  
   const nextMeta = await writeSheetMeta(token, sheet.sheetId, { sheetVersion: generateSheetVersion() });
   await saveSession(env, sessionContext, {
     sheetId: sheet.sheetId,
@@ -343,11 +341,57 @@ async function handleCardsSave(request, env) {
 
   return jsonResponse({
     ok: true,
+    cards: allCards,
     sheetId: sheet.sheetId,
     sheetName: sheet.sheetName,
     sheetVersion: nextMeta.sheetVersion,
     lastUpdated: nextMeta.lastUpdated,
   });
+}
+
+async function handleCardUpdate(request, env, pathname) {
+    const sessionContext = await requireSession(request, env);
+    const cardNumber = pathname.split('/').pop();
+    if (!cardNumber) {
+        throw new HttpError(400, { ok: false, error: "Missing card number" });
+    }
+
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body.notes !== 'string') {
+        throw new HttpError(400, { ok: false, error: "Expected { notes: '...' } in request body" });
+    }
+
+    const token = await getGoogleAccessToken(env, sessionContext);
+    const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
+    await saveSession(env, sessionContext, sheet.sessionPatch);
+
+    const remoteMeta = await readSheetMeta(token, sheet.sheetId);
+    
+    // Perform the targeted update
+    await updateCardNotesInSheet(token, sheet.sheetId, cardNumber, body.notes);
+
+    // Write new metadata to avoid conflicts and signify change
+    const nextMeta = await writeSheetMeta(token, sheet.sheetId, { sheetVersion: generateSheetVersion() });
+    await saveSession(env, sessionContext, {
+        sheetId: sheet.sheetId,
+        sheetName: sheet.sheetName,
+        sheetVersion: nextMeta.sheetVersion,
+    });
+    
+    // Fetch all cards again to return the fresh state
+    const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!1:1`);
+    const headerMap = validateCardHeaders(headerRows[0]);
+    const rows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:ZZ`);
+    const cards = cardsFromSheetRows(rows, headerMap);
+
+    return jsonResponse({
+        ok: true,
+        cards: cards,
+        sheetId: sheet.sheetId,
+        sheetName: sheet.sheetName,
+        sheetVersion: nextMeta.sheetVersion,
+        lastUpdated: nextMeta.lastUpdated,
+    });
 }
 
 async function handleStatus(request, env) {
@@ -890,7 +934,7 @@ function normalizeCurrentBalanceValue(currentBalance, startingBalance) {
   return normalizedCurrentBalance || normalizeOptionalMoneyString(startingBalance);
 }
 
-function validateCards(cards) {
+function validateCardsForSave(cards) {
   const seen = new Set();
   return cards.map((card, index) => {
     if (!card || typeof card !== "object" || Array.isArray(card)) {
@@ -919,6 +963,12 @@ function validateCards(cards) {
     normalized.merchantInferred = inferMerchantFromCardNumber(normalized.cardNumber);
     normalized.startingBalance = normalizeOptionalMoneyString(normalized.startingBalance);
     normalized.currentBalance = normalizeCurrentBalanceValue(normalized.currentBalance, normalized.startingBalance);
+    
+    if(!normalized.dateAdded){
+        normalized.dateAdded = new Date().toISOString();
+    }
+    normalized.dateUpdated = new Date().toISOString();
+
     if (seen.has(normalized.cardNumber)) {
       throw new HttpError(400, { ok: false, error: `Duplicate cardNumber ${normalized.cardNumber}.` });
     }
@@ -977,6 +1027,67 @@ function cardsToSheetRows(cards, headerRow, headerMap) {
   }));
 }
 
+async function addOrUpdateCards(accessToken, spreadsheetId, cardsToSave) {
+    const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!1:1`);
+    const headerMap = validateCardHeaders(headerRows[0]);
+    const headerRow = normalizeHeaderRow(headerRows[0]);
+
+    const remoteRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A2:ZZ`);
+    const remoteCards = cardsFromSheetRows(remoteRows, headerMap);
+
+    const remoteCardMap = new Map(remoteCards.map(c => [c.cardNumber, c]));
+
+    for (const card of cardsToSave) {
+        remoteCardMap.set(card.cardNumber, { ...remoteCardMap.get(card.cardNumber), ...card });
+    }
+
+    const allCards = Array.from(remoteCardMap.values());
+    allCards.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)); 
+
+    const rows = cardsToSheetRows(allCards, headerRow, headerMap);
+    const lastColumn = columnNumberToA1(headerRow.length);
+
+    await clearSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A2:${lastColumn}`);
+    if (rows.length > 0) {
+        await writeSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A2:${lastColumn}${rows.length + 1}`, rows);
+    }
+    
+    return allCards;
+}
+
+
+async function updateCardNotesInSheet(accessToken, spreadsheetId, cardNumber, notes) {
+    const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!1:1`);
+    const headerMap = validateCardHeaders(headerRows[0]);
+    
+    const notesColumnIndex = headerMap.get('notes');
+    const notesColumn = columnNumberToA1(notesColumnIndex + 1);
+    const dateUpdatedColumnIndex = headerMap.get('dateUpdated');
+    const dateUpdatedColumn = columnNumberToA1(dateUpdatedColumnIndex + 1);
+
+
+    const cardNumberColumnIndex = headerMap.get('cardNumber');
+    const cardNumberColumn = columnNumberToA1(cardNumberColumnIndex + 1);
+    
+    // Find the row number for the given card number
+    const rows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!${cardNumberColumn}2:${cardNumberColumn}`);
+    const rowIndex = rows.findIndex(row => row[0] === cardNumber);
+    
+    if (rowIndex === -1) {
+        throw new HttpError(404, { ok: false, error: `Card with number ${cardNumber} not found.` });
+    }
+    
+    const sheetRowNumber = rowIndex + 2; // +2 because sheet is 1-based and we skipped the header
+
+    // Now, update only the 'notes' cell for that row
+    const range = `${CARDS_TAB}!${notesColumn}${sheetRowNumber}`;
+    await writeSheetValues(accessToken, spreadsheetId, range, [[notes]]);
+    
+    const dateRange = `${CARDS_TAB}!${dateUpdatedColumn}${sheetRowNumber}`;
+    await writeSheetValues(accessToken, spreadsheetId, dateRange, [[new Date().toISOString()]]);
+}
+
+
 function isSheetValuesEmpty(values) {
   return !Array.isArray(values) || values.every((row) => !Array.isArray(row) || row.every((cell) => String(cell ?? "").trim() === ""));
 }
@@ -1020,7 +1131,7 @@ function withCors(request, response, env) {
   const headers = new Headers(response.headers);
   headers.set("Access-Control-Allow-Origin", origin);
   headers.set("Access-Control-Allow-Credentials", "true");
-  headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type");
   headers.set("Vary", appendVary(headers.get("Vary"), "Origin"));
 
