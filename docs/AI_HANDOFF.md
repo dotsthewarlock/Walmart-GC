@@ -60,7 +60,7 @@ Target size: 100-180 lines. Recent steps max: 10. Immediate roadmap max: 5. Open
 - Lane 0 - Codex terminal batch: default terminal-command evidence lane. ChatGPT prepares compact command batches; Codex Cloud runs them in its workspace and reports results.
 - Lane 1 - ChatGPT discussion/review/command drafting: architecture, risk, Material 3 guidance, Codex prompt design, and merge-safety review.
 - Lane 2 - ChatGPT/GitHub connector: one-file or very small bounded docs/config edits where connector writes are safe and repeated user approval prompts are acceptable. The connector uses one-file contents API updates; do not treat it as an atomic multi-file commit/PR authoring lane.
-- Lane 3 - Codex implementation: default lane for multi-file docs/config/workflow edits, coordinated implementation, validation-heavy changes, approval-friction-sensitive work, and workspace commits. Codex Cloud prepares work; platform/manual `Create PR` is the default PR path.
+- Lane 3 - Codex implementation: default lane for multi-file docs/config/workflow edits, coordinated implementation, validation-heavy changes, and approval-friction-sensitive work. Codex Cloud prepares file changes/diffs only; platform/manual `Create PR` is the default PR path.
 - Lane 4 - GitHub Actions lifecycle: validation, eligible green auto-merge after a confirmed PR exists, and cleanup reporting. Push-triggered PR auto-create has been removed/retired; do not replace Codex edits with token/PAT remote injection, pull-based Codex API sync, or a broad workflow that writes arbitrary files.
 
 Connector routing rules:
@@ -85,8 +85,9 @@ Lane 0 mutation boundary:
 
 Lane 0 PR lifecycle durability:
 
-- Strict Lane 0 should not create a PR because it has no edits or commits.
-- Lane 0 plus handoff update may create a docs-only workspace commit, normally touching only `docs/AI_HANDOFF.md`; Codex Cloud platform/manual `Create PR` is the default way to turn that prepared work into a `codex/*` -> `phase-13` GitHub PR. A confirmed GitHub PR URL/number is required before reporting that a PR exists.
+- Strict Lane 0 should not create a PR because it has no edits.
+- Lane 0 plus handoff update may prepare a docs-only diff, normally touching only `docs/AI_HANDOFF.md`; Codex Cloud platform/manual `Create PR` is the default way to turn those prepared changes into a `codex/*` -> `phase-13` GitHub PR. A confirmed GitHub PR URL/number is required before reporting that a PR exists.
+- Codex Cloud prompts must not include commit-creation instructions or commit-message guidance.
 - Push-triggered auto-create has been removed/retired after PR #177 follow-up. Codex Cloud has no authenticated shell push path by default, so platform/manual `Create PR` is the operating model and a confirmed GitHub PR URL/number is required before reporting PR creation. Do not add token/PAT remote injection or pull-based Codex API sync to replace the retired path.
 - Auto-merge may apply only to green-risk `codex/*` -> `phase-13` PRs that pass policy, classifier, branch/base, checks, conflict, label, changed-file, and `--match-head-commit` gates.
 - AI PR auto-merge evaluates on pull request changes and also re-evaluates after completed validation signals: the existing `validate` `workflow_run` path and the less fragile `check_suite` completed path both resolve exactly one open PR by head branch and head SHA before reusing the same final gates.
@@ -109,7 +110,7 @@ Lane 0 PR lifecycle durability:
 - Actor: Codex docs/audit update on `codex/document-codex-cloud-pr-path-and-audit-actions` after PR #177.
 - Latest result: PR #177 was manually created and then auto-merged successfully, so green docs-only auto-merge is proven after a confirmed GitHub PR URL/number exists.
 - Auto-create status: removed/retired. The prior controlled verification stopped before editing because the Codex Cloud workspace had no `origin` remote, no visible authenticated push path, no `gh`, and no push was attempted; therefore the repo now relies on platform/manual `Create PR` instead of push-triggered PR creation.
-- Current operating model: Codex Cloud prepares work; platform/manual `Create PR` is the default PR path for `codex/*` -> `phase-13`; a confirmed GitHub PR URL/number is required before claiming a PR exists; after a confirmed PR exists, GitHub Actions auto-merge may handle eligible green PRs.
+- Current operating model: Codex Cloud produces file changes/diffs only; commit creation is not part of the Codex Cloud workflow. Platform/manual `Create PR` is the default PR path for `codex/*` -> `phase-13`; a confirmed GitHub PR URL/number is required before claiming a PR exists; after a confirmed PR exists, GitHub Actions auto-merge may handle eligible green PRs.
 - Workflow posture: keep auto-create retired. Do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation; keep auto-merge guarded and available after a confirmed PR exists.
 - Scope: docs-only blocker recording and Phase 13 handoff resume; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, policy, workflow permissions, framework/build-step configuration, or app-shell fingerprint changes.
 - Automation baseline: policy `active_base` is `phase-13`; auto-create policy/workflows are retired; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH` and remains eligible only after a confirmed PR URL/number and green gates.
@@ -118,13 +119,13 @@ Lane 0 PR lifecycle durability:
 
 1. Use `docs/PHASE13_MATERIAL3_TOKEN_AUDIT.md` as the current Stage 1A Material 3 token/design planning artifact, with `docs/PHASE13_REACT_TAILWIND_M3_ADR.md` remaining the Phase 13 Stage 1 architecture decision record. Runtime migration, framework/build tooling adoption, and restricted architecture changes remain paused unless separately approved.
 2. Keep runtime migration paused: no framework adoption, build tooling, hosting/deployment change, OAuth/session change, sync/conflict change, schema change, CSV recovery change, app-shell fingerprint change, or active app replacement is approved.
-3. For future `codex/*` -> `phase-13` work, use Codex Cloud platform/manual `Create PR` by default; once a confirmed GitHub PR URL/number exists and checks are green, GitHub Actions auto-merge may proceed if all safety gates pass.
-4. Keep push-triggered auto-create retired; do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation.
+3. For future `codex/*` -> `phase-13` work, have Codex Cloud prepare changes/diffs only and use platform/manual `Create PR` by default; once a confirmed GitHub PR URL/number exists and checks are green, GitHub Actions auto-merge may proceed if all safety gates pass.
+4. Finish cleaning stale commit-creation guidance from active prompts/docs as it is found; keep push-triggered auto-create retired and do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation.
 5. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
 
 ## Open Risks
 
-- Push-triggered AI PR auto-create is removed/retired; the current risk is stale references or attempts to reintroduce PR-creation automation despite Codex Cloud using platform/manual `Create PR` by default.
+- Push-triggered AI PR auto-create is removed/retired; stale commit-creation guidance is being cleaned up so Codex Cloud prepares diffs only and uses platform/manual `Create PR` by default.
 - Green docs-only auto-merge is proven for manually created `codex/*` -> `phase-13` PRs after PR #177, but auto-merge still requires a confirmed GitHub PR URL/number and all normal gates.
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
