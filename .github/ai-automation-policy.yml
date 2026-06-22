@@ -1,7 +1,7 @@
-# Policy knobs for future AI PR lifecycle automation.
-# This file is consumed by .github/scripts/ai_risk_classify.py and is not
-# wired into AI PR creation and auto-merge workflows.
-active_base: phase-12
+# Policy knobs for AI PR lifecycle automation.
+# This file is consumed by .github/scripts/ai_risk_classify.py and the
+# guarded AI PR creation and auto-merge workflows.
+active_base: phase-13
 allowed_head_patterns:
   - codex/**
 auto_pr:

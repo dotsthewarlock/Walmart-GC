@@ -88,26 +88,33 @@ Lane 0 mutation boundary:
 - Clarified the result handoff workflow: task results should be durable in repo docs when practical, and users do not paste completion output by default.
 - Added `scripts/wg13-readonly-phase13.sh` on `phase-13` as a connector-created helper, then superseded it as the default path by adopting direct Codex Cloud Lane 0 terminal batches.
 - Updated active docs so Lane 0 now means Codex Cloud terminal-command batches by default, with user-local terminal only as an exception for local-only state.
+- Retargeted AI PR lifecycle automation policy for Phase 13 and generalized workflow policy/classifier loading from the requested or resolved PR base branch instead of a stale hardcoded Phase 12 source.
 
 ## Current Diagnostic
 
-- Actor: Codex Lane 0 terminal batch in Codex Cloud workspace.
-- Latest result: first Phase 13 Lane 0 inspection batch completed successfully on 2026-06-22.
-- Scope: inspection plus docs-only handoff update.
-- Workspace identity: repository root was `/workspace/Walmart-GC`; local working branch was `work`; no local `main` ref was present, so `main...HEAD` comparison was skipped.
-- Repo state: `git status --short --branch` reported a clean `work` branch before this handoff-only update; `git diff --name-status` and `git diff --stat` were empty before this update.
-- Evidence checked: required docs existed; active docs confirmed Phase 13, Codex Cloud Lane 0 default, mutation boundary, user-local terminal exception, React/Tailwind/Material 3 exploration guardrails, and schema/OAuth/sync/Worker/deployment/hosting restrictions.
-- Runtime files touched: none.
-- Limitation: this validates Codex Cloud workspace state only; it does not verify the user’s local checkout, uncommitted files, local refs, private environment, or machine-specific behavior.
+- Actor: Codex implementation in Codex Cloud workspace.
+- Latest result: Phase 13 AI PR lifecycle automation was retargeted and generalized on 2026-06-22.
+- Scope: workflow/policy/docs update only; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, or deployment route changes.
+- Workspace identity: repository root was `/workspace/Walmart-GC`; local working branch was `work`; intended active PR base is `phase-13` and eligible AI PR heads remain `codex/*`.
+- Files touched: `.github/ai-automation-policy.yml`, `.github/workflows/ai-pr-auto-create.yml`, `.github/workflows/ai-pr-auto-merge.yml`, and `docs/AI_HANDOFF.md`.
+- Policy result: `.github/ai-automation-policy.yml` now sets `active_base: phase-13` while keeping `auto_pr.enabled`, `auto_merge.enabled`, `auto_merge.green`, `codex/**` heads, blocked paths, blocked keywords, binary extensions, and restricted labels conservative.
+- Workflow result: PR auto-create now reads policy from the requested `BASE_BRANCH`; PR auto-merge now reads policy and classifier from the resolved PR `BASE_BRANCH`; stale `POLICY_SOURCE_BRANCH: phase-12` constants were removed.
+- Preserved guards: no automation into `main`, base must match policy `active_base`, create flow checks `docs/CODEX_ACTIVE_CONTEXT.md`, heads must be `codex/*`, duplicate open PRs are reported instead of recreated, draft/conflicted/restricted-label/non-green/pending-or-failed-check PRs do not auto-merge, and squash merge still uses `--match-head-commit`.
+- Validation performed: exact-reference inspection, classifier smoke tests for Phase 13 green/red and wrong-base cases, `git diff --check`, and targeted diff review. No real auto-create or auto-merge was triggered.
+- GitHub Actions UI note: `workflow_dispatch` entries may require the workflow files to exist on the default branch before appearing in the Actions UI; workflow source branch visibility and target branch runtime guards are separate concerns.
+- Remaining risk: workflow changes are safety-sensitive and should be reviewed carefully before relying on unattended PR creation/merge; Actions UI availability may still depend on default-branch workflow registration.
+- Next action: open/review a `codex/*` -> `phase-13` PR for this change; after merge, use only controlled dry-run or non-destructive inspection before any real lifecycle automation test.
 
 ## Immediate Roadmap
 
-1. Continue with Phase 13 project-settings alignment or React/Tailwind/M3 exploration planning from the confirmed Lane 0 baseline.
-2. Use additional Codex Cloud Lane 0 terminal batches for any terminal evidence needed before implementation; do not ask the user to run local terminal commands unless local-only state must be verified.
-3. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
+1. Review and merge the Phase 13 AI PR lifecycle automation update into `phase-13`.
+2. If GitHub Actions UI entries are missing, confirm whether these workflow files also need to exist on the default branch for `workflow_dispatch` visibility while keeping runtime guards pointed at the active phase branch.
+3. Continue with Phase 13 project-settings alignment or React/Tailwind/M3 exploration planning after automation policy is settled.
+4. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
 
 ## Open Risks
 
+- GitHub Actions UI registration may still depend on default-branch workflow presence even when Phase 13 runtime guards are correct.
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
 - `scripts/wg13-readonly-phase13.sh` is now optional/stale relative to the direct Codex Lane 0 default and may be removed in a cleanup pass.
