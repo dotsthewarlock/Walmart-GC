@@ -80,7 +80,8 @@ Lane 0 mutation boundary:
 Lane 0 PR lifecycle durability:
 
 - Strict Lane 0 should not create a PR because it has no edits or commits.
-- Lane 0 plus handoff update may create a docs-only `codex/*` branch, normally touching only `docs/AI_HANDOFF.md`, and may use guarded PR auto-create into `phase-13` when a GitHub PR URL/number can be confirmed.
+- Lane 0 plus handoff update may create a docs-only `codex/*` branch, normally touching only `docs/AI_HANDOFF.md`, and may use guarded PR auto-create into `phase-13` only after push-triggered auto-create is proven by a controlled green dry-run.
+- Auto-create is currently unresolved/unproven in practice: the Codex branch for PR #173 did not auto-create a PR and required manual PR creation.
 - Auto-merge may apply only to green-risk `codex/*` -> `phase-13` PRs that pass policy, classifier, branch/base, checks, conflict, label, changed-file, and `--match-head-commit` gates.
 - AI PR auto-merge evaluates on pull request changes and also re-evaluates after completed validation signals: the existing `validate` `workflow_run` path and the less fragile `check_suite` completed path both resolve exactly one open PR by head branch and head SHA before reusing the same final gates.
 - GitHub Actions UI `workflow_dispatch` registration may require workflow files on the default branch, but runtime policy/context reads and PR targets must remain active-branch scoped.
@@ -89,36 +90,35 @@ Lane 0 PR lifecycle durability:
 
 - Created branch `phase-13` from `phase-12` for contained future-direction discussion.
 - Discussed React + Tailwind + Material 3 migration as a Phase 13 architecture direction, not a Phase 12 change.
-- Clarified the result handoff workflow: task results should be durable in repo docs when practical, and users do not paste completion output by default.
-- Added `scripts/wg13-readonly-phase13.sh` on `phase-13` as a connector-created helper, then superseded it as the default path by adopting direct Codex Cloud Lane 0 terminal batches.
 - Updated active docs so Lane 0 now means Codex Cloud terminal-command batches by default, with user-local terminal only as an exception for local-only state.
 - Retargeted AI PR lifecycle automation policy for Phase 13 and generalized workflow policy/classifier loading from the requested or resolved PR base branch instead of a stale hardcoded Phase 12 source.
 - Reviewed PR #170 after merge and found no blocking issues in the active-phase automation retarget.
 - Batched a docs-only durability update for Lane 0 PR lifecycle support, default-branch workflow-registration caveat, connector edit batching, and Markdown-only recommended-user-input formatting.
-- Updated the AI PR auto-create workflow so pushes to `codex/**` branches create guarded PRs into `phase-13` automatically, while keeping `workflow_dispatch` as a manual fallback.
-- Updated the AI PR auto-merge workflow to add a `check_suite` completed re-evaluation path so eligible green PRs can be reconsidered after independent checks finish, even when the completed signal is not the `validate` workflow_run.
+- Merged PR #172 to add pushed-`codex/**` auto-create support, but observed that the later Codex branch for PR #173 did not auto-create and required manual PR creation.
+- Merged PR #173 to add a `check_suite` completed re-evaluation path for auto-merge after independent checks finish.
 
 ## Current Diagnostic
 
-- Actor: Codex implementation on local `work` branch for `codex/fix-auto-merge-check-reevaluation` -> `phase-13`.
-- Latest result: AI PR auto-merge now preserves pull request triggers and adds a `check_suite` completed trigger. `workflow_run` and `check_suite` events resolve an exact open PR by head branch and head SHA, then reuse the same classifier and merge gates.
-- Scope: workflow/docs-only update; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, policy permissions, or app-shell fingerprint changes.
-- Automation baseline: policy `active_base` is `phase-13`; auto-create reads policy from requested/resolved `BASE_BRANCH`; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH`; guarded green-risk `codex/*` -> active phase gates remain intact; auto-merge still refuses `main`.
-- Lane 0 baseline: strict Lane 0 does not produce PRs; Lane 0 plus handoff update may produce docs-only `codex/*` -> `phase-13` PRs when a confirmed GitHub PR URL/number exists.
+- Actor: ChatGPT connector docs status update on `phase-13` after PR #173 merge.
+- Latest result: PR #173 was manually created and merged after the Codex branch did not auto-create a PR. The pushed-branch auto-create path remains unresolved/unproven in practice.
+- Scope: docs-only status correction; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, workflow, policy, or app-shell fingerprint changes.
+- Automation baseline: policy `active_base` is `phase-13`; auto-create is intended to read policy from requested/resolved `BASE_BRANCH`; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH`; guarded green-risk `codex/*` -> active phase gates remain intact; auto-merge still refuses `main`.
+- Auto-merge status: PR #173 added a post-check `check_suite` re-evaluation path, but green auto-merge is still unproven until a controlled green docs-only dry-run succeeds.
+- Auto-create status: unresolved. Manual PR creation remains the active fallback until a controlled green docs-only pushed `codex/*` branch proves automatic PR creation into `phase-13`.
 - GitHub Actions UI note: `workflow_dispatch` entries may require the workflow files to exist on the default branch before appearing in the Actions UI; workflow source branch visibility and target branch runtime guards are separate concerns.
-- Remaining risk: full unattended lifecycle is not yet proven; run a controlled green docs-only dry-run to confirm push auto-create plus post-check auto-merge re-evaluation behavior before relying on it for important changes.
 
 ## Immediate Roadmap
 
-1. Push this workflow/docs branch as `codex/fix-auto-merge-check-reevaluation` and open a guarded PR into `phase-13`.
-2. After it lands, run one controlled green docs-only `codex/*` -> `phase-13` dry-run that waits for independent checks to complete, then verify auto-merge re-evaluates via the post-check path and uses `--match-head-commit`.
-3. If push auto-create or post-check auto-merge does not run, use the preserved manual fallback and record the exact blocker.
-4. Continue Option D Stage 0 evidence gathering for React/Tailwind/M3 migration planning after automation durability is settled.
+1. Do not rely on unattended PR auto-create yet; use manual PR creation fallback for Codex branches until a successful green dry-run proves auto-create.
+2. When automation testing resumes, run one controlled green docs-only `codex/*` -> `phase-13` dry-run that specifically checks pushed-branch auto-create and post-check auto-merge re-evaluation.
+3. If push auto-create or post-check auto-merge does not run, document the exact blocker and keep manual fallback active.
+4. Continue Option D Stage 0 evidence gathering for React/Tailwind/M3 migration planning after automation durability is settled or intentionally paused.
 5. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
 
 ## Open Risks
 
-- Push-triggered AI PR auto-create and post-check AI PR auto-merge re-evaluation need one controlled green docs-only dry-run; manual fallback remains available if GitHub Actions registration or trigger behavior blocks automation.
+- Push-triggered AI PR auto-create is unresolved/unproven; PR #173 required manual PR creation after the Codex branch did not auto-create a PR.
+- Post-check AI PR auto-merge re-evaluation is patched but unproven until a controlled green docs-only dry-run confirms it.
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
 - `scripts/wg13-readonly-phase13.sh` is now optional/stale relative to the direct Codex Lane 0 default and may be removed in a cleanup pass.
