@@ -1,9 +1,14 @@
 name: AI PR auto-create
 
 on:
+  # Keep push as the primary same-branch trigger for pushed Codex work.
   push:
     branches:
       - "codex/**"
+  # Keep create as a default-branch registration fallback for platforms that create
+  # a codex/* branch ref before later pushes are observable by same-branch workflows.
+  # The job script still refuses every non-codex head and every non-phase-13 base.
+  create:
   workflow_dispatch:
     inputs:
       head_branch:
@@ -28,7 +33,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: "ai-pr-auto-create-${{ github.event_name == 'push' && github.ref_name || inputs.head_branch }}-${{ github.event_name == 'push' && 'phase-13' || inputs.base_branch }}"
+  group: "ai-pr-auto-create-${{ (github.event_name == 'push' || github.event_name == 'create') && github.ref_name || inputs.head_branch }}-${{ (github.event_name == 'push' || github.event_name == 'create') && 'phase-13' || inputs.base_branch }}"
   cancel-in-progress: false
 
 
@@ -47,11 +52,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_BRANCH: "${{ github.event_name == 'push' && github.ref_name || inputs.head_branch }}"
-          BASE_BRANCH: "${{ github.event_name == 'push' && 'phase-13' || inputs.base_branch }}"
-          PR_TITLE: "${{ github.event_name == 'push' && format('AI: {0}', github.ref_name) || inputs.title }}"
-          PR_BODY: "${{ github.event_name == 'push' && format('Automated guarded PR for `{0}` into `phase-13` after a codex/* branch push. Manual workflow_dispatch remains available as a fallback.', github.ref_name) || inputs.body }}"
+          HEAD_BRANCH: "${{ (github.event_name == 'push' || github.event_name == 'create') && github.ref_name || inputs.head_branch }}"
+          BASE_BRANCH: "${{ (github.event_name == 'push' || github.event_name == 'create') && 'phase-13' || inputs.base_branch }}"
+          PR_TITLE: "${{ (github.event_name == 'push' || github.event_name == 'create') && format('AI: {0}', github.ref_name) || inputs.title }}"
+          PR_BODY: "${{ (github.event_name == 'push' || github.event_name == 'create') && format('Automated guarded PR for `{0}` into `phase-13` after a codex/* branch push or branch-registration event. Manual workflow_dispatch remains available as a fallback.', github.ref_name) || inputs.body }}"
           TRIGGER_EVENT: "${{ github.event_name }}"
+          REF_TYPE: "${{ github.ref_type }}"
         run: |
           set -euo pipefail
 
@@ -66,6 +72,21 @@ jobs:
           echo "Requested head branch: ${HEAD_BRANCH}"
           echo "Requested base branch: ${BASE_BRANCH}"
           echo "Reading policy from requested base branch ${BASE_BRANCH}."
+
+          if [ "${TRIGGER_EVENT}" = "create" ] && [ "${REF_TYPE}" != "branch" ]; then
+            echo "Skipping create event for non-branch ref type ${REF_TYPE}."
+            exit 0
+          fi
+
+          case "${HEAD_BRANCH}" in
+            codex/*) ;;
+            *)
+              if [ "${TRIGGER_EVENT}" = "create" ]; then
+                echo "Skipping non-codex branch registration event for ${HEAD_BRANCH}."
+                exit 0
+              fi
+              ;;
+          esac
 
           gh api -H "Accept: application/vnd.github.raw" \
             "/repos/${GITHUB_REPOSITORY}/contents/.github/ai-automation-policy.yml?ref=${BASE_BRANCH}" > "${policy_file}"

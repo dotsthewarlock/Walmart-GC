@@ -81,7 +81,7 @@ Lane 0 PR lifecycle durability:
 
 - Strict Lane 0 should not create a PR because it has no edits or commits.
 - Lane 0 plus handoff update may create a docs-only `codex/*` branch, normally touching only `docs/AI_HANDOFF.md`, and may use guarded PR auto-create into `phase-13` only after push-triggered auto-create is proven by a controlled green dry-run.
-- Auto-create is currently unresolved/unproven in practice: the Codex branch for PR #173 did not auto-create a PR and required manual PR creation.
+- Auto-create fix is prepared in `codex/fix-auto-create-registration-and-trigger`: keep pushed `codex/**` auto-create and add a guarded `create` registration fallback for `codex/*` branch refs. The likely blocker for PR #173 was that `ai-pr-auto-create.yml` was not registered on `main`/default when the Codex branch was pushed, so same-branch push auto-create remained unproven. This PR itself still requires human review/manual PR fallback unless the fixed workflow is first present on the default branch.
 - Auto-merge may apply only to green-risk `codex/*` -> `phase-13` PRs that pass policy, classifier, branch/base, checks, conflict, label, changed-file, and `--match-head-commit` gates.
 - AI PR auto-merge evaluates on pull request changes and also re-evaluates after completed validation signals: the existing `validate` `workflow_run` path and the less fragile `check_suite` completed path both resolve exactly one open PR by head branch and head SHA before reusing the same final gates.
 - GitHub Actions UI `workflow_dispatch` registration may require workflow files on the default branch, but runtime policy/context reads and PR targets must remain active-branch scoped.
@@ -100,16 +100,16 @@ Lane 0 PR lifecycle durability:
 ## Current Diagnostic
 
 - Actor: ChatGPT connector docs status update on `phase-13` after PR #173 merge.
-- Latest result: PR #173 was manually created and merged after the Codex branch did not auto-create a PR. The pushed-branch auto-create path remains unresolved/unproven in practice.
-- Scope: docs-only status correction; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, workflow, policy, or app-shell fingerprint changes.
+- Latest result: PR #173 was manually created and merged after the Codex branch did not auto-create a PR. Inspection found the auto-create workflow on `phase-13` but not confirmed on `main`/default from the local workspace; GitHub Actions docs confirm `workflow_dispatch` requires default-branch registration, while `push` normally uses the pushed branch workflow. The current fix keeps `push` for `codex/**`, adds a guarded `create` fallback for branch registration, and documents that main/default workflow registration remains the key remaining proof point.
+- Scope: workflow/docs-only auto-create durability fix; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, policy, permissions, or app-shell fingerprint changes.
 - Automation baseline: policy `active_base` is `phase-13`; auto-create is intended to read policy from requested/resolved `BASE_BRANCH`; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH`; guarded green-risk `codex/*` -> active phase gates remain intact; auto-merge still refuses `main`.
 - Auto-merge status: PR #173 added a post-check `check_suite` re-evaluation path, but green auto-merge is still unproven until a controlled green docs-only dry-run succeeds.
-- Auto-create status: unresolved. Manual PR creation remains the active fallback until a controlled green docs-only pushed `codex/*` branch proves automatic PR creation into `phase-13`.
+- Auto-create status: fix prepared but unproven. Manual PR creation remains the active fallback for this workflow-fix PR unless GitHub auto-creates it after the branch is pushed; after merge/registration, a controlled green docs-only pushed `codex/*` branch must prove automatic PR creation into `phase-13`.
 - GitHub Actions UI note: `workflow_dispatch` entries may require the workflow files to exist on the default branch before appearing in the Actions UI; workflow source branch visibility and target branch runtime guards are separate concerns.
 
 ## Immediate Roadmap
 
-1. Do not rely on unattended PR auto-create yet; use manual PR creation fallback for Codex branches until a successful green dry-run proves auto-create.
+1. Human-review this workflow-fix PR and do not auto-merge it; use manual PR creation fallback if the branch push does not auto-create a PR.
 2. When automation testing resumes, run one controlled green docs-only `codex/*` -> `phase-13` dry-run that specifically checks pushed-branch auto-create and post-check auto-merge re-evaluation.
 3. If push auto-create or post-check auto-merge does not run, document the exact blocker and keep manual fallback active.
 4. Continue Option D Stage 0 evidence gathering for React/Tailwind/M3 migration planning after automation durability is settled or intentionally paused.
