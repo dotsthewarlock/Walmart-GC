@@ -142,6 +142,8 @@ Who acts: <ChatGPT | Codex Lane 0 terminal | Codex implementation | GitHub Actio
 Continue with: "<exact prompt or command>"
 ```
 
+Exact user instruction prompts, including Codex-ready prompts and continuation prompts, should be provided as fenced Markdown code blocks.
+
 Only the exact next recommended user input should be formatted as Markdown/fenced text. Do not format explanatory user-input summaries as Markdown.
 
 Use `next` for a very short checkpoint. Use `next actions` for action items plus the exact continuation prompt. For both, first determine prior task status from `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md`; ask the user for pasted completion output only when the repo docs are missing, stale, or contradictory.
