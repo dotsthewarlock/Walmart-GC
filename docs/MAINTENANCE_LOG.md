@@ -31,14 +31,14 @@ Garbage-collection triggers:
 
 ## Outstanding items
 
-### P2 / Medium / Workflow: verify Phase 13 AI Actions UI registration and dry-run lifecycle
+### P2 / Medium / Workflow: resolve Phase 13 AI PR auto-create and dry-run lifecycle
 
-- Source: PR #170 review and Lane 0 PR lifecycle durability docs update on 2026-06-22.
+- Source: PR #170 review, PR #172 auto-create update, PR #173 auto-merge re-evaluation update, and observed manual PR creation on 2026-06-22.
 - Status: Open.
-- Context: Phase 13 automation retarget is active-phase generalized: policy active_base is phase-13, auto-create reads policy from requested/resolved BASE_BRANCH, push-triggered auto-create is intended for codex/** branch pushes, and auto-merge reads policy/classifier from resolved PR BASE_BRANCH. Auto-merge now has a `check_suite` completed re-evaluation path in addition to the `validate` workflow_run path. Remaining caveat: the full auto-create plus post-check auto-merge lifecycle still needs one live controlled green docs-only validation; manual workflow_dispatch remains the fallback.
-- Suggested action: push a controlled docs-only codex/* branch and confirm the push-triggered auto-create workflow opens a guarded PR into phase-13. Let independent checks complete, then confirm auto-merge re-evaluates through a post-check path and merges only if all green gates pass. If a trigger is unavailable, use workflow_dispatch/manual fallback and document the blocker.
-- Guardrails: workflow validation only; do not change runtime files, Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, deployment routes, hosting, framework/build-step configuration, or app-shell fingerprints. Any workflow/default-branch registration change is safety-sensitive and should be reviewed separately.
-- Acceptance: a pushed codex/* branch automatically creates a guarded phase-13 PR, or workflow_dispatch fallback and the blocker are documented; a controlled docs-only dry-run proves create plus post-check merge re-evaluation behavior or documents the blocker; runtime guards still refuse main and require codex/* -> phase-13 eligibility.
+- Context: Phase 13 automation retarget is active-phase generalized: policy active_base is phase-13, auto-create reads policy from requested/resolved BASE_BRANCH, push-triggered auto-create is intended for codex/** branch pushes, and auto-merge reads policy/classifier from resolved PR BASE_BRANCH. Auto-merge now has a `check_suite` completed re-evaluation path in addition to the `validate` workflow_run path. However, the Codex branch that became PR #173 did not auto-create a PR and required manual PR creation, so pushed-branch auto-create remains unresolved/unproven in practice. Manual PR creation remains the active fallback.
+- Suggested action: when automation validation resumes, push a controlled green docs-only codex/* branch and confirm whether the push-triggered auto-create workflow opens a guarded PR into phase-13 without manual PR creation. Let independent checks complete, then confirm auto-merge re-evaluates through a post-check path and merges only if all green gates pass. If a trigger is unavailable or does not fire, document the exact blocker and keep workflow_dispatch/manual PR creation as fallback.
+- Guardrails: workflow validation only; do not change runtime files, Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, deployment routes, hosting, framework/build-step configuration, or app-shell fingerprints. Any workflow/default-branch registration or permission change is safety-sensitive and should be reviewed separately.
+- Acceptance: a pushed codex/* branch automatically creates a guarded phase-13 PR, or workflow_dispatch/manual fallback and the blocker are documented; a controlled docs-only dry-run proves create plus post-check merge re-evaluation behavior or documents the blocker; runtime guards still refuse main and require codex/* -> phase-13 eligibility.
 
 ### P3 / Low / Tooling: optional Lane 0 helper script superseded
 
