@@ -117,7 +117,7 @@ Lane 0 PR lifecycle durability:
 
 ## Immediate Roadmap
 
-1. Use `docs/PHASE13_MATERIAL3_TOKEN_AUDIT.md` as the current Stage 1A Material 3 token/design planning artifact, with `docs/PHASE13_REACT_TAILWIND_M3_ADR.md` remaining the Phase 13 Stage 1 architecture decision record. Runtime migration, framework/build tooling adoption, and restricted architecture changes remain paused unless separately approved.
+1. Use `docs/PHASE13_MATERIAL3_COMPONENT_INVENTORY.md` as the current Stage 1C Material 3 visual/component inventory planning artifact, with `docs/PHASE13_MATERIAL3_TOKEN_MAP.md` as the Stage 1B token map and `docs/PHASE13_REACT_TAILWIND_M3_ADR.md` as the Phase 13 Stage 1 architecture decision record. Runtime migration, framework/build tooling adoption, and restricted architecture changes remain paused unless separately approved.
 2. Keep runtime migration paused: no framework adoption, build tooling, hosting/deployment change, OAuth/session change, sync/conflict change, schema change, CSV recovery change, app-shell fingerprint change, or active app replacement is approved.
 3. For future `codex/*` -> `phase-13` work, have Codex Cloud prepare changes/diffs only and use platform/manual `Create PR` by default; once a confirmed GitHub PR URL/number exists and checks are green, GitHub Actions auto-merge may proceed if all safety gates pass.
 4. Finish cleaning stale commit-creation guidance from active prompts/docs as it is found; keep push-triggered auto-create retired and do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation.
