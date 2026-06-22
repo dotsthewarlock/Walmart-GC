@@ -161,7 +161,7 @@ Lane 0 PR lifecycle support:
 
 - Lane 0 — Codex terminal batch: default terminal-command evidence lane for Phase 13. ChatGPT prepares compact command batches, Codex Cloud runs them in its workspace, and Codex reports results. Use for repo inspection, validation evidence, dependency/build experiments, controlled migration spikes, and other tasks where terminal evidence is needed.
 - Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-13` PRs.
-- Lane B — ChatGPT/GitHub connector small edits: use for compact low-risk changes when the file shape is connector-friendly and a PR path is clear.
+- Lane B — ChatGPT/GitHub connector small edits: use only for one-file or very small bounded docs/config edits when the file shape is connector-friendly and repeated user approval prompts are acceptable; it is not an atomic multi-file commit/PR authoring lane.
 - Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, workflow-permission, framework, or build-step changes.
 - Lane D — GitHub-native PR lifecycle automation: create PRs, validate, squash-merge when approved/eligible, and report cleanup.
 
@@ -196,13 +196,14 @@ Prefer the lowest-friction safe lane for each task. These rules apply across Wal
 
 1. Start with the hierarchy: `CODEX_ACTIVE_CONTEXT` -> `AI_HANDOFF` -> `MAINTENANCE_LOG`.
 2. Use Lane 0 Codex terminal batches for repo command evidence, validation, dependency/build experiments, controlled migration spikes, and terminal checks that ChatGPT cannot run directly. State whether the batch is strict read-only or inspection plus docs-only handoff update.
-3. Use ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector edits into one prompt/session when possible so the user can approve connector write permission once; queue follow-up edits as next steps instead of repeatedly prompting for connector permissions.
-4. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
-5. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
-6. Use Lane A Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
-7. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
-8. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings or environment access that ChatGPT and Codex cannot safely perform.
-9. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
+3. Use ChatGPT direct tool or connector action only for one-file or very small bounded, connector-friendly docs/config edits and metadata-only actions where repeated approval prompts are acceptable. The connector writes through one-file contents API updates and must not be treated as an atomic multi-file commit/PR lane.
+4. Route multi-file docs/config/workflow edits to Codex by default. Use Codex for coordinated edits, validation-heavy work, workflow edits, or any change where user approval friction matters.
+5. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
+6. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and route remaining work to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
+7. Use Lane A Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply. Native GitHub Actions PR lifecycle should operate after Codex pushes a `codex/*` branch; do not replace Codex edits with a broad workflow that writes arbitrary files.
+8. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
+9. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings or environment access that ChatGPT and Codex cannot safely perform.
+10. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
 
 Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, connector actions, Codex, or Lane 0 terminal batches. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
 
