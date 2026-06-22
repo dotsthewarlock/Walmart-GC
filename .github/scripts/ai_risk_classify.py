@@ -132,14 +132,24 @@ def classify(policy: dict[str, Any], changed_files: list[str], base: str, head: 
     if binary_hits:
         red_reasons.append("binary extension changed: " + ", ".join(binary_hits))
 
+    all_changed_files_are_low_risk = bool(changed_files) and all(
+        matches_any(path, low_risk_paths) for path in changed_files
+    )
+
     keyword_hits = [keyword for keyword in blocked_keywords if keyword in diff_text]
     if keyword_hits:
-        red_reasons.append("blocked keyword found in diff: " + ", ".join(keyword_hits))
+        if all_changed_files_are_low_risk:
+            reasons.append(
+                "blocked keyword mention ignored because all changed files match low-risk paths: "
+                + ", ".join(keyword_hits)
+            )
+        else:
+            red_reasons.append("blocked keyword found in diff: " + ", ".join(keyword_hits))
 
     if red_reasons:
         risk = "red"
         reasons.extend(red_reasons)
-    elif changed_files and all(matches_any(path, low_risk_paths) for path in changed_files):
+    elif all_changed_files_are_low_risk:
         risk = "green"
         reasons.append("all changed files match low-risk paths")
     else:
