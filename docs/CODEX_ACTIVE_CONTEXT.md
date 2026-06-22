@@ -153,7 +153,7 @@ Lane 0 PR lifecycle support:
 
 - Strict Lane 0 does not produce a PR: terminal commands are inspection/validation only, with no edits or commits.
 - Lane 0 plus handoff update may produce a docs-only diff, normally `docs/AI_HANDOFF.md`; if that diff is committed or platform-submitted on a `codex/*` branch, the AI PR lifecycle may create a guarded PR into `phase-13`.
-- GitHub Actions auto-create/auto-merge may be used for Lane 0 outputs only after a confirmed GitHub PR URL/number exists. Codex workspace commits, local `work` branches, and “Created PR metadata” alone are not enough.
+- GitHub Actions auto-merge may be used for Lane 0 outputs only after a confirmed GitHub PR URL/number exists. Codex workspace commits, local `work` branches, and “Created PR metadata” alone are not enough. After PR #177, green docs-only auto-merge is proven for manually created `codex/*` -> `phase-13` PRs, while pushed-branch auto-create remains unresolved/unproven because the latest Codex Cloud verification had no `origin` remote and no push was attempted.
 - Auto-merge remains eligible only for green-risk `codex/*` -> `phase-13` PRs that pass policy, classifier, branch/base, checks, conflict, SHA, label, and restricted-path gates.
 - Workflow file availability in the GitHub Actions UI and workflow runtime target are separate: default-branch workflow registration may be required for manual `workflow_dispatch`, but policy/context reads and PR targets must remain active-branch scoped.
 
