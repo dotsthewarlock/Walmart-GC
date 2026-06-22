@@ -265,8 +265,44 @@ jobs:
           status_count="$(printf '%s' "${status_json}" | jq -r '.statuses | length')"
           checks_json="$(gh api -H "Accept: application/vnd.github+json" "/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100")"
           checks_total="$(printf '%s' "${checks_json}" | jq -r '.total_count')"
-          failed_checks="$(printf '%s' "${checks_json}" | jq -r --arg run_id "${GITHUB_RUN_ID}" '[.check_runs[] | select((.details_url | contains($run_id) | not) and (.status == "completed") and (.conclusion != "success"))] | length')"
-          pending_checks="$(printf '%s' "${checks_json}" | jq -r --arg run_id "${GITHUB_RUN_ID}" '[.check_runs[] | select((.details_url | contains($run_id) | not) and (.status != "completed"))] | length')"
+          self_check_name="Classify and green-gate auto-merge"
+          self_workflow_name="AI PR auto-merge"
+          independent_checks_filter='
+            def maybe_text: if . == null then "" else tostring end;
+            def self_check_run($run_id; $self_check_name; $self_workflow_name):
+              (.name == $self_check_name)
+              or ((.details_url // "") | contains($run_id))
+              or ((.workflow_name? | maybe_text) == $self_workflow_name)
+              or ((.check_suite.workflow.name? | maybe_text) == $self_workflow_name)
+              or ((.check_suite.workflow_run.name? | maybe_text) == $self_workflow_name)
+              or ((.check_suite.workflow_run.workflow_name? | maybe_text) == $self_workflow_name);
+            [.check_runs[] | select(self_check_run($run_id; $self_check_name; $self_workflow_name) | not)]
+          '
+          independent_failed_check_names="$(printf '%s' "${checks_json}" | jq -r \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            --arg self_check_name "${self_check_name}" \
+            --arg self_workflow_name "${self_workflow_name}" \
+            "${independent_checks_filter} | map(select((.status == \"completed\") and (.conclusion != \"success\")) | .name) | .[]")"
+          independent_pending_check_names="$(printf '%s' "${checks_json}" | jq -r \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            --arg self_check_name "${self_check_name}" \
+            --arg self_workflow_name "${self_workflow_name}" \
+            "${independent_checks_filter} | map(select(.status != \"completed\") | .name) | .[]")"
+          failed_checks="$(printf '%s\n' "${independent_failed_check_names}" | sed '/^$/d' | wc -l | tr -d ' ')"
+          pending_checks="$(printf '%s\n' "${independent_pending_check_names}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+          echo "Independent failed check runs after self-filtering:"
+          if [ -n "${independent_failed_check_names}" ]; then
+            printf '%s\n' "${independent_failed_check_names}" | sed 's/^/- /'
+          else
+            echo "- none"
+          fi
+          echo "Independent pending check runs after self-filtering:"
+          if [ -n "${independent_pending_check_names}" ]; then
+            printf '%s\n' "${independent_pending_check_names}" | sed 's/^/- /'
+          else
+            echo "- none"
+          fi
 
           if [ "${status_count}" -gt 0 ]; then
             case "${status_state}" in
