@@ -31,11 +31,20 @@ Garbage-collection triggers:
 
 ## Outstanding items
 
+### P3 / Low / Tooling: optional Lane 0 helper script superseded
+
+- Source: Phase 13 Lane 0 workflow clarification on 2026-06-21.
+- Status: Open.
+- Context: `scripts/wg13-readonly-phase13.sh` was added as a connector-created helper for a user-local terminal path, then Phase 13 workflow was clarified so Lane 0 defaults to direct Codex Cloud terminal-command batches. The script is harmless but no longer the default path.
+- Suggested action: during a low-risk docs/tooling cleanup, either remove the script or clearly mark it as optional legacy/local helper tooling.
+- Guardrails: cleanup only; do not touch runtime files, Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, deployment config, workflow permissions, or framework/build-step configuration.
+- Acceptance: active docs continue to define Lane 0 as Codex Cloud terminal batches by default, and no user-facing roadmap asks the user to run terminal commands unless local-only state must be verified.
+
 ### P3 / Low / Validation: conflict-marker scan false positive in workflow file
 
 - Source: PR #153, merged to `phase-12` on 2026-06-20.
 - Status: Open.
-- Context: `grep -R "<<<<<<<\\|=======\\|>>>>>>>" .` reported a literal marker-like detector pattern inside `.github/workflows/validate.yml`, not an actual merge conflict marker.
+- Context: `grep -R "<<<<<<<\|=======\|>>>>>>>" .` reported a literal marker-like detector pattern inside `.github/workflows/validate.yml`, not an actual merge conflict marker.
 - Suggested action: during the next validation cleanup, standardize future conflict-marker scans to an anchored pattern such as `grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' . --exclude-dir=.git` or an equivalent command that does not match the detector command itself.
 - Guardrails: validation/docs cleanup only; do not touch runtime files, Worker, OAuth/session, sync/conflict, schema/header mapping, CSV import/export, deployment config, or automation permissions.
 - Acceptance: validation reports no longer flag the conflict-marker detector command itself, while real conflict markers are still detected.
