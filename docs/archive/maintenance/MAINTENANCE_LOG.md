@@ -1,3 +1,9 @@
+# Archived Maintenance Log
+
+Historical note: active deferred maintenance/backlog tracking moved to `docs/AI_HANDOFF.md` on 2026-06-22. This archived file preserves the old root-level maintenance log for historical reference only; do not keep active outstanding items duplicated here.
+
+---
+
 # Maintenance Log
 
 Purpose: durable tracking for non-blocking cleanup, artifacts, validation gaps, and minor follow-ups that should not live only in chat memory.

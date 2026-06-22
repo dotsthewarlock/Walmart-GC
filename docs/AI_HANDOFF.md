@@ -1,6 +1,6 @@
 # AI Handoff
 
-Read `docs/CODEX_ACTIVE_CONTEXT.md` first, then this file, before any in-scope AI lane action. This file is the rolling cross-lane handoff ledger for Phase 13. It should stay compact, current, and pruned.
+Read `docs/CODEX_ACTIVE_CONTEXT.md` first, then this file, before any in-scope AI lane action. This file is the single active rolling cross-lane operational handoff and deferred-maintenance/backlog ledger for Phase 13. It should stay compact, current, and pruned.
 
 ## Current State
 
@@ -21,7 +21,7 @@ This applies to ChatGPT discussion/review, ChatGPT/GitHub connector edits, Codex
 
 ## Result Handoff Rule
 
-Codex, terminal, GitHub Actions, and connector tasks should write durable status into the repo when practical, preferably by updating `docs/AI_HANDOFF.md` and using `docs/MAINTENANCE_LOG.md` only for deferred or unresolved follow-up.
+Codex, terminal, GitHub Actions, and connector tasks should write durable status into the repo when practical by updating `docs/AI_HANDOFF.md`. Use this file for current state, recent steps, current diagnostic, immediate roadmap, open risks, and deferred maintenance/backlog. Do not create or update a separate active maintenance log; the old maintenance log is archived at `docs/archive/maintenance/MAINTENANCE_LOG.md` for historical reference only.
 
 Users do not paste task completion output by default. When the user says `next` or `next actions`, ChatGPT must determine prior task status from `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md` first, then ask for pasted output only if the repo docs are insufficient or contradictory.
 
@@ -37,7 +37,7 @@ Keep:
 - next 3-5 immediate roadmap items
 - live risks that still affect the next decision
 
-Move to `docs/MAINTENANCE_LOG.md`:
+Keep in `## Deferred Maintenance / Backlog`:
 
 - deferred cleanup
 - non-immediate validation gaps
@@ -129,6 +129,16 @@ Lane 0 PR lifecycle durability:
 - Project settings may still point to Phase 12 until updated after repo docs land.
 - React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
 - `scripts/wg13-readonly-phase13.sh` is now optional/stale relative to the direct Codex Lane 0 default and may be removed in a cleanup pass.
+
+## Deferred Maintenance / Backlog
+
+Use this section as the single active deferred-maintenance ledger. Keep entries compact; preserve priority/risk/area labels when useful; remove resolved entries rather than duplicating completed PR summaries. Use GitHub Issues instead of this ledger for assigned, blocking, or soon-actionable work.
+
+- P2 / Low / Workflow: audit legacy GitHub Actions and PR-lane artifacts. Current docs say Codex Cloud platform/manual `Create PR` is the default and push-triggered auto-create is retired. In a separately approved cleanup, consider removing or archiving `.github/workflows/ai-pr-merge.yml`, `.github/workflows/agent-low-risk-guard.yml`, `docs/agent-auto-pr-lane-handoff.md`, and `scripts/wg13-readonly-phase13.sh`; treat `.github/workflows/validate.yml` and `.github/workflows/ai-cleanup-report.yml` as riskier because branch-target or governance behavior changes need explicit approval. Do not change workflow permissions, runtime files, Worker, OAuth/session, sync/conflict, schema, CSV recovery, hosting/deployment, framework/build-step configuration, token/PAT handling, or app-shell fingerprints without separate approval.
+- P3 / Low / Tooling: optional Lane 0 helper script `scripts/wg13-readonly-phase13.sh` is superseded by direct Codex Cloud terminal-command batches. During low-risk docs/tooling cleanup, remove it or mark it optional legacy/local helper tooling; preserve Lane 0 as Codex Cloud terminal batches by default.
+- P3 / Low / Validation: future conflict-marker scans should use an anchored pattern such as `grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' . --exclude-dir=.git` or equivalent so detector commands do not match themselves.
+- P2 / Low / UI-CSS: Settings gear active CSS has harmless duplicate/phase-layered selectors. Bundle consolidation with a UI-only CSS polish PR; preserve visible behavior and avoid Worker, OAuth/session, sync/conflict, schema, CSV, or deployment changes.
+- P3 / Low / Validation: Diagnostics helper desktop/mobile browser visual check remains unperformed because no browser binary was available in the container. A quick manual browser check can confirm normal and shell-mismatch wrapping at desktop and narrow widths.
 
 ## Next Actions Behavior
 
