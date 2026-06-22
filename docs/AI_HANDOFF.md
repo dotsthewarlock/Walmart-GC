@@ -59,9 +59,15 @@ Target size: 100-180 lines. Recent steps max: 10. Immediate roadmap max: 5. Open
 
 - Lane 0 - Codex terminal batch: default terminal-command evidence lane. ChatGPT prepares compact command batches; Codex Cloud runs them in its workspace and reports results.
 - Lane 1 - ChatGPT discussion/review/command drafting: architecture, risk, Material 3 guidance, Codex prompt design, and merge-safety review.
-- Lane 2 - ChatGPT/GitHub connector: small, bounded docs/config edits where connector writes are safe.
-- Lane 3 - Codex implementation: broader implementation, coordinated multi-file migration work, validation-heavy changes, and workspace commits.
-- Lane 4 - GitHub Actions lifecycle: PR creation, validation, merge, and cleanup automation when configured and eligible.
+- Lane 2 - ChatGPT/GitHub connector: one-file or very small bounded docs/config edits where connector writes are safe and repeated user approval prompts are acceptable. The connector uses one-file contents API updates; do not treat it as an atomic multi-file commit/PR authoring lane.
+- Lane 3 - Codex implementation: default lane for multi-file docs/config/workflow edits, coordinated implementation, validation-heavy changes, approval-friction-sensitive work, and workspace commits.
+- Lane 4 - GitHub Actions lifecycle: PR creation, validation, merge, and cleanup automation when configured and eligible. Native GitHub Actions PR lifecycle should operate after Codex pushes a `codex/*` branch; do not replace Codex edits with a broad workflow that writes arbitrary files.
+
+Connector routing rules:
+
+- Route multi-file docs, config, and workflow edits to Codex by default, even when the files are low-risk.
+- Use Codex for coordinated edits, validation-heavy work, workflow edits, or any change where user approval friction matters.
+- If a connector write blocks or fails, stop connector writes and route the remaining work to Codex instead of retrying repeatedly.
 
 Lane 0 terminal convention:
 
@@ -139,4 +145,4 @@ Only the exact next recommended user input should be formatted as Markdown/fence
 
 Use `next` for a very short checkpoint. Use `next actions` for action items plus the exact continuation prompt. For both, first determine prior task status from `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/AI_HANDOFF.md`; ask the user for pasted completion output only when the repo docs are missing, stale, or contradictory.
 
-Batch safe ChatGPT connector edits when possible so the user approves connector write permission once per prompt/session. Queue follow-up edits as next steps instead of repeatedly prompting for connector permissions.
+Keep ChatGPT connector edits intentionally small: one-file or very small bounded docs/config updates only when repeated approval prompts are acceptable. Route multi-file, workflow, coordinated, validation-heavy, or approval-friction-sensitive edits to Codex instead; if one connector write blocks or fails, stop connector writes and hand the remaining work to Codex.
