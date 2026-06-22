@@ -9,6 +9,7 @@ Read `docs/CODEX_ACTIVE_CONTEXT.md` first, then this file, before any in-scope A
 - Phase direction: evaluate and stage a React + Tailwind + Material 3-aligned frontend migration while preserving the current Worker OAuth/session/sync architecture.
 - Current app architecture remains GitHub Pages frontend plus Cloudflare Worker same-origin `/auth/*` and `/api/*` routes.
 - Runtime guardrails remain unchanged: do not alter schema, OAuth scope, auth/session, sync/conflict behavior, CSV recovery, Worker routes, deployment, or hosting unless explicitly approved as a separate focused task.
+- Phase 13 PR 1 is approved as an isolated scaffold only: React + Tailwind + Material 3 build files may live under `react-app/` without replacing the active production runtime.
 
 ## AI Handoff-First Rule
 
@@ -96,39 +97,33 @@ Lane 0 PR lifecycle durability:
 ## Recent Steps
 
 - Created branch `phase-13` from `phase-12` for contained future-direction discussion.
-- Discussed React + Tailwind + Material 3 migration as a Phase 13 architecture direction, not a Phase 12 change.
-- Updated active docs so Lane 0 now means Codex Cloud terminal-command batches by default, with user-local terminal only as an exception for local-only state.
-- Retargeted AI PR lifecycle automation policy for Phase 13 and generalized workflow policy/classifier loading from the requested or resolved PR base branch instead of a stale hardcoded Phase 12 source.
-- Reviewed PR #170 after merge and found no blocking issues in the active-phase automation retarget.
-- Batched a docs-only durability update for Lane 0 PR lifecycle support, default-branch workflow-registration caveat, connector edit batching, and Markdown-only recommended-user-input formatting.
-- Merged PR #172 to add pushed-`codex/**` auto-create support, but observed that the later Codex branch for PR #173 did not auto-create and required manual PR creation.
-- Merged PR #173 to add a `check_suite` completed re-evaluation path for auto-merge after independent checks finish.
-- PR #177 was manually created and then auto-merged successfully, proving green docs-only auto-merge after a confirmed `codex/*` -> `phase-13` PR exists; Codex Cloud platform/manual `Create PR` is now the default PR path, while pushed-branch auto-create has been removed/retired because the Codex Cloud workspace had no authenticated push path.
+- Completed the Stage 1 planning ladder: React/Tailwind/M3 ADR, Material 3 token audit, token map, component inventory, and decision checkpoint.
+- PR #177 was manually created and then auto-merged successfully, proving green docs-only auto-merge after a confirmed `codex/*` -> `phase-13` PR exists; Codex Cloud platform/manual `Create PR` remains the default PR path.
+- User explicitly approved proceeding from planning into migration with the fewest safe steps.
+- Current implementation step: Phase 13 PR 1 adds an isolated `react-app/` React + Tailwind + Material 3 scaffold only; production `index.html`, `app.js`, `styles.css`, Worker, OAuth/session, sync/schema/CSV, deployment, and app-shell fingerprints must remain unchanged.
 
 ## Current Diagnostic
 
-- Actor: Codex docs/audit update on `codex/document-codex-cloud-pr-path-and-audit-actions` after PR #177.
-- Latest result: PR #177 was manually created and then auto-merged successfully, so green docs-only auto-merge is proven after a confirmed GitHub PR URL/number exists.
-- Auto-create status: removed/retired. The prior controlled verification stopped before editing because the Codex Cloud workspace had no `origin` remote, no visible authenticated push path, no `gh`, and no push was attempted; therefore the repo now relies on platform/manual `Create PR` instead of push-triggered PR creation.
-- Current operating model: Codex Cloud produces file changes/diffs only; commit creation is not part of the Codex Cloud workflow. Platform/manual `Create PR` is the default PR path for `codex/*` -> `phase-13`; a confirmed GitHub PR URL/number is required before claiming a PR exists; after a confirmed PR exists, GitHub Actions auto-merge may handle eligible green PRs.
-- Workflow posture: keep auto-create retired. Do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation; keep auto-merge guarded and available after a confirmed PR exists.
-- Scope: docs-only blocker recording and Phase 13 handoff resume; no app runtime, Worker, schema, OAuth/session, sync/conflict, CSV recovery, hosting, deployment route, policy, workflow permissions, framework/build-step configuration, or app-shell fingerprint changes.
-- Automation baseline: policy `active_base` is `phase-13`; auto-create policy/workflows are retired; auto-merge reads policy/classifier from resolved PR `BASE_BRANCH` and remains eligible only after a confirmed PR URL/number and green gates.
+- Actor: Codex implementation for Phase 13 PR 1 on local branch `work`; intended PR base remains `phase-13` and intended PR head should be `codex/*` when submitted through the platform/manual PR flow.
+- Latest result: isolated scaffold implementation is in progress under `react-app/`; production runtime and restricted architecture areas are intentionally out of scope.
+- Current operating model: this environment commits locally per task instruction and records PR metadata, while project workflow still requires a confirmed GitHub PR URL/number before claiming a GitHub PR exists.
+- Scope: add package/build tooling only inside the isolated scaffold, add a minimal React/Tailwind/M3 preview shell, document install/build/run commands, and keep `docs/AI_HANDOFF.md` current.
+- Guardrails: no Worker, OAuth/session, `/api/*`, Google Sheet schema/header mapping, sync/conflict, CSV recovery, Cloudflare route, GitHub Pages hosting, active app replacement, generated build output, or app-shell fingerprint changes.
 
 ## Immediate Roadmap
 
-1. Use `docs/PHASE13_MATERIAL3_COMPONENT_INVENTORY.md` as the current Stage 1C Material 3 visual/component inventory planning artifact, with `docs/PHASE13_MATERIAL3_TOKEN_MAP.md` as the Stage 1B token map and `docs/PHASE13_REACT_TAILWIND_M3_ADR.md` as the Phase 13 Stage 1 architecture decision record. Runtime migration, framework/build tooling adoption, and restricted architecture changes remain paused unless separately approved.
-2. Keep runtime migration paused: no framework adoption, build tooling, hosting/deployment change, OAuth/session change, sync/conflict change, schema change, CSV recovery change, app-shell fingerprint change, or active app replacement is approved.
-3. For future `codex/*` -> `phase-13` work, have Codex Cloud prepare changes/diffs only and use platform/manual `Create PR` by default; once a confirmed GitHub PR URL/number exists and checks are green, GitHub Actions auto-merge may proceed if all safety gates pass.
-4. Finish cleaning stale commit-creation guidance from active prompts/docs as it is found; keep push-triggered auto-create retired and do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation.
-5. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
+1. Complete Phase 13 PR 1 by validating the isolated `react-app/` scaffold build and confirming production runtime files remain unchanged.
+2. Open a `codex/*` -> `phase-13` PR for the scaffold; do not claim a GitHub PR exists until a confirmed PR URL/number exists.
+3. After PR 1, plan PR 2 as a contained inert component/parity spike inside the scaffold only, with no production cutover.
+4. Keep Worker, OAuth/session, `/api/*`, schema, sync/conflict, CSV recovery, deployment/hosting, app-shell fingerprints, and active runtime replacement out of scope until separately approved.
+5. Keep push-triggered auto-create retired and do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation.
 
 ## Open Risks
 
 - Push-triggered AI PR auto-create is removed/retired; stale commit-creation guidance is being cleaned up so Codex Cloud prepares diffs only and uses platform/manual `Create PR` by default.
 - Green docs-only auto-merge is proven for manually created `codex/*` -> `phase-13` PRs after PR #177, but auto-merge still requires a confirmed GitHub PR URL/number and all normal gates.
 - Project settings may still point to Phase 12 until updated after repo docs land.
-- React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully.
+- React/Tailwind/M3 migration may affect GitHub Pages deployment, offline/local state behavior, bundle size, and UI parity if not staged carefully; PR 1 mitigates this by keeping the scaffold isolated from the active runtime.
 - `scripts/wg13-readonly-phase13.sh` is now optional/stale relative to the direct Codex Lane 0 default and may be removed in a cleanup pass.
 
 ## Deferred Maintenance / Backlog

@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --m3-sys-color-primary: 0 113 206;
+  --m3-sys-color-on-primary: 255 255 255;
+  --m3-sys-color-primary-container: 218 232 255;
+  --m3-sys-color-on-primary-container: 0 33 72;
+  --m3-sys-color-surface: 246 248 251;
+  --m3-sys-color-surface-container: 255 255 255;
+  --m3-sys-color-surface-container-high: 236 242 248;
+  --m3-sys-color-on-surface: 15 23 42;
+  --m3-sys-color-on-surface-variant: 71 85 105;
+  --m3-sys-color-outline: 148 163 184;
+  --m3-sys-color-outline-variant: 203 213 225;
+  --m3-sys-color-error: 185 28 28;
+  --m3-sys-color-error-container: 254 226 226;
+  --app-color-success: 22 101 52;
+  --app-color-warning: 180 83 9;
+  --m3-sys-shape-corner-extra-small: 0.35rem;
+  --m3-sys-shape-corner-small: 0.65rem;
+  --m3-sys-shape-corner-medium: 0.85rem;
+  --m3-sys-shape-corner-large: 1rem;
+  --m3-sys-shape-corner-extra-large: 1.25rem;
+  --m3-sys-shape-corner-full: 999px;
+  --m3-sys-elevation-level1: 0 12px 24px rgb(15 23 42 / 0.08);
+  --m3-sys-elevation-level2: 0 18px 36px rgb(15 23 42 / 0.12);
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
