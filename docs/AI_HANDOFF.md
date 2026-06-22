@@ -116,8 +116,8 @@ Lane 0 PR lifecycle durability:
 
 ## Immediate Roadmap
 
-1. Continue Phase 13 Option D with a docs-only Stage 1 architecture decision record based on `docs/phase-13-react-tailwind-m3-stage-0.md`: compare current-runtime-in-place improvements, static React, and React + Tailwind options; include parity and rollback criteria before any runtime or tooling implementation.
-2. Keep runtime migration paused: no framework adoption, build tooling, hosting/deployment change, OAuth/session change, sync/conflict change, schema change, CSV recovery change, or active app replacement is approved.
+1. Use `docs/PHASE13_REACT_TAILWIND_M3_ADR.md` as the current Phase 13 Stage 1 architecture decision record for the React + Tailwind + Material 3 future-direction track. Its recommended next step is a docs-only Stage 1A Material 3 token/design audit before any runtime migration or tooling spike.
+2. Keep runtime migration paused: no framework adoption, build tooling, hosting/deployment change, OAuth/session change, sync/conflict change, schema change, CSV recovery change, app-shell fingerprint change, or active app replacement is approved.
 3. For future `codex/*` -> `phase-13` work, use Codex Cloud platform/manual `Create PR` by default; once a confirmed GitHub PR URL/number exists and checks are green, GitHub Actions auto-merge may proceed if all safety gates pass.
 4. Keep push-triggered auto-create retired; do not add token/PAT remote injection, pull-based Codex API sync, or replacement PR-creation automation.
 5. Decide later whether to keep or remove `scripts/wg13-readonly-phase13.sh` as a low-priority tooling cleanup; it is not the default path.
