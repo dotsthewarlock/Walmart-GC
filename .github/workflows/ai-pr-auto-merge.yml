@@ -21,7 +21,6 @@ permissions:
   statuses: read
 
 env:
-  POLICY_SOURCE_BRANCH: phase-12
   COMMENT_MARKER: "<!-- ai-pr-auto-merge-report -->"
 
 jobs:
@@ -162,10 +161,11 @@ jobs:
 
           echo "PR #${PR_NUMBER}: ${HEAD_BRANCH} -> ${BASE_BRANCH} at ${HEAD_SHA}"
 
+          echo "Reading policy and classifier from PR base branch ${BASE_BRANCH}."
           gh api -H "Accept: application/vnd.github.raw" \
-            "/repos/${GITHUB_REPOSITORY}/contents/.github/ai-automation-policy.yml?ref=${POLICY_SOURCE_BRANCH}" > "${policy_file}"
+            "/repos/${GITHUB_REPOSITORY}/contents/.github/ai-automation-policy.yml?ref=${BASE_BRANCH}" > "${policy_file}"
           gh api -H "Accept: application/vnd.github.raw" \
-            "/repos/${GITHUB_REPOSITORY}/contents/.github/scripts/ai_risk_classify.py?ref=${POLICY_SOURCE_BRANCH}" > "${classifier_file}"
+            "/repos/${GITHUB_REPOSITORY}/contents/.github/scripts/ai_risk_classify.py?ref=${BASE_BRANCH}" > "${classifier_file}"
 
           active_base="$(sed -n 's/^active_base:[[:space:]]*//p' "${policy_file}" | tr -d '"' | head -n 1)"
           if [ "${active_base}" = "main" ]; then
