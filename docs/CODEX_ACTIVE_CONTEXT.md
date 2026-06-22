@@ -149,6 +149,14 @@ Phase 13 may explore React, Tailwind, and Material 3 as a product/implementation
 
 GitHub Actions UI registration note: workflow files may need to exist on the default branch so `workflow_dispatch` entries appear in the Actions UI, but runtime guards must still target the active phase branch and never `main`. Treat the workflow source branch and workflow target branch as separate concepts; active-context lookups must read `docs/CODEX_ACTIVE_CONTEXT.md` from the intended target branch.
 
+Lane 0 PR lifecycle support:
+
+- Strict Lane 0 does not produce a PR: terminal commands are inspection/validation only, with no edits or commits.
+- Lane 0 plus handoff update may produce a docs-only diff, normally `docs/AI_HANDOFF.md`; if that diff is committed or platform-submitted on a `codex/*` branch, the AI PR lifecycle may create a guarded PR into `phase-13`.
+- GitHub Actions auto-create/auto-merge may be used for Lane 0 outputs only after a confirmed GitHub PR URL/number exists. Codex workspace commits, local `work` branches, and “Created PR metadata” alone are not enough.
+- Auto-merge remains eligible only for green-risk `codex/*` -> `phase-13` PRs that pass policy, classifier, branch/base, checks, conflict, SHA, label, and restricted-path gates.
+- Workflow file availability in the GitHub Actions UI and workflow runtime target are separate: default-branch workflow registration may be required for manual `workflow_dispatch`, but policy/context reads and PR targets must remain active-branch scoped.
+
 ## Workflow Lanes
 
 - Lane 0 — Codex terminal batch: default terminal-command evidence lane for Phase 13. ChatGPT prepares compact command batches, Codex Cloud runs them in its workspace, and Codex reports results. Use for repo inspection, validation evidence, dependency/build experiments, controlled migration spikes, and other tasks where terminal evidence is needed.
@@ -188,7 +196,7 @@ Prefer the lowest-friction safe lane for each task. These rules apply across Wal
 
 1. Start with the hierarchy: `CODEX_ACTIVE_CONTEXT` -> `AI_HANDOFF` -> `MAINTENANCE_LOG`.
 2. Use Lane 0 Codex terminal batches for repo command evidence, validation, dependency/build experiments, controlled migration spikes, and terminal checks that ChatGPT cannot run directly. State whether the batch is strict read-only or inspection plus docs-only handoff update.
-3. Use ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector steps when possible: inspect, branch/edit, verify, then review.
+3. Use ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector edits into one prompt/session when possible so the user can approve connector write permission once; queue follow-up edits as next steps instead of repeatedly prompting for connector permissions.
 4. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
 5. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
 6. Use Lane A Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
@@ -208,6 +216,8 @@ Who acts: <ChatGPT direct tool | Codex Lane 0 terminal | Codex implementation | 
 Why: <one short reason>
 Reply with: <exact approval phrase or next instruction, when useful>
 ```
+
+Only the exact next recommended user input should be formatted as Markdown/fenced text. Do not format the explanatory user-input summary or surrounding report text as Markdown just because it describes what the user should do.
 
 Shorthand: when the user says `next`, first inspect the active context/handoff/log hierarchy as needed, then respond with a short, concise summary of the next user action items, who acts next, and confidence. When the next step is clear, low-risk, and covered by a discussed multi-step plan, ask the user to reply `y` or `n` to proceed. After completing a step, give a concise completion report, recommend follow-up action items, state confidence when useful, and ask for `y`/`n` approval to continue only when the next action is clear and safe.
 
