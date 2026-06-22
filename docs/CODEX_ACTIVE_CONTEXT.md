@@ -131,11 +131,12 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
 
 1. ChatGPT direct tool action when a safe tool is available, especially metadata-only actions such as closing stale PRs.
-2. Codex for repository file edits, including docs, code, workflow, and configuration changes.
-3. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
-4. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
+2. Codex for repository file edits, including docs, code, workflow, and configuration changes. Use Codex by default for multi-file docs/config/workflow edits, coordinated edits, validation-heavy work, workflow edits, or any change where user approval friction matters.
+3. ChatGPT/GitHub connector only for one-file or very small bounded docs/config edits where repeated user approval prompts are acceptable. The connector writes through one-file contents API updates and is not an atomic multi-file commit/PR authoring lane; if a connector write blocks or fails, stop connector writes and route remaining work to Codex instead of retrying repeatedly.
+4. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
+5. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
 
-Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
+Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear. Native GitHub Actions PR lifecycle automation should operate after Codex pushes a `codex/*` branch; do not replace Codex-authored edits with a broad workflow that writes arbitrary repository files.
 
 ## User-Facing Action Layout
 

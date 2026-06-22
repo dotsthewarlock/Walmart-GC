@@ -235,6 +235,15 @@ Do not reintroduce:
 - Localhost OAuth.
 - Alternate development origins.
 
+
+## Durable Edit Routing Guidance
+
+Use Codex as the default lane for multi-file repository edits, including coordinated documentation, configuration, and workflow changes. The ChatGPT/GitHub connector may be used only for one-file or very small bounded docs/config edits where repeated user approval prompts are acceptable. Treat connector writes as one-file contents API updates, not as an atomic multi-file commit or PR authoring lane.
+
+Route work to Codex when edits span multiple files, require coordinated validation, touch workflows, or when user approval friction would slow or fragment the change. If a connector write blocks or fails, stop connector writes and route the remaining work to Codex instead of retrying repeatedly.
+
+Native GitHub Actions PR lifecycle automation should operate after Codex pushes a `codex/*` branch. Do not replace Codex-authored edits with a broad workflow that writes arbitrary repository files.
+
 ## Verification Guidance
 
 For documentation-only changes, prefer:
