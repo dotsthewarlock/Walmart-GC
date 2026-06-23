@@ -3,3 +3,7 @@ dist
 .DS_Store
 .vite
 .agy-last-command
+
+# Local Worker secrets/state
+worker/.dev.vars
+worker/.wrangler/
