@@ -12,6 +12,7 @@ Read this first for current Walmart-GC tasks. It is the compact source of truth 
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 - OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture.
 - React 19 + Vite + Tailwind CSS frontend environment (migration branch).
+- UX Decisions Log: [docs/REACT_UX_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/REACT_UX_DECISIONS.md)
 - Do not redesign core product behavior unless it directly blocks OAuth, session, Google Sheets access, or sync.
 
 ## Active Architecture
