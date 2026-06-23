@@ -1262,7 +1262,7 @@ function App() {
                     <button
                       id="mark-zero-used"
                       onClick={handleMarkZeroBalanceUsed}
-                      className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer"
+                      className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3.5 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                       type="button"
                     >
                       <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
@@ -1289,7 +1289,7 @@ function App() {
                     <button 
                       id="disconnect-google"
                       onClick={handleDisconnectGoogle}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer"
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-3.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                       type="button"
                     >
                       Disconnect
@@ -1298,7 +1298,7 @@ function App() {
                     <button 
                       id="connect-google"
                       onClick={handleConnectGoogle}
-                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer"
+                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-3.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                       type="button"
                     >
                       Connect Google
@@ -1316,7 +1316,7 @@ function App() {
                       <button
                         id="ensure-sheet"
                         onClick={handleEnsureSheet}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer"
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                       >
                         Fix Google Sheet
@@ -1327,7 +1327,7 @@ function App() {
                           href={directSheetsState.spreadsheetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer"
+                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         >
                           Open Sheet
                         </a>
@@ -1335,7 +1335,7 @@ function App() {
                       <button
                         id="load-from-sheets"
                         onClick={handleLoadCardsFromSheet}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer"
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                       >
                         Import from Google
@@ -1343,7 +1343,7 @@ function App() {
                       <button
                         id="save-to-sheets"
                         onClick={handleSaveCardsToSheet}
-                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer"
+                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                       >
                         Export to Google
@@ -1366,7 +1366,7 @@ function App() {
                             <div className="flex flex-wrap gap-2 mt-2">
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1374,7 +1374,7 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Replace local data from Sheet
@@ -1382,7 +1382,7 @@ function App() {
                               <button
                                 onClick={useCurrentSessionToOverwriteDirectSheets}
                                 disabled={disableSheetsActions}
-                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
+                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Overwrite sheet with this session
@@ -1403,7 +1403,7 @@ function App() {
                               <button
                                 onClick={retrySyncCurrentSession}
                                 disabled={disableSheetsActions}
-                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Try sync again
@@ -1411,14 +1411,14 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Replace local data from Sheet
                               </button>
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1459,7 +1459,7 @@ function App() {
                       <button 
                         id="import-csv" 
                         onClick={() => document.getElementById('csv-file-input').click()}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                         title="Import CSV backup"
                       >
@@ -1468,7 +1468,7 @@ function App() {
                       <button 
                         id="export-csv" 
                         onClick={handleExportCsv}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                         title="Export CSV backup"
                       >
@@ -1484,7 +1484,7 @@ function App() {
                       <button 
                         id="open-raw-data-modal" 
                         onClick={handleOpenRawEditor}
-                        className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer"
+                        className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-3.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                       >
                         Open Editor
@@ -1555,7 +1555,7 @@ function App() {
 
               <button
                 onClick={() => setActivePanel(previousPrimaryPanel)}
-                className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm"
+                className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3.5 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
               >
                 Back
               </button>
@@ -1573,7 +1573,7 @@ function App() {
                       id="prev-card"
                       onClick={handlePrevCard}
                       disabled={visiblePosition <= 0}
-                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-3.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Previous
                     </button>
@@ -1584,7 +1584,7 @@ function App() {
                       id="next-card"
                       onClick={handleNextCard}
                       disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-3.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Next
                     </button>
@@ -1699,7 +1699,7 @@ function App() {
                             setNewNotesValue(selectedCard.notes || "");
                             setIsEditingNotes(true);
                           }}
-                          className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer"
+                          className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded-sm"
                           type="button"
                         >
                           {selectedCard.notes ? "Edit" : "Add Note"}
@@ -1731,14 +1731,14 @@ function App() {
                               saveCards(updatedCards);
                               setIsEditingNotes(false);
                             }}
-                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
+                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                             type="button"
                           >
                             Save Notes
                           </button>
                           <button
                             onClick={() => setIsEditingNotes(false)}
-                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                             type="button"
                           >
                             Cancel
@@ -1755,7 +1755,7 @@ function App() {
                   {/* Back to Inventory Button */}
                   <button
                     onClick={() => setActivePanel('list')}
-                    className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm"
+                    className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3.5 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   >
                     Back to Inventory
                   </button>
@@ -1852,7 +1852,7 @@ function App() {
                 id="fullscreen-prev"
                 onClick={handlePrevCard}
                 disabled={visiblePosition <= 0}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                 type="button"
               >
                 Previous
@@ -1861,7 +1861,7 @@ function App() {
                 id="fullscreen-next"
                 onClick={handleNextCard}
                 disabled={visiblePosition === visibleIndexes.length - 1}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                 type="button"
               >
                 Next
@@ -1905,7 +1905,7 @@ function App() {
                       setNewNotesValue(selectedCard.notes || "");
                       setIsEditingNotes(true);
                     }}
-                    className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer"
+                    className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded-sm"
                     type="button"
                   >
                     {selectedCard.notes ? "Edit" : "Add Note"}
@@ -1937,14 +1937,14 @@ function App() {
                         saveCards(updatedCards);
                         setIsEditingNotes(false);
                       }}
-                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
+                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                       type="button"
                     >
                       Save Notes
                     </button>
                     <button
                       onClick={() => setIsEditingNotes(false)}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                       type="button"
                     >
                       Cancel
@@ -2035,7 +2035,7 @@ function App() {
               <button
                 id="cancel-balance-update"
                 onClick={handleCancelBalanceEdit}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 cursor-pointer"
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                 type="button"
               >
                 Cancel
@@ -2043,7 +2043,7 @@ function App() {
               <button
                 id="save-balance-update"
                 onClick={handleSaveBalance}
-                className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md cursor-pointer"
+                className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                 type="button"
               >
                 Save
@@ -2106,7 +2106,7 @@ function App() {
                 <button 
                   id="toggle-data-lock" 
                   onClick={() => setIsRawDataLocked(!isRawDataLocked)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button" 
                   title={isRawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked"}
                 >
@@ -2116,7 +2116,7 @@ function App() {
                 <button 
                   id="refresh-card-data" 
                   onClick={handleRefreshRawEditor}
-                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95"
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
                 >
                   Refresh
@@ -2124,7 +2124,7 @@ function App() {
                 <button 
                   id="update-card-data" 
                   onClick={handleUpdateRawEditor}
-                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95"
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
                 >
                   Update
@@ -2135,7 +2135,7 @@ function App() {
                 <button 
                   id="cancel-raw-data-update" 
                   onClick={() => setIsRawDataModalOpen(false)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95"
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
                 >
                   Cancel
@@ -2143,7 +2143,7 @@ function App() {
                 <button 
                   id="done-raw-data-update" 
                   onClick={handleDoneRawEditor}
-                  className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md"
+                  className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
                 >
                   Done

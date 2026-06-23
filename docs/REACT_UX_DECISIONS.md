@@ -40,6 +40,7 @@ Record of direct user UX decisions and AI-made UX decisions for the React + Vite
 * **Decision**:
   - Polished close buttons (✕) in the Fullscreen Barcode Modal and Update Balance Modal to increase their touch targets to a minimum of 48x48px, adding circular hover/focus states to improve accessibility.
   - Added visible, high-contrast focus rings (focus-visible) to key interactive buttons (#nav-list, #nav-detail, #open-settings, #prev-card, #next-card, #barcode-open, #open-balance-modal, #mark-used, and fullscreen variants) to improve keyboard navigation and usability.
+  - Extended high-contrast focus rings (focus-visible) to all remaining settings buttons (#connect-google, #disconnect-google, Google Sheet sync actions, CSV import/export, raw editor lock/refresh/update, and modal Cancel/Save/Done buttons) and increased vertical padding to 14px (py-3.5) on smaller interactive buttons to ensure a minimum 48px touch target height.
 
 ---
 
