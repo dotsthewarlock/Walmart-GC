@@ -97,6 +97,29 @@ export function getEffectiveMerchant(card) {
   return explicitMerchant || storedInferredMerchant || inferMerchantFromCardNumber(card?.cardNumber);
 }
 
+const walmartCaBarcodePrefix = "79936686504000";
+
+export function getBarcodeFallbackMessage(card) {
+  if (!normalizeCardNumber(card?.cardNumber)) {
+    return "Barcode unavailable";
+  }
+  const merchant = getEffectiveMerchant(card);
+  if (merchant !== walmartCaMerchant) {
+    return "Barcode unavailable for this merchant";
+  }
+  return "Barcode unavailable";
+}
+
+export function getBarcodePayload(card) {
+  const cardNumber = normalizeCardNumber(card?.cardNumber);
+  const merchant = getEffectiveMerchant(card);
+  if (merchant !== walmartCaMerchant || !isValidWalmartGiftCardNumber(cardNumber)) {
+    return "";
+  }
+  return `${walmartCaBarcodePrefix}${cardNumber}`;
+}
+
+
 export function parseOptionalMoney(value) {
   if (value === null || value === undefined || String(value).trim() === "") {
     return null;

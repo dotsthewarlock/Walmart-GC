@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary } from './lib/cards';
+import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
 import { loadSettings, saveSettings } from './lib/settings';
+import { getCode128BarcodeBars } from './lib/barcode';
 
 function App() {
   const [cards, setCards] = useState([]);
@@ -390,22 +391,48 @@ function App() {
                   </button>
                 </div>
 
-                {/* Barcode Preview Placeholder Segment */}
-                <section className="bg-white border border-slate-200 border-dashed border-2 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px]">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Barcode Preview</span>
+                {/* Barcode Preview Segment */}
+                {(() => {
+                  const payload = getBarcodePayload(selectedCard);
+                  const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
                   
-                  <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
-                    <span className="text-xs text-slate-400 font-semibold font-mono">
-                      [79936686504000 + {selectedCard.cardNumber}]
-                    </span>
-                    <span className="text-sm text-slate-500 font-bold">
-                      Barcode rendering not wired yet
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      JsBarcode engine integration deferred to Phase 8
-                    </span>
-                  </div>
-                </section>
+                  return (
+                    <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px]">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Barcode Preview</span>
+                      
+                      {barcodeData ? (
+                        <div className="flex flex-col items-center gap-2 w-full">
+                          <div className="w-full bg-white border border-slate-100 p-2 rounded-2xl">
+                            <svg 
+                              viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`} 
+                              preserveAspectRatio="none" 
+                              role="img" 
+                              aria-label="Code 128 checkout barcode" 
+                              className="w-full h-16"
+                            >
+                              <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
+                              {barcodeData.rects.map((r, i) => (
+                                <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
+                              ))}
+                            </svg>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-slate-600 tracking-wider">
+                            {payload}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
+                          <span className="text-sm text-red-600 font-bold">
+                            {getBarcodeFallbackMessage(selectedCard)}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Card number and PIN remain available below.
+                          </span>
+                        </div>
+                      )}
+                    </section>
+                  );
+                })()}
 
                 {/* Card Detail Credentials Wrapper */}
                 <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
