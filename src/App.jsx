@@ -37,7 +37,14 @@ function App() {
   // Balance Editor Form State
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [newBalanceValue, setNewBalanceValue] = useState("");
+  const [amountUsedValue, setAmountUsedValue] = useState("");
   const [balanceError, setBalanceError] = useState("");
+  const [openedFromBarcodeFocus, setOpenedFromBarcodeFocus] = useState(false);
+
+  const handleCancelBalanceEdit = () => {
+    setIsEditingBalance(false);
+    setOpenedFromBarcodeFocus(false);
+  };
 
   // Notes Editor Form State
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -148,7 +155,7 @@ function App() {
   // Handle escape key listener for barcode modal
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !isEditingBalance) {
         setIsFullscreenBarcode(false);
       }
     };
@@ -160,7 +167,24 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isFullscreenBarcode]);
+  }, [isFullscreenBarcode, isEditingBalance]);
+
+  // Handle escape key listener for balance modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        handleCancelBalanceEdit();
+      }
+    };
+
+    if (isEditingBalance) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isEditingBalance, openedFromBarcodeFocus]);
 
   // Handle screen wake lock for focused barcode scanning
   useEffect(() => {
@@ -479,8 +503,31 @@ function App() {
   };
 
   // Balance Update Action
+  const handleAmountUsedChange = (e) => {
+    const val = e.target.value;
+    setAmountUsedValue(val);
+    const parsedUsed = parseFloat(val);
+    if (!isNaN(parsedUsed) && selectedCard) {
+      setNewBalanceValue((selectedCard.currentBalance - parsedUsed).toFixed(2));
+    } else if (selectedCard) {
+      setNewBalanceValue(selectedCard.currentBalance.toString());
+    }
+  };
+
+  const handleRemainingBalanceChange = (e) => {
+    const val = e.target.value;
+    setNewBalanceValue(val);
+    const parsedRemaining = parseFloat(val);
+    if (!isNaN(parsedRemaining) && selectedCard) {
+      setAmountUsedValue((selectedCard.currentBalance - parsedRemaining).toFixed(2));
+    } else {
+      setAmountUsedValue("");
+    }
+  };
+
   const handleOpenBalanceEdit = (currentVal) => {
     setNewBalanceValue(currentVal.toString());
+    setAmountUsedValue("");
     setBalanceError("");
     setIsEditingBalance(true);
   };
@@ -504,6 +551,10 @@ function App() {
     setCards(updatedCards);
     saveCards(updatedCards);
     setIsEditingBalance(false);
+    if (openedFromBarcodeFocus) {
+      setIsFullscreenBarcode(false);
+    }
+    setOpenedFromBarcodeFocus(false);
   };
 
   const selectedCard = cards[selectedCardIndex];
@@ -1613,41 +1664,16 @@ function App() {
 
                   {/* Update and Mark used side-by-side */}
                   <div className="grid grid-cols-2 gap-4 items-center">
-                    {isEditingBalance ? (
-                      <div className="flex flex-col gap-2 w-full">
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newBalanceValue}
-                            onChange={e => setNewBalanceValue(e.target.value)}
-                            className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
-                            placeholder="0.00"
-                          />
-                          <button
-                            onClick={handleSaveBalance}
-                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setIsEditingBalance(false)}
-                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2.5 rounded-xl text-xs transition-all cursor-pointer"
-                          >
-                            X
-                          </button>
-                        </div>
-                        {balanceError && <span className="text-[10px] text-red-600 font-semibold">{balanceError}</span>}
-                      </div>
-                    ) : (
-                      <button
-                        id="open-balance-modal"
-                        onClick={() => handleOpenBalanceEdit(selectedCard.currentBalance)}
-                        className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
-                      >
-                        Update Balance
-                      </button>
-                    )}
+                    <button
+                      id="open-balance-modal"
+                      onClick={() => {
+                        setOpenedFromBarcodeFocus(false);
+                        handleOpenBalanceEdit(selectedCard.currentBalance);
+                      }}
+                      className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
+                    >
+                      Update Balance
+                    </button>
 
                     <button
                       id="mark-used"
@@ -1847,10 +1873,8 @@ function App() {
               <button
                 id="fullscreen-update-balance"
                 onClick={() => {
-                  setIsFullscreenBarcode(false);
-                  setTimeout(() => {
-                    handleOpenBalanceEdit(selectedCard.currentBalance);
-                  }, 50);
+                  setOpenedFromBarcodeFocus(true);
+                  handleOpenBalanceEdit(selectedCard.currentBalance);
                 }}
                 className="w-full bg-slate-100 hover:bg-slate-200 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
               >
@@ -1936,6 +1960,99 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Update Balance Modal */}
+      {isEditingBalance && selectedCard && (
+        <div
+          id="balance-modal"
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            className="bg-white rounded-3xl max-w-sm w-full p-6 flex flex-col gap-4 shadow-2xl relative"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="balance-modal-title"
+          >
+            {/* Close Button */}
+            <button
+              onClick={handleCancelBalanceEdit}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
+              type="button"
+              aria-label="Close update balance modal"
+            >
+              ✕
+            </button>
+
+            <h2 id="balance-modal-title" className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">
+              Update Balance
+            </h2>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-between items-center text-sm font-semibold text-slate-700">
+                <span>Current Balance</span>
+                <span>${selectedCard.currentBalance.toFixed(2)}</span>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="amount-used-input" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Amount Used
+                </label>
+                <input
+                  id="amount-used-input"
+                  type="number"
+                  step="0.01"
+                  value={amountUsedValue}
+                  onChange={handleAmountUsedChange}
+                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                  placeholder="0.00"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="balance-input" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Remaining Balance
+                </label>
+                <input
+                  id="balance-input"
+                  type="number"
+                  step="0.01"
+                  value={newBalanceValue}
+                  onChange={handleRemainingBalanceChange}
+                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {balanceError && (
+                <span id="balance-error" className="text-[10px] text-red-600 font-semibold mt-1">
+                  {balanceError}
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
+              <button
+                id="cancel-balance-update"
+                onClick={handleCancelBalanceEdit}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-xl text-xs transition-all active:scale-95 cursor-pointer"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                id="save-balance-update"
+                onClick={handleSaveBalance}
+                className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-xl text-xs transition-all active:scale-95 shadow-md cursor-pointer"
+                type="button"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Raw CSV Editor Modal */}
       {isRawDataModalOpen && (
         <div 
