@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-surface: #f8fafc;
+  --md-sys-color-on-surface: #1f1f1f;
+}
+
+body {
+  margin: 0;
+  background-color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+}
