@@ -53,3 +53,13 @@ Each implementation slice must stop and verify before committing:
 4. **Worker OAuth / Session**: Connect to `/api/status` status checks and logout handlers. (Completed)
 5. **Google Sheets load/save**: Integrate `/api/sheet/ensure`, `/api/cards/load`, and `/api/cards/save` synchronization APIs. (Completed)
 6. **Optimistic Locking Conflict Recovery**: Implement concurrency resolution recovery options panels. (Completed)
+
+## 10. Local Development Settings
+For local development and testing under the new React-based setup:
+* **Vite App Dev Server**: `http://127.0.0.1:5174`
+* **Worker API (Local)**: `http://localhost:8787` (run via `wrangler@3`)
+* **Local OAuth Redirect URI**: `http://127.0.0.1:5174/auth/callback`
+* **Production OAuth Redirect URI**: `https://walmart-gc.dotsthewarlock.com/auth/callback`
+* **Vite Dev Proxies**: Proxies requests under `/api/*` and `/auth/*` directly to the local Cloudflare Worker.
+* **Worker Environment Variables**: `worker/.dev.vars` contains local secrets and must remain uncommitted (tracked in `.gitignore`).
+

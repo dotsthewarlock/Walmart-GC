@@ -97,7 +97,7 @@ https://walmart-gc.dotsthewarlock.com/api/*
 
 Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
 
-OAuth testing is cloud-only. Do not document or use localhost OAuth, alternate OAuth origins, `/Walmart-GC/` callback paths, or session IDs in query parameters.
+Production OAuth testing is cloud-only. Do not use localhost OAuth or alternate OAuth origins for production deployment testing. For local development under the React migration (which utilizes a Vite dev proxy to a local Worker), refer to the configuration details in the [AGY Migration Runbook](docs/AGY_MIGRATION_RUNBOOK.md).
 
 ## Documentation
 
