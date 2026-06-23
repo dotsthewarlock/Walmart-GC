@@ -16,13 +16,9 @@ The app layout operates as a single-page application using three primary panel v
 * **Fullscreen Barcode Mode**: Triggered by `#barcode-open` when viewing a card. This opens a modal overlay (`#fullscreen-barcode`) that focuses the barcode using the screen wake lock API, hides layout headers, and enforces a high contrast background.
 * **Swipe Gestures**: Swipe gestures on mobile devices navigate cards inside the detail panel and barcode focus views (`handlePrimarySwipeStart`, `handlePrimarySwipeEnd`).
 
-### App-Shell Version Caching
-Lightweight cache-busting fingerprints are embedded in index configurations:
-* `DEBUG_DEPLOY_BRANCH = "phase-12"`
-* `DEBUG_VERSION_JS = "1.01.77"`
-* `DEBUG_VERSION_CSS = "1.01.77"`
-* `data-html-version="1.01.77"` in `index.html`
-* The application runs comparison checks inside `getAppShellDiagnostics()`. A shell version mismatch is flagged if HTML, JS, or CSS version headers do not align.
+### App-Shell Version Caching (Deprecated in React Migration)
+Lightweight cache-busting fingerprints were embedded in index configurations for the legacy static app (e.g., `DEBUG_VERSION_JS = "1.01.77"`). In the React/Vite architecture on `agy-v1`, this runtime verification alert is deprecated and replaced by static `agy-v1` labels. App state verification is handled directly at build/CI time via Git status, build checks, and proxy/pushed commit audits.
+
 
 ---
 

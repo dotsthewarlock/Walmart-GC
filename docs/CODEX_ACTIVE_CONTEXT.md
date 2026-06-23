@@ -35,7 +35,7 @@ Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and
 Verified current infrastructure state:
 
 - GitHub Pages serves the frontend root from `main`.
-- App shell fingerprint: `1.01.74`.
+- App shell fingerprint: static `agy-v1` (legacy fingerprint checking is deprecated).
 - Cloudflare routes only `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
 - No wildcard `/*` Worker route.
 - Worker version: `2026-06-18.merchant-inferred-schema.1`.
@@ -243,13 +243,12 @@ ChatGPT Project Settings own ChatGPT conversation behavior; repo docs own Codex/
 
 Read only files listed by the task unless evidence points elsewhere. Prefer exact-string search over broad scans. Do not paste full files into responses unless requested. Summarize findings briefly. Avoid `docs/archive/` unless the task requires history. For low-risk UI/copy/CSS changes, do not inspect backend files. For high-risk auth/sync/schema tasks, inspect the relevant runtime path before proposing changes. Report changed files, validation, and risk notes.
 
-## Version-Bump Convention
+## Version-Bump Convention (App-Shell Version Bumping Deprecated)
 
-- Frontend runtime changes: bump all app-shell cache/debug fingerprints together in `index.html`, `app.js`, and `styles.css`, including CSS/JS query strings.
-- Worker runtime changes: bump `WORKER_VERSION` in `worker/src/index.js`.
-- Frontend plus Worker changes: bump both the frontend app-shell fingerprints and `WORKER_VERSION`.
-- Docs-only changes: bump neither.
-- App-shell fingerprints are lightweight cache/debug aids, not product release numbers.
+- Frontend runtime changes: Dynamic version-bumping of HTML/JS/CSS cache-busting fingerprints is deprecated for the React migration (where assets report static `agy-v1` labels and verification is performed via Git/terminal builds).
+- Worker runtime changes: Bump `WORKER_VERSION` in `worker/src/index.js`.
+- Docs-only changes: Bump neither.
+
 
 ## Standard Validation Commands
 
