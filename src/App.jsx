@@ -1040,7 +1040,7 @@ function App() {
             setActivePanel('list');
             setPreviousPrimaryPanel('list');
           }}
-          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
+          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
             activePanel === 'list' 
               ? 'bg-[#0b57d0] text-white shadow-sm' 
               : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50'
@@ -1059,7 +1059,7 @@ function App() {
             }
           }}
           disabled={visibleIndexes.length === 0}
-          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
+          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
             activePanel === 'detail' 
               ? 'bg-[#0b57d0] text-white shadow-sm' 
               : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50 disabled:opacity-50'
@@ -1093,7 +1093,7 @@ function App() {
                 setActivePanel('settings');
               }
             }}
-            className={`fixed top-6 md:top-14 right-4 sm:right-8 z-30 w-12 h-12 border rounded-xl flex items-center justify-center text-xl transition-all active:scale-97 shadow-lg backdrop-blur-md cursor-pointer ${
+            className={`fixed top-6 md:top-14 right-4 sm:right-8 z-30 w-12 h-12 border rounded-xl flex items-center justify-center text-xl transition-all active:scale-97 shadow-lg backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
               activePanel === 'settings'
                 ? 'bg-[#0b57d0] text-white border-[#0b57d0]'
                 : 'border-white/70 bg-[#ebf6ff]/70 text-[#0842a0] hover:bg-[#ebf6ff]/90 hover:border-blue-400'
@@ -1573,7 +1573,7 @@ function App() {
                       id="prev-card"
                       onClick={handlePrevCard}
                       disabled={visiblePosition <= 0}
-                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Previous
                     </button>
@@ -1584,7 +1584,7 @@ function App() {
                       id="next-card"
                       onClick={handleNextCard}
                       disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Next
                     </button>
@@ -1599,7 +1599,7 @@ function App() {
                       <button
                         id="barcode-open"
                         onClick={() => setIsFullscreenBarcode(true)}
-                        className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-400 transition-colors w-full text-left"
+                        className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-400 transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         title="Tapping opens full-screen barcode focus mode"
                       >
                         <div className="flex justify-between items-center w-full border-b border-slate-100 pb-2">
@@ -1670,7 +1670,7 @@ function App() {
                         setOpenedFromBarcodeFocus(false);
                         handleOpenBalanceEdit(selectedCard.currentBalance);
                       }}
-                      className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
+                      className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Update Balance
                     </button>
@@ -1678,7 +1678,7 @@ function App() {
                     <button
                       id="mark-used"
                       onClick={() => handleToggleUsed(selectedCardIndex)}
-                      className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer ${
+                      className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
                         selectedCard.used
                           ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
                           : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
@@ -1791,7 +1791,7 @@ function App() {
             {/* Close Button */}
             <button
               onClick={() => setIsFullscreenBarcode(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
               type="button"
               aria-label="Close barcode focus mode"
             >
@@ -1876,7 +1876,7 @@ function App() {
                   setOpenedFromBarcodeFocus(true);
                   handleOpenBalanceEdit(selectedCard.currentBalance);
                 }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
               >
                 Update Balance
               </button>
@@ -1884,7 +1884,7 @@ function App() {
               <button
                 id="fullscreen-mark-used"
                 onClick={() => handleToggleUsed(selectedCardIndex)}
-                className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer ${
+                className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
                   selectedCard.used
                     ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
                     : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
@@ -1976,7 +1976,7 @@ function App() {
             {/* Close Button */}
             <button
               onClick={handleCancelBalanceEdit}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
               type="button"
               aria-label="Close update balance modal"
             >

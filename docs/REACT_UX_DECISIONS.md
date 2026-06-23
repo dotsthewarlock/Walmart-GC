@@ -35,6 +35,12 @@ Record of direct user UX decisions and AI-made UX decisions for the React + Vite
 * **Context**: Formatting interface controls inside the secondary detail layout.
 * **Decision**: Preserve the dedicated Checkout operational panel structure for managing single-card focus tools, sorting indicators, and diagnostic panels. [AI implementation review]
 
+### 5. Material 3 Audit Polish (2026-06-23)
+* **Context**: Bounded audit of Material 3 compliance targeting local UI elements.
+* **Decision**:
+  - Polished close buttons (✕) in the Fullscreen Barcode Modal and Update Balance Modal to increase their touch targets to a minimum of 48x48px, adding circular hover/focus states to improve accessibility.
+  - Added visible, high-contrast focus rings (focus-visible) to key interactive buttons (#nav-list, #nav-detail, #open-settings, #prev-card, #next-card, #barcode-open, #open-balance-modal, #mark-used, and fullscreen variants) to improve keyboard navigation and usability.
+
 ---
 
 ## Manual QA Verification Passes
