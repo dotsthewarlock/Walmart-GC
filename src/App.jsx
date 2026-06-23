@@ -541,6 +541,108 @@ function App() {
     }
   };
 
+  const isDirectSheetsConfigured = () => Boolean(directSheetsState.spreadsheetId);
+  const hasGoogleFileAccessInMemory = () => oauthState.status === googleOAuthStatuses.connected;
+
+  const getRecoveryUnavailableMessage = () => {
+    if (!isDirectSheetsConfigured()) {
+      return "Connect Google to create or locate Walmart-GC Data before using Sheets recovery actions.";
+    }
+
+    if (!hasGoogleFileAccessInMemory()) {
+      return oauthState.status === googleOAuthStatuses.connected
+        ? "Load or initialize Walmart-GC Data before using Google Sheets recovery actions."
+        : "Connect Google to sync.";
+    }
+
+    return "";
+  };
+
+  const downloadSessionCsvBackup = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    handleExportCsv(`walmart-gift-cards-session-backup-${timestamp}.csv`);
+    setValidationWarnings([]);
+    setValidationSummary("Downloaded a CSV backup of the current local session.");
+  };
+
+  const useCurrentSessionToOverwriteDirectSheets = async () => {
+    const backupRecommended = window.confirm(
+      "Overwrite sheet with this session will replace every card row in the configured Google sheet with this browser session. Download a backup CSV before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+    );
+    if (!backupRecommended) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Final confirmation: overwrite the configured Google sheet with the current local session now? Walmart-GC will not automatically merge sheet changes.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    await handleSaveCardsToSheet({
+      force: true,
+      successMessage: `Overwrote Walmart-GC Data with ${cards.length} current-session card${cards.length === 1 ? "" : "s"}.`,
+      startMessage: "Overwriting Walmart-GC Data with the current session...",
+    });
+  };
+
+  const retrySyncCurrentSession = async () => {
+    if (oauthState.status !== googleOAuthStatuses.connected) {
+      const message = "Sync failed: Connect Google to sync.";
+      setSyncState(prev => ({
+        ...prev,
+        status: syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message,
+        lastErrorMessage: message,
+      }));
+      setDirectSheetsState(prev => ({
+        ...prev,
+        status: directSheetsStatuses.error,
+        pendingUnsynced: true,
+        message,
+        lastErrorMessage: message,
+      }));
+      return;
+    }
+
+    if (syncState.status === syncStatuses.conflict) {
+      setSyncState(prev => ({
+        ...prev,
+        status: syncStatuses.conflict,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message: "Conflict detected. Load the remote Sheet or explicitly overwrite it with this session.",
+        lastErrorMessage: "Conflict detected. Try sync again will not overwrite Sheet changes automatically.",
+      }));
+      return;
+    }
+
+    if (!syncState.lastKnownSheetVersion) {
+      const message = "Load or initialize Walmart-GC Data before syncing so Walmart-GC can verify the current sheet version.";
+      setSyncState(prev => ({
+        ...prev,
+        status: syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message,
+        lastErrorMessage: message,
+      }));
+      setDirectSheetsState(prev => ({
+        ...prev,
+        status: directSheetsStatuses.error,
+        pendingUnsynced: true,
+        message,
+        lastErrorMessage: message,
+      }));
+      return;
+    }
+
+    await handleSaveCardsToSheet({
+      successMessage: "Sync succeeded. Current local cards were saved to Google Sheets.",
+      startMessage: "Retrying Google Sheets sync...",
+    });
+  };
+
   // Ensure Walmart-GC Data sheet exists and initialize layout metadata structures
   const handleEnsureSheet = async () => {
     setDirectSheetsState(prev => ({
@@ -668,16 +770,18 @@ function App() {
   };
 
   // Push active gift card arrays to Google Sheet
-  const handleSaveCardsToSheet = async () => {
+  const handleSaveCardsToSheet = async (options = {}) => {
     setDirectSheetsState(prev => ({
       ...prev,
       status: directSheetsStatuses.syncing,
-      message: "Syncing current local cards to Google Sheets through the Worker...",
+      message: options.startMessage || "Syncing current local cards to Google Sheets through the Worker...",
       lastErrorMessage: "",
     }));
 
     try {
-      const baseSheetVersion = String(syncState.lastKnownSheetVersion || "");
+      const baseSheetVersion = options.force
+        ? String(directSheetsState.remoteSheetVersion || syncState.lastKnownSheetVersion || "")
+        : String(syncState.lastKnownSheetVersion || "");
       const result = await fetchWorkerJson("/api/cards/save", {
         method: "POST",
         body: JSON.stringify({
@@ -697,7 +801,7 @@ function App() {
         remoteSheetVersion: String(result.sheetVersion || ""),
         lastSuccessfulSyncAt: now,
         pendingUnsynced: false,
-        message: `Synced ${cards.length} card(s) successfully.`,
+        message: options.successMessage || `Synced ${cards.length} card(s) successfully.`,
         lastErrorMessage: "",
       };
       setDirectSheetsState(updatedSheets);
@@ -709,7 +813,7 @@ function App() {
         lastSyncTimestamp: now,
         lastSyncAttemptTimestamp: now,
         lastKnownSheetVersion: String(result.sheetVersion || ""),
-        message: "Sync succeeded. Current local cards were saved to Google Sheets.",
+        message: options.successMessage || "Sync succeeded. Current local cards were saved to Google Sheets.",
         lastErrorMessage: "",
       };
       setSyncState(updatedSync);
@@ -974,6 +1078,87 @@ function App() {
                         Export to Google
                       </button>
                     </div>
+
+                    {/* Conflict / Unsynced Recovery Panel */}
+                    {(() => {
+                      const unavailableMessage = getRecoveryUnavailableMessage();
+                      const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
+                      const disableSheetsActions = Boolean(isBusy || unavailableMessage);
+
+                      if (syncState.status === syncStatuses.conflict) {
+                        return (
+                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-900 mt-2">
+                            <h4 className="font-bold text-rose-800 text-sm">Conflict recovery</h4>
+                            <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
+                            <p className="font-semibold text-rose-700">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+                            {unavailableMessage && <p className="font-bold text-red-600 mt-1">{unavailableMessage}</p>}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <button
+                                onClick={downloadSessionCsvBackup}
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm"
+                                type="button"
+                              >
+                                Download backup CSV
+                              </button>
+                              <button
+                                onClick={handleLoadCardsFromSheet}
+                                disabled={disableSheetsActions}
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50"
+                                type="button"
+                              >
+                                Replace local data from Sheet
+                              </button>
+                              <button
+                                onClick={useCurrentSessionToOverwriteDirectSheets}
+                                disabled={disableSheetsActions}
+                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50"
+                                type="button"
+                              >
+                                Overwrite sheet with this session
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (syncState.status === syncStatuses.unsynced) {
+                        return (
+                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 mt-2">
+                            <h4 className="font-bold text-amber-800 text-sm">Unsynced recovery</h4>
+                            <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
+                            <p>Replace local data from Sheet overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
+                            {unavailableMessage && <p className="font-bold text-red-600 mt-1">{unavailableMessage}</p>}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <button
+                                onClick={retrySyncCurrentSession}
+                                disabled={disableSheetsActions}
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50"
+                                type="button"
+                              >
+                                Try sync again
+                              </button>
+                              <button
+                                onClick={handleLoadCardsFromSheet}
+                                disabled={disableSheetsActions}
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50"
+                                type="button"
+                              >
+                                Replace local data from Sheet
+                              </button>
+                              <button
+                                onClick={downloadSessionCsvBackup}
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm"
+                                type="button"
+                              >
+                                Download backup CSV
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })()}
                   </div>
                 )}
 
