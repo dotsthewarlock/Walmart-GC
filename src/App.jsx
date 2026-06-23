@@ -3,7 +3,11 @@ import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getB
 import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData } from './lib/csv';
-import { fetchWorkerJson, googleOAuthStatuses } from './lib/api';
+import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
+
+function isCardsHeaderError(message) {
+  return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
+}
 
 function App() {
   const [cards, setCards] = useState([]);
@@ -46,6 +50,85 @@ function App() {
     workerVersion: "unknown",
     schemaMode: "unknown",
   });
+
+  // Direct Google Sheets sync state
+  const [directSheetsState, setDirectSheetsState] = useState({
+    spreadsheetId: "",
+    spreadsheetUrl: "",
+    spreadsheetName: "",
+    status: directSheetsStatuses.notConfigured,
+    cardsSheetInitialized: "unknown",
+    remoteSheetVersion: "",
+    lastSuccessfulSyncAt: "",
+    pendingUnsynced: false,
+    message: "Connect Google to sync.",
+    lastErrorMessage: "",
+  });
+
+  // General Concurrency tracking Sync State
+  const [syncState, setSyncState] = useState({
+    status: syncStatuses.unsynced,
+    lastSyncTimestamp: "",
+    lastSyncAttemptTimestamp: "",
+    lastKnownSheetVersion: "",
+    message: "Durable cloud sync is not active.",
+    lastErrorMessage: "",
+    pendingOperation: null,
+  });
+
+  const getAppSyncSummaryState = () => {
+    const isChecking = [googleOAuthStatuses.connecting, googleOAuthStatuses.restoring].includes(oauthState.status)
+      || [directSheetsStatuses.checking, directSheetsStatuses.creating, directSheetsStatuses.syncing].includes(directSheetsState.status);
+
+    if (isChecking) {
+      return {
+        key: "checking",
+        label: "Checking sync",
+        help: "Local cards stay available",
+      };
+    }
+
+    if (syncState.status === syncStatuses.conflict || directSheetsState.status === directSheetsStatuses.conflict) {
+      return {
+        key: "conflict",
+        label: "Sync conflict",
+        help: "Open backup and sync",
+      };
+    }
+
+    const hasPendingLocalChanges = Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced);
+
+    if (navigator.onLine === false || oauthState.status === googleOAuthStatuses.error || directSheetsState.status === directSheetsStatuses.error) {
+      return {
+        key: "unavailable",
+        label: "Sync unavailable",
+        help: hasPendingLocalChanges ? "Open backup and sync" : "Local cards available",
+      };
+    }
+
+    if (hasPendingLocalChanges || (syncState.status === syncStatuses.unsynced && oauthState.status === googleOAuthStatuses.connected)) {
+      return {
+        key: "unsynced",
+        label: "Unsynced changes",
+        help: "Open backup and sync",
+      };
+    }
+
+    if (oauthState.status === googleOAuthStatuses.connected && directSheetsState.status === directSheetsStatuses.ready) {
+      return {
+        key: "connected",
+        label: "✓ Sync ready",
+        help: "",
+      };
+    }
+
+    return {
+      key: "local-only",
+      label: "Local only",
+      help: "Connect in backup and sync",
+    };
+  };
+
 
 
 
@@ -149,6 +232,20 @@ function App() {
     setCards(loadedCards);
     setSettings(loadedSettings);
     
+    // Restore directSheets and sync states from local storage if available
+    try {
+      const storedSheets = localStorage.getItem("walmartGc.directSheets");
+      if (storedSheets) {
+        setDirectSheetsState(JSON.parse(storedSheets));
+      }
+      const storedSync = localStorage.getItem("walmartGc.sync");
+      if (storedSync) {
+        setSyncState(JSON.parse(storedSync));
+      }
+    } catch {
+      // ignore
+    }
+    
     // Auto-select first visible card if possible
     const visible = calculateVisibleCards(loadedCards, loadedSettings, loadedSettings.sortMode);
     if (visible.length > 0) {
@@ -166,6 +263,7 @@ function App() {
 
     refreshWorkerSessionStatus({ authReturn });
   }, []);
+
 
 
   // Compute card summaries based on state
@@ -423,7 +521,7 @@ function App() {
 
     try {
       await fetchWorkerJson("/api/logout", { method: "POST" });
-      setOauthState({
+      const nextOauth = {
         status: googleOAuthStatuses.disconnected,
         connectedEmail: "",
         connectedName: "",
@@ -431,7 +529,8 @@ function App() {
         lastErrorMessage: "",
         workerVersion: oauthState.workerVersion,
         schemaMode: oauthState.schemaMode,
-      });
+      };
+      setOauthState(nextOauth);
     } catch (error) {
       setOauthState(prev => ({
         ...prev,
@@ -442,7 +541,226 @@ function App() {
     }
   };
 
+  // Ensure Walmart-GC Data sheet exists and initialize layout metadata structures
+  const handleEnsureSheet = async () => {
+    setDirectSheetsState(prev => ({
+      ...prev,
+      status: directSheetsStatuses.checking,
+      message: "Initializing Walmart-GC Data structure through the Worker...",
+      lastErrorMessage: "",
+    }));
+    try {
+      const result = await fetchWorkerJson("/api/sheet/ensure", { method: "POST" });
+      const now = new Date().toISOString();
+      const updatedSheets = {
+        spreadsheetId: result.sheetId,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${result.sheetId}/edit`,
+        spreadsheetName: String(result.sheetName || "Walmart-GC Data"),
+        status: directSheetsStatuses.ready,
+        cardsSheetInitialized: "yes",
+        remoteSheetVersion: String(result.sheetVersion || ""),
+        lastSuccessfulSyncAt: now,
+        pendingUnsynced: false,
+        message: "Walmart-GC Data sheet structure initialized.",
+        lastErrorMessage: "",
+      };
+      setDirectSheetsState(updatedSheets);
+      localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
 
+      const updatedSync = {
+        ...syncState,
+        status: syncStatuses.connected,
+        lastSyncAttemptTimestamp: now,
+        lastKnownSheetVersion: String(result.sheetVersion || ""),
+        message: "Walmart-GC Data initialized. Completed actions will now sync.",
+        lastErrorMessage: "",
+      };
+      setSyncState(updatedSync);
+      localStorage.setItem("walmartGc.sync", JSON.stringify(updatedSync));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Walmart-GC Data initialization failed.";
+      const isHeaderErr = isCardsHeaderError(msg);
+      const mappedMsg = msg === "Not authenticated" ? "Connect Google to sync." : msg;
+
+      setDirectSheetsState(prev => ({
+        ...prev,
+        status: isHeaderErr ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
+        cardsSheetInitialized: "unknown",
+        message: mappedMsg,
+        lastErrorMessage: msg,
+      }));
+      setSyncState(prev => ({
+        ...prev,
+        status: syncStatuses.unsynced,
+        lastErrorMessage: msg,
+      }));
+    }
+  };
+
+  // Fetch gift cards details from active Google Sheet
+  const handleLoadCardsFromSheet = async () => {
+    setDirectSheetsState(prev => ({
+      ...prev,
+      status: directSheetsStatuses.checking,
+      message: "Loading cards from Google Sheets through the Worker...",
+      lastErrorMessage: "",
+    }));
+
+    try {
+      const result = await fetchWorkerJson("/api/cards/load");
+      const now = new Date().toISOString();
+      const loaded = result.cards || [];
+      setCards(loaded);
+      saveCards(loaded);
+
+      // Auto-select first visible card if possible
+      const visible = calculateVisibleCards(loaded, settings, settings.sortMode);
+      if (visible.length > 0) {
+        setSelectedCardIndex(visible[0]);
+      } else {
+        setSelectedCardIndex(-1);
+      }
+
+      const updatedSheets = {
+        ...directSheetsState,
+        spreadsheetId: result.sheetId,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${result.sheetId}/edit`,
+        spreadsheetName: String(result.sheetName || "Walmart-GC Data"),
+        status: directSheetsStatuses.ready,
+        cardsSheetInitialized: "yes",
+        remoteSheetVersion: String(result.sheetVersion || ""),
+        lastSuccessfulSyncAt: now,
+        pendingUnsynced: false,
+        message: `Loaded ${loaded.length} card(s) from Sheets.`,
+        lastErrorMessage: "",
+      };
+      setDirectSheetsState(updatedSheets);
+      localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
+
+      const updatedSync = {
+        status: syncStatuses.connected,
+        lastSyncTimestamp: now,
+        lastSyncAttemptTimestamp: now,
+        lastKnownSheetVersion: String(result.sheetVersion || ""),
+        message: `Loaded ${loaded.length} card(s) from Walmart-GC Data.`,
+        lastErrorMessage: "",
+        pendingOperation: null,
+      };
+      setSyncState(updatedSync);
+      localStorage.setItem("walmartGc.sync", JSON.stringify(updatedSync));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Worker Google Sheets load failed.";
+      const isHeaderErr = isCardsHeaderError(msg);
+      const mappedMsg = msg === "Not authenticated" ? "Connect Google to sync." : msg;
+
+      setDirectSheetsState(prev => ({
+        ...prev,
+        status: isHeaderErr ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
+        message: mappedMsg,
+        lastErrorMessage: msg,
+      }));
+      setSyncState(prev => ({
+        ...prev,
+        status: syncStatuses.unsynced,
+        lastErrorMessage: msg,
+      }));
+    }
+  };
+
+  // Push active gift card arrays to Google Sheet
+  const handleSaveCardsToSheet = async () => {
+    setDirectSheetsState(prev => ({
+      ...prev,
+      status: directSheetsStatuses.syncing,
+      message: "Syncing current local cards to Google Sheets through the Worker...",
+      lastErrorMessage: "",
+    }));
+
+    try {
+      const baseSheetVersion = String(syncState.lastKnownSheetVersion || "");
+      const result = await fetchWorkerJson("/api/cards/save", {
+        method: "POST",
+        body: JSON.stringify({
+          cards: cards,
+          baseSheetVersion,
+        }),
+      });
+
+      const now = new Date().toISOString();
+      const spreadsheetId = String(result.sheetId || directSheetsState.spreadsheetId || "").trim();
+      const updatedSheets = {
+        ...directSheetsState,
+        spreadsheetId,
+        spreadsheetUrl: spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : directSheetsState.spreadsheetUrl,
+        spreadsheetName: String(result.sheetName || directSheetsState.spreadsheetName || "Walmart-GC Data"),
+        status: directSheetsStatuses.ready,
+        remoteSheetVersion: String(result.sheetVersion || ""),
+        lastSuccessfulSyncAt: now,
+        pendingUnsynced: false,
+        message: `Synced ${cards.length} card(s) successfully.`,
+        lastErrorMessage: "",
+      };
+      setDirectSheetsState(updatedSheets);
+      localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
+
+      const updatedSync = {
+        ...syncState,
+        status: syncStatuses.connected,
+        lastSyncTimestamp: now,
+        lastSyncAttemptTimestamp: now,
+        lastKnownSheetVersion: String(result.sheetVersion || ""),
+        message: "Sync succeeded. Current local cards were saved to Google Sheets.",
+        lastErrorMessage: "",
+      };
+      setSyncState(updatedSync);
+      localStorage.setItem("walmartGc.sync", JSON.stringify(updatedSync));
+    } catch (error) {
+      const payload = error && typeof error === "object" ? error.payload : null;
+      if (payload && payload.conflict) {
+        const remoteVersion = String(payload.remoteSheetVersion || "");
+        const conflictMsg = "Conflict detected: the Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
+        
+        setDirectSheetsState(prev => ({
+          ...prev,
+          status: directSheetsStatuses.conflict,
+          remoteSheetVersion: remoteVersion,
+          pendingUnsynced: true,
+          message: conflictMsg,
+          lastErrorMessage: conflictMsg,
+        }));
+        
+        setSyncState(prev => ({
+          ...prev,
+          status: syncStatuses.conflict,
+          lastSyncAttemptTimestamp: new Date().toISOString(),
+          lastKnownSheetVersion: prev.lastKnownSheetVersion,
+          message: conflictMsg,
+          lastErrorMessage: conflictMsg,
+        }));
+        return;
+      }
+
+      const msg = error instanceof Error ? error.message : "Worker Google Sheets sync failed.";
+      const isHeaderErr = isCardsHeaderError(msg);
+      const mappedMsg = msg === "Not authenticated" ? "Connect Google to sync." : msg;
+
+      setDirectSheetsState(prev => ({
+        ...prev,
+        status: isHeaderErr ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
+        pendingUnsynced: true,
+        message: mappedMsg,
+        lastErrorMessage: msg,
+      }));
+      
+      setSyncState(prev => ({
+        ...prev,
+        status: prev.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
+        lastSyncAttemptTimestamp: new Date().toISOString(),
+        message: mappedMsg,
+        lastErrorMessage: msg,
+      }));
+    }
+  };
 
   return (
     <>
@@ -613,12 +931,59 @@ function App() {
                   )}
                 </div>
 
+                {oauthState.status === googleOAuthStatuses.connected && (
+                  <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-slate-100">
+                    <p id="direct-sheet-status" className="text-xs font-semibold text-slate-600">
+                      {directSheetsState.message}
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        id="ensure-sheet"
+                        onClick={handleEnsureSheet}
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                        type="button"
+                      >
+                        Fix Google Sheet
+                      </button>
+                      {directSheetsState.spreadsheetUrl && (
+                        <a
+                          id="open-direct-sheet"
+                          href={directSheetsState.spreadsheetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center"
+                        >
+                          Open Sheet
+                        </a>
+                      )}
+                      <button
+                        id="load-from-sheets"
+                        onClick={handleLoadCardsFromSheet}
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                        type="button"
+                      >
+                        Import from Google
+                      </button>
+                      <button
+                        id="save-to-sheets"
+                        onClick={handleSaveCardsToSheet}
+                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all active:scale-95 shadow-md"
+                        type="button"
+                      >
+                        Export to Google
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {oauthState.lastErrorMessage && (
                   <p id="google-oauth-status" className="text-xs font-bold text-red-600 border-t border-red-50/50 pt-2 mt-1">
                     {oauthState.lastErrorMessage}
                   </p>
                 )}
               </section>
+
 
 
               {/* Data Panel / Backup Controls */}
@@ -727,15 +1092,34 @@ function App() {
                         </li>
                       </ul>
                       <div id="advanced-sync-diagnostics" className="text-[10px] text-slate-400 leading-relaxed border-t border-slate-100 pt-2 mt-1">
-                        Local database matches storage specifications. Sync status: idle.
+                        Local database matches storage specifications. Sync status: {syncState.status}. {syncState.message || directSheetsState.message}
                       </div>
                     </div>
                   </div>
                 </details>
               </section>
 
-
-
+              {/* Sync Status Banner */}
+              {(() => {
+                const summary = getAppSyncSummaryState();
+                return (
+                  <div
+                    id="checkout-feedback"
+                    className={`p-3.5 rounded-2xl text-xs font-bold flex justify-between items-center transition-all ${
+                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/80' :
+                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-700 border border-amber-100/80' :
+                      ['conflict', 'unavailable'].includes(summary.key) ? 'bg-rose-50 text-rose-700 border border-rose-100/80' :
+                      'bg-slate-50 text-slate-600 border border-slate-100/80'
+                    }`}
+                    role="status"
+                    aria-live="polite"
+                    data-sync-summary={summary.key}
+                  >
+                    <span>{summary.label}</span>
+                    {summary.help && <span className="text-[10px] opacity-80">{summary.help}</span>}
+                  </div>
+                );
+              })()}
 
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">

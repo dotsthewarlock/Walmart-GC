@@ -6,6 +6,24 @@ export const googleOAuthStatuses = {
   error: "error",
 };
 
+export const syncStatuses = {
+  unsynced: "unsynced",
+  syncing: "syncing",
+  connected: "connected",
+  conflict: "conflict",
+};
+
+export const directSheetsStatuses = {
+  notConfigured: "not-configured",
+  checking: "checking",
+  ready: "ready",
+  syncing: "syncing",
+  needsAttention: "needs-attention",
+  conflict: "conflict",
+  error: "error",
+};
+
+
 export async function fetchWorkerJson(path, options = {}) {
   const response = await fetch(path, {
     ...options,
