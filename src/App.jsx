@@ -2003,7 +2003,7 @@ function App() {
                   step="0.01"
                   value={amountUsedValue}
                   onChange={handleAmountUsedChange}
-                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] transition-all duration-200"
                   placeholder="0.00"
                   autoFocus
                 />
@@ -2019,7 +2019,7 @@ function App() {
                   step="0.01"
                   value={newBalanceValue}
                   onChange={handleRemainingBalanceChange}
-                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] transition-all duration-200"
                   placeholder="0.00"
                 />
               </div>
@@ -2035,7 +2035,7 @@ function App() {
               <button
                 id="cancel-balance-update"
                 onClick={handleCancelBalanceEdit}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-xl text-xs transition-all active:scale-95 cursor-pointer"
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 cursor-pointer"
                 type="button"
               >
                 Cancel
@@ -2043,7 +2043,7 @@ function App() {
               <button
                 id="save-balance-update"
                 onClick={handleSaveBalance}
-                className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-xl text-xs transition-all active:scale-95 shadow-md cursor-pointer"
+                className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md cursor-pointer"
                 type="button"
               >
                 Save
@@ -2135,7 +2135,7 @@ function App() {
                 <button 
                   id="cancel-raw-data-update" 
                   onClick={() => setIsRawDataModalOpen(false)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-xl text-xs transition-all active:scale-95"
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95"
                   type="button"
                 >
                   Cancel
@@ -2143,7 +2143,7 @@ function App() {
                 <button 
                   id="done-raw-data-update" 
                   onClick={handleDoneRawEditor}
-                  className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-xl text-xs transition-all active:scale-95 shadow-md"
+                  className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md"
                   type="button"
                 >
                   Done
