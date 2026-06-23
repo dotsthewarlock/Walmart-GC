@@ -59,6 +59,24 @@ function App() {
     saveCards(updatedCards);
   };
 
+  // Mark all $0 cards used helper from phase-12
+  const handleMarkZeroBalanceUsed = () => {
+    const updatedCards = cards.map((card) => {
+      if (card.currentBalance === 0 && !card.used) {
+        return {
+          ...card,
+          used: true,
+          dateUsed: new Date().toISOString().slice(0, 10),
+        };
+      }
+      return card;
+    });
+    setCards(updatedCards);
+    saveCards(updatedCards);
+  };
+
+  const zeroBalanceCount = cards.filter(card => card.currentBalance === 0 && !card.used).length;
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center p-4 sm:p-8 antialiased font-sans">
       <div className="max-w-2xl w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden mt-4">
@@ -144,6 +162,18 @@ function App() {
                   <option value="card-number">Card Number</option>
                 </select>
               </div>
+
+              {zeroBalanceCount > 0 && (
+                <button
+                  id="mark-zero-used"
+                  onClick={handleMarkZeroBalanceUsed}
+                  className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans"
+                  type="button"
+                >
+                  <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
+                  <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
+                </button>
+              )}
             </div>
           </section>
 
