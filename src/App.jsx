@@ -9,6 +9,16 @@ function isCardsHeaderError(message) {
   return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
 }
 
+function maskCardNumber(cardNumber) {
+  const digits = String(cardNumber ?? "").replace(/\D/g, "");
+  if (!digits) {
+    return "—";
+  }
+  const lastFour = digits.slice(-4);
+  const maskedDigits = `${"•".repeat(Math.max(digits.length - 4, 0))}${lastFour}`;
+  return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
+}
+
 function App() {
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
@@ -18,7 +28,8 @@ function App() {
     hideZeroBalanceCards: false,
     sortMode: "balance-asc",
   });
-  const [activePanel, setActivePanel] = useState('list'); // 'list' or 'detail'
+  const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
+  const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const [revealNumber, setRevealNumber] = useState(false);
   
@@ -928,63 +939,92 @@ function App() {
 
   return (
     <>
+      {/* Fixed responsive navigation bar */}
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-40 md:top-0 md:bottom-auto flex border-t border-slate-200 md:border-t-0 md:border-b bg-white/95 backdrop-blur-md shadow-lg md:shadow-sm px-4 py-2 md:py-1.5 gap-2" 
+        aria-label="App sections"
+      >
+        <button 
+          id="nav-list"
+          onClick={() => {
+            setActivePanel('list');
+            setPreviousPrimaryPanel('list');
+          }}
+          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
+            activePanel === 'list' 
+              ? 'bg-[#0b57d0] text-white shadow-sm' 
+              : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50'
+          }`}
+        >
+          Cards
+        </button>
+        <button 
+          id="nav-detail"
+          onClick={() => {
+            const nextIndex = ensureVisibleSelection();
+            if (nextIndex !== -1) {
+              setSelectedCardIndex(nextIndex);
+              setActivePanel('detail');
+              setPreviousPrimaryPanel('detail');
+            }
+          }}
+          disabled={visibleIndexes.length === 0}
+          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
+            activePanel === 'detail' 
+              ? 'bg-[#0b57d0] text-white shadow-sm' 
+              : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50 disabled:opacity-50'
+          }`}
+        >
+          Checkout
+        </button>
+      </nav>
+
+      {/* Header Region */}
+      <header className="bg-gradient-to-br from-[#0b57d0] to-[#0842a0] text-white pt-8 md:pt-16 pb-20 px-6 sm:px-8">
+        <div className="max-w-[52rem] mx-auto relative flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">
+              Gift Card Manager
+            </h1>
+            <p className="text-xs text-blue-100 font-medium tracking-wide uppercase mt-1">
+              Secure Local Gift Card Vault
+            </p>
+          </div>
+          <div className="bg-white/15 text-white text-xs px-3 py-1.5 rounded-full font-mono font-bold tracking-wider opacity-90">
+            agy-v1
+          </div>
+          <button 
+            id="open-settings"
+            onClick={() => {
+              if (activePanel === 'settings') {
+                setActivePanel(previousPrimaryPanel);
+              } else {
+                setPreviousPrimaryPanel(activePanel);
+                setActivePanel('settings');
+              }
+            }}
+            className={`fixed top-6 md:top-14 right-4 sm:right-8 z-30 w-12 h-12 border rounded-xl flex items-center justify-center text-xl transition-all active:scale-97 shadow-lg backdrop-blur-md cursor-pointer ${
+              activePanel === 'settings'
+                ? 'bg-[#0b57d0] text-white border-[#0b57d0]'
+                : 'border-white/70 bg-[#ebf6ff]/70 text-[#0842a0] hover:bg-[#ebf6ff]/90 hover:border-blue-400'
+            }`}
+            title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
+            aria-label="Open settings"
+            aria-expanded={activePanel === 'settings'}
+          >
+            ⚙️
+          </button>
+        </div>
+      </header>
+
       <div 
-        className="min-h-screen bg-slate-100 flex flex-col items-center p-4 sm:p-8 antialiased font-sans"
+        className="min-h-screen bg-slate-100 flex flex-col items-center px-4 pb-24 md:pb-12 antialiased font-sans -mt-10 relative z-10"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
-        <div className={`w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden mt-4 transition-all duration-300 ${
+        <div className={`w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden transition-all duration-300 ${
           activePanel === 'detail' ? 'max-w-[60rem]' : 'max-w-[52rem]'
         }`}>
-          
-          {/* Header Region */}
-          <header className="bg-[#0b57d0] text-white px-8 py-6 flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                Walmart-GC
-              </h1>
-              <p className="text-xs text-blue-100 font-medium tracking-wide uppercase mt-0.5">
-                Secure Local Gift Card Vault
-              </p>
-            </div>
-            <div className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-full font-mono font-bold tracking-wider">
-              agy-v1
-            </div>
-          </header>
-
-          {/* Top Tab Navigation matching phase-12 */}
-          <nav className="flex border-b border-slate-200" aria-label="App sections">
-            <button 
-              id="nav-list"
-              onClick={() => setActivePanel('list')}
-              className={`flex-1 text-center py-4 font-bold text-sm border-b-2 transition-all ${
-                activePanel === 'list' 
-                  ? 'border-[#0b57d0] text-[#0b57d0]' 
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Cards
-            </button>
-            <button 
-              id="nav-detail"
-              onClick={() => {
-                const nextIndex = ensureVisibleSelection();
-                if (nextIndex !== -1) {
-                  setSelectedCardIndex(nextIndex);
-                  setActivePanel('detail');
-                }
-              }}
-              disabled={visibleIndexes.length === 0}
-              className={`flex-1 text-center py-4 font-bold text-sm border-b-2 transition-all ${
-                activePanel === 'detail' 
-                  ? 'border-[#0b57d0] text-[#0b57d0]' 
-                  : 'border-transparent text-slate-500 hover:text-slate-700 disabled:opacity-50'
-              }`}
-            >
-              Checkout
-            </button>
-          </nav>
-
           {activePanel === 'list' ? (
             <main className="p-8 flex flex-col gap-6">
               
@@ -1002,6 +1042,97 @@ function App() {
                 </div>
               </section>
 
+              {/* Sync Status Banner */}
+              {(() => {
+                const summary = getAppSyncSummaryState();
+                return (
+                  <div
+                    id="checkout-feedback"
+                    className={`p-3.5 rounded-2xl text-xs font-bold flex justify-between items-center transition-all ${
+                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/80' :
+                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-700 border border-amber-100/80' :
+                      ['conflict', 'unavailable'].includes(summary.key) ? 'bg-rose-50 text-rose-700 border border-rose-100/80' :
+                      'bg-slate-50 text-slate-600 border border-slate-100/80'
+                    }`}
+                    role="status"
+                    aria-live="polite"
+                    data-sync-summary={summary.key}
+                  >
+                    <span>{summary.label}</span>
+                    {summary.help && <span className="text-[10px] opacity-80">{summary.help}</span>}
+                  </div>
+                );
+              })()}
+
+              {/* Cards Inventory Ledger */}
+              <section className="flex flex-col gap-3">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vault Inventory</h3>
+                  <select
+                    value={settings.sortMode}
+                    onChange={handleSortChange}
+                    className="text-xs font-bold border border-slate-200 rounded-xl p-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] cursor-pointer"
+                  >
+                    <option value="balance-asc">Balance: Low to High</option>
+                    <option value="balance-desc">Balance: High to Low</option>
+                    <option value="date-added-asc">Date Added: Oldest First</option>
+                    <option value="date-added-desc">Date Added: Newest First</option>
+                    <option value="date-updated-asc">Date Updated: Oldest First</option>
+                    <option value="date-updated-desc">Date Updated: Newest First</option>
+                    <option value="card-number">Card Number</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {visibleIndexes.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                      No cards match the active filters.
+                    </div>
+                  ) : (
+                    visibleIndexes.map((cardIndex) => {
+                      const card = cards[cardIndex];
+                      const isSelected = selectedCardIndex === cardIndex;
+                      return (
+                        <div
+                          key={card.cardNumber}
+                          onClick={() => {
+                            setSelectedCardIndex(cardIndex);
+                            setActivePanel('detail');
+                          }}
+                          className={`flex items-center justify-between p-3.5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
+                            isSelected
+                              ? 'border-[#0b57d0] ring-2 ring-[#0b57d0]/20 bg-blue-50/20'
+                              : card.used
+                                ? 'border-slate-100 bg-slate-50/50 opacity-60'
+                                : 'border-slate-200 hover:border-blue-300 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-bold text-slate-800">
+                              {maskCardNumber(card.cardNumber)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {card.used && (
+                              <span className="text-[10px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded uppercase">
+                                Used
+                              </span>
+                            )}
+                            <span className={`text-sm font-extrabold text-slate-900 ${card.used ? 'text-slate-400 font-semibold' : ''}`}>
+                              ${card.currentBalance.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+
+            </main>
+          ) : activePanel === 'settings' ? (
+            <main className="p-8 flex flex-col gap-6">
+              
               {/* Local Settings / Filtering Controls */}
               <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preferences</h3>
@@ -1037,27 +1168,11 @@ function App() {
                     Auto-Advance
                   </label>
 
-                  <div className="flex flex-col gap-1">
-                    <select
-                      value={settings.sortMode}
-                      onChange={handleSortChange}
-                      className="w-full text-xs font-bold border border-slate-200 rounded-xl p-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
-                    >
-                      <option value="balance-asc">Balance: Low to High</option>
-                      <option value="balance-desc">Balance: High to Low</option>
-                      <option value="date-added-asc">Date Added: Oldest First</option>
-                      <option value="date-added-desc">Date Added: Newest First</option>
-                      <option value="date-updated-asc">Date Updated: Oldest First</option>
-                      <option value="date-updated-desc">Date Updated: Newest First</option>
-                      <option value="card-number">Card Number</option>
-                    </select>
-                  </div>
-
                   {zeroBalanceCount > 0 && (
                     <button
                       id="mark-zero-used"
                       onClick={handleMarkZeroBalanceUsed}
-                      className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans"
+                      className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer"
                       type="button"
                     >
                       <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
@@ -1084,7 +1199,7 @@ function App() {
                     <button 
                       id="disconnect-google"
                       onClick={handleDisconnectGoogle}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0"
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer"
                       type="button"
                     >
                       Disconnect
@@ -1093,7 +1208,7 @@ function App() {
                     <button 
                       id="connect-google"
                       onClick={handleConnectGoogle}
-                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0"
+                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer"
                       type="button"
                     >
                       Connect Google
@@ -1111,7 +1226,7 @@ function App() {
                       <button
                         id="ensure-sheet"
                         onClick={handleEnsureSheet}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer"
                         type="button"
                       >
                         Fix Google Sheet
@@ -1122,7 +1237,7 @@ function App() {
                           href={directSheetsState.spreadsheetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center"
+                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer"
                         >
                           Open Sheet
                         </a>
@@ -1130,7 +1245,7 @@ function App() {
                       <button
                         id="load-from-sheets"
                         onClick={handleLoadCardsFromSheet}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer"
                         type="button"
                       >
                         Import from Google
@@ -1138,7 +1253,7 @@ function App() {
                       <button
                         id="save-to-sheets"
                         onClick={handleSaveCardsToSheet}
-                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all active:scale-95 shadow-md"
+                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer"
                         type="button"
                       >
                         Export to Google
@@ -1161,7 +1276,7 @@ function App() {
                             <div className="flex flex-wrap gap-2 mt-2">
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1169,7 +1284,7 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer"
                                 type="button"
                               >
                                 Replace local data from Sheet
@@ -1177,7 +1292,7 @@ function App() {
                               <button
                                 onClick={useCurrentSessionToOverwriteDirectSheets}
                                 disabled={disableSheetsActions}
-                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50"
+                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
                                 type="button"
                               >
                                 Overwrite sheet with this session
@@ -1198,7 +1313,7 @@ function App() {
                               <button
                                 onClick={retrySyncCurrentSession}
                                 disabled={disableSheetsActions}
-                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50"
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
                                 type="button"
                               >
                                 Try sync again
@@ -1206,14 +1321,14 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer"
                                 type="button"
                               >
                                 Replace local data from Sheet
                               </button>
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm"
+                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 px-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1235,11 +1350,9 @@ function App() {
                 )}
               </section>
 
-
-
               {/* Data Panel / Backup Controls */}
               <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
-                <details className="group">
+                <details className="group" open>
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Backup & CSV Controls</span>
                     <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
@@ -1256,7 +1369,7 @@ function App() {
                       <button 
                         id="import-csv" 
                         onClick={() => document.getElementById('csv-file-input').click()}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer"
                         type="button"
                         title="Import CSV backup"
                       >
@@ -1265,7 +1378,7 @@ function App() {
                       <button 
                         id="export-csv" 
                         onClick={handleExportCsv}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer"
                         type="button"
                         title="Export CSV backup"
                       >
@@ -1281,7 +1394,7 @@ function App() {
                       <button 
                         id="open-raw-data-modal" 
                         onClick={handleOpenRawEditor}
-                        className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0"
+                        className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer"
                         type="button"
                       >
                         Open Editor
@@ -1350,84 +1463,12 @@ function App() {
                 </details>
               </section>
 
-              {/* Sync Status Banner */}
-              {(() => {
-                const summary = getAppSyncSummaryState();
-                return (
-                  <div
-                    id="checkout-feedback"
-                    className={`p-3.5 rounded-2xl text-xs font-bold flex justify-between items-center transition-all ${
-                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/80' :
-                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-700 border border-amber-100/80' :
-                      ['conflict', 'unavailable'].includes(summary.key) ? 'bg-rose-50 text-rose-700 border border-rose-100/80' :
-                      'bg-slate-50 text-slate-600 border border-slate-100/80'
-                    }`}
-                    role="status"
-                    aria-live="polite"
-                    data-sync-summary={summary.key}
-                  >
-                    <span>{summary.label}</span>
-                    {summary.help && <span className="text-[10px] opacity-80">{summary.help}</span>}
-                  </div>
-                );
-              })()}
-
-              {/* Cards Inventory Ledger */}
-              <section className="flex flex-col gap-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Vault Inventory</h3>
-                <div className="flex flex-col gap-3">
-                  {visibleIndexes.length === 0 ? (
-                    <div className="text-center py-8 text-sm text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
-                      No cards match the active filters.
-                    </div>
-                  ) : (
-                    visibleIndexes.map((cardIndex) => {
-                      const card = cards[cardIndex];
-                      return (
-                        <div 
-                          key={card.cardNumber} 
-                          onClick={() => {
-                            setSelectedCardIndex(cardIndex);
-                            setActivePanel('detail');
-                          }}
-                          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
-                            card.used ? 'border-slate-100 bg-slate-50/50 opacity-60' : 'border-slate-200 hover:border-blue-300 shadow-sm'
-                          }`}
-                        >
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-sm font-bold text-slate-800">
-                                {card.cardNumber.slice(0, 4)} •••• •••• {card.cardNumber.slice(-4)}
-                              </span>
-                              {card.merchant && (
-                                <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded uppercase">
-                                  {card.merchant}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs font-bold text-slate-400">PIN: {card.pin}</span>
-                            {card.notes && <span className="text-xs text-slate-500 mt-1 max-w-md">{card.notes}</span>}
-                          </div>
-
-                          <div className="flex items-center justify-between w-full sm:w-auto gap-6 border-t sm:border-0 pt-3 sm:pt-0" onClick={e => e.stopPropagation()}>
-                            <span className="text-xl font-extrabold text-slate-900">${card.currentBalance.toFixed(2)}</span>
-                            <button
-                              onClick={() => handleToggleUsed(cardIndex)}
-                              className={`text-xs font-bold px-4 py-2.5 rounded-xl border transition-all ${
-                                card.used 
-                                  ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 border-transparent' 
-                                  : 'bg-white hover:bg-slate-100 text-[#0b57d0] border-slate-200 active:scale-95 shadow-sm'
-                              }`}
-                            >
-                              {card.used ? "Mark Active" : "Mark Used"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </section>
+              <button
+                onClick={() => setActivePanel(previousPrimaryPanel)}
+                className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm"
+              >
+                Back
+              </button>
 
             </main>
           ) : (
