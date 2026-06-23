@@ -173,6 +173,13 @@ For every Codex task and ChatGPT review, inspect or update `docs/MAINTENANCE_LOG
 
 Each maintenance entry should include priority/risk/area, source PR or task when known, status, concise context, suggested action, guardrails, and acceptance. Use GitHub Issues instead of the log for assigned, blocking, or soon-actionable work. During `next` checkpoints, ChatGPT should check this log and advise whether to continue feature work or run cleanup before drift accumulates.
 
+## AI-First Workflow Guidance
+
+- Prioritize token efficiency and low user friction; explicitly distinguish/label Terminal vs Agy CLI commands.
+- Batch safe Terminal commands together. Prefer bundled Green/docs/local-UI tasks that can implement, build, status/diff-stat, self-check, and stop in one run.
+- **Durable Green/docs/local-UI workflow**: For safe tasks, prefer a single guarded batch command that checks branch and changed-file scope, prints relevant diffs, runs diff/build checks, commits separate logical scopes when safe, verifies final clean status, and pushes automatically. The batch must stop on any error or alert condition and otherwise continue without user interaction, leaving output for review after completion.
+- Split tasks only for guardrail risks, unclear scope, likely breakage, prior failures, resource bottlenecks, token/bandwidth concerns, broad reasoning demands, or Yellow/Red risk areas.
+
 ## Execution Lane Selection
 
 Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
