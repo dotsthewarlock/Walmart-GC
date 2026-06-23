@@ -24,6 +24,56 @@ function App() {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [newNotesValue, setNewNotesValue] = useState("");
 
+  const [isFullscreenBarcode, setIsFullscreenBarcode] = useState(false);
+  const [wakeLock, setWakeLock] = useState(null);
+
+  // Handle escape key listener for barcode modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsFullscreenBarcode(false);
+      }
+    };
+    
+    if (isFullscreenBarcode) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreenBarcode]);
+
+  // Handle screen wake lock for focused barcode scanning
+  useEffect(() => {
+    let activeLock = null;
+    async function requestLock() {
+      if ("wakeLock" in navigator && isFullscreenBarcode) {
+        try {
+          activeLock = await navigator.wakeLock.request("screen");
+          setWakeLock(activeLock);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    
+    if (isFullscreenBarcode) {
+      requestLock();
+    } else {
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        setWakeLock(null);
+      }
+    }
+
+    return () => {
+      if (activeLock) {
+        activeLock.release().catch(() => {});
+      }
+    };
+  }, [isFullscreenBarcode]);
+
   // Load cards and settings on initialization
   useEffect(() => {
     const loadedCards = loadCards();
@@ -173,449 +223,574 @@ function App() {
   const visiblePosition = visibleIndexes.indexOf(selectedCardIndex);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center p-4 sm:p-8 antialiased font-sans">
-      <div className="max-w-2xl w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden mt-4">
-        
-        {/* Header Region */}
-        <header className="bg-[#0b57d0] text-white px-8 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-              Walmart-GC
-            </h1>
-            <p className="text-xs text-blue-100 font-medium tracking-wide uppercase mt-0.5">
-              Secure Local Gift Card Vault
-            </p>
-          </div>
-          <div className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-full font-mono font-bold tracking-wider">
-            agy-v1
-          </div>
-        </header>
+    <>
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center p-4 sm:p-8 antialiased font-sans">
+        <div className="max-w-2xl w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden mt-4">
+          
+          {/* Header Region */}
+          <header className="bg-[#0b57d0] text-white px-8 py-6 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                Walmart-GC
+              </h1>
+              <p className="text-xs text-blue-100 font-medium tracking-wide uppercase mt-0.5">
+                Secure Local Gift Card Vault
+              </p>
+            </div>
+            <div className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-full font-mono font-bold tracking-wider">
+              agy-v1
+            </div>
+          </header>
 
-        {/* Top Tab Navigation matching phase-12 */}
-        <nav className="flex border-b border-slate-200" aria-label="App sections">
-          <button 
-            id="nav-list"
-            onClick={() => setActivePanel('list')}
-            className={`flex-1 text-center py-4 font-bold text-sm border-b-2 transition-all ${
-              activePanel === 'list' 
-                ? 'border-[#0b57d0] text-[#0b57d0]' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Cards
-          </button>
-          <button 
-            id="nav-detail"
-            onClick={() => {
-              const nextIndex = ensureVisibleSelection();
-              if (nextIndex !== -1) {
-                setSelectedCardIndex(nextIndex);
-                setActivePanel('detail');
-              }
-            }}
-            disabled={visibleIndexes.length === 0}
-            className={`flex-1 text-center py-4 font-bold text-sm border-b-2 transition-all ${
-              activePanel === 'detail' 
-                ? 'border-[#0b57d0] text-[#0b57d0]' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 disabled:opacity-50'
-            }`}
-          >
-            Checkout
-          </button>
-        </nav>
+          {/* Top Tab Navigation matching phase-12 */}
+          <nav className="flex border-b border-slate-200" aria-label="App sections">
+            <button 
+              id="nav-list"
+              onClick={() => setActivePanel('list')}
+              className={`flex-1 text-center py-4 font-bold text-sm border-b-2 transition-all ${
+                activePanel === 'list' 
+                  ? 'border-[#0b57d0] text-[#0b57d0]' 
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Cards
+            </button>
+            <button 
+              id="nav-detail"
+              onClick={() => {
+                const nextIndex = ensureVisibleSelection();
+                if (nextIndex !== -1) {
+                  setSelectedCardIndex(nextIndex);
+                  setActivePanel('detail');
+                }
+              }}
+              disabled={visibleIndexes.length === 0}
+              className={`flex-1 text-center py-4 font-bold text-sm border-b-2 transition-all ${
+                activePanel === 'detail' 
+                  ? 'border-[#0b57d0] text-[#0b57d0]' 
+                  : 'border-transparent text-slate-500 hover:text-slate-700 disabled:opacity-50'
+              }`}
+            >
+              Checkout
+            </button>
+          </nav>
 
-        {activePanel === 'list' ? (
-          <main className="p-8 flex flex-col gap-6">
-            
-            {/* Wallet Diagnostics / Balances Summary */}
-            <section className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col sm:flex-row justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Visible Balance</span>
-                <span className="text-3xl font-black text-slate-900">${activeBalance.toFixed(2)}</span>
-                <span className="text-xs text-slate-400">Total Wallet Assets: ${totalBalance.toFixed(2)}</span>
-              </div>
-              <div className="flex flex-col gap-1 sm:text-right">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Card Counts</span>
-                <span className="text-2xl font-black text-slate-800">{activeCount} / {totalCount}</span>
-                <span className="text-xs text-slate-400">displayed / registered</span>
-              </div>
-            </section>
-
-            {/* Local Settings / Filtering Controls */}
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preferences</h3>
+          {activePanel === 'list' ? (
+            <main className="p-8 flex flex-col gap-6">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={settings.hideUsedCards}
-                    onChange={() => handleToggleSetting('hideUsedCards')}
-                    className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
-                  />
-                  Hide Used Cards
-                </label>
-
-                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={settings.hideZeroBalanceCards}
-                    onChange={() => handleToggleSetting('hideZeroBalanceCards')}
-                    className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
-                  />
-                  Hide $0 Cards
-                </label>
-
-                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={settings.advanceOnMarkUsed}
-                    onChange={() => handleToggleSetting('advanceOnMarkUsed')}
-                    className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
-                  />
-                  Auto-Advance
-                </label>
-
+              {/* Wallet Diagnostics / Balances Summary */}
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col sm:flex-row justify-between gap-4">
                 <div className="flex flex-col gap-1">
-                  <select
-                    value={settings.sortMode}
-                    onChange={handleSortChange}
-                    className="w-full text-xs font-bold border border-slate-200 rounded-xl p-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
-                  >
-                    <option value="balance-asc">Balance: Low to High</option>
-                    <option value="balance-desc">Balance: High to Low</option>
-                    <option value="date-added-asc">Date Added: Oldest First</option>
-                    <option value="date-added-desc">Date Added: Newest First</option>
-                    <option value="date-updated-asc">Date Updated: Oldest First</option>
-                    <option value="date-updated-desc">Date Updated: Newest First</option>
-                    <option value="card-number">Card Number</option>
-                  </select>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Visible Balance</span>
+                  <span className="text-3xl font-black text-slate-900">${activeBalance.toFixed(2)}</span>
+                  <span className="text-xs text-slate-400">Total Wallet Assets: ${totalBalance.toFixed(2)}</span>
                 </div>
+                <div className="flex flex-col gap-1 sm:text-right">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Card Counts</span>
+                  <span className="text-2xl font-black text-slate-800">{activeCount} / {totalCount}</span>
+                  <span className="text-xs text-slate-400">displayed / registered</span>
+                </div>
+              </section>
 
-                {zeroBalanceCount > 0 && (
-                  <button
-                    id="mark-zero-used"
-                    onClick={handleMarkZeroBalanceUsed}
-                    className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans"
-                    type="button"
-                  >
-                    <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
-                    <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
-                  </button>
-                )}
-              </div>
-            </section>
+              {/* Local Settings / Filtering Controls */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preferences</h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={settings.hideUsedCards}
+                      onChange={() => handleToggleSetting('hideUsedCards')}
+                      className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
+                    />
+                    Hide Used Cards
+                  </label>
 
-            {/* Cards Inventory Ledger */}
-            <section className="flex flex-col gap-3">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Vault Inventory</h3>
-              <div className="flex flex-col gap-3">
-                {visibleIndexes.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
-                    No cards match the active filters.
+                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={settings.hideZeroBalanceCards}
+                      onChange={() => handleToggleSetting('hideZeroBalanceCards')}
+                      className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
+                    />
+                    Hide $0 Cards
+                  </label>
+
+                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={settings.advanceOnMarkUsed}
+                      onChange={() => handleToggleSetting('advanceOnMarkUsed')}
+                      className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
+                    />
+                    Auto-Advance
+                  </label>
+
+                  <div className="flex flex-col gap-1">
+                    <select
+                      value={settings.sortMode}
+                      onChange={handleSortChange}
+                      className="w-full text-xs font-bold border border-slate-200 rounded-xl p-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                    >
+                      <option value="balance-asc">Balance: Low to High</option>
+                      <option value="balance-desc">Balance: High to Low</option>
+                      <option value="date-added-asc">Date Added: Oldest First</option>
+                      <option value="date-added-desc">Date Added: Newest First</option>
+                      <option value="date-updated-asc">Date Updated: Oldest First</option>
+                      <option value="date-updated-desc">Date Updated: Newest First</option>
+                      <option value="card-number">Card Number</option>
+                    </select>
                   </div>
-                ) : (
-                  visibleIndexes.map((cardIndex) => {
-                    const card = cards[cardIndex];
-                    return (
-                      <div 
-                        key={card.cardNumber} 
-                        onClick={() => {
-                          setSelectedCardIndex(cardIndex);
-                          setActivePanel('detail');
-                        }}
-                        className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
-                          card.used ? 'border-slate-100 bg-slate-50/50 opacity-60' : 'border-slate-200 hover:border-blue-300 shadow-sm'
-                        }`}
-                      >
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold text-slate-800">
-                              {card.cardNumber.slice(0, 4)} •••• •••• {card.cardNumber.slice(-4)}
-                            </span>
-                            {card.merchant && (
-                              <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded uppercase">
-                                {card.merchant}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs font-bold text-slate-400">PIN: {card.pin}</span>
-                          {card.notes && <span className="text-xs text-slate-500 mt-1 max-w-md">{card.notes}</span>}
-                        </div>
 
-                        <div className="flex items-center justify-between w-full sm:w-auto gap-6 border-t sm:border-0 pt-3 sm:pt-0" onClick={e => e.stopPropagation()}>
-                          <span className="text-xl font-extrabold text-slate-900">${card.currentBalance.toFixed(2)}</span>
+                  {zeroBalanceCount > 0 && (
+                    <button
+                      id="mark-zero-used"
+                      onClick={handleMarkZeroBalanceUsed}
+                      className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans"
+                      type="button"
+                    >
+                      <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
+                      <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
+                    </button>
+                  )}
+                </div>
+              </section>
+
+              {/* Cards Inventory Ledger */}
+              <section className="flex flex-col gap-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Vault Inventory</h3>
+                <div className="flex flex-col gap-3">
+                  {visibleIndexes.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                      No cards match the active filters.
+                    </div>
+                  ) : (
+                    visibleIndexes.map((cardIndex) => {
+                      const card = cards[cardIndex];
+                      return (
+                        <div 
+                          key={card.cardNumber} 
+                          onClick={() => {
+                            setSelectedCardIndex(cardIndex);
+                            setActivePanel('detail');
+                          }}
+                          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
+                            card.used ? 'border-slate-100 bg-slate-50/50 opacity-60' : 'border-slate-200 hover:border-blue-300 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm font-bold text-slate-800">
+                                {card.cardNumber.slice(0, 4)} •••• •••• {card.cardNumber.slice(-4)}
+                              </span>
+                              {card.merchant && (
+                                <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded uppercase">
+                                  {card.merchant}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold text-slate-400">PIN: {card.pin}</span>
+                            {card.notes && <span className="text-xs text-slate-500 mt-1 max-w-md">{card.notes}</span>}
+                          </div>
+
+                          <div className="flex items-center justify-between w-full sm:w-auto gap-6 border-t sm:border-0 pt-3 sm:pt-0" onClick={e => e.stopPropagation()}>
+                            <span className="text-xl font-extrabold text-slate-900">${card.currentBalance.toFixed(2)}</span>
+                            <button
+                              onClick={() => handleToggleUsed(cardIndex)}
+                              className={`text-xs font-bold px-4 py-2.5 rounded-xl border transition-all ${
+                                card.used 
+                                  ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 border-transparent' 
+                                  : 'bg-white hover:bg-slate-100 text-[#0b57d0] border-slate-200 active:scale-95 shadow-sm'
+                              }`}
+                            >
+                              {card.used ? "Mark Active" : "Mark Used"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+
+            </main>
+          ) : (
+            /* Checkout Detail Panel Layout */
+            <main className="p-8 flex flex-col gap-6">
+              {selectedCard ? (
+                <div id="card-detail" className="flex flex-col gap-6">
+                  
+                  {/* Detail Card Navigation Header */}
+                  <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl">
+                    <button 
+                      id="prev-card"
+                      onClick={handlePrevCard}
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-all shadow-sm"
+                    >
+                      Previous
+                    </button>
+                    <span id="card-position" className="text-sm font-bold text-slate-600">
+                      Card {visiblePosition + 1} of {visibleIndexes.length}
+                    </span>
+                    <button 
+                      id="next-card"
+                      onClick={handleNextCard}
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-all shadow-sm"
+                    >
+                      Next
+                    </button>
+                  </div>
+
+                  {/* Barcode Preview Segment */}
+                  {(() => {
+                    const payload = getBarcodePayload(selectedCard);
+                    const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
+                    
+                    return (
+                      <section 
+                        onClick={() => setIsFullscreenBarcode(true)}
+                        className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-400 transition-colors"
+                        title="Taping opens full-screen barcode focus mode"
+                      >
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Barcode Preview (tap to focus)</span>
+                        
+                        {barcodeData ? (
+                          <div className="flex flex-col items-center gap-2 w-full">
+                            <div className="w-full bg-white border border-slate-100 p-2 rounded-2xl">
+                              <svg 
+                                viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`} 
+                                preserveAspectRatio="none" 
+                                role="img" 
+                                aria-label="Code 128 checkout barcode" 
+                                className="w-full h-16"
+                              >
+                                <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
+                                {barcodeData.rects.map((r, i) => (
+                                  <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
+                                ))}
+                              </svg>
+                            </div>
+                            <span className="text-xs font-mono font-bold text-slate-600 tracking-wider">
+                              {payload}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
+                            <span className="text-sm text-red-600 font-bold">
+                              {getBarcodeFallbackMessage(selectedCard)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Card number and PIN remain available below.
+                            </span>
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })()}
+
+                  {/* Card Detail Credentials Wrapper */}
+                  <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <h3 id="card-detail-heading" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Card Credentials</h3>
+                      {selectedCard.merchant && (
+                        <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded uppercase">
+                          {selectedCard.merchant}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1 border-b border-slate-100 pb-4">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Card Number</span>
+                      <div 
+                        id="detail-number"
+                        onClick={() => setRevealNumber(!revealNumber)}
+                        className="font-mono text-2xl font-black text-slate-800 tracking-wider cursor-pointer hover:text-blue-600 transition-colors py-1"
+                        title="Click to reveal/hide number"
+                      >
+                        {revealNumber 
+                          ? selectedCard.cardNumber 
+                          : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
+                        }
+                      </div>
+                      <span className="text-[10px] text-slate-400">Click card number to toggle visibility</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-slate-400 uppercase">PIN</span>
+                        <span id="detail-pin" className="font-mono text-lg font-bold text-slate-700">{selectedCard.pin}</span>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-slate-400 uppercase">Starting Value</span>
+                        <span id="detail-starting-balance" className="text-lg font-bold text-slate-700">${selectedCard.startingBalance.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Card Balance Segment */}
+                  <section className="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex justify-between items-center shadow-sm">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Current Balance</span>
+                      <span id="detail-current-balance" className="text-3xl font-black text-slate-900">
+                        ${selectedCard.currentBalance.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {isEditingBalance ? (
+                      <div className="flex flex-col gap-2 w-1/2">
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={newBalanceValue}
+                            onChange={e => setNewBalanceValue(e.target.value)}
+                            className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                            placeholder="0.00"
+                          />
                           <button
-                            onClick={() => handleToggleUsed(cardIndex)}
-                            className={`text-xs font-bold px-4 py-2.5 rounded-xl border transition-all ${
-                              card.used 
-                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 border-transparent' 
-                                : 'bg-white hover:bg-slate-100 text-[#0b57d0] border-slate-200 active:scale-95 shadow-sm'
-                            }`}
+                            onClick={handleSaveBalance}
+                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm"
                           >
-                            {card.used ? "Mark Active" : "Mark Used"}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setIsEditingBalance(false)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2.5 rounded-xl text-xs transition-all"
+                          >
+                            X
+                          </button>
+                        </div>
+                        {balanceError && <span className="text-[10px] text-red-600 font-semibold">{balanceError}</span>}
+                      </div>
+                    ) : (
+                      <button
+                        id="open-balance-modal"
+                        onClick={() => handleOpenBalanceEdit(selectedCard.currentBalance)}
+                        className="bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold px-5 py-3 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                      >
+                        Update Balance
+                      </button>
+                    )}
+                  </section>
+
+                  {/* Notes panel */}
+                  <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
+                      {!isEditingNotes && (
+                        <button
+                          onClick={() => {
+                            setNewNotesValue(selectedCard.notes || "");
+                            setIsEditingNotes(true);
+                          }}
+                          className="text-xs font-bold text-[#0b57d0] hover:underline"
+                          type="button"
+                        >
+                          {selectedCard.notes ? "Edit" : "Add Notes"}
+                        </button>
+                      )}
+                    </div>
+                    
+                    {isEditingNotes ? (
+                      <div className="flex flex-col gap-2 mt-1">
+                        <textarea
+                          value={newNotesValue}
+                          onChange={e => setNewNotesValue(e.target.value)}
+                          className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
+                          placeholder="Add card notes..."
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => {
+                              const updatedCards = cards.map((c, idx) => {
+                                if (idx === selectedCardIndex) {
+                                  return {
+                                    ...c,
+                                    notes: newNotesValue.trim(),
+                                  };
+                                }
+                                return c;
+                              });
+                              setCards(updatedCards);
+                              saveCards(updatedCards);
+                              setIsEditingNotes(false);
+                            }}
+                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm"
+                            type="button"
+                          >
+                            Save Notes
+                          </button>
+                          <button
+                            onClick={() => setIsEditingNotes(false)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all"
+                            type="button"
+                          >
+                            Cancel
                           </button>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </section>
-
-          </main>
-        ) : (
-          /* Checkout Detail Panel Layout */
-          <main className="p-8 flex flex-col gap-6">
-            {selectedCard ? (
-              <div id="card-detail" className="flex flex-col gap-6">
-                
-                {/* Detail Card Navigation Header */}
-                <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl">
-                  <button 
-                    id="prev-card"
-                    onClick={handlePrevCard}
-                    className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-all shadow-sm"
-                  >
-                    Previous
-                  </button>
-                  <span id="card-position" className="text-sm font-bold text-slate-600">
-                    Card {visiblePosition + 1} of {visibleIndexes.length}
-                  </span>
-                  <button 
-                    id="next-card"
-                    onClick={handleNextCard}
-                    className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-all shadow-sm"
-                  >
-                    Next
-                  </button>
-                </div>
-
-                {/* Barcode Preview Segment */}
-                {(() => {
-                  const payload = getBarcodePayload(selectedCard);
-                  const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
-                  
-                  return (
-                    <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px]">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Barcode Preview</span>
-                      
-                      {barcodeData ? (
-                        <div className="flex flex-col items-center gap-2 w-full">
-                          <div className="w-full bg-white border border-slate-100 p-2 rounded-2xl">
-                            <svg 
-                              viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`} 
-                              preserveAspectRatio="none" 
-                              role="img" 
-                              aria-label="Code 128 checkout barcode" 
-                              className="w-full h-16"
-                            >
-                              <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                              {barcodeData.rects.map((r, i) => (
-                                <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                              ))}
-                            </svg>
-                          </div>
-                          <span className="text-xs font-mono font-bold text-slate-600 tracking-wider">
-                            {payload}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
-                          <span className="text-sm text-red-600 font-bold">
-                            {getBarcodeFallbackMessage(selectedCard)}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            Card number and PIN remain available below.
-                          </span>
-                        </div>
-                      )}
-                    </section>
-                  );
-                })()}
-
-                {/* Card Detail Credentials Wrapper */}
-                <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <h3 id="card-detail-heading" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Card Credentials</h3>
-                    {selectedCard.merchant && (
-                      <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded uppercase">
-                        {selectedCard.merchant}
-                      </span>
+                    ) : (
+                      <p id="detail-notes" className="text-sm text-slate-600 leading-relaxed font-medium">
+                        {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
+                      </p>
                     )}
-                  </div>
+                  </section>
 
-                  <div className="flex flex-col gap-1 border-b border-slate-100 pb-4">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Card Number</span>
-                    <div 
-                      id="detail-number"
-                      onClick={() => setRevealNumber(!revealNumber)}
-                      className="font-mono text-2xl font-black text-slate-800 tracking-wider cursor-pointer hover:text-blue-600 transition-colors py-1"
-                      title="Click to reveal/hide number"
-                    >
-                      {revealNumber 
-                        ? selectedCard.cardNumber 
-                        : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
-                      }
-                    </div>
-                    <span className="text-[10px] text-slate-400">Click card number to toggle visibility</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-bold text-slate-400 uppercase">PIN</span>
-                      <span id="detail-pin" className="font-mono text-lg font-bold text-slate-700">{selectedCard.pin}</span>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Starting Value</span>
-                      <span id="detail-starting-balance" className="text-lg font-bold text-slate-700">${selectedCard.startingBalance.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Card Balance Segment */}
-                <section className="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex justify-between items-center shadow-sm">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Current Balance</span>
-                    <span id="detail-current-balance" className="text-3xl font-black text-slate-900">
-                      ${selectedCard.currentBalance.toFixed(2)}
-                    </span>
-                  </div>
-
-                  {isEditingBalance ? (
-                    <div className="flex flex-col gap-2 w-1/2">
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={newBalanceValue}
-                          onChange={e => setNewBalanceValue(e.target.value)}
-                          className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
-                          placeholder="0.00"
-                        />
-                        <button
-                          onClick={handleSaveBalance}
-                          className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setIsEditingBalance(false)}
-                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2.5 rounded-xl text-xs transition-all"
-                        >
-                          X
-                        </button>
-                      </div>
-                      {balanceError && <span className="text-[10px] text-red-600 font-semibold">{balanceError}</span>}
-                    </div>
-                  ) : (
+                  {/* Mark Used Action */}
+                  <div className="pt-4 flex flex-col gap-3">
                     <button
-                      id="open-balance-modal"
-                      onClick={() => handleOpenBalanceEdit(selectedCard.currentBalance)}
-                      className="bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold px-5 py-3 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                      id="mark-used"
+                      onClick={() => handleToggleUsed(selectedCardIndex)}
+                      className={`w-full font-bold py-4 px-6 rounded-full transition-all shadow-md text-sm active:scale-95 ${
+                        selectedCard.used
+                          ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                          : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
+                      }`}
                     >
-                      Update Balance
+                      {selectedCard.used ? "Mark Active" : "Mark Card Used"}
                     </button>
-                  )}
-                </section>
 
-                {/* Notes panel */}
-                <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
-                    {!isEditingNotes && (
-                      <button
-                        onClick={() => {
-                          setNewNotesValue(selectedCard.notes || "");
-                          setIsEditingNotes(true);
-                        }}
-                        className="text-xs font-bold text-[#0b57d0] hover:underline"
-                        type="button"
-                      >
-                        {selectedCard.notes ? "Edit" : "Add Notes"}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setActivePanel('list')}
+                      className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs"
+                    >
+                      Back to Inventory
+                    </button>
                   </div>
-                  
-                  {isEditingNotes ? (
-                    <div className="flex flex-col gap-2 mt-1">
-                      <textarea
-                        value={newNotesValue}
-                        onChange={e => setNewNotesValue(e.target.value)}
-                        className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
-                        placeholder="Add card notes..."
-                      />
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => {
-                            const updatedCards = cards.map((c, idx) => {
-                              if (idx === selectedCardIndex) {
-                                return {
-                                  ...c,
-                                  notes: newNotesValue.trim(),
-                                };
-                              }
-                              return c;
-                            });
-                            setCards(updatedCards);
-                            saveCards(updatedCards);
-                            setIsEditingNotes(false);
-                          }}
-                          className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm"
-                          type="button"
-                        >
-                          Save Notes
-                        </button>
-                        <button
-                          onClick={() => setIsEditingNotes(false)}
-                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all"
-                          type="button"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p id="detail-notes" className="text-sm text-slate-600 leading-relaxed font-medium">
-                      {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
-                    </p>
-                  )}
-                </section>
 
-                {/* Mark Used Action */}
-                <div className="pt-4 flex flex-col gap-3">
-                  <button
-                    id="mark-used"
-                    onClick={() => handleToggleUsed(selectedCardIndex)}
-                    className={`w-full font-bold py-4 px-6 rounded-full transition-all shadow-md text-sm active:scale-95 ${
-                      selectedCard.used
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                        : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
-                    }`}
-                  >
-                    {selectedCard.used ? "Mark Active" : "Mark Card Used"}
-                  </button>
-
-                  <button
-                    onClick={() => setActivePanel('list')}
-                    className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs"
-                  >
-                    Back to Inventory
-                  </button>
                 </div>
+              ) : (
+                <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
+                  No card selected. Select a card from the inventory list first.
+                </div>
+              )}
+            </main>
+          )}
 
+        </div>
+      </div>
+
+      {/* Fullscreen Barcode Focus Overlay */}
+      {isFullscreenBarcode && selectedCard && (
+        <div 
+          id="fullscreen-barcode" 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsFullscreenBarcode(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-md w-full p-6 flex flex-col gap-6 shadow-2xl relative cursor-default"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Focused checkout barcode"
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setIsFullscreenBarcode(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg"
+              type="button"
+              aria-label="Close barcode focus mode"
+            >
+              ✕
+            </button>
+
+            {/* Position count */}
+            <div id="fullscreen-position" className="text-center font-bold text-slate-500 text-sm">
+              Card {visiblePosition + 1} of {visibleIndexes.length}
+            </div>
+
+            {/* Barcode Frame */}
+            <div id="fullscreen-barcode-frame" className="border border-slate-100 bg-slate-50 p-6 rounded-2xl flex flex-col gap-4">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-400 uppercase">Walmart Canada</span>
+                <span id="fullscreen-current-balance" className="text-lg font-black text-slate-900">${selectedCard.currentBalance.toFixed(2)}</span>
               </div>
-            ) : (
-              <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
-                No card selected. Select a card from the inventory list first.
+
+              {/* SVG barcode */}
+              {(() => {
+                const payload = getBarcodePayload(selectedCard);
+                const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
+                return barcodeData ? (
+                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-2 rounded-xl">
+                    <svg 
+                      viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`} 
+                      preserveAspectRatio="none" 
+                      role="img" 
+                      aria-label="Code 128 checkout barcode" 
+                      className="w-full h-24"
+                    >
+                      <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
+                      {barcodeData.rects.map((r, i) => (
+                        <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
+                      ))}
+                    </svg>
+                  </div>
+                ) : (
+                  <span id="fullscreen-barcode-caption" className="text-center text-sm font-bold text-red-600 py-4">
+                    {getBarcodeFallbackMessage(selectedCard)}
+                  </span>
+                );
+              })()}
+
+              <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-mono text-sm font-bold text-slate-700">
+                <span id="fullscreen-card-number">
+                  {revealNumber 
+                    ? selectedCard.cardNumber 
+                    : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
+                  }
+                </span>
+                <span id="fullscreen-pin">PIN: {selectedCard.pin}</span>
+              </div>
+            </div>
+
+            {/* Focus Navigation Controls */}
+            <div className="flex gap-3">
+              <button
+                id="fullscreen-prev"
+                onClick={handlePrevCard}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95"
+                type="button"
+              >
+                Previous
+              </button>
+              <button
+                id="fullscreen-next"
+                onClick={handleNextCard}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95"
+                type="button"
+              >
+                Next
+              </button>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2">
+              <button
+                id="fullscreen-mark-used"
+                onClick={() => handleToggleUsed(selectedCardIndex)}
+                className={`w-full font-bold py-4 px-6 rounded-full transition-all shadow-md text-sm active:scale-95 ${
+                  selectedCard.used
+                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                    : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
+                }`}
+                type="button"
+              >
+                {selectedCard.used ? "Mark Active" : "Mark Card Used"}
+              </button>
+            </div>
+
+            {/* Notes display */}
+            {selectedCard.notes && (
+              <div id="fullscreen-notes" className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs text-slate-600 max-h-24 overflow-y-auto font-medium">
+                <strong>Notes:</strong> {selectedCard.notes}
               </div>
             )}
-          </main>
-        )}
-
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
