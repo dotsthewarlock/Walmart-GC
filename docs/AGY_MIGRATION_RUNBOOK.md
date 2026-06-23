@@ -2,48 +2,54 @@
 
 This document is the execution runbook for completing the remaining slices of the Walmart-GC React migration on the `agy-v1` branch.
 
-## Model Selection Guidelines
-* **Gemini 3.5 Flash (Medium)**: Required for all code writing, refactoring, and reasoning tasks.
-* **Gemini 3.5 Flash (Low)**: Acceptable ONLY for mechanical Git tasks, build checks, and simple documentation additions.
-* **Pro Tier**: Do not configure or invoke Pro tiers.
+## 1. Routing & Model Selection
+* **Concise Low/Medium Routing**:
+  * **Gemini 3.5 Flash (Medium)**: Required for all code writing, refactoring, and complex reasoning tasks.
+  * **Gemini 3.5 Flash (Low)**: Acceptable ONLY for mechanical Git tasks (status, staging, commits, pushes), build checks (`npm run build`), and simple documentation edits.
+  * **Pro Tier**: Do not configure or invoke Pro tiers.
 
-## Branch & Source of Truth
-* **Migration Target Branch**: `agy-v1`
-* **Stable Behavior Source of Truth**: `phase-12` (inspect files using git commands when writing React equivalents).
-* **Reference Branch**: `phase-13` (experimental only; do not copy unless explicitly approved).
+## 2. Prompting & Communication Rules
+* **Short Prompt Rules**: Input prompts and chat instructions must remain short, batch-focused, and direct to reduce context token bloat.
+* **Lean Project Instructions**: Keep instructions inside the main ChatGPT/LLM system prompts lean, delegating specific implementation details to local repo documents (like this runbook).
 
-## Hard Guardrails
-* **No Network Broadening**: Keep all Worker endpoint calls same-origin (`/api/*` and `/auth/*`) with `credentials: "include"`.
-* **Schema Integrity**: Retain the exact header-name schema and database keys (e.g., `cardNumber, pin, startingBalance, currentBalance, merchant, merchantInferred, dateAdded, dateUpdated, dateUsed, used, notes`).
-* **Conflict Model**: Maintain version-controlled sheet version tracking (`_META.sheetVersion`) and user-resolved recovery.
-* **No Direct APIs**: Do not write browser-side Google Identity or Sheets API calls.
-* **No Package Expansion**: Do not introduce new runtime dependencies (e.g., Playwright, frameworks, build tools).
+## 3. Duplicate Guard Usage
+* **Duplicate Guard**: Before writing or replacing any file content, always run `git status` and `git diff` to inspect current changes in the working tree. This prevents duplicate block insertions, conflict markers, or double declarations.
 
-## Per-Slice Stop Conditions
-Each implementation slice must stop and verify before committing:
-1. Complete code updates within designated modules.
-2. Run standard syntax and build checks: `npm run build`.
-3. Run code quality checking commands: `git diff --stat`.
-4. Verify behavior does not drift from `phase-12` semantics (especially timestamp changes on `dateUpdated` and `dateUsed`).
-5. Ensure no unintended file modifications occurred.
+## 4. Rate-Limit & Quota Recovery Rules
+* **Quota Recovery**: If a rate limit error is encountered, do not poll or loop in terminal commands. Stop executing immediately. Utilize the `schedule` timer tool to set a one-shot notification (e.g., waiting 30–60 seconds) before resuming execution.
 
-## Auto-Commit / Push Rules
-* Stage only files related to the active slice. Do not bundle unrelated changes.
-* Commits must use semantic message prefixes (e.g., `feat:`, `chore:`, `docs:`).
-* **Pushes after Green-Risk slices (Docs/Build)**: Can proceed automatically to `origin/agy-v1`.
-* **Pushes after Yellow/Red-Risk slices (CSV/Auth/Sync/Conflict/Schema changes)**: Do not push directly to the remote repository. Stop and request explicit user confirmation first.
+## 5. Commit Gates (Green vs Yellow/Red)
+* Stage only files related to the active slice.
+* Commits must use semantic prefixes (e.g., `feat:`, `chore:`, `docs:`).
+* **Green Commit Gate (Docs/Build changes only)**: Pushes can proceed automatically to `origin/agy-v1`.
+* **Yellow/Red Commit Gate (CSV, Auth, Sync, Conflict, or Schema changes)**: NEVER push or commit directly. Stop execution and request explicit user confirmation first.
 
-## Required Report Format
-After each implementation slice, output a report with:
-* Commit Hash
+## 6. Terse Report Format
+After each implementation slice, report:
+* Commit Hash (if committed)
 * Git Status output
 * Files Included in change
 * Confirmation that no forbidden structures (Worker, OAuth logic, sync hooks) were modified.
 
-## Remaining Slice Roadmap
+## 7. Hard Guardrails
+* **No Network Broadening**: Keep all Worker endpoint calls same-origin (`/api/*` and `/auth/*`) with `credentials: "include"`.
+* **Schema Integrity**: Retain the exact header-name schema and database keys (e.g., `cardNumber, pin, startingBalance, currentBalance, merchant, merchantInferred, dateAdded, dateUpdated, dateUsed, used, notes`).
+* **Conflict Model**: Maintain version-controlled sheet version tracking (`_META.sheetVersion`) and user-resolved recovery.
+* **No Direct APIs**: Do not write browser-side Google Identity or Sheets API calls.
+* **No Package Expansion**: Do not introduce new runtime dependencies.
+
+## 8. Per-Slice Stop Conditions
+Each implementation slice must stop and verify before committing:
+1. Complete code updates within designated modules.
+2. Run standard syntax and build checks: `npm run build`.
+3. Run code quality checking commands: `git diff --stat`.
+4. Verify behavior does not drift from `phase-12` semantics.
+5. Ensure no unintended file modifications occurred.
+
+## 9. Remaining Slice Roadmap
 1. **Fullscreen Barcode & Wake Lock**: Port high-contrast modal preview loops, wake lock requests, and gestures.
 2. **Local Modals (Balance & Notes Dialogs)**: Replicate confirm overlays, zero-balance triggers, and inline note forms.
-3. **CSV Backup/Recovery**: Port CSV parser/generator utility modules and raw CSV text locking.
-4. **Worker OAuth / Session**: Connect to `/api/status` status checks and logout handlers.
-5. **Google Sheets load/save**: Integrate `/api/sheet/ensure`, `/api/cards/load`, and `/api/cards/save` synchronization APIs.
-6. **Optimistic Locking Conflict Recovery**: Implement concurrency resolution recovery options panels.
+3. **CSV Backup/Recovery**: Port CSV parser/generator utility modules and raw CSV text locking. (Completed)
+4. **Worker OAuth / Session**: Connect to `/api/status` status checks and logout handlers. (Completed)
+5. **Google Sheets load/save**: Integrate `/api/sheet/ensure`, `/api/cards/load`, and `/api/cards/save` synchronization APIs. (Completed)
+6. **Optimistic Locking Conflict Recovery**: Implement concurrency resolution recovery options panels. (Completed)
