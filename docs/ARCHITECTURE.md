@@ -2,14 +2,14 @@
 
 ## Overview
 
-Walmart-GC uses a lightweight static frontend plus Cloudflare Worker architecture that avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, build tooling, frameworks, and app-managed user accounts.
+Walmart-GC uses a React 19 + Vite + Tailwind CSS frontend environment (migration branch) plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
 
-Phase 11 is the active development phase on `phase-11`; `main` is protected. Phase 11 is limited to fixing OAuth/session flow until fully functional and durable. Core product functionality should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
+`agy-v1` is the active development branch for the React migration, with `phase-12` serving as the behavior parity source of truth; `main` is protected. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
 
 ## Runtime Debugging Priority
 
-The Cloudflare Worker remains the intended Phase 11 runtime for OAuth, sessions, Drive, and Sheets access. For live incidents, do not let intended architecture override direct runtime evidence. Debug in this order:
+The Cloudflare Worker remains the active runtime for OAuth, sessions, Drive, and Sheets access. For live incidents, do not let intended architecture override direct runtime evidence. Debug in this order:
 
 1. Exact live error string / observed behavior
 2. Current workspace/repo files
@@ -19,7 +19,7 @@ The Cloudflare Worker remains the intended Phase 11 runtime for OAuth, sessions,
 
 If an exact live error string exists only in `apps-script/Code.gs`, inspect and debug Apps Script first until the active runtime is disproven. This does not make Apps Script the active default architecture; it only prevents ignoring live evidence.
 
-## Current Phase 11 Architecture
+## Current React Migration Architecture
 
 ```text
 User Google Account
@@ -63,7 +63,7 @@ The static frontend provides:
 - CSV backup and recovery.
 - Offline/local browser usability.
 
-The frontend is GitHub Pages-hosted plain HTML, CSS, and JavaScript. It has no framework and no build system.
+The frontend is React 19 + Vite + Tailwind CSS, with local development running on port 5174 proxied to the Worker. Production is compiled and hosted via GitHub Pages.
 
 ### Cloudflare Worker
 
@@ -104,7 +104,7 @@ The Worker callback returns to:
 https://walmart-gc.dotsthewarlock.com/?auth=connected
 ```
 
-The frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials. Do not use Google Identity Services browser token flow, direct browser Drive API calls, direct browser Sheets API calls, localhost OAuth, alternate OAuth origins, `/Walmart-GC/`, or session IDs in query parameters.
+The frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials. Do not use Google Identity Services browser token flow, direct browser Drive API calls, direct browser Sheets API calls, alternate OAuth origins, `/Walmart-GC/`, or session IDs in query parameters. Production OAuth testing is cloud-only, but local OAuth callback `http://127.0.0.1:5174/auth/callback` is used specifically for local development via Vite's proxy to the Wrangler Worker.
 
 ### Google Sheet
 
@@ -181,6 +181,6 @@ Conflict model:
 
 ## Historical Context
 
-Current active architecture is Worker-managed OAuth/session and Worker-backed Drive/Sheets access. Apps Script is retired as the intended Phase 11 sync path. Historical Apps Script and Phase 6 docs live under `docs/archive/` and should be consulted only when an exact live error string points there, a regression requires historical comparison, the user asks for history, or the task is specifically about migration/history.
+Current active architecture is Worker-managed OAuth/session and Worker-backed Drive/Sheets access. Apps Script is retired as the active sync path. Historical Apps Script and Phase 6 docs live under `docs/archive/` and should be consulted only when an exact live error string points there, a regression requires historical comparison, the user asks for history, or the task is specifically about migration/history.
 
-Phase 9, Phase 10, Phase 10E, and Apps Script MVP documentation are historical only. Apps Script sync is retired from the active architecture and must not be recommended as the Phase 11 sync path.
+Phase 9, Phase 10, Phase 10E, and Apps Script MVP documentation are historical only. Apps Script sync is retired from the active architecture and must not be recommended as the active sync path.

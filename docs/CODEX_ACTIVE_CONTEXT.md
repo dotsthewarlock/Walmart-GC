@@ -5,12 +5,13 @@ Read this first for current Walmart-GC tasks. It is the compact source of truth 
 ## Current Basics
 
 - Repo: `dotsthewarlock/Walmart-GC`
-- Active phase branch: `phase-12`
+- Active branch: `agy-v1` (React 19 + Vite + Tailwind migration)
+- Behavior parity source of truth: `phase-12` semantics
 - Protected production base branch: `main`
 - Historical/archival/protected branch: `phase-11`
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
-- OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
-- Plain HTML/CSS/JavaScript frontend, no framework, no build system.
+- OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture.
+- React 19 + Vite + Tailwind CSS frontend environment (migration branch).
 - Do not redesign core product behavior unless it directly blocks OAuth, session, Google Sheets access, or sync.
 
 ## Active Architecture
@@ -102,7 +103,7 @@ Barcode payload is derived only and must not be stored: `79936686504000 + cardNu
 
 ## Hard Guardrails
 
-Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, frameworks, build steps, or new hosting.
+Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, or new hosting. Frameworks (React 19) and build steps (Vite) are authorized specifically under the migration scope on the `agy-v1` branch.
 
 ## Naming Conventions
 
