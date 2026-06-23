@@ -390,6 +390,23 @@ function App() {
                   </button>
                 </div>
 
+                {/* Barcode Preview Placeholder Segment */}
+                <section className="bg-white border border-slate-200 border-dashed border-2 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px]">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Barcode Preview</span>
+                  
+                  <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
+                    <span className="text-xs text-slate-400 font-semibold font-mono">
+                      [79936686504000 + {selectedCard.cardNumber}]
+                    </span>
+                    <span className="text-sm text-slate-500 font-bold">
+                      Barcode rendering not wired yet
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      JsBarcode engine integration deferred to Phase 8
+                    </span>
+                  </div>
+                </section>
+
                 {/* Card Detail Credentials Wrapper */}
                 <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
                   <div className="flex justify-between items-start">
