@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
+import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage, normalizeCard } from './lib/cards';
 import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData } from './lib/csv';
@@ -724,11 +724,12 @@ function App() {
       const result = await fetchWorkerJson("/api/cards/load");
       const now = new Date().toISOString();
       const loaded = result.cards || [];
-      setCards(loaded);
-      saveCards(loaded);
+      const normalized = loaded.map(normalizeCard).filter(Boolean);
+      setCards(normalized);
+      saveCards(normalized);
 
       // Auto-select first visible card if possible
-      const visible = calculateVisibleCards(loaded, settings, settings.sortMode);
+      const visible = calculateVisibleCards(normalized, settings, settings.sortMode);
       if (visible.length > 0) {
         setSelectedCardIndex(visible[0]);
       } else {
@@ -745,7 +746,7 @@ function App() {
         remoteSheetVersion: String(result.sheetVersion || ""),
         lastSuccessfulSyncAt: now,
         pendingUnsynced: false,
-        message: `Loaded ${loaded.length} card(s) from Sheets.`,
+        message: `Loaded ${normalized.length} card(s) from Sheets.`,
         lastErrorMessage: "",
       };
       setDirectSheetsState(updatedSheets);
@@ -756,7 +757,7 @@ function App() {
         lastSyncTimestamp: now,
         lastSyncAttemptTimestamp: now,
         lastKnownSheetVersion: String(result.sheetVersion || ""),
-        message: `Loaded ${loaded.length} card(s) from Walmart-GC Data.`,
+        message: `Loaded ${normalized.length} card(s) from Walmart-GC Data.`,
         lastErrorMessage: "",
         pendingOperation: null,
       };
