@@ -21,6 +21,7 @@ function maskCardNumber(cardNumber) {
 
 function App() {
   const mainTouchStart = useRef(null);
+  const barcodeModalTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [settings, setSettings] = useState({
     advanceOnMarkUsed: true,
@@ -435,6 +436,44 @@ function App() {
       // Swipe right: Checkout (detail) -> Cards (list)
       if (activePanel === 'detail') {
         setActivePanel('list');
+      }
+    }
+  };
+
+  const handleBarcodeTouchStart = (event) => {
+    if (event.touches.length !== 1 || isEditingBalance || isEditingNotes) {
+      barcodeModalTouchStart.current = null;
+      return;
+    }
+    const target = event.target;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      barcodeModalTouchStart.current = null;
+      return;
+    }
+    barcodeModalTouchStart.current = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+    };
+  };
+
+  const handleBarcodeTouchEnd = (event) => {
+    if (!barcodeModalTouchStart.current) return;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - barcodeModalTouchStart.current.x;
+    const deltaY = touch.clientY - barcodeModalTouchStart.current.y;
+    barcodeModalTouchStart.current = null;
+
+    if (Math.abs(deltaX) < 120 || Math.abs(deltaY) > 70 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      if (visiblePosition < visibleIndexes.length - 1) {
+        handleNextCard();
+      }
+    } else if (deltaX > 0) {
+      if (visiblePosition > 0) {
+        handlePrevCard();
       }
     }
   };
@@ -1709,13 +1748,15 @@ function App() {
 
       {/* Fullscreen Barcode Focus Overlay */}
       {isFullscreenBarcode && selectedCard && (
-        <div 
-          id="fullscreen-barcode" 
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-pointer"
+        <div
+          id="fullscreen-barcode"
+          onTouchStart={handleBarcodeTouchStart}
+          onTouchEnd={handleBarcodeTouchEnd}
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-1 sm:p-4 cursor-pointer"
           onClick={() => setIsFullscreenBarcode(false)}
         >
-          <div 
-            className="bg-white rounded-3xl max-w-md w-full p-6 flex flex-col gap-6 shadow-2xl relative cursor-default"
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full px-2 py-5 sm:p-6 flex flex-col gap-6 shadow-2xl relative cursor-default"
             onClick={e => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -1724,7 +1765,7 @@ function App() {
             {/* Close Button */}
             <button
               onClick={() => setIsFullscreenBarcode(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
               type="button"
               aria-label="Close barcode focus mode"
             >
@@ -1737,9 +1778,11 @@ function App() {
             </div>
 
             {/* Barcode Frame */}
-            <div id="fullscreen-barcode-frame" className="border border-slate-100 bg-slate-50 p-6 rounded-2xl flex flex-col gap-4">
+            <div id="fullscreen-barcode-frame" className="border border-slate-100 bg-slate-50 px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
               <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-400 uppercase">Walmart Canada</span>
+                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-400 uppercase">
+                  {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
+                </span>
                 <span id="fullscreen-current-balance" className="text-lg font-black text-slate-900">${selectedCard.currentBalance.toFixed(2)}</span>
               </div>
 
@@ -1748,13 +1791,13 @@ function App() {
                 const payload = getBarcodePayload(selectedCard);
                 const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
                 return barcodeData ? (
-                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-2 rounded-xl">
-                    <svg 
-                      viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`} 
-                      preserveAspectRatio="none" 
-                      role="img" 
-                      aria-label="Code 128 checkout barcode" 
-                      className="w-full h-24"
+                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-1 sm:p-2 rounded-xl h-48 sm:h-56 md:h-64">
+                    <svg
+                      viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
+                      preserveAspectRatio="none"
+                      role="img"
+                      aria-label="Code 128 checkout barcode"
+                      className="w-full h-full"
                     >
                       <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
                       {barcodeData.rects.map((r, i) => (
@@ -1769,14 +1812,11 @@ function App() {
                 );
               })()}
 
-              <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-mono text-sm font-bold text-slate-700">
+              <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-mono text-xs font-bold text-slate-500">
                 <span id="fullscreen-card-number">
-                  {revealNumber 
-                    ? selectedCard.cardNumber 
-                    : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
-                  }
+                  {maskCardNumber(selectedCard.cardNumber)}
                 </span>
-                <span id="fullscreen-pin">PIN: {selectedCard.pin}</span>
+                <strong id="fullscreen-pin">PIN {selectedCard.pin}</strong>
               </div>
             </div>
 
@@ -1785,7 +1825,8 @@ function App() {
               <button
                 id="fullscreen-prev"
                 onClick={handlePrevCard}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95"
+                disabled={visiblePosition <= 0}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 type="button"
               >
                 Previous
@@ -1793,35 +1834,105 @@ function App() {
               <button
                 id="fullscreen-next"
                 onClick={handleNextCard}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95"
+                disabled={visiblePosition === visibleIndexes.length - 1}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 type="button"
               >
                 Next
               </button>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex flex-col gap-2">
+            {/* Actions Side-by-Side */}
+            <div className="grid grid-cols-2 gap-4 items-center">
+              <button
+                id="fullscreen-update-balance"
+                onClick={() => {
+                  setIsFullscreenBarcode(false);
+                  setTimeout(() => {
+                    handleOpenBalanceEdit(selectedCard.currentBalance);
+                  }, 50);
+                }}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
+              >
+                Update Balance
+              </button>
+
               <button
                 id="fullscreen-mark-used"
                 onClick={() => handleToggleUsed(selectedCardIndex)}
-                className={`w-full font-bold py-4 px-6 rounded-full transition-all shadow-md text-sm active:scale-95 ${
+                className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer ${
                   selectedCard.used
                     ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
                     : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
                 }`}
                 type="button"
               >
-                {selectedCard.used ? "Mark Active" : "Mark Card Used"}
+                {selectedCard.used ? "Mark Active" : "Mark Used"}
               </button>
             </div>
 
-            {/* Notes display */}
-            {selectedCard.notes && (
-              <div id="fullscreen-notes" className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs text-slate-600 max-h-24 overflow-y-auto font-medium">
-                <strong>Notes:</strong> {selectedCard.notes}
+            {/* Notes Row */}
+            <div id="fullscreen-notes" className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
+                {!isEditingNotes && (
+                  <button
+                    onClick={() => {
+                      setNewNotesValue(selectedCard.notes || "");
+                      setIsEditingNotes(true);
+                    }}
+                    className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer"
+                    type="button"
+                  >
+                    {selectedCard.notes ? "Edit" : "Add Note"}
+                  </button>
+                )}
               </div>
-            )}
+              
+              {isEditingNotes ? (
+                <div className="flex flex-col gap-2 mt-1">
+                  <textarea
+                    value={newNotesValue}
+                    onChange={e => setNewNotesValue(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
+                    placeholder="Add card notes..."
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        const updatedCards = cards.map((c, idx) => {
+                          if (idx === selectedCardIndex) {
+                            return {
+                              ...c,
+                              notes: newNotesValue.trim(),
+                            };
+                          }
+                          return c;
+                        });
+                        setCards(updatedCards);
+                        saveCards(updatedCards);
+                        setIsEditingNotes(false);
+                      }}
+                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
+                      type="button"
+                    >
+                      Save Notes
+                    </button>
+                    <button
+                      onClick={() => setIsEditingNotes(false)}
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                  {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
