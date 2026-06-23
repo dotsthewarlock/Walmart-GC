@@ -215,12 +215,24 @@ function App() {
       });
       return false;
     } catch (error) {
-      setOauthState(prev => ({
-        ...prev,
-        status: googleOAuthStatuses.error,
-        message: "Connection unavailable. Local data remains available.",
-        lastErrorMessage: error instanceof Error ? error.message : "Worker status failed",
-      }));
+      const isStatus404 = error && typeof error === "object" && error.status === 404;
+      const isConnectionFailure = error instanceof TypeError || (error instanceof Error && (error.message.includes("Failed to fetch") || error.message.includes("Worker status failed")));
+
+      if (isStatus404 || isConnectionFailure) {
+        setOauthState(prev => ({
+          ...prev,
+          status: googleOAuthStatuses.disconnected,
+          message: "Connect Google to enable durable sync.",
+          lastErrorMessage: "",
+        }));
+      } else {
+        setOauthState(prev => ({
+          ...prev,
+          status: googleOAuthStatuses.error,
+          message: "Connection unavailable. Local data remains available.",
+          lastErrorMessage: error instanceof Error ? error.message : "Worker status failed",
+        }));
+      }
       return false;
     }
   };
