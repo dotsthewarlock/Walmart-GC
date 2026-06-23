@@ -3,6 +3,7 @@ import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getB
 import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData } from './lib/csv';
+import { fetchWorkerJson, googleOAuthStatuses } from './lib/api';
 
 function App() {
   const [cards, setCards] = useState([]);
@@ -34,6 +35,18 @@ function App() {
   const [isRawDataLocked, setIsRawDataLocked] = useState(true);
   const [validationSummary, setValidationSummary] = useState("No validation run yet.");
   const [validationWarnings, setValidationWarnings] = useState([]);
+
+  // Worker session and Google OAuth States
+  const [oauthState, setOauthState] = useState({
+    status: googleOAuthStatuses.disconnected,
+    connectedEmail: "",
+    connectedName: "",
+    message: "Connect Google to enable durable sync.",
+    lastErrorMessage: "",
+    workerVersion: "unknown",
+    schemaMode: "unknown",
+  });
+
 
 
   // Handle escape key listener for barcode modal
@@ -83,7 +96,53 @@ function App() {
     };
   }, [isFullscreenBarcode]);
 
-  // Load cards and settings on initialization
+  // Refresh Worker Session Status
+  const refreshWorkerSessionStatus = async (options = {}) => {
+    const isAuthReturn = options.authReturn === true;
+    setOauthState(prev => ({
+      ...prev,
+      status: googleOAuthStatuses.connecting,
+      message: isAuthReturn ? "Finishing Google connection..." : "Checking connection...",
+      lastErrorMessage: "",
+    }));
+
+    try {
+      const status = await fetchWorkerJson("/api/status");
+      if (status.authenticated) {
+        setOauthState({
+          status: googleOAuthStatuses.connected,
+          connectedEmail: String(status.email || ""),
+          connectedName: String(status.name || ""),
+          message: "Google account connected.",
+          lastErrorMessage: "",
+          workerVersion: String(status.workerVersion || "unknown"),
+          schemaMode: String(status.schemaMode || "unknown"),
+        });
+        return true;
+      }
+
+      setOauthState({
+        status: googleOAuthStatuses.disconnected,
+        connectedEmail: "",
+        connectedName: "",
+        message: "Connect Google to enable durable sync.",
+        lastErrorMessage: "",
+        workerVersion: String(status.workerVersion || "unknown"),
+        schemaMode: String(status.schemaMode || "unknown"),
+      });
+      return false;
+    } catch (error) {
+      setOauthState(prev => ({
+        ...prev,
+        status: googleOAuthStatuses.error,
+        message: "Connection unavailable. Local data remains available.",
+        lastErrorMessage: error instanceof Error ? error.message : "Worker status failed",
+      }));
+      return false;
+    }
+  };
+
+  // Load cards, settings and check auth session on initialization
   useEffect(() => {
     const loadedCards = loadCards();
     const loadedSettings = loadSettings();
@@ -95,7 +154,19 @@ function App() {
     if (visible.length > 0) {
       setSelectedCardIndex(visible[0]);
     }
+
+    // Process redirect callbacks from Google OAuth return
+    const url = new URL(window.location.href);
+    const authReturn = url.searchParams.get("auth") === "connected";
+    if (authReturn) {
+      url.searchParams.delete("auth");
+      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState(window.history.state, document.title, nextUrl);
+    }
+
+    refreshWorkerSessionStatus({ authReturn });
   }, []);
+
 
   // Compute card summaries based on state
   const { totalCount, activeCount, totalBalance, activeBalance } = calculateCardSummary(cards, settings);
@@ -322,6 +393,56 @@ function App() {
     }
   };
 
+  const handleConnectGoogle = () => {
+    if (!navigator.onLine) {
+      setOauthState(prev => ({
+        ...prev,
+        status: googleOAuthStatuses.error,
+        message: "Connection unavailable. Local data remains available.",
+        lastErrorMessage: "Browser is offline.",
+      }));
+      return;
+    }
+
+    setOauthState(prev => ({
+      ...prev,
+      status: googleOAuthStatuses.connecting,
+      message: "Redirecting to Google sign-in...",
+      lastErrorMessage: "",
+    }));
+    window.location.href = "/auth/init";
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setOauthState(prev => ({
+      ...prev,
+      status: googleOAuthStatuses.connecting,
+      message: "Disconnecting Google...",
+      lastErrorMessage: "",
+    }));
+
+    try {
+      await fetchWorkerJson("/api/logout", { method: "POST" });
+      setOauthState({
+        status: googleOAuthStatuses.disconnected,
+        connectedEmail: "",
+        connectedName: "",
+        message: "Google account disconnected. Local cards and saved Sheet settings were not changed.",
+        lastErrorMessage: "",
+        workerVersion: oauthState.workerVersion,
+        schemaMode: oauthState.schemaMode,
+      });
+    } catch (error) {
+      setOauthState(prev => ({
+        ...prev,
+        status: googleOAuthStatuses.error,
+        message: "Connection unavailable. Local data remains available.",
+        lastErrorMessage: error instanceof Error ? error.message : "Worker logout failed",
+      }));
+    }
+  };
+
+
 
   return (
     <>
@@ -458,6 +579,48 @@ function App() {
                 </div>
               </section>
 
+              {/* Google Sync Connection Panel */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Google Synchronization</h3>
+                    <p className="text-xs text-slate-600 mt-1 font-medium">
+                      {oauthState.status === googleOAuthStatuses.connected 
+                        ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}` 
+                        : oauthState.message
+                      }
+                    </p>
+                  </div>
+                  
+                  {oauthState.status === googleOAuthStatuses.connected ? (
+                    <button 
+                      id="disconnect-google"
+                      onClick={handleDisconnectGoogle}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0"
+                      type="button"
+                    >
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button 
+                      id="connect-google"
+                      onClick={handleConnectGoogle}
+                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0"
+                      type="button"
+                    >
+                      Connect Google
+                    </button>
+                  )}
+                </div>
+
+                {oauthState.lastErrorMessage && (
+                  <p id="google-oauth-status" className="text-xs font-bold text-red-600 border-t border-red-50/50 pt-2 mt-1">
+                    {oauthState.lastErrorMessage}
+                  </p>
+                )}
+              </section>
+
+
               {/* Data Panel / Backup Controls */}
               <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group">
@@ -545,13 +708,32 @@ function App() {
 
                     <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-slate-700 uppercase">Technical Details</h4>
-                      <div id="advanced-sync-diagnostics" className="text-[10px] text-slate-400 leading-relaxed">
-                        Diagnostics load with sync status. Local database matches storage specifications.
+                      <ul className="text-xs text-slate-500 font-medium list-none flex flex-col gap-1.5">
+                        <li className="flex justify-between border-b border-slate-100 pb-1">
+                          <span>Worker session</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.status}</span>
+                        </li>
+                        <li className="flex justify-between border-b border-slate-100 pb-1">
+                          <span>Connection state</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.status === googleOAuthStatuses.connected ? "connected" : "disconnected"}</span>
+                        </li>
+                        <li className="flex justify-between border-b border-slate-100 pb-1">
+                          <span>Worker version</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.workerVersion}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Schema mode</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.schemaMode}</span>
+                        </li>
+                      </ul>
+                      <div id="advanced-sync-diagnostics" className="text-[10px] text-slate-400 leading-relaxed border-t border-slate-100 pt-2 mt-1">
+                        Local database matches storage specifications. Sync status: idle.
                       </div>
                     </div>
                   </div>
                 </details>
               </section>
+
 
 
 
