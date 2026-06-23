@@ -1473,259 +1473,231 @@ function App() {
             </main>
           ) : (
             /* Checkout Detail Panel Layout */
-            <main className="p-8 flex flex-col gap-6">
+            <main className="p-8 flex flex-col items-center gap-6">
               {selectedCard ? (
-                <div id="card-detail" className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div id="card-detail" className="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-6 shadow-sm">
                   
-                  {/* Left Column: Navigation & Barcode Preview */}
-                  <div className="flex flex-col gap-6 w-full">
-                    {/* Detail Card Navigation Header */}
-                    <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl">
-                      <button 
-                        id="prev-card"
-                        onClick={handlePrevCard}
-                        className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-all shadow-sm"
-                      >
-                        Previous
-                      </button>
-                      <span id="card-position" className="text-sm font-bold text-slate-600">
-                        Card {visiblePosition + 1} of {visibleIndexes.length}
-                      </span>
-                      <button 
-                        id="next-card"
-                        onClick={handleNextCard}
-                        className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-all shadow-sm"
-                      >
-                        Next
-                      </button>
-                    </div>
-
-                    {/* Barcode Preview Segment */}
-                    {(() => {
-                      const payload = getBarcodePayload(selectedCard);
-                      const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
-                      
-                      return (
-                        <section 
-                          onClick={() => setIsFullscreenBarcode(true)}
-                          className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-400 transition-colors"
-                          title="Taping opens full-screen barcode focus mode"
-                        >
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Barcode Preview (tap to focus)</span>
-                          
-                          {barcodeData ? (
-                            <div className="flex flex-col items-center gap-2 w-full">
-                              <div className="w-full bg-white border border-slate-100 p-2 rounded-2xl">
-                                <svg 
-                                  viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`} 
-                                  preserveAspectRatio="none" 
-                                  role="img" 
-                                  aria-label="Code 128 checkout barcode" 
-                                  className="w-full h-16"
-                                >
-                                  <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                                  {barcodeData.rects.map((r, i) => (
-                                    <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                                  ))}
-                                </svg>
-                              </div>
-                              <span className="text-xs font-mono font-bold text-slate-600 tracking-wider">
-                                {payload}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
-                              <span className="text-sm text-red-600 font-bold">
-                                {getBarcodeFallbackMessage(selectedCard)}
-                              </span>
-                              <span className="text-[10px] text-slate-400">
-                                Card number and PIN remain available below.
-                              </span>
-                            </div>
-                          )}
-                        </section>
-                      );
-                    })()}
+                  {/* Detail Card Navigation Header */}
+                  <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl">
+                    <button
+                      id="prev-card"
+                      onClick={handlePrevCard}
+                      disabled={visiblePosition <= 0}
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <span id="card-position" className="text-sm font-bold text-slate-600">
+                      Card {visiblePosition + 1} of {visibleIndexes.length}
+                    </span>
+                    <button
+                      id="next-card"
+                      onClick={handleNextCard}
+                      disabled={visiblePosition === visibleIndexes.length - 1}
+                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
+                    >
+                      Next
+                    </button>
                   </div>
 
-                  {/* Right Column: Credentials & Balance / Actions */}
-                  <div className="flex flex-col gap-6 w-full">
-                    {/* Card Detail Credentials Wrapper */}
-                    <section className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <h3 id="card-detail-heading" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Card Credentials</h3>
-                        {selectedCard.merchant && (
-                          <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded uppercase">
-                            {selectedCard.merchant}
+                  {/* Large Barcode Frame */}
+                  {(() => {
+                    const payload = getBarcodePayload(selectedCard);
+                    const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
+                    
+                    return (
+                      <button
+                        id="barcode-open"
+                        onClick={() => setIsFullscreenBarcode(true)}
+                        className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-400 transition-colors w-full text-left"
+                        title="Tapping opens full-screen barcode focus mode"
+                      >
+                        <div className="flex justify-between items-center w-full border-b border-slate-100 pb-2">
+                          <span id="detail-barcode-status" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                           </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-1 border-b border-slate-100 pb-4">
-                        <span className="text-xs font-bold text-slate-400 uppercase">Card Number</span>
-                        <div 
-                          id="detail-number"
-                          onClick={() => setRevealNumber(!revealNumber)}
-                          className="font-mono text-2xl font-black text-slate-800 tracking-wider cursor-pointer hover:text-blue-600 transition-colors py-1"
-                          title="Click to reveal/hide number"
-                        >
-                          {revealNumber 
-                            ? selectedCard.cardNumber 
-                            : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
-                          }
+                          <strong id="detail-barcode-balance" className="text-lg font-black text-slate-900">
+                            ${selectedCard.currentBalance.toFixed(2)}
+                          </strong>
                         </div>
-                        <span className="text-[10px] text-slate-400">Click card number to toggle visibility</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-bold text-slate-400 uppercase">PIN</span>
-                          <span id="detail-pin" className="font-mono text-lg font-bold text-slate-700">{selectedCard.pin}</span>
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-bold text-slate-400 uppercase">Starting Value</span>
-                          <span id="detail-starting-balance" className="text-lg font-bold text-slate-700">${selectedCard.startingBalance.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* Card Balance Segment */}
-                    <section className="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex justify-between items-center shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-400 uppercase">Current Balance</span>
-                        <span id="detail-current-balance" className="text-3xl font-black text-slate-900">
-                          ${selectedCard.currentBalance.toFixed(2)}
-                        </span>
-                      </div>
-
-                      {isEditingBalance ? (
-                        <div className="flex flex-col gap-2 w-1/2">
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={newBalanceValue}
-                              onChange={e => setNewBalanceValue(e.target.value)}
-                              className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
-                              placeholder="0.00"
-                            />
-                            <button
-                              onClick={handleSaveBalance}
-                              className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setIsEditingBalance(false)}
-                              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2.5 rounded-xl text-xs transition-all"
-                            >
-                              X
-                            </button>
+                        
+                        {barcodeData ? (
+                          <div className="flex flex-col items-center gap-2 w-full pt-2">
+                            <div className="w-full bg-white border border-slate-100 p-2 rounded-2xl">
+                              <svg
+                                viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
+                                preserveAspectRatio="none"
+                                role="img"
+                                aria-label="Code 128 checkout barcode"
+                                className="w-full h-16"
+                              >
+                                <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
+                                {barcodeData.rects.map((r, i) => (
+                                  <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
+                                ))}
+                              </svg>
+                            </div>
                           </div>
-                          {balanceError && <span className="text-[10px] text-red-600 font-semibold">{balanceError}</span>}
+                        ) : (
+                          <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
+                            <span className="text-sm text-red-600 font-bold">
+                              {getBarcodeFallbackMessage(selectedCard)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Card number and PIN remain available below.
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center w-full border-t border-slate-100 pt-2 text-xs font-bold text-slate-500">
+                          <span
+                            id="detail-barcode-caption"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRevealNumber(!revealNumber);
+                            }}
+                            className="font-mono cursor-pointer hover:text-blue-600"
+                            title="Click to reveal/hide card number"
+                          >
+                            {revealNumber
+                              ? selectedCard.cardNumber
+                              : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
+                            }
+                          </span>
+                          <strong id="detail-barcode-pin">
+                            PIN {selectedCard.pin}
+                          </strong>
                         </div>
-                      ) : (
+                      </button>
+                    );
+                  })()}
+
+                  {/* Update and Mark used side-by-side */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    {isEditingBalance ? (
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={newBalanceValue}
+                            onChange={e => setNewBalanceValue(e.target.value)}
+                            className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0]"
+                            placeholder="0.00"
+                          />
+                          <button
+                            onClick={handleSaveBalance}
+                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setIsEditingBalance(false)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2.5 rounded-xl text-xs transition-all cursor-pointer"
+                          >
+                            X
+                          </button>
+                        </div>
+                        {balanceError && <span className="text-[10px] text-red-600 font-semibold">{balanceError}</span>}
+                      </div>
+                    ) : (
+                      <button
+                        id="open-balance-modal"
+                        onClick={() => handleOpenBalanceEdit(selectedCard.currentBalance)}
+                        className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center"
+                      >
+                        Update Balance
+                      </button>
+                    )}
+
+                    <button
+                      id="mark-used"
+                      onClick={() => handleToggleUsed(selectedCardIndex)}
+                      className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer ${
+                        selectedCard.used
+                          ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                          : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
+                      }`}
+                      type="button"
+                    >
+                      {selectedCard.used ? "Mark Active" : "Mark Used"}
+                    </button>
+                  </div>
+
+                  {/* Add note row */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
+                      {!isEditingNotes && (
                         <button
-                          id="open-balance-modal"
-                          onClick={() => handleOpenBalanceEdit(selectedCard.currentBalance)}
-                          className="bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold px-5 py-3 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm"
+                          onClick={() => {
+                            setNewNotesValue(selectedCard.notes || "");
+                            setIsEditingNotes(true);
+                          }}
+                          className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer"
+                          type="button"
                         >
-                          Update Balance
+                          {selectedCard.notes ? "Edit" : "Add Note"}
                         </button>
                       )}
-                    </section>
-
-                    {/* Notes panel */}
-                    <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
-                        {!isEditingNotes && (
+                    </div>
+                    
+                    {isEditingNotes ? (
+                      <div className="flex flex-col gap-2 mt-1">
+                        <textarea
+                          value={newNotesValue}
+                          onChange={e => setNewNotesValue(e.target.value)}
+                          className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
+                          placeholder="Add card notes..."
+                        />
+                        <div className="flex gap-2 justify-end">
                           <button
                             onClick={() => {
-                              setNewNotesValue(selectedCard.notes || "");
-                              setIsEditingNotes(true);
+                              const updatedCards = cards.map((c, idx) => {
+                                if (idx === selectedCardIndex) {
+                                  return {
+                                    ...c,
+                                    notes: newNotesValue.trim(),
+                                  };
+                                }
+                                return c;
+                              });
+                              setCards(updatedCards);
+                              saveCards(updatedCards);
+                              setIsEditingNotes(false);
                             }}
-                            className="text-xs font-bold text-[#0b57d0] hover:underline"
+                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
                             type="button"
                           >
-                            {selectedCard.notes ? "Edit" : "Add Notes"}
+                            Save Notes
                           </button>
-                        )}
-                      </div>
-                      
-                      {isEditingNotes ? (
-                        <div className="flex flex-col gap-2 mt-1">
-                          <textarea
-                            value={newNotesValue}
-                            onChange={e => setNewNotesValue(e.target.value)}
-                            className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
-                            placeholder="Add card notes..."
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              onClick={() => {
-                                const updatedCards = cards.map((c, idx) => {
-                                  if (idx === selectedCardIndex) {
-                                    return {
-                                      ...c,
-                                      notes: newNotesValue.trim(),
-                                    };
-                                  }
-                                  return c;
-                                });
-                                setCards(updatedCards);
-                                saveCards(updatedCards);
-                                setIsEditingNotes(false);
-                              }}
-                              className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm"
-                              type="button"
-                            >
-                              Save Notes
-                            </button>
-                            <button
-                              onClick={() => setIsEditingNotes(false)}
-                              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all"
-                              type="button"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setIsEditingNotes(false)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                            type="button"
+                          >
+                            Cancel
+                          </button>
                         </div>
-                      ) : (
-                        <p id="detail-notes" className="text-sm text-slate-600 leading-relaxed font-medium">
-                          {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
-                        </p>
-                      )}
-                    </section>
-
-                    {/* Mark Used Action */}
-                    <div className="pt-4 flex flex-col gap-3">
-                      <button
-                        id="mark-used"
-                        onClick={() => handleToggleUsed(selectedCardIndex)}
-                        className={`w-full font-bold py-4 px-6 rounded-full transition-all shadow-md text-sm active:scale-95 ${
-                          selectedCard.used
-                            ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                            : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
-                        }`}
-                        type="button"
-                      >
-                        {selectedCard.used ? "Mark Active" : "Mark Card Used"}
-                      </button>
-
-                      <button
-                        onClick={() => setActivePanel('list')}
-                        className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs"
-                      >
-                        Back to Inventory
-                      </button>
-                    </div>
+                      </div>
+                    ) : (
+                      <p id="detail-notes" className="text-sm text-slate-600 leading-relaxed font-medium">
+                        {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
+                      </p>
+                    )}
                   </div>
+
+                  {/* Back to Inventory Button */}
+                  <button
+                    onClick={() => setActivePanel('list')}
+                    className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm"
+                  >
+                    Back to Inventory
+                  </button>
 
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
+                <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl w-full max-w-2xl">
                   No card selected. Select a card from the inventory list first.
                 </div>
               )}
