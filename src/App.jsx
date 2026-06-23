@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
 import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
+import { cardsToCsv, parseRawCardData } from './lib/csv';
 
 function App() {
   const [cards, setCards] = useState([]);
@@ -26,6 +27,14 @@ function App() {
 
   const [isFullscreenBarcode, setIsFullscreenBarcode] = useState(false);
   const [wakeLock, setWakeLock] = useState(null);
+
+  // Raw CSV Editor Modal and backup states
+  const [isRawDataModalOpen, setIsRawDataModalOpen] = useState(false);
+  const [rawDataText, setRawDataText] = useState("");
+  const [isRawDataLocked, setIsRawDataLocked] = useState(true);
+  const [validationSummary, setValidationSummary] = useState("No validation run yet.");
+  const [validationWarnings, setValidationWarnings] = useState([]);
+
 
   // Handle escape key listener for barcode modal
   useEffect(() => {
@@ -222,6 +231,98 @@ function App() {
   const selectedCard = cards[selectedCardIndex];
   const visiblePosition = visibleIndexes.indexOf(selectedCardIndex);
 
+  // CSV Export Action
+  const handleExportCsv = () => {
+    const csvContent = cardsToCsv(cards);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = "walmart-gift-cards-export.csv";
+    document.body.append(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+  };
+
+  // CSV Import File Processing Action
+  const handleImportCsvFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawDataText(String(reader.result ?? ""));
+      setIsRawDataLocked(true);
+      setValidationSummary("CSV imported into raw editor. Press Done to validate and save.");
+      setValidationWarnings([]);
+      setIsRawDataModalOpen(true);
+    };
+    reader.onerror = () => {
+      setValidationSummary("CSV import failed.");
+      setValidationWarnings(["Unable to read the selected CSV file."]);
+    };
+    reader.readAsText(file);
+    // Reset file input value to allow importing the same file again
+    e.target.value = "";
+  };
+
+  // Raw editor actions
+  const handleOpenRawEditor = () => {
+    // Show first 100 cards maximum as limit from phase-12
+    setRawDataText(cardsToCsv(cards, 100));
+    setIsRawDataLocked(true);
+    setValidationSummary(`Refreshed ${Math.min(cards.length, 100)} of ${cards.length} cards into the editor.`);
+    setValidationWarnings(
+      cards.length > 100
+        ? ["Displaying first 100 cards only. Export CSV includes all cards."]
+        : []
+    );
+    setIsRawDataModalOpen(true);
+  };
+
+  const handleRefreshRawEditor = () => {
+    setRawDataText(cardsToCsv(cards, 100));
+    setValidationSummary(`Refreshed ${Math.min(cards.length, 100)} of ${cards.length} cards into the editor.`);
+    setValidationWarnings(
+      cards.length > 100
+        ? ["Displaying first 100 cards only. Export CSV includes all cards."]
+        : []
+    );
+  };
+
+  const handleUpdateRawEditor = () => {
+    const { parsedCards, warnings } = parseRawCardData(rawDataText);
+
+    if (warnings.length > 0) {
+      setValidationSummary(`Validation failed: ${warnings.length} warning(s) found.`);
+      setValidationWarnings(warnings);
+      return false;
+    }
+
+    setCards(parsedCards);
+    saveCards(parsedCards);
+    
+    // Auto-select first visible card if possible
+    const visible = calculateVisibleCards(parsedCards, settings, settings.sortMode);
+    if (visible.length > 0) {
+      setSelectedCardIndex(visible[0]);
+    } else {
+      setSelectedCardIndex(-1);
+    }
+
+    setValidationSummary(`Successfully updated ${parsedCards.length} card(s) from editor.`);
+    setValidationWarnings([]);
+    return true;
+  };
+
+  const handleDoneRawEditor = () => {
+    const success = handleUpdateRawEditor();
+    if (success) {
+      setIsRawDataModalOpen(false);
+    }
+  };
+
+
   return (
     <>
       <div className="min-h-screen bg-slate-100 flex flex-col items-center p-4 sm:p-8 antialiased font-sans">
@@ -356,6 +457,61 @@ function App() {
                   )}
                 </div>
               </section>
+
+              {/* Data Panel / Backup Controls */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+                <details className="group">
+                  <summary className="list-none flex justify-between items-center cursor-pointer select-none">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Backup & CSV Controls</span>
+                    <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-slate-100">
+                    <div className="flex gap-3">
+                      <input 
+                        id="csv-file-input" 
+                        type="file" 
+                        accept=".csv,text/csv" 
+                        onChange={handleImportCsvFile} 
+                        className="hidden" 
+                      />
+                      <button 
+                        id="import-csv" 
+                        onClick={() => document.getElementById('csv-file-input').click()}
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center"
+                        type="button"
+                        title="Import CSV backup"
+                      >
+                        ↓ Import CSV
+                      </button>
+                      <button 
+                        id="export-csv" 
+                        onClick={handleExportCsv}
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center"
+                        type="button"
+                        title="Export CSV backup"
+                      >
+                        ↑ Export CSV
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex justify-between items-center gap-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase">Raw CSV Editor</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
+                      </div>
+                      <button 
+                        id="open-raw-data-modal" 
+                        onClick={handleOpenRawEditor}
+                        className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0"
+                        type="button"
+                      >
+                        Open Editor
+                      </button>
+                    </div>
+                  </div>
+                </details>
+              </section>
+
 
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">
@@ -787,6 +943,106 @@ function App() {
                 <strong>Notes:</strong> {selectedCard.notes}
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Raw CSV Editor Modal */}
+      {isRawDataModalOpen && (
+        <div 
+          id="raw-data-modal" 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-lg w-full p-6 flex flex-col gap-4 shadow-2xl relative"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="raw-data-modal-title"
+          >
+            <h2 id="raw-data-modal-title" className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">
+              Raw CSV editor
+            </h2>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="raw-data-input" className="text-xs font-bold text-slate-400 uppercase">
+                Raw CSV card data
+              </label>
+              <textarea
+                id="raw-data-input"
+                className="w-full font-mono text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] bg-slate-50 disabled:bg-slate-100 text-slate-700 disabled:text-slate-500 leading-relaxed"
+                spellCheck="false"
+                rows="8"
+                placeholder="Paste or import card data here..."
+                value={rawDataText}
+                onChange={e => setRawDataText(e.target.value)}
+                disabled={isRawDataLocked}
+              />
+            </div>
+
+            {/* Validation warnings card details */}
+            <div className="border border-slate-100 bg-slate-50 rounded-xl p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
+              <h4 className="text-xs font-bold text-slate-700 uppercase">Validation details</h4>
+              <div id="data-validation-warnings" className="text-xs font-semibold text-slate-600 leading-relaxed" role="status">
+                <p>{validationSummary}</p>
+                {validationWarnings.length > 0 && (
+                  <ul className="list-disc pl-4 mt-1 flex flex-col gap-1 text-red-600">
+                    {validationWarnings.map((warning, index) => (
+                      <li key={index}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Actions panel */}
+            <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 mt-2">
+              <div className="flex gap-2">
+                <button 
+                  id="toggle-data-lock" 
+                  onClick={() => setIsRawDataLocked(!isRawDataLocked)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm"
+                  type="button" 
+                  title={isRawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked"}
+                >
+                  {isRawDataLocked ? "Unlock 🔓" : "Lock 🔒"}
+                </button>
+                
+                <button 
+                  id="refresh-card-data" 
+                  onClick={handleRefreshRawEditor}
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95"
+                  type="button"
+                >
+                  Refresh
+                </button>
+                <button 
+                  id="update-card-data" 
+                  onClick={handleUpdateRawEditor}
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95"
+                  type="button"
+                >
+                  Update
+                </button>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button 
+                  id="cancel-raw-data-update" 
+                  onClick={() => setIsRawDataModalOpen(false)}
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-xl text-xs transition-all active:scale-95"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button 
+                  id="done-raw-data-update" 
+                  onClick={handleDoneRawEditor}
+                  className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-xl text-xs transition-all active:scale-95 shadow-md"
+                  type="button"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
