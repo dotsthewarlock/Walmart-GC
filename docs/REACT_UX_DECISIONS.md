@@ -34,3 +34,11 @@ Record of direct user UX decisions and AI-made UX decisions for the React + Vite
 ### 4. Checkout Operational Panel Structure (2026-06-23)
 * **Context**: Formatting interface controls inside the secondary detail layout.
 * **Decision**: Preserve the dedicated Checkout operational panel structure for managing single-card focus tools, sorting indicators, and diagnostic panels. [AI implementation review]
+
+---
+
+## Manual QA Verification Passes
+
+### Pass 1: React Visual Parity & Focus Modal (2026-06-23)
+* **Status**: Passed (User-reported & verified)
+* **Details**: Update Balance modal overlay flow, barcode focus stacking/layering, amount used calculations, and recent visual parity alignments look good with no observed runtime errors.
