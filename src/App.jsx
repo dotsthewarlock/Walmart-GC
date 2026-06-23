@@ -512,6 +512,48 @@ function App() {
                 </details>
               </section>
 
+              {/* Diagnostics & Technical Details */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+                <details className="group">
+                  <summary className="list-none flex justify-between items-center cursor-pointer select-none">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Diagnostics</span>
+                      <small id="settings-app-shell-fingerprint" className="text-[10px] text-slate-400 font-medium">
+                        agy-v1 · matching
+                      </small>
+                    </div>
+                    <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-slate-100">
+                    <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase">App shell diagnostics</h4>
+                      <ul className="text-xs text-slate-500 font-medium list-none flex flex-col gap-1.5">
+                        <li className="flex justify-between border-b border-slate-100 pb-1">
+                          <span>HTML version</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">agy-v1</span>
+                        </li>
+                        <li className="flex justify-between border-b border-slate-100 pb-1">
+                          <span>JS version</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">agy-v1</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>CSS version</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">agy-v1</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase">Technical Details</h4>
+                      <div id="advanced-sync-diagnostics" className="text-[10px] text-slate-400 leading-relaxed">
+                        Diagnostics load with sync status. Local database matches storage specifications.
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </section>
+
+
 
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">
