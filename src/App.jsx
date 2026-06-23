@@ -19,6 +19,10 @@ function App() {
   const [newBalanceValue, setNewBalanceValue] = useState("");
   const [balanceError, setBalanceError] = useState("");
 
+  // Notes Editor Form State
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [newNotesValue, setNewNotesValue] = useState("");
+
   // Load cards and settings on initialization
   useEffect(() => {
     const loadedCards = loadCards();
@@ -123,6 +127,7 @@ function App() {
     setSelectedCardIndex(visibleIndexes[nextPosition]);
     setRevealNumber(false);
     setIsEditingBalance(false);
+    setIsEditingNotes(false);
   };
 
   const handleNextCard = () => {
@@ -132,6 +137,7 @@ function App() {
     setSelectedCardIndex(visibleIndexes[nextPosition]);
     setRevealNumber(false);
     setIsEditingBalance(false);
+    setIsEditingNotes(false);
   };
 
   // Balance Update Action
@@ -471,14 +477,67 @@ function App() {
                 </section>
 
                 {/* Notes panel */}
-                {selectedCard.notes && (
-                  <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-2">
+                <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
+                    {!isEditingNotes && (
+                      <button
+                        onClick={() => {
+                          setNewNotesValue(selectedCard.notes || "");
+                          setIsEditingNotes(true);
+                        }}
+                        className="text-xs font-bold text-[#0b57d0] hover:underline"
+                        type="button"
+                      >
+                        {selectedCard.notes ? "Edit" : "Add Notes"}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {isEditingNotes ? (
+                    <div className="flex flex-col gap-2 mt-1">
+                      <textarea
+                        value={newNotesValue}
+                        onChange={e => setNewNotesValue(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
+                        placeholder="Add card notes..."
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => {
+                            const updatedCards = cards.map((c, idx) => {
+                              if (idx === selectedCardIndex) {
+                                return {
+                                  ...c,
+                                  notes: newNotesValue.trim(),
+                                };
+                              }
+                              return c;
+                            });
+                            setCards(updatedCards);
+                            saveCards(updatedCards);
+                            setIsEditingNotes(false);
+                          }}
+                          className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm"
+                          type="button"
+                        >
+                          Save Notes
+                        </button>
+                        <button
+                          onClick={() => setIsEditingNotes(false)}
+                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all"
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
                     <p id="detail-notes" className="text-sm text-slate-600 leading-relaxed font-medium">
-                      {selectedCard.notes}
+                      {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
                     </p>
-                  </section>
-                )}
+                  )}
+                </section>
 
                 {/* Mark Used Action */}
                 <div className="pt-4 flex flex-col gap-3">
