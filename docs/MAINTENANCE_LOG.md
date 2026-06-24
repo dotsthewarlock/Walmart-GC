@@ -102,3 +102,15 @@ Garbage-collection triggers:
 - Operational note: live domain served the Actions-built React artifact despite the Pages API reporting `legacy` source `phase-12 / /`. Treat this as a Pages metadata inconsistency unless future verification proves otherwise.
 - Rollback remains: restore GitHub Pages to legacy branch source `phase-12`, path `/`, backed by `backup/phase-12-before-react-vite-2026-06-24` and tag `prod-phase-12-pre-react-vite-2026-06-24`.
 - Do not remove legacy root files, stale rulesets, or backup refs until deployment has remained stable and cleanup is explicitly approved.
+
+## 2026-06-24 — Ruleset governance audit
+
+- Read-only governance audit confirmed classic branch protection is not enabled for `main`; branch protection is ruleset-based.
+- Active rulesets:
+  - `Protect main` targets `refs/heads/main`.
+  - `phase 12` targets `refs/heads/phase-12`.
+  - `phase-11` targets `refs/heads/phase-11`.
+- `Protect main` includes `pull_request`, `update`, `deletion`, and `non_fast_forward` rules.
+- `Protect main` has one user bypass actor with `bypass_mode: always`.
+- Direct pushes by the bypass actor may succeed while GitHub still reports rule warnings such as `Cannot update this protected ref` and `Changes must be made through a pull request`.
+- Recommendation: keep `Protect main` active. Defer stale `phase-11` ruleset cleanup until post-soak governance cleanup.
