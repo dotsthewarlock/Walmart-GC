@@ -341,6 +341,16 @@ function App() {
     saveSettings(nextSettings);
   };
 
+  const handleResetFilters = () => {
+    const nextSettings = {
+      ...settings,
+      hideUsedCards: false,
+      hideZeroBalanceCards: false,
+    };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+  };
+
   // Handle sort mode changes
   const handleSortChange = (e) => {
     const nextSettings = {
@@ -1173,9 +1183,59 @@ function App() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {visibleIndexes.length === 0 ? (
-                    <div className="text-center py-8 text-sm text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
-                      No cards match the active filters.
+                  {cards.length === 0 ? (
+                    <div className="text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                      <div className="flex flex-col gap-1.5 max-w-sm">
+                        <h4 className="text-sm font-bold text-slate-800">No gift cards yet</h4>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Add your Walmart gift cards to get started. Checkout and barcode scan views will become available once you have cards registered.
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs sm:max-w-md justify-center mt-2">
+                        {oauthState.status !== googleOAuthStatuses.connected && (
+                          <button
+                            id="empty-state-connect-google"
+                            onClick={handleConnectGoogle}
+                            className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                            type="button"
+                          >
+                            Connect Google
+                          </button>
+                        )}
+                        <button
+                          id="empty-state-import-csv"
+                          onClick={() => document.getElementById('csv-file-input').click()}
+                          className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          type="button"
+                        >
+                          ↓ Import CSV
+                        </button>
+                      </div>
+                    </div>
+                  ) : visibleIndexes.length === 0 ? (
+                    <div className="text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                      <div className="flex flex-col gap-1.5 max-w-sm">
+                        <span className="text-sm font-bold text-slate-800">All registered cards are filtered out</span>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Your settings are currently hiding all {cards.length} card{cards.length === 1 ? "" : "s"}. Reset filters or adjust them in settings to show cards.
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center mt-1">
+                        <button
+                          onClick={handleResetFilters}
+                          className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          type="button"
+                        >
+                          Reset Filters
+                        </button>
+                        <button
+                          onClick={() => setActivePanel('settings')}
+                          className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          type="button"
+                        >
+                          Go to Settings
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     visibleIndexes.map((cardIndex) => {
@@ -1817,11 +1877,14 @@ function App() {
 
             {/* Barcode Frame */}
             <div id="fullscreen-barcode-frame" className="border border-slate-100/50 bg-slate-50/30 px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-400 uppercase">
+              <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
+                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                 </span>
-                <span id="fullscreen-current-balance" className="text-lg font-black text-slate-900">${selectedCard.currentBalance.toFixed(2)}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance:</span>
+                  <span id="fullscreen-current-balance" className="text-xl font-black text-[#0b57d0] font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
+                </div>
               </div>
 
               {/* SVG barcode */}
@@ -1850,11 +1913,42 @@ function App() {
                 );
               })()}
 
-              <div className="flex justify-between items-center border-t border-slate-100 pt-2 font-mono text-xs font-bold text-slate-500">
-                <span id="fullscreen-card-number">
-                  {maskCardNumber(selectedCard.cardNumber)}
-                </span>
-                <strong id="fullscreen-pin">PIN {selectedCard.pin}</strong>
+              <div className="flex flex-col gap-3 border-t border-slate-200/60 pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Card Number</span>
+                    <button
+                      id="fullscreen-card-number-reveal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRevealNumber(!revealNumber);
+                      }}
+                      className="font-mono font-bold text-slate-800 hover:text-[#0b57d0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded px-2 py-1 bg-slate-100/80 hover:bg-slate-200/80 transition-colors cursor-pointer flex items-center gap-1.5"
+                      title="Click to reveal/hide card number"
+                      type="button"
+                    >
+                      <span>
+                        {revealNumber
+                          ? selectedCard.cardNumber.replace(/(.{4})/g, "$1 ").trim()
+                          : maskCardNumber(selectedCard.cardNumber)
+                        }
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        ({revealNumber ? "Hide" : "Reveal"})
+                      </span>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Security PIN</span>
+                    <span id="fullscreen-pin" className="bg-slate-950 text-white font-mono font-extrabold text-sm px-3 py-1 rounded-xl tracking-wide shadow-sm min-w-[50px] text-center">
+                      {selectedCard.pin || "—"}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-[10px] text-center text-amber-800 font-semibold leading-relaxed bg-amber-50 border border-amber-200/40 rounded-xl py-2 px-3 mt-1 flex items-center justify-center gap-1.5">
+                  <span>☀️</span>
+                  <span>Turn brightness up if scanner has trouble.</span>
+                </div>
               </div>
             </div>
 
