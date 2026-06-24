@@ -230,3 +230,18 @@ Read only files listed by the task unless evidence points elsewhere. Prefer exac
 ## Archive Policy
 
 Historical docs live under `docs/archive/` and are retained for reference, not normal current-work context. Do not read archived docs for normal tasks. Consult them only for exact old error strings, historical regressions, explicit user requests, or migration/history tasks.
+
+## Post-deployment status — 2026-06-24 19:34 UTC
+
+React/Vite production deployment is live and manually verified as appearing to work.
+
+Current deployment facts:
+- `main` contains the React/Vite production app.
+- `.github/workflows/deploy-pages.yml` successfully built and deployed the `dist` artifact.
+- Production URL serves built Vite assets from `/assets/`.
+- GitHub Pages API still reported `build_type: legacy` with source `phase-12 / /` during verification, even though live HTML served the React artifact. Preserve this as a known metadata inconsistency and verify before changing Pages settings again.
+- Rollback path remains GitHub Pages legacy source `phase-12 / /`.
+
+Current stop condition:
+- No further deployment/settings changes without explicit approval.
+- No cleanup of legacy root files, backup refs, or stale rulesets until production stability is confirmed and cleanup is separately approved.

@@ -86,3 +86,19 @@ Garbage-collection triggers:
 - Source: Task `Create a tiny docs-only smoke test branch for AI workflow validation` and PR #160 on 2026-06-20.
 - Status: Resolved.
 - Context: Phase 12.1 AI workflow governance/progress: AI cleanup report workflow succeeds; AI PR create and squash merge workflows were smoke-tested successfully. PR #160 was created by the workflow and squash-merged into phase-12; merge correctly required the ai:auto-merge label.
+
+## 2026-06-24 19:34 UTC — React/Vite production deployment verified
+
+- Commit deployed: `65864f1`
+- Deployment workflow: `.github/workflows/deploy-pages.yml`
+- Latest deploy workflow result: ``
+- Live production URL: https://walmart-gc.dotsthewarlock.com/
+- Manual browser QA result: app appears working after React/Vite deployment.
+- Live smoke check confirmed production HTML references built Vite assets under `/assets/index-*.js` and `/assets/index-*.css`, not raw `/src/main.jsx`.
+- GitHub Pages API still reported legacy metadata at verification time:
+  ```json
+{"build_type":"legacy","cname":"walmart-gc.dotsthewarlock.com","html_url":"https://walmart-gc.dotsthewarlock.com/","source":{"branch":"phase-12","path":"/"},"status":"built"}
+  ```
+- Operational note: live domain served the Actions-built React artifact despite the Pages API reporting `legacy` source `phase-12 / /`. Treat this as a Pages metadata inconsistency unless future verification proves otherwise.
+- Rollback remains: restore GitHub Pages to legacy branch source `phase-12`, path `/`, backed by `backup/phase-12-before-react-vite-2026-06-24` and tag `prod-phase-12-pre-react-vite-2026-06-24`.
+- Do not remove legacy root files, stale rulesets, or backup refs until deployment has remained stable and cleanup is explicitly approved.
