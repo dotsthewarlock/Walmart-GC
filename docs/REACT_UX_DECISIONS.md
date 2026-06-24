@@ -42,6 +42,14 @@ Record of direct user UX decisions and AI-made UX decisions for the React + Vite
   - Added visible, high-contrast focus rings (focus-visible) to key interactive buttons (#nav-list, #nav-detail, #open-settings, #prev-card, #next-card, #barcode-open, #open-balance-modal, #mark-used, and fullscreen variants) to improve keyboard navigation and usability.
   - Extended high-contrast focus rings (focus-visible) to all remaining settings buttons (#connect-google, #disconnect-google, Google Sheet sync actions, CSV import/export, raw editor lock/refresh/update, and modal Cancel/Save/Done buttons) and increased vertical padding to 14px (py-3.5) on smaller interactive buttons to ensure a minimum 48px touch target height.
 
+### 6. Material 3 Surface and Navigation Polish (2026-06-24)
+* **Context**: One-shot bounded polish to refine surface hierarchy, icon button shapes, selection states, and navigation visual hierarchy.
+* **Decision**:
+  - Softened nested borders and background surfaces in card details and modals to reduce visual noise.
+  - Circularized the settings gear icon button to align with circular close buttons (✕), normalizing icon button geometry.
+  - Calibrated the selected card list item style to a subtle tonal tint (`border-[#0b57d0]/30 bg-[#0b57d0]/5`) to reduce high-contrast visual weight.
+  - Lightened secondary navigation actions (Previous/Next, Back) to lower emphasis compared to primary triggers.
+
 ---
 
 ## Manual QA Verification Passes

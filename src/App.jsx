@@ -1093,7 +1093,7 @@ function App() {
                 setActivePanel('settings');
               }
             }}
-            className={`fixed top-6 md:top-14 right-4 sm:right-8 z-30 w-12 h-12 border rounded-xl flex items-center justify-center text-xl transition-all active:scale-97 shadow-lg backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+            className={`fixed top-6 md:top-14 right-4 sm:right-8 z-30 w-12 h-12 border rounded-full flex items-center justify-center text-xl transition-all active:scale-97 shadow-lg backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
               activePanel === 'settings'
                 ? 'bg-[#0b57d0] text-white border-[#0b57d0]'
                 : 'border-white/70 bg-[#ebf6ff]/70 text-[#0842a0] hover:bg-[#ebf6ff]/90 hover:border-blue-400'
@@ -1190,7 +1190,7 @@ function App() {
                           }}
                           className={`flex items-center justify-between p-3.5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
                             isSelected
-                              ? 'border-[#0b57d0] ring-2 ring-[#0b57d0]/20 bg-blue-50/20'
+                              ? 'border-[#0b57d0]/30 ring-1 ring-[#0b57d0]/10 bg-[#0b57d0]/5'
                               : card.used
                                 ? 'border-slate-100 bg-slate-50/50 opacity-60'
                                 : 'border-slate-200 hover:border-blue-300 shadow-sm'
@@ -1555,7 +1555,7 @@ function App() {
 
               <button
                 onClick={() => setActivePanel(previousPrimaryPanel)}
-                className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3.5 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="w-full bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-6 rounded-full border border-slate-200/50 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
               >
                 Back
               </button>
@@ -1568,12 +1568,12 @@ function App() {
                 <div id="card-detail" className="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-6 shadow-sm">
                   
                   {/* Detail Card Navigation Header */}
-                  <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl">
+                  <div className="flex justify-between items-center bg-slate-50/50 p-4 border border-slate-100 rounded-2xl">
                     <button
                       id="prev-card"
                       onClick={handlePrevCard}
                       disabled={visiblePosition <= 0}
-                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-3.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200/50 px-4 py-3.5 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Previous
                     </button>
@@ -1584,7 +1584,7 @@ function App() {
                       id="next-card"
                       onClick={handleNextCard}
                       disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-bold bg-white border border-slate-200 px-4 py-3.5 rounded-xl hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200/50 px-4 py-3.5 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Next
                     </button>
@@ -1599,10 +1599,10 @@ function App() {
                       <button
                         id="barcode-open"
                         onClick={() => setIsFullscreenBarcode(true)}
-                        className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-400 transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="bg-white border border-slate-200/60 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-300 transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         title="Tapping opens full-screen barcode focus mode"
                       >
-                        <div className="flex justify-between items-center w-full border-b border-slate-100 pb-2">
+                        <div className="flex justify-between items-center w-full border-b border-slate-100/60 pb-2">
                           <span id="detail-barcode-status" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                           </span>
@@ -1613,7 +1613,7 @@ function App() {
                         
                         {barcodeData ? (
                           <div className="flex flex-col items-center gap-2 w-full pt-2">
-                            <div className="w-full bg-white border border-slate-100 p-2 rounded-2xl">
+                            <div className="w-full bg-white border border-slate-100/60 p-2 rounded-2xl">
                               <svg
                                 viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                 preserveAspectRatio="none"
@@ -1629,7 +1629,7 @@ function App() {
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-1 border border-slate-100 bg-slate-50/50 rounded-2xl p-4 w-full text-center">
+                          <div className="flex flex-col items-center gap-1 border border-slate-100/50 bg-slate-50/30 rounded-2xl p-4 w-full text-center">
                             <span className="text-sm text-red-600 font-bold">
                               {getBarcodeFallbackMessage(selectedCard)}
                             </span>
@@ -1639,7 +1639,7 @@ function App() {
                           </div>
                         )}
 
-                        <div className="flex justify-between items-center w-full border-t border-slate-100 pt-2 text-xs font-bold text-slate-500">
+                        <div className="flex justify-between items-center w-full border-t border-slate-100/60 pt-2 text-xs font-bold text-slate-500">
                           <span
                             id="detail-barcode-caption"
                             onClick={(e) => {
@@ -1690,7 +1690,7 @@ function App() {
                   </div>
 
                   {/* Add note row */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+                  <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
                       {!isEditingNotes && (
@@ -1755,7 +1755,7 @@ function App() {
                   {/* Back to Inventory Button */}
                   <button
                     onClick={() => setActivePanel('list')}
-                    className="w-full bg-white hover:bg-slate-50 text-slate-600 font-bold py-3.5 px-6 rounded-full border border-slate-200 transition-all text-xs cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                    className="w-full bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-6 rounded-full border border-slate-200/50 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   >
                     Back to Inventory
                   </button>
@@ -1791,7 +1791,7 @@ function App() {
             {/* Close Button */}
             <button
               onClick={() => setIsFullscreenBarcode(false)}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
               type="button"
               aria-label="Close barcode focus mode"
             >
@@ -1804,8 +1804,8 @@ function App() {
             </div>
 
             {/* Barcode Frame */}
-            <div id="fullscreen-barcode-frame" className="border border-slate-100 bg-slate-50 px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+            <div id="fullscreen-barcode-frame" className="border border-slate-100/50 bg-slate-50/30 px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-400 uppercase">
                   {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                 </span>
@@ -1838,7 +1838,7 @@ function App() {
                 );
               })()}
 
-              <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-mono text-xs font-bold text-slate-500">
+              <div className="flex justify-between items-center border-t border-slate-100 pt-2 font-mono text-xs font-bold text-slate-500">
                 <span id="fullscreen-card-number">
                   {maskCardNumber(selectedCard.cardNumber)}
                 </span>
@@ -1852,7 +1852,7 @@ function App() {
                 id="fullscreen-prev"
                 onClick={handlePrevCard}
                 disabled={visiblePosition <= 0}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                 type="button"
               >
                 Previous
@@ -1861,7 +1861,7 @@ function App() {
                 id="fullscreen-next"
                 onClick={handleNextCard}
                 disabled={visiblePosition === visibleIndexes.length - 1}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                 type="button"
               >
                 Next
@@ -1896,7 +1896,7 @@ function App() {
             </div>
 
             {/* Notes Row */}
-            <div id="fullscreen-notes" className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+            <div id="fullscreen-notes" className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
                 {!isEditingNotes && (
@@ -1976,7 +1976,7 @@ function App() {
             {/* Close Button */}
             <button
               onClick={handleCancelBalanceEdit}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
               type="button"
               aria-label="Close update balance modal"
             >
@@ -2086,7 +2086,7 @@ function App() {
             </div>
 
             {/* Validation warnings card details */}
-            <div className="border border-slate-100 bg-slate-50 rounded-xl p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
+            <div className="border border-slate-100/50 bg-slate-50/30 rounded-xl p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
               <h4 className="text-xs font-bold text-slate-700 uppercase">Validation details</h4>
               <div id="data-validation-warnings" className="text-xs font-semibold text-slate-600 leading-relaxed" role="status">
                 <p>{validationSummary}</p>
