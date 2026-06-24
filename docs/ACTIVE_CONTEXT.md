@@ -53,3 +53,17 @@ Walmart-GC Web App (Static React 19 + Vite)
 - [Behavior Inventory](file:///home/godfreymiu/Walmart-GC/docs/PHASE_12_BEHAVIOR_INVENTORY.md) / [Behavior Map](file:///home/godfreymiu/Walmart-GC/docs/STATIC_TO_REACT_BEHAVIOR_MAP.md) — Parity references.
 - [UX Decisions Log](file:///home/godfreymiu/Walmart-GC/docs/REACT_UX_DECISIONS.md) — UI/UX and Material 3 design notes.
 - [Documentation Archive](file:///home/godfreymiu/Walmart-GC/docs/archive/README.md) — Retained historical references.
+
+## Execution and Handoff Policy
+
+For Terminal/Agy work, use a durable, token-efficient handoff model:
+
+- Use `/tmp/agy-task.txt` for local Agy prompts.
+- Use `/tmp/agy-task.log` for verbose local Agy output.
+- Do not commit raw logs or large terminal transcripts.
+- Commit compact durable summaries only when results affect future work, production state, rollback safety, docs architecture, or user decisions.
+- Prefer `docs/MAINTENANCE_LOG.md` for dated durable result summaries.
+- Prefer `docs/ACTIVE_CONTEXT.md` for current operating state and short-lived-but-important project context.
+- Future GPT/Agy sessions should read `docs/ACTIVE_CONTEXT.md` and recent `docs/MAINTENANCE_LOG.md` entries before relying on chat memory.
+- If ChatGPT needs results without pasted terminal output, those results must be committed or otherwise pushed to GitHub in a compact form; local `/tmp` files and uncommitted diffs are not durable or remotely visible.
+- Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs or full raw logs.

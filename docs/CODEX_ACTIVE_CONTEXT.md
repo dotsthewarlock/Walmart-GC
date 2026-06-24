@@ -248,3 +248,17 @@ Current deployment facts:
 Current stop condition:
 - No further deployment/settings changes without explicit approval.
 - No cleanup of legacy root files, backup refs, or stale rulesets until production stability is confirmed and cleanup is separately approved.
+
+## Execution and Handoff Policy
+
+For Terminal/Agy work, use a durable, token-efficient handoff model:
+
+- Use `/tmp/agy-task.txt` for local Agy prompts.
+- Use `/tmp/agy-task.log` for verbose local Agy output.
+- Do not commit raw logs or large terminal transcripts.
+- Commit compact durable summaries only when results affect future work, production state, rollback safety, docs architecture, or user decisions.
+- Prefer `docs/MAINTENANCE_LOG.md` for dated durable result summaries.
+- Prefer `docs/ACTIVE_CONTEXT.md` for current operating state and short-lived-but-important project context.
+- Future GPT/Agy sessions should read `docs/ACTIVE_CONTEXT.md` and recent `docs/MAINTENANCE_LOG.md` entries before relying on chat memory.
+- If ChatGPT needs results without pasted terminal output, those results must be committed or otherwise pushed to GitHub in a compact form; local `/tmp` files and uncommitted diffs are not durable or remotely visible.
+- Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs or full raw logs.
