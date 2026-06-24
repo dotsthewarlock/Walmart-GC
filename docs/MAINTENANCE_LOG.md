@@ -114,3 +114,13 @@ Garbage-collection triggers:
 - `Protect main` has one user bypass actor with `bypass_mode: always`.
 - Direct pushes by the bypass actor may succeed while GitHub still reports rule warnings such as `Cannot update this protected ref` and `Changes must be made through a pull request`.
 - Recommendation: keep `Protect main` active. Defer stale `phase-11` ruleset cleanup until post-soak governance cleanup.
+
+## 2026-06-24 — Pages metadata investigation
+
+- Read-only Pages metadata investigation confirmed the live production site serves the React/Vite build artifact.
+- Live HTML references built asset `/assets/index-BOwxYZlQ.js`.
+- Live HTML does not reference raw Vite source `/src/main.jsx`.
+- Built JS asset returned `HTTP/2 200` with `content-type: application/javascript; charset=utf-8`.
+- Latest `deploy-pages.yml` run for commit `07883e21cb26db209a61df6608ee25df70c520bb` completed successfully.
+- GitHub Pages API still reports legacy metadata: `build_type: legacy`, source branch `phase-12`, path `/`.
+- Recommendation: treat this as a known GitHub Pages metadata inconsistency unless live HTML stops serving built React assets or deploy workflow behavior changes. Do not change Pages settings now.
