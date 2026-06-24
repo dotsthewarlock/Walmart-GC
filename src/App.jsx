@@ -1228,34 +1228,46 @@ function App() {
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preferences</h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                    <input 
-                      type="checkbox"
-                      checked={settings.hideUsedCards}
-                      onChange={() => handleToggleSetting('hideUsedCards')}
-                      className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
-                    />
-                    Hide Used Cards
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
+                    <span>Hide Used Cards</span>
+                    <div className="relative w-[52px] h-[32px] shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.hideUsedCards}
+                        onChange={() => handleToggleSetting('hideUsedCards')}
+                        className="sr-only peer"
+                      />
+                      <div className="w-full h-full bg-[#e3e2e6] border-2 border-[#79747e] rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#0b57d0] peer-focus-visible:ring-offset-2 peer-checked:bg-[#0b57d0] peer-checked:border-[#0b57d0]"></div>
+                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-[#79747e] rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-white peer-checked:left-[4px]"></div>
+                    </div>
                   </label>
 
-                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                    <input 
-                      type="checkbox"
-                      checked={settings.hideZeroBalanceCards}
-                      onChange={() => handleToggleSetting('hideZeroBalanceCards')}
-                      className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
-                    />
-                    Hide $0 Cards
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
+                    <span>Hide $0 Cards</span>
+                    <div className="relative w-[52px] h-[32px] shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.hideZeroBalanceCards}
+                        onChange={() => handleToggleSetting('hideZeroBalanceCards')}
+                        className="sr-only peer"
+                      />
+                      <div className="w-full h-full bg-[#e3e2e6] border-2 border-[#79747e] rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#0b57d0] peer-focus-visible:ring-offset-2 peer-checked:bg-[#0b57d0] peer-checked:border-[#0b57d0]"></div>
+                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-[#79747e] rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-white peer-checked:left-[4px]"></div>
+                    </div>
                   </label>
 
-                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                    <input 
-                      type="checkbox"
-                      checked={settings.advanceOnMarkUsed}
-                      onChange={() => handleToggleSetting('advanceOnMarkUsed')}
-                      className="w-4 h-4 rounded border-slate-300 text-[#0b57d0] focus:ring-[#0b57d0]"
-                    />
-                    Auto-Advance
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
+                    <span>Auto-Advance</span>
+                    <div className="relative w-[52px] h-[32px] shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.advanceOnMarkUsed}
+                        onChange={() => handleToggleSetting('advanceOnMarkUsed')}
+                        className="sr-only peer"
+                      />
+                      <div className="w-full h-full bg-[#e3e2e6] border-2 border-[#79747e] rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#0b57d0] peer-focus-visible:ring-offset-2 peer-checked:bg-[#0b57d0] peer-checked:border-[#0b57d0]"></div>
+                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-[#79747e] rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-white peer-checked:left-[4px]"></div>
+                    </div>
                   </label>
 
                   {zeroBalanceCount > 0 && (
@@ -1712,7 +1724,7 @@ function App() {
                         <textarea
                           value={newNotesValue}
                           onChange={e => setNewNotesValue(e.target.value)}
-                          className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
+                          className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:bg-white focus:outline-none transition-all duration-200 min-h-[80px]"
                           placeholder="Add card notes..."
                         />
                         <div className="flex gap-2 justify-end">
@@ -1918,7 +1930,7 @@ function App() {
                   <textarea
                     value={newNotesValue}
                     onChange={e => setNewNotesValue(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] min-h-[80px]"
+                    className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:bg-white focus:outline-none transition-all duration-200 min-h-[80px]"
                     placeholder="Add card notes..."
                   />
                   <div className="flex gap-2 justify-end">
@@ -2003,7 +2015,7 @@ function App() {
                   step="0.01"
                   value={amountUsedValue}
                   onChange={handleAmountUsedChange}
-                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] transition-all duration-200"
+                  className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3 focus:bg-white focus:outline-none transition-all duration-200"
                   placeholder="0.00"
                   autoFocus
                 />
@@ -2019,7 +2031,7 @@ function App() {
                   step="0.01"
                   value={newBalanceValue}
                   onChange={handleRemainingBalanceChange}
-                  className="w-full text-sm border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] transition-all duration-200"
+                  className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3 focus:bg-white focus:outline-none transition-all duration-200"
                   placeholder="0.00"
                 />
               </div>
@@ -2075,7 +2087,7 @@ function App() {
               </label>
               <textarea
                 id="raw-data-input"
-                className="w-full font-mono text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] bg-slate-50 disabled:bg-slate-100 text-slate-700 disabled:text-slate-500 leading-relaxed"
+                className="w-full font-mono text-xs border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:outline-none bg-slate-50 disabled:bg-slate-100 text-slate-700 disabled:text-slate-500 leading-relaxed transition-all duration-200"
                 spellCheck="false"
                 rows="8"
                 placeholder="Paste or import card data here..."
