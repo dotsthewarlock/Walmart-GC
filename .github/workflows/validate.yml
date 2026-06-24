@@ -3,24 +3,36 @@ name: validate
 on:
   pull_request:
     branches:
-      - phase-11
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
-  static-checks:
+  build-and-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Check frontend JavaScript
-        run: node --check app.js
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React app
+        run: npm run build
 
       - name: Check Worker JavaScript
-        run: node --check worker/src/index.js
+        run: node --input-type=module --check < worker/src/index.js
 
       - name: Check changed-file whitespace
-        run: git diff --check "origin/${{ github.base_ref }}...HEAD"
+        run: git diff --check
 
       - name: Check conflict markers
         run: |
