@@ -1,8 +1,8 @@
 # Deployment Guide
 
-Walmart-GC is a static GitHub Pages app. It uses plain HTML, CSS, and JavaScript with no build step, backend server, database, framework, or npm dependency.
+Walmart-GC is a static GitHub Pages app. Under the `agy-v1` migration, the frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.
 
-## Active Phase 11 Deployment Model
+## Active Deployment Model
 
 ```text
 User Google Account
@@ -33,10 +33,18 @@ GitHub Pages continues to serve static files at the custom-domain root. The lega
 
 Normal users should only need to open the custom-domain app, select **Connect Google**, approve `drive.file` access, and return to Walmart-GC with a durable HttpOnly Worker session cookie.
 
-## Branches
+## Branches & Production State
 
-- Active development branch: `phase-11`.
-- Protected branch: `main`.
+- **Production Baseline**: GitHub Pages currently serves the `phase-12` branch root.
+- **Archival Baseline**: `phase-12` is the current production baseline and now the archival last-known-good target.
+- **Migration Branch**: `agy-v1` remains the active migration branch (React 19 + Vite + Tailwind CSS migration).
+- **Protected Production Target**: `main` is the target durable production source only after approved merge/release.
+- **Target Pages Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root.
+- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved.
+- **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
+  - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
+  - Backup Tag: `prod-phase-12-pre-react-vite-2026-06-24`
+  - Both point directly to `origin/phase-12` at commit `94c30c2536a63a721953fc3ea3e1dfc3cdd590b0`.
 
 Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only. Do not deploy or document Apps Script sync as the active path.
 
@@ -88,43 +96,49 @@ Worker contract checks:
 - Same-origin `/auth/*` and `/api/*` routing is active; credentialed CORS remains only as a defensive fallback for legacy Worker-domain calls from `https://walmart-gc.dotsthewarlock.com`.
 - OAuth scope remains `https://www.googleapis.com/auth/drive.file`.
 
-## Static Files
+## Production Build & Static Files
 
-Deploy these frontend files through GitHub Pages from the selected branch:
+The frontend application must be built before deployment. Run:
 
-- `index.html`
-- `app.js`
-- `styles.css`
-- documentation files as needed
+```bash
+npm run build
+```
 
-Deploy `worker/src/index.js` as the source of truth for the Cloudflare Worker.
+This compiles the React 19 application and assets into the `dist/` directory. Deploy the contents of the `dist/` directory to GitHub Pages (or your preferred static hosting platform).
+
+Deploy the Cloudflare Worker from `worker/src/index.js`.
 
 ## Pre-Deployment Checks
 
 Run code validation only when code is touched. For docs-only changes, run documentation/reference checks and whitespace/conflict checks.
 
-When code is touched, run:
+When frontend or Worker code is touched, run:
 
 ```bash
-node --check app.js
+# Verify frontend builds successfully
+npm run build
+
+# Verify Worker syntax
 node --check worker/src/index.js
+
+# Verify whitespace and formatting
 git diff --check
 # Run a conflict-marker scan before committing.
 ```
 
 Also confirm:
 
-- The debug fingerprint versions match the intended deployment when core files changed.
+- Dynamic fingerprint version checks are deprecated and do not block React/Vite deployment unless explicitly reintroduced.
 - No user-facing OAuth Client ID input is present.
 - No normal first-run Sheet URL/ID setup is present.
 - Apps Script appears only in clearly labeled historical documentation.
 - CSV export/import remains available.
 - Offline behavior remains usable.
 
-## Phase 11 OAuth/Session Smoke Test
+## OAuth/Session Smoke Test
 
 1. Open `https://walmart-gc.dotsthewarlock.com`.
-2. Confirm the debug fingerprint.
+2. Confirm the static `agy-v1` debug fingerprint (legacy dynamic fingerprint diagnostics are deprecated and do not block deployment).
 3. Open the **Data** panel.
 4. Select **Connect Google**.
 5. Confirm consent requests only `drive.file`.

@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&family=Roboto+Mono:wght@400;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-surface: #f8fafc;
+  --md-sys-color-on-surface: #1f1f1f;
+}
+
+body {
+  margin: 0;
+  background-color: #f8fafc;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: 'Roboto Mono', monospace;
+}

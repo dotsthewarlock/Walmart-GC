@@ -1,15 +1,18 @@
-# Codex Active Context
+# Codex Active Context (Agy Active Context)
 
-Read this first for current Walmart-GC tasks. It is the compact source of truth for future Codex work. Preferred source-of-truth chain: `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
+Read this first for current Walmart-GC tasks. It is the compact source of truth for future Agy work. Note that the retired automated Codex workflow is historical, and the current active workflow is the Agy CLI plus Terminal guarded batch workflow. Preferred source-of-truth chain: `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
 
 ## Current Basics
 
 - Repo: `dotsthewarlock/Walmart-GC`
-- Active/base branch: `main`
-- Historical/archival/protected branch: `phase-11`
+- Active branch: `agy-v1` (React 19 + Vite + Tailwind migration)
+- Behavior parity source of truth: `phase-12` semantics (historical) / `agy-v1` active development
+- Protected production base branch: `main`
+- Historical/archival/protected branch: `phase-12` (formerly `phase-11` in older baseline descriptions)
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
-- OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
-- Plain HTML/CSS/JavaScript frontend, no framework, no build system.
+- OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture.
+- React 19 + Vite + Tailwind CSS frontend environment (migration branch).
+- UX Decisions Log: [docs/REACT_UX_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/REACT_UX_DECISIONS.md)
 - Do not redesign core product behavior unless it directly blocks OAuth, session, Google Sheets access, or sync.
 
 ## Active Architecture
@@ -32,13 +35,22 @@ Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and
 
 Verified current infrastructure state:
 
-- GitHub Pages serves the frontend root from `main`.
-- App shell fingerprint: `1.01.74`.
-- Cloudflare routes only `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
-- No wildcard `/*` Worker route.
-- Worker version: `2026-06-18.merchant-inferred-schema.1`.
-- Schema mode: `header-name`.
-- Worker-managed OAuth/session is active.
+- **Production Baseline**: GitHub Pages currently serves the `phase-12` branch root.
+- **Archival Target**: `phase-12` is the current production baseline and is now the archival last-known-good target.
+- **Migration Branch**: `agy-v1` remains the active migration branch (React 19 + Vite + Tailwind).
+- **Protected Production Target**: `main` is the target durable production source only after approved merge/release.
+- **Target Pages Deployment Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root.
+- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved for automated agent execution.
+- **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
+  - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
+  - Backup Tag: `prod-phase-12-pre-react-vite-2026-06-24`
+  - Both point directly to `origin/phase-12` at commit `94c30c2536a63a721953fc3ea3e1dfc3cdd590b0`.
+- **App Shell Caching**: Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced. Static `agy-v1` labels are used on the migration branch.
+- **Worker Routes**: Cloudflare routes only same-origin `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
+- **No Wildcard Router**: No wildcard `/*` Worker route exists.
+- **Worker Version**: `2026-06-18.merchant-inferred-schema.1`.
+- **Schema Mode**: `header-name`.
+- **Worker-managed OAuth/Session**: Active.
 
 ## Runtime Confirmation Rule
 
@@ -101,41 +113,103 @@ Barcode payload is derived only and must not be stored: `79936686504000 + cardNu
 
 ## Hard Guardrails
 
-Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, frameworks, build steps, or new hosting.
+Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, or new hosting. Frameworks (React 19) and build steps (Vite) are authorized specifically under the migration scope on the `agy-v1` branch.
 
 ## Naming Conventions
 
 - Runtime files stay simple lowercase, for example `app.js`, `index.html`, and `styles.css`; Worker entrypoint is `worker/src/index.js`.
 - Docs use conventional uppercase names, for example `README.md`, `AGENTS.md`, and `CODEX_ACTIVE_CONTEXT.md`; archive folders use lowercase kebab-case, for example `docs/archive/apps-script-retired/`.
-- Branches use lowercase kebab-case, for example `phase-11-fix-sync-status`; PR/task names use imperative verb phrases, for example “Clarify Apps Script diagnostic docs”.
+- Branches use lowercase kebab-case, for example `phase-12-fix-sync-status`; PR/task names use imperative verb phrases, for example “Clarify Apps Script diagnostic docs”.
 - JavaScript functions/variables use `camelCase`; JavaScript constants use `SCREAMING_SNAKE_CASE`.
 - Preserve approved schema field names as existing `camelCase`; do not rename schema fields for style.
 
 ## Repo Workflow Safety
 
-- The expected repository base branch for active work is `main`; `phase-11` is historical/archival/protected and must not be used as the active base. Determine the expected base branch from active project context, confirm the local working branch before implementation, review, audit, verification, or PR tasks, and alert the user when it appears to differ from the intended workflow. Do not assume branch changes are intentional; if branch intent is unclear, ask before proceeding.
-- Distinguish the local working branch from GitHub PR branches. Codex may use a local/internal staging branch such as `work`; a local `work` branch is not by itself a blocker when it is only internal staging. Before PR creation or auto-merge, report all three branch identities: local working branch, GitHub PR head branch, and GitHub PR base branch.
-- Before any task requiring PR creation or auto-merge, confirm the intended PR base is `main`, the intended PR head is a `codex/*` branch, and a GitHub PR creation mechanism is available. For local/CLI workflows, `git remote get-url origin` may be used as a push preflight and should point to `dotsthewarlock/Walmart-GC`; do not require local `origin` as a universal Codex Cloud preflight because Codex Cloud may use platform-managed PR creation. If no PR path exists, stop before implementation and report `blocked: PR creation unavailable` unless local-only output is explicitly approved; if Codex Cloud can commit/prepare changes but requires the user to manually click `Create PR`, continue the task and finish with PR-ready output.
-- Distinguish Codex Cloud workspace commits and PR metadata from GitHub PRs. A commit reported by Codex Cloud is not enough to prove a branch was pushed to GitHub. In Codex Cloud, “Created PR metadata” is not a successful PR creation result; if changes are committed/prepared but no GitHub PR URL/number exists, or the UI still shows `Create PR`, Codex must report `PR not created; PR-ready only` and tell the user to click `Create PR`; this is a normal handoff state, not a failed task.
-- PR creation is allowed when local `work` is only internal staging, changes are pushed or platform-submitted to a proper `codex/*` GitHub head branch, the PR base is `main`, and a confirmed GitHub PR URL/number exists before reporting that a PR exists.
-- Auto-merge is allowed only when an actual GitHub PR URL/number is confirmed, the PR base is `main`, the PR head is the intended `codex/*` branch, checks/validation pass, no conflicts exist, confidence is >=80%, and no restricted-risk gates are triggered. No confirmed PR URL/number means no auto-merge.
-- When the primary development branch or phase changes, update active branch references in active docs first; preserve historical branch or phase references only when intentionally historical.
-- Confidence reports should include score, rationale, files touched, validation performed, remaining uncertainty, and the local working branch / PR head / PR base when PR or merge actions are involved. PR creation is allowed at confidence >=60%; auto-merge is allowed at confidence >=80% only when all safety gates pass.
-- Block auto-merge when no confirmed PR URL/number exists, merge conflicts exist, validation fails, checks/CI fail, local/PR branch identities are ambiguous, the PR base/head does not match the intended workflow, scope is unclear, or restricted-risk areas are touched. Restricted-risk areas require explicit user approval before implementation or merge: schema changes, OAuth/session, Worker auth/cookies, sync/conflict handling, deployment/routes, migration/recovery, broad UI redesign, and destructive cleanup. Approval may be provided in chat or task follow-up.
-- Report merged or stale `codex/*` branches. Auto-delete only verified merged `codex/*` branches while retaining the 5 most recent merged Codex branches and any merged Codex branch newer than 30 days. Never auto-delete failed, conflicted, abandoned, unresolved, or ambiguous branches.
-- Keep the 5 most recent completed Codex instances visible and archive older completed instances. Never auto-archive failed/error tasks, blocked tasks, unresolved reviews, active investigations, or ambiguous-status tasks. Never auto-delete Codex instances.
+### Current Workflow: Agy CLI & Terminal Guarded Batch
+- The active development branch is `agy-v1` (React 19 + Vite + Tailwind CSS migration).
+- The current workflow is Agy-first guarded batch: verify changes locally, run validation builds, inspect git diff, and run guarded commits/pushes.
+- Avoid automatic or unchecked pushes or merges. Always check git status and run build validations before committing.
+- Ensure only task-relevant files are edited and no guardrail risks are touched.
+
+### Historical Phase 12 / Codex PR Workflow (Retired)
+- The expected phase branch for active feature and UX polish work was historically `phase-12`; `main` is the target durable production source only after approved merge/release, and `phase-12` is the current production baseline and historical/archival/protected branch.
+- Codex previously used a local/internal staging branch such as `work` and automated PR creation on `codex/*` branches.
+- Auto-merge via GitHub automation was previously configured for `phase-12` target branches, but is retired/not active on the `agy-v1` branch.
+- Historical confidence scoring, branch auto-deletion of `codex/*` branches, and instance archiving are kept for reference but not active.
 - Prefer existing CSS tokens and component/layout patterns before introducing new raw values or variants. Minimize one-off styling values, consolidate duplicates only when computed output remains unchanged, preserve accepted UI baselines unless visual change is requested, and use Material 3 as a consistency lens rather than a redesign mandate.
 
-## Execution Lane Selection
+
+
+## AI Automation Lifecycle Foundation [HISTORICAL / RETIRED]
+
+> [!NOTE]
+> The automated Codex workflows and PR risk classification scripts are retired. The current workflow is Agy-first guarded batch workflow using the Agy CLI and Terminal commands.
+
+- Automation risk knobs live in `.github/ai-automation-policy.yml`.
+- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for `codex/*` PR risk checks.
+- `.github/workflows/ai-pr-auto-create.yml` creates guarded `codex/*` -> `phase-12` PRs only when `auto_pr.enabled` is true and the requested base matches both policy `active_base` and the active context.
+- `.github/workflows/ai-pr-auto-merge.yml` handles guarded green-risk auto-merge only when policy auto-merge knobs are enabled and all workflow gates pass.
+- Human review remains required for yellow/red risk, restricted labels, branch/base mismatches, failed validation, conflicts, draft PRs, or ambiguous PR state.
+
+## Phase 12 AI Workflow Handshake [HISTORICAL / RETIRED]
+
+> [!NOTE]
+> The Phase 12 AI Workflow and execution lanes are retired.
+
+Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Prefer the ChatGPT/GitHub connector for small, bounded, connector-friendly edits where the PR path is clear. Use Codex Cloud for broader implementation, multi-file changes, local validation-heavy work, or edits the connector cannot safely apply. GitHub-native automation owns PR lifecycle steps. ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*` unless a ChatGPT connector branch is explicitly used for a small docs/config fix.
+
+GitHub Actions UI registration note: Phase 12 AI workflows may need workflow files present on the default branch so `workflow_dispatch` entries appear in the Actions UI, but their runtime guards must still target `phase-12` and never `main`. Treat the workflow source branch (where GitHub loads the workflow definition) and the workflow target branch (the PR base or cleanup base the workflow acts on) as separate concepts; active-context lookups must read `docs/CODEX_ACTIVE_CONTEXT.md` from the intended target branch.
+
+Workflow lanes:
+
+- Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-12` PRs.
+- Lane B — ChatGPT/GitHub connector small edits: use for compact low-risk changes when the file shape is connector-friendly and a PR path is clear.
+- Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, or workflow-permission changes.
+- Lane D — GitHub-native PR lifecycle automation: create PRs, validate, squash-merge when approved/eligible, report cleanup.
+
+Risk tiers:
+
+- Green: docs, copy, and tiny safe edits.
+- Yellow: small runtime changes.
+- Red: auth/session, sync/conflict, schema, deployment, destructive cleanup, or workflow-permission changes.
+
+PR lifecycle states: changes prepared, workspace commit created, GitHub PR created, PR-ready only, validation passed, validation failed, merged, merge blocked, prune completed, prune skipped.
+
+Staged roadmap: (1) docs handshake, (2) auto-create PR workflow, (3) auto-squash merge workflow, (4) cleanup reporting, (5) prune verified merged `codex/*` branches.
+
+Cleanup policy: report stale or merged `codex/*` branches first. Later pruning may delete only verified merged `codex/*` branches. Never delete failed, conflicted, abandoned, unresolved, ambiguous, unmerged, or non-`codex/*` branches.
+
+## Maintenance Log and Deferred Work
+
+`docs/MAINTENANCE_LOG.md` is the durable repo location for unfinished cleanup, artifacts, validation gaps, and minor follow-up concerns that should not live only in chat or PR memory. It is not a changelog and must not duplicate completed PR summaries.
+
+For every Agy task (historically Codex) and ChatGPT review, inspect or update `docs/MAINTENANCE_LOG.md` when the task discovers or leaves unresolved work. Add concise entries only for deferred or unfinished concerns, including cleanup not done, artifacts left behind, validation gaps, stale docs/branches, garbage-collection candidates, or follow-up risks. Do not add an entry when the concern is fully resolved in the same PR.
+
+Each maintenance entry should include priority/risk/area, source PR or task when known, status, concise context, suggested action, guardrails, and acceptance. Use GitHub Issues instead of the log for assigned, blocking, or soon-actionable work. During `next` checkpoints, ChatGPT should check this log and advise whether to continue feature work or run cleanup before drift accumulates.
+
+## AI-First Workflow Guidance (Agy-First Guarded Workflow)
+
+- **Terminal for Cheap Mechanical Checks**: Use terminal commands for quick, low-complexity actions (status checks, diff checks, basic building, syntactic check).
+- **Agy Low/Medium Routing Only**: Use Gemini 3.5 Flash (Medium) for coding/refactoring, and Gemini 3.5 Flash (Low) for mechanical Git/build/docs tasks. No Pro tiers should be configured or invoked.
+- **Guarded One-Shot Steps**: Take small, incremental, one-shot steps. Verify status and diffs at each step before making further changes.
+- **Strict Guardrail Boundaries (Stop Condition)**: Stop execution immediately before attempting any Red-scope changes (deployment config, Cloudflare Worker files, KV bindings, Google Sheet schema changes, sync/conflict logic, CSV recovery/logic, auth/session changes, or package.json changes) and request explicit user confirmation.
+
+## Execution Lane Selection [HISTORICAL / RETIRED]
+
+> [!NOTE]
+> The lanes described below are retired. The current workflow uses Agy CLI plus Terminal guarded batch.
 
 Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
 
-1. ChatGPT direct tool action when a safe tool is available, especially metadata-only actions such as closing stale PRs.
-2. Codex for repository file edits, including docs, code, workflow, and configuration changes.
-3. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
-4. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
+1. ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector steps when possible: inspect, branch, edit, open PR, then review.
+2. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
+3. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
+4. Use Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
+5. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
+6. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
+7. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
 
-Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
+Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, connector actions, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
 
 ## User-Facing Action Layout
 
@@ -188,19 +262,21 @@ P5 — Install Icon & PWA Asset Readiness is deferred. A prior icon-assets PR at
 | Docs/copy | Target docs and referenced docs only | Runtime files unless necessary to verify names |
 | Deployment/config | Current deployment/config files first, then `worker/README.md` and `docs/DEPLOYMENT_GUIDE.md` | Assuming Wrangler, Apps Script, or GitHub Pages path without evidence |
 
-## Token Discipline for Codex
+## Token Discipline for Agy / Codex [HISTORICAL]
 
-ChatGPT Project Settings own ChatGPT conversation behavior; repo docs own Codex/repo-agent behavior. Workflow shorthand: `discuss` means planning/recommendation only with no implementation prompt unless asked; `codex` means token-efficient implementation prompt; `review` means merge-safety review; `verify` means current repo/live/source evidence first.
+> [!NOTE]
+> Historically used for Codex; adapted for Agy CLI task execution.
+
+ChatGPT Project Settings own ChatGPT conversation behavior; repo docs own Agy/repo-agent behavior. Workflow shorthand: `discuss` means planning/recommendation only with no implementation prompt unless asked; `codex` (now `agy`) means token-efficient implementation prompt; `review` means merge-safety review; `verify` means current repo/live/source evidence first.
 
 Read only files listed by the task unless evidence points elsewhere. Prefer exact-string search over broad scans. Do not paste full files into responses unless requested. Summarize findings briefly. Avoid `docs/archive/` unless the task requires history. For low-risk UI/copy/CSS changes, do not inspect backend files. For high-risk auth/sync/schema tasks, inspect the relevant runtime path before proposing changes. Report changed files, validation, and risk notes.
 
-## Version-Bump Convention
+## Version-Bump Convention (App-Shell Version Bumping Deprecated)
 
-- Frontend runtime changes: bump all app-shell cache/debug fingerprints together in `index.html`, `app.js`, and `styles.css`, including CSS/JS query strings.
-- Worker runtime changes: bump `WORKER_VERSION` in `worker/src/index.js`.
-- Frontend plus Worker changes: bump both the frontend app-shell fingerprints and `WORKER_VERSION`.
-- Docs-only changes: bump neither.
-- App-shell fingerprints are lightweight cache/debug aids, not product release numbers.
+- Frontend runtime changes: Dynamic version-bumping of HTML/JS/CSS cache-busting fingerprints is deprecated for the React migration. Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced (assets report static `agy-v1` labels and verification is performed via Git/terminal builds).
+- Worker runtime changes: Bump `WORKER_VERSION` in `worker/src/index.js`.
+- Docs-only changes: Bump neither.
+
 
 ## Standard Validation Commands
 
