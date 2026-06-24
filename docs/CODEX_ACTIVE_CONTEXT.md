@@ -1,6 +1,9 @@
 # Codex Active Context (Agy Active Context)
 
-Read this first for current Walmart-GC tasks. It is the compact source of truth for future Agy work. Note that the retired automated Codex workflow is historical, and the current active workflow is the Agy CLI plus Terminal guarded batch workflow. Preferred source-of-truth chain: `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
+> [!NOTE]
+> This filename is kept for legacy compatibility, but the file remains active. For the compact, primary current-state summary, please refer to [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md).
+
+Read this first for current Walmart-GC tasks. It is the compact source of truth for future Agy work. Note that the retired automated Codex workflow is historical, and the current active workflow is the Agy CLI plus Terminal guarded batch workflow. Preferred source-of-truth chain: `docs/ACTIVE_CONTEXT.md` -> `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
 
 ## Current Basics
 

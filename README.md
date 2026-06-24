@@ -96,20 +96,20 @@ https://walmart-gc.dotsthewarlock.com/api/*
 
 Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
 
-Production OAuth testing is cloud-only. Do not use localhost OAuth or alternate OAuth origins for production deployment testing. For local development under the React migration (which utilizes a Vite dev proxy to a local Worker), refer to the configuration details in the [AGY Migration Runbook](docs/AGY_MIGRATION_RUNBOOK.md).
+Production OAuth testing is cloud-only. Do not use localhost OAuth or alternate OAuth origins for production deployment testing. For local development under the React setup (which utilizes a Vite dev proxy to a local Worker), refer to the configuration details in the [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) and historical [AGY Migration Runbook](docs/archive/AGY_MIGRATION_RUNBOOK.md).
 
 ## Documentation
 
-Start with [Codex Active Context](docs/CODEX_ACTIVE_CONTEXT.md) for compact current context. Archived docs are historical references only and are not current setup guidance.
+Start with the [Active Context](docs/ACTIVE_CONTEXT.md) for the compact, first-read current context. Archived docs are historical references only and are not current setup guidance.
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
-- [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md)
-- [Manual Test Plan](docs/MANUAL_TEST_PLAN.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Roadmap](docs/ROADMAP.md)
-- [AI Handoff](docs/AI_HANDOFF.md)
-- [Documentation Archive](docs/archive/README.md)
+- [Active Context](docs/ACTIVE_CONTEXT.md) — Compact current-state summary (read this first).
+- [Codex Active Context](docs/CODEX_ACTIVE_CONTEXT.md) — Legacy active context entrypoint.
+- [Architecture](docs/ARCHITECTURE.md) — Main system architecture and data models.
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) — Frontend build and Worker deployment instructions.
+- [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md) — Dedicated sheet setup and schema rules.
+- [QA Test Checklist](docs/QA_TEST_CHECKLIST.md) — Combined manual QA and troubleshooting guide.
+- [Maintenance Log](docs/MAINTENANCE_LOG.md) — Open tracking for non-blocking cleanup.
+- [Documentation Archive](docs/archive/README.md) — Retained historical references.
 
 ## Sheet Sharing
 
