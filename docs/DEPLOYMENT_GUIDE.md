@@ -35,9 +35,9 @@ Normal users should only need to open the custom-domain app, select **Connect Go
 
 ## Branches & Production State
 
-- **Production Baseline**: GitHub Pages currently serves the legacy `phase-12` branch root with legacy build_type (no framework/build system) as the archival production baseline.
-- **Archival Baseline**: `phase-12` remains the archival last-known-good production baseline and behavior parity source.
-- **Production-Candidate Branch**: `main` is now the React 19 + Vite + Tailwind production-candidate branch (migration on `agy-v1` has been merged).
+- **Live Production**: GitHub Pages serves the built React/Vite artifact from `main` via the Pages workflow.
+- **Pages Metadata Caveat**: The GitHub Pages API may still report legacy `phase-12 / /` metadata even while live HTML serves built Vite assets. Verify live HTML before changing Pages settings.
+- **Archival Baseline**: `phase-12` remains the archival last-known-good baseline and behavior parity source.
 - **Target Pages Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root. This deployment is pending explicit approval.
 - **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved.
 - **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:

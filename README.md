@@ -42,8 +42,8 @@ Frontend:
 
 ```text
 GitHub Pages static website at https://walmart-gc.dotsthewarlock.com/
-- main: React 19 + Vite + Tailwind CSS (production-candidate, awaiting deployment approval)
-- Live GitHub Pages: serves the legacy phase-12 branch root (no framework, no build system) as the archival production baseline
+- main: React 19 + Vite + Tailwind CSS production app
+- Live GitHub Pages: serves the built React/Vite artifact; GitHub Pages API may still report legacy `phase-12 / /` metadata, so verify live HTML before changing Pages settings
 ```
 
 Backend Worker:
