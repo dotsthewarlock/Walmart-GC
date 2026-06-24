@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Walmart-GC is a static GitHub Pages app. Under the `agy-v1` migration, the frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.
+Walmart-GC is a static GitHub Pages app. The frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.
 
 ## Active Deployment Model
 
@@ -35,11 +35,10 @@ Normal users should only need to open the custom-domain app, select **Connect Go
 
 ## Branches & Production State
 
-- **Production Baseline**: GitHub Pages currently serves the `phase-12` branch root.
-- **Archival Baseline**: `phase-12` is the current production baseline and now the archival last-known-good target.
-- **Migration Branch**: `agy-v1` remains the active migration branch (React 19 + Vite + Tailwind CSS migration).
-- **Protected Production Target**: `main` is the target durable production source only after approved merge/release.
-- **Target Pages Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root.
+- **Production Baseline**: GitHub Pages currently serves the legacy `phase-12` branch root with legacy build_type (no framework/build system) as the archival production baseline.
+- **Archival Baseline**: `phase-12` remains the archival last-known-good production baseline and behavior parity source.
+- **Production-Candidate Branch**: `main` is now the React 19 + Vite + Tailwind production-candidate branch (migration on `agy-v1` has been merged).
+- **Target Pages Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root. This deployment is pending explicit approval.
 - **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved.
 - **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
   - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
@@ -138,7 +137,7 @@ Also confirm:
 ## OAuth/Session Smoke Test
 
 1. Open `https://walmart-gc.dotsthewarlock.com`.
-2. Confirm the static `agy-v1` debug fingerprint (legacy dynamic fingerprint diagnostics are deprecated and do not block deployment).
+2. Confirm the static debug fingerprint (legacy dynamic fingerprint diagnostics are deprecated and do not block deployment).
 3. Open the **Data** panel.
 4. Select **Connect Google**.
 5. Confirm consent requests only `drive.file`.

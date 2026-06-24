@@ -59,14 +59,20 @@ Garbage-collection triggers:
 
 ## Resolved items
 
+### P2 / Low / Hygiene: Post-merge pre-deployment hygiene cleanup on main
+
+- Source: Post-merge hygiene cleanup on branch main after merging PR #198.
+- Status: Resolved on 2026-06-24.
+- Context: Removed retired Codex workflows (`agent-low-risk-guard.yml`, `ai-cleanup-report.yml`, `ai-pr-create.yml`, `ai-pr-merge.yml`). Updated active docs (`README.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `docs/CODEX_ACTIVE_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_GUIDE.md`) to reflect that `main` is now the React 19 + Vite + Tailwind production-candidate branch, while GitHub Pages still serves `phase-12` as the archival baseline until deployment is approved. The Agy-first guarded Terminal/Agy Low/Medium workflow officially replaces the retired Codex automation.
+
 ### P2 / Low / Hygiene: Pre-merge repo hygiene cleanup on agy-v1
 
 - Source: Pre-merge hygiene cleanup on branch agy-v1 before merging PR #198.
 - Status: Resolved on 2026-06-24.
 - Context: Performed pre-merge cleanup of stale Codex-era automation/policy files, archived deprecated documentation to `docs/archive/`, deleted empty/redundant context files, and removed `react-app/` orphaned scaffold.
 - Guidance:
-  - React 19 + Vite + Tailwind migration on `agy-v1` is current.
-  - `phase-12` remains behavior source of truth and protected production baseline.
+  - React 19 + Vite + Tailwind migration has been merged to `main`.
+  - `phase-12` remains behavior source of truth and archival production baseline.
   - Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
 ### P2 / Low / Workflow: retire legacy Codex workflows

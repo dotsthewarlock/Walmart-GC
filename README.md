@@ -42,9 +42,8 @@ Frontend:
 
 ```text
 GitHub Pages static website at https://walmart-gc.dotsthewarlock.com/
-HTML + CSS + JavaScript
-No framework
-No build system
+- main: React 19 + Vite + Tailwind CSS (production-candidate, awaiting deployment approval)
+- Live GitHub Pages: serves the legacy phase-12 branch root (no framework, no build system) as the archival production baseline
 ```
 
 Backend Worker:
@@ -55,7 +54,7 @@ Workers KV
 Legacy Worker subdomain https://walmart-gc-oauth.dotsthewarlock.com may remain fallback/legacy only
 ```
 
-Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script sync, Node backend, framework, build step, new hosting, VPS, or app-managed user account system. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
+Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script sync, Node backend, new hosting, VPS, or app-managed user account system. The React 19 / Vite frontend on `main` is compiled to static files for deployment. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
 
 
 ## Runtime Debugging Priority

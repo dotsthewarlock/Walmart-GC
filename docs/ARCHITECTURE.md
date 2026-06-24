@@ -2,9 +2,9 @@
 
 ## Overview
 
-Walmart-GC uses a React 19 + Vite + Tailwind CSS frontend environment (migration branch) plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
+Walmart-GC uses a React 19 + Vite + Tailwind CSS frontend environment plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
 
-`agy-v1` is the active development branch for the React migration. The current production baseline is the `phase-12` branch root (which is now the archival last-known-good target served by GitHub Pages), with `main` being the target durable production source only after approved merge/release. The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` directory, rather than serving from the branch root. Actual deployment/config modifications remain Red scope and are not yet approved. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
+`main` is now the React 19 + Vite + Tailwind production-candidate branch (migration on `agy-v1` has been merged). The current production baseline is the legacy `phase-12` branch root served by GitHub Pages as the archival last-known-good target until deployment is explicitly approved. The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` directory, rather than serving from the branch root. Actual deployment/config modifications remain Red scope and are not yet approved. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
 
 ## Runtime Debugging Priority

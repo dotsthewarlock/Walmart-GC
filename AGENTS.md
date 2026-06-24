@@ -77,8 +77,8 @@ Walmart-GC Web App
 
 Frontend:
 
-* GitHub Pages
-* React 19 + Vite + Tailwind (migration on `agy-v1` is current; `phase-12` remains behavior source of truth and protected production baseline)
+* GitHub Pages (still serves legacy `phase-12` / root with legacy build_type until deployment is explicitly approved)
+* React 19 + Vite + Tailwind (`main` is now the production-candidate branch; `phase-12` remains the archival production baseline and behavior parity source)
 * Production and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 
 Backend:
@@ -432,7 +432,7 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 Antigravity (Agy) should minimize GitHub update interactions. The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
-Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `main` base, intended `agy-v1` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Agy Cloud blocker. In Agy Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
+Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `main` base, intended PR branch head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Agy Cloud blocker. In Agy Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
 
 Before committing, pushing, or opening a PR:
 

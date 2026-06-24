@@ -5,13 +5,13 @@ Read this first for current Walmart-GC tasks. It is the compact source of truth 
 ## Current Basics
 
 - Repo: `dotsthewarlock/Walmart-GC`
-- Active branch: `agy-v1` (React 19 + Vite + Tailwind migration)
-- Behavior parity source of truth: `phase-12` semantics (historical) / `agy-v1` active development
-- Protected production base branch: `main`
+- Active branch: `main` (React 19 + Vite + Tailwind production candidate)
+- Behavior parity source of truth: `phase-12` semantics (archival production baseline)
+- Active production-candidate branch: `main`
 - Historical/archival/protected branch: `phase-12` (formerly `phase-11` in older baseline descriptions)
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 - OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture.
-- React 19 + Vite + Tailwind CSS frontend environment (migration branch).
+- React 19 + Vite + Tailwind CSS frontend environment (merged on `main`).
 - UX Decisions Log: [docs/REACT_UX_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/REACT_UX_DECISIONS.md)
 - Do not redesign core product behavior unless it directly blocks OAuth, session, Google Sheets access, or sync.
 
@@ -35,17 +35,16 @@ Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and
 
 Verified current infrastructure state:
 
-- **Production Baseline**: GitHub Pages currently serves the `phase-12` branch root.
-- **Archival Target**: `phase-12` is the current production baseline and is now the archival last-known-good target.
-- **Migration Branch**: `agy-v1` remains the active migration branch (React 19 + Vite + Tailwind).
-- **Protected Production Target**: `main` is the target durable production source only after approved merge/release.
-- **Target Pages Deployment Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root.
-- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved for automated agent execution.
+- **Production Baseline**: GitHub Pages currently serves the legacy `phase-12` branch root with legacy build_type (no framework/build system) as the archival production baseline.
+- **Archival Target**: `phase-12` remains the archival last-known-good production baseline and behavior parity source.
+- **Production-Candidate Branch**: `main` is now the React 19 + Vite + Tailwind production-candidate branch (migration on `agy-v1` has been merged).
+- **Target Pages Deployment Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root. This deployment is pending explicit approval.
+- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved.
 - **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
   - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
   - Backup Tag: `prod-phase-12-pre-react-vite-2026-06-24`
   - Both point directly to `origin/phase-12` at commit `94c30c2536a63a721953fc3ea3e1dfc3cdd590b0`.
-- **App Shell Caching**: Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced. Static `agy-v1` labels are used on the migration branch.
+- **App Shell Caching**: Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced. Static build labels are used.
 - **Worker Routes**: Cloudflare routes only same-origin `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
 - **No Wildcard Router**: No wildcard `/*` Worker route exists.
 - **Worker Version**: `2026-06-18.merchant-inferred-schema.1`.
@@ -113,7 +112,7 @@ Barcode payload is derived only and must not be stored: `79936686504000 + cardNu
 
 ## Hard Guardrails
 
-Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, or new hosting. Frameworks (React 19) and build steps (Vite) are authorized specifically under the migration scope on the `agy-v1` branch.
+Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, CSV import/export/recovery behavior, or app-shell debug versions unless the task explicitly requires it and the risk is discussed. Preserve offline/local usability and CSV backup/recovery. Do not introduce databases, Firebase, Cloud Functions, Apps Script sync, Node backends, or new hosting. Frameworks (React 19) and build steps (Vite) are authorized specifically under the migration scope on the `main` branch.
 
 ## Naming Conventions
 
@@ -126,64 +125,23 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 ## Repo Workflow Safety
 
 ### Current Workflow: Agy CLI & Terminal Guarded Batch
-- The active development branch is `agy-v1` (React 19 + Vite + Tailwind CSS migration).
+- The active branch is `main` (React 19 + Vite + Tailwind CSS production candidate).
 - The current workflow is Agy-first guarded batch: verify changes locally, run validation builds, inspect git diff, and run guarded commits/pushes.
 - Avoid automatic or unchecked pushes or merges. Always check git status and run build validations before committing.
 - Ensure only task-relevant files are edited and no guardrail risks are touched.
 
-### Historical Phase 12 / Codex PR Workflow (Retired)
-- The expected phase branch for active feature and UX polish work was historically `phase-12`; `main` is the target durable production source only after approved merge/release, and `phase-12` is the current production baseline and historical/archival/protected branch.
-- Codex previously used a local/internal staging branch such as `work` and automated PR creation on `codex/*` branches.
-- Auto-merge via GitHub automation was previously configured for `phase-12` target branches, but is retired/not active on the `agy-v1` branch.
-- Historical confidence scoring, branch auto-deletion of `codex/*` branches, and instance archiving are kept for reference but not active.
-- Prefer existing CSS tokens and component/layout patterns before introducing new raw values or variants. Minimize one-off styling values, consolidate duplicates only when computed output remains unchanged, preserve accepted UI baselines unless visual change is requested, and use Material 3 as a consistency lens rather than a redesign mandate.
-
-
-
-## AI Automation Lifecycle Foundation [HISTORICAL / RETIRED]
+## Active Workflow & Automation Status
 
 > [!NOTE]
-> The automated Codex workflows and PR risk classification scripts are retired. The current workflow is Agy-first guarded batch workflow using the Agy CLI and Terminal commands.
+> All automated Codex workflows and PR risk classification pipelines are retired. The current workflow is the Agy-first guarded batch workflow using the Agy CLI and Terminal commands.
 
-- Automation risk knobs live in `.github/ai-automation-policy.yml`.
-- `.github/scripts/ai_risk_classify.py` is the shared deterministic classifier for `codex/*` PR risk checks.
-- `.github/workflows/ai-pr-auto-create.yml` creates guarded `codex/*` -> `phase-12` PRs only when `auto_pr.enabled` is true and the requested base matches both policy `active_base` and the active context.
-- `.github/workflows/ai-pr-auto-merge.yml` handles guarded green-risk auto-merge only when policy auto-merge knobs are enabled and all workflow gates pass.
-- Human review remains required for yellow/red risk, restricted labels, branch/base mismatches, failed validation, conflicts, draft PRs, or ambiguous PR state.
-
-## Phase 12 AI Workflow Handshake [HISTORICAL / RETIRED]
-
-> [!NOTE]
-> The Phase 12 AI Workflow and execution lanes are retired.
-
-Phase 12 plans repository automation only; it must not alter app architecture, OAuth/session, sync/conflict, schema, deployment, or CSV recovery behavior. Prefer the ChatGPT/GitHub connector for small, bounded, connector-friendly edits where the PR path is clear. Use Codex Cloud for broader implementation, multi-file changes, local validation-heavy work, or edits the connector cannot safely apply. GitHub-native automation owns PR lifecycle steps. ChatGPT quick-fix is a fallback only for tiny safe edits. Codex local is out of scope. The active phase branch (`phase-12`) is the automation target; `main` is never an automation target. Automation work branches use `codex/*` unless a ChatGPT connector branch is explicitly used for a small docs/config fix.
-
-GitHub Actions UI registration note: Phase 12 AI workflows may need workflow files present on the default branch so `workflow_dispatch` entries appear in the Actions UI, but their runtime guards must still target `phase-12` and never `main`. Treat the workflow source branch (where GitHub loads the workflow definition) and the workflow target branch (the PR base or cleanup base the workflow acts on) as separate concepts; active-context lookups must read `docs/CODEX_ACTIVE_CONTEXT.md` from the intended target branch.
-
-Workflow lanes:
-
-- Lane A — Codex Cloud implementation: prepare repo edits and workspace commits for `codex/*` -> `phase-12` PRs.
-- Lane B — ChatGPT/GitHub connector small edits: use for compact low-risk changes when the file shape is connector-friendly and a PR path is clear.
-- Lane C — ChatGPT quick-fix fallback: tiny safe edits only; avoid runtime, security, data, or workflow-permission changes.
-- Lane D — GitHub-native PR lifecycle automation: create PRs, validate, squash-merge when approved/eligible, report cleanup.
-
-Risk tiers:
-
-- Green: docs, copy, and tiny safe edits.
-- Yellow: small runtime changes.
-- Red: auth/session, sync/conflict, schema, deployment, destructive cleanup, or workflow-permission changes.
-
-PR lifecycle states: changes prepared, workspace commit created, GitHub PR created, PR-ready only, validation passed, validation failed, merged, merge blocked, prune completed, prune skipped.
-
-Staged roadmap: (1) docs handshake, (2) auto-create PR workflow, (3) auto-squash merge workflow, (4) cleanup reporting, (5) prune verified merged `codex/*` branches.
-
-Cleanup policy: report stale or merged `codex/*` branches first. Later pruning may delete only verified merged `codex/*` branches. Never delete failed, conflicted, abandoned, unresolved, ambiguous, unmerged, or non-`codex/*` branches.
+Human review and local validation remain mandatory. Direct tool updates, local tests, and build validation replace all lane-based remote executions.
 
 ## Maintenance Log and Deferred Work
 
 `docs/MAINTENANCE_LOG.md` is the durable repo location for unfinished cleanup, artifacts, validation gaps, and minor follow-up concerns that should not live only in chat or PR memory. It is not a changelog and must not duplicate completed PR summaries.
 
-For every Agy task (historically Codex) and ChatGPT review, inspect or update `docs/MAINTENANCE_LOG.md` when the task discovers or leaves unresolved work. Add concise entries only for deferred or unfinished concerns, including cleanup not done, artifacts left behind, validation gaps, stale docs/branches, garbage-collection candidates, or follow-up risks. Do not add an entry when the concern is fully resolved in the same PR.
+For every Agy task and ChatGPT review, inspect or update `docs/MAINTENANCE_LOG.md` when the task discovers or leaves unresolved work. Add concise entries only for deferred or unfinished concerns, including cleanup not done, artifacts left behind, validation gaps, stale docs/branches, garbage-collection candidates, or follow-up risks. Do not add an entry when the concern is fully resolved in the same PR.
 
 Each maintenance entry should include priority/risk/area, source PR or task when known, status, concise context, suggested action, guardrails, and acceptance. Use GitHub Issues instead of the log for assigned, blocking, or soon-actionable work. During `next` checkpoints, ChatGPT should check this log and advise whether to continue feature work or run cleanup before drift accumulates.
 
@@ -193,23 +151,6 @@ Each maintenance entry should include priority/risk/area, source PR or task when
 - **Agy Low/Medium Routing Only**: Use Gemini 3.5 Flash (Medium) for coding/refactoring, and Gemini 3.5 Flash (Low) for mechanical Git/build/docs tasks. No Pro tiers should be configured or invoked.
 - **Guarded One-Shot Steps**: Take small, incremental, one-shot steps. Verify status and diffs at each step before making further changes.
 - **Strict Guardrail Boundaries (Stop Condition)**: Stop execution immediately before attempting any Red-scope changes (deployment config, Cloudflare Worker files, KV bindings, Google Sheet schema changes, sync/conflict logic, CSV recovery/logic, auth/session changes, or package.json changes) and request explicit user confirmation.
-
-## Execution Lane Selection [HISTORICAL / RETIRED]
-
-> [!NOTE]
-> The lanes described below are retired. The current workflow uses Agy CLI plus Terminal guarded batch.
-
-Prefer the lowest-friction safe lane for each task. These rules apply across Walmart-GC branches and workflows unless the user explicitly supersedes them for a specific task.
-
-1. ChatGPT direct tool or connector action for small, bounded, connector-friendly edits, especially docs/copy/config text and metadata-only actions. Batch safe connector steps when possible: inspect, branch, edit, open PR, then review.
-2. Before connector writes, check file suitability. Avoid connector writes for large embedded shell workflow files, auth/session logic, destructive scripts, generated/minified files, binary assets, or safety-sensitive blocks.
-3. If one connector write attempt is blocked or fails, stop connector writes, report any partial state such as a no-op branch, and switch to Codex or another safer method. Do not keep retrying connector writes against the same risky file shape.
-4. Use Codex for broader implementation, multi-file changes, local validation-heavy work, workflow files with large scripts, and any file edit the connector cannot safely apply.
-5. If Codex reports no diff but live GitHub evidence or exact error strings disagree, trust live evidence first. Force exact raw branch/path inspection and exact-string checks before accepting a no-op result.
-6. Gemini markdown handoff only for user-intervention tasks such as GitHub/Cloudflare UI settings, local terminal actions, or environment access that ChatGPT and Codex cannot safely perform.
-7. ChatGPT retains architecture, risk, branch policy, task routing, and review decisions.
-
-Do not use Gemini for actions ChatGPT can safely complete directly. Do not use long terminal scripts as the default; prefer small command chunks, direct tooling, connector actions, or Codex. Gemini handoffs must ask Gemini to return a markdown report to ChatGPT and to stop rather than extrapolate when settings, permissions, or task scope are unclear.
 
 ## User-Facing Action Layout
 
@@ -273,7 +214,7 @@ Read only files listed by the task unless evidence points elsewhere. Prefer exac
 
 ## Version-Bump Convention (App-Shell Version Bumping Deprecated)
 
-- Frontend runtime changes: Dynamic version-bumping of HTML/JS/CSS cache-busting fingerprints is deprecated for the React migration. Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced (assets report static `agy-v1` labels and verification is performed via Git/terminal builds).
+- Frontend runtime changes: Dynamic version-bumping of HTML/JS/CSS cache-busting fingerprints is deprecated for the React migration. Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced (assets report static build labels and verification is performed via Git/terminal builds).
 - Worker runtime changes: Bump `WORKER_VERSION` in `worker/src/index.js`.
 - Docs-only changes: Bump neither.
 

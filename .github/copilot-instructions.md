@@ -7,10 +7,11 @@ Project type:
 
 React 19 web app built with Vite and styled with Tailwind CSS, hosted on GitHub Pages with a Cloudflare Worker OAuth/session backend.
 
-Active migration:
+Active Status & Environment:
 
-- React 19 + Vite + Tailwind migration on `agy-v1` is current.
-- `phase-12` remains behavior source of truth and protected production baseline.
+- `main` is now the React 19 + Vite + Tailwind production-candidate branch (migration on `agy-v1` has been merged).
+- GitHub Pages still serves the legacy `phase-12` / root with legacy build_type until deployment is explicitly approved.
+- `phase-12` remains the archival last-known-good production baseline and behavior parity source of truth (rollback target).
 - The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
 Stack:
