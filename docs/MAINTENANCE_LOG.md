@@ -91,7 +91,7 @@ Garbage-collection triggers:
 
 - Commit deployed: `65864f1`
 - Deployment workflow: `.github/workflows/deploy-pages.yml`
-- Latest deploy workflow result: ``
+- Latest deploy workflow result: `success`
 - Live production URL: https://walmart-gc.dotsthewarlock.com/
 - Manual browser QA result: app appears working after React/Vite deployment.
 - Live smoke check confirmed production HTML references built Vite assets under `/assets/index-*.js` and `/assets/index-*.css`, not raw `/src/main.jsx`.
