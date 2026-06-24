@@ -1,8 +1,8 @@
 # Deployment Guide
 
-Walmart-GC is a static GitHub Pages app. It uses plain HTML, CSS, and JavaScript with no build step, backend server, database, framework, or npm dependency.
+Walmart-GC is a static GitHub Pages app. Under the `agy-v1` migration, the frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.
 
-## Active Phase 11 Deployment Model
+## Active Deployment Model
 
 ```text
 User Google Account
@@ -35,7 +35,7 @@ Normal users should only need to open the custom-domain app, select **Connect Go
 
 ## Branches
 
-- Active development branch: `phase-11`.
+- Active development branch: `agy-v1` (React 19 + Vite + Tailwind migration).
 - Protected branch: `main`.
 
 Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only. Do not deploy or document Apps Script sync as the active path.
@@ -88,26 +88,32 @@ Worker contract checks:
 - Same-origin `/auth/*` and `/api/*` routing is active; credentialed CORS remains only as a defensive fallback for legacy Worker-domain calls from `https://walmart-gc.dotsthewarlock.com`.
 - OAuth scope remains `https://www.googleapis.com/auth/drive.file`.
 
-## Static Files
+## Production Build & Static Files
 
-Deploy these frontend files through GitHub Pages from the selected branch:
+The frontend application must be built before deployment. Run:
 
-- `index.html`
-- `app.js`
-- `styles.css`
-- documentation files as needed
+```bash
+npm run build
+```
 
-Deploy `worker/src/index.js` as the source of truth for the Cloudflare Worker.
+This compiles the React 19 application and assets into the `dist/` directory. Deploy the contents of the `dist/` directory to GitHub Pages (or your preferred static hosting platform).
+
+Deploy the Cloudflare Worker from `worker/src/index.js`.
 
 ## Pre-Deployment Checks
 
 Run code validation only when code is touched. For docs-only changes, run documentation/reference checks and whitespace/conflict checks.
 
-When code is touched, run:
+When frontend or Worker code is touched, run:
 
 ```bash
-node --check app.js
+# Verify frontend builds successfully
+npm run build
+
+# Verify Worker syntax
 node --check worker/src/index.js
+
+# Verify whitespace and formatting
 git diff --check
 # Run a conflict-marker scan before committing.
 ```
@@ -121,10 +127,10 @@ Also confirm:
 - CSV export/import remains available.
 - Offline behavior remains usable.
 
-## Phase 11 OAuth/Session Smoke Test
+## OAuth/Session Smoke Test
 
 1. Open `https://walmart-gc.dotsthewarlock.com`.
-2. Confirm the debug fingerprint.
+2. Confirm the static `agy-v1` debug fingerprint.
 3. Open the **Data** panel.
 4. Select **Connect Google**.
 5. Confirm consent requests only `drive.file`.
