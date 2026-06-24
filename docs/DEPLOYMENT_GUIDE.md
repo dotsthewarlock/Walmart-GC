@@ -33,10 +33,18 @@ GitHub Pages continues to serve static files at the custom-domain root. The lega
 
 Normal users should only need to open the custom-domain app, select **Connect Google**, approve `drive.file` access, and return to Walmart-GC with a durable HttpOnly Worker session cookie.
 
-## Branches
+## Branches & Production State
 
-- Active development branch: `agy-v1` (React 19 + Vite + Tailwind migration).
-- Protected branch: `main`.
+- **Production Baseline**: GitHub Pages currently serves the `phase-12` branch root.
+- **Archival Baseline**: `phase-12` is the current production baseline and now the archival last-known-good target.
+- **Migration Branch**: `agy-v1` remains the active migration branch (React 19 + Vite + Tailwind CSS migration).
+- **Protected Production Target**: `main` is the target durable production source only after approved merge/release.
+- **Target Pages Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root.
+- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved.
+- **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
+  - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
+  - Backup Tag: `prod-phase-12-pre-react-vite-2026-06-24`
+  - Both point directly to `origin/phase-12` at commit `94c30c2536a63a721953fc3ea3e1dfc3cdd590b0`.
 
 Phase 9, Phase 10, Phase 10E, and the Apps Script MVP are historical context only. Do not deploy or document Apps Script sync as the active path.
 
@@ -120,7 +128,7 @@ git diff --check
 
 Also confirm:
 
-- The debug fingerprint versions match the intended deployment when core files changed.
+- Dynamic fingerprint version checks are deprecated and do not block React/Vite deployment unless explicitly reintroduced.
 - No user-facing OAuth Client ID input is present.
 - No normal first-run Sheet URL/ID setup is present.
 - Apps Script appears only in clearly labeled historical documentation.
@@ -130,7 +138,7 @@ Also confirm:
 ## OAuth/Session Smoke Test
 
 1. Open `https://walmart-gc.dotsthewarlock.com`.
-2. Confirm the static `agy-v1` debug fingerprint.
+2. Confirm the static `agy-v1` debug fingerprint (legacy dynamic fingerprint diagnostics are deprecated and do not block deployment).
 3. Open the **Data** panel.
 4. Select **Connect Google**.
 5. Confirm consent requests only `drive.file`.

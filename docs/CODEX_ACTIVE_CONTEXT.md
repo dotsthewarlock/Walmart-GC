@@ -8,7 +8,7 @@ Read this first for current Walmart-GC tasks. It is the compact source of truth 
 - Active branch: `agy-v1` (React 19 + Vite + Tailwind migration)
 - Behavior parity source of truth: `phase-12` semantics (historical) / `agy-v1` active development
 - Protected production base branch: `main`
-- Historical/archival/protected branch: `phase-11`
+- Historical/archival/protected branch: `phase-12` (formerly `phase-11` in older baseline descriptions)
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 - OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture.
 - React 19 + Vite + Tailwind CSS frontend environment (migration branch).
@@ -35,13 +35,22 @@ Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and
 
 Verified current infrastructure state:
 
-- GitHub Pages serves the frontend root from `main`.
-- App shell fingerprint: static `agy-v1` (legacy fingerprint checking is deprecated).
-- Cloudflare routes only `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
-- No wildcard `/*` Worker route.
-- Worker version: `2026-06-18.merchant-inferred-schema.1`.
-- Schema mode: `header-name`.
-- Worker-managed OAuth/session is active.
+- **Production Baseline**: GitHub Pages currently serves the `phase-12` branch root.
+- **Archival Target**: `phase-12` is the current production baseline and is now the archival last-known-good target.
+- **Migration Branch**: `agy-v1` remains the active migration branch (React 19 + Vite + Tailwind).
+- **Protected Production Target**: `main` is the target durable production source only after approved merge/release.
+- **Target Pages Deployment Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root.
+- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved for automated agent execution.
+- **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
+  - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
+  - Backup Tag: `prod-phase-12-pre-react-vite-2026-06-24`
+  - Both point directly to `origin/phase-12` at commit `94c30c2536a63a721953fc3ea3e1dfc3cdd590b0`.
+- **App Shell Caching**: Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced. Static `agy-v1` labels are used on the migration branch.
+- **Worker Routes**: Cloudflare routes only same-origin `/api/*` and `/auth/*` to Worker `walmart-gc-oauth`.
+- **No Wildcard Router**: No wildcard `/*` Worker route exists.
+- **Worker Version**: `2026-06-18.merchant-inferred-schema.1`.
+- **Schema Mode**: `header-name`.
+- **Worker-managed OAuth/Session**: Active.
 
 ## Runtime Confirmation Rule
 
@@ -110,7 +119,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 
 - Runtime files stay simple lowercase, for example `app.js`, `index.html`, and `styles.css`; Worker entrypoint is `worker/src/index.js`.
 - Docs use conventional uppercase names, for example `README.md`, `AGENTS.md`, and `CODEX_ACTIVE_CONTEXT.md`; archive folders use lowercase kebab-case, for example `docs/archive/apps-script-retired/`.
-- Branches use lowercase kebab-case, for example `phase-11-fix-sync-status`; PR/task names use imperative verb phrases, for example “Clarify Apps Script diagnostic docs”.
+- Branches use lowercase kebab-case, for example `phase-12-fix-sync-status`; PR/task names use imperative verb phrases, for example “Clarify Apps Script diagnostic docs”.
 - JavaScript functions/variables use `camelCase`; JavaScript constants use `SCREAMING_SNAKE_CASE`.
 - Preserve approved schema field names as existing `camelCase`; do not rename schema fields for style.
 
@@ -123,7 +132,7 @@ Do not change schema, OAuth scope, auth/session architecture, backend architectu
 - Ensure only task-relevant files are edited and no guardrail risks are touched.
 
 ### Historical Phase 12 / Codex PR Workflow (Retired)
-- The expected phase branch for active feature and UX polish work was historically `phase-12`; `main` is the protected production base and `phase-11` is historical/archival/protected.
+- The expected phase branch for active feature and UX polish work was historically `phase-12`; `main` is the target durable production source only after approved merge/release, and `phase-12` is the current production baseline and historical/archival/protected branch.
 - Codex previously used a local/internal staging branch such as `work` and automated PR creation on `codex/*` branches.
 - Auto-merge via GitHub automation was previously configured for `phase-12` target branches, but is retired/not active on the `agy-v1` branch.
 - Historical confidence scoring, branch auto-deletion of `codex/*` branches, and instance archiving are kept for reference but not active.
@@ -178,12 +187,12 @@ For every Agy task (historically Codex) and ChatGPT review, inspect or update `d
 
 Each maintenance entry should include priority/risk/area, source PR or task when known, status, concise context, suggested action, guardrails, and acceptance. Use GitHub Issues instead of the log for assigned, blocking, or soon-actionable work. During `next` checkpoints, ChatGPT should check this log and advise whether to continue feature work or run cleanup before drift accumulates.
 
-## AI-First Workflow Guidance (Agy CLI & Terminal Guarded Batch)
+## AI-First Workflow Guidance (Agy-First Guarded Workflow)
 
-- Prioritize token efficiency and low user friction; explicitly distinguish/label Terminal vs Agy CLI commands.
-- Batch safe Terminal commands together. Prefer bundled Green/docs/local-UI tasks that can implement, build, status/diff-stat, self-check, and stop in one run.
-- **Current Agy CLI plus Terminal Guarded Batch Workflow**: For safe tasks, prefer a single guarded batch command or sequence that checks branch and changed-file scope, prints relevant diffs, runs diff/build checks, commits separate logical scopes when safe, verifies final clean status, and pushes automatically. The batch must stop on any error or alert condition and otherwise continue without user interaction, leaving output for review after completion.
-- Split tasks only for guardrail risks, unclear scope, likely breakage, prior failures, resource bottlenecks, token/bandwidth concerns, broad reasoning demands, or Yellow/Red risk areas.
+- **Terminal for Cheap Mechanical Checks**: Use terminal commands for quick, low-complexity actions (status checks, diff checks, basic building, syntactic check).
+- **Agy Low/Medium Routing Only**: Use Gemini 3.5 Flash (Medium) for coding/refactoring, and Gemini 3.5 Flash (Low) for mechanical Git/build/docs tasks. No Pro tiers should be configured or invoked.
+- **Guarded One-Shot Steps**: Take small, incremental, one-shot steps. Verify status and diffs at each step before making further changes.
+- **Strict Guardrail Boundaries (Stop Condition)**: Stop execution immediately before attempting any Red-scope changes (deployment config, Cloudflare Worker files, KV bindings, Google Sheet schema changes, sync/conflict logic, CSV recovery/logic, auth/session changes, or package.json changes) and request explicit user confirmation.
 
 ## Execution Lane Selection [HISTORICAL / RETIRED]
 
@@ -264,7 +273,7 @@ Read only files listed by the task unless evidence points elsewhere. Prefer exac
 
 ## Version-Bump Convention (App-Shell Version Bumping Deprecated)
 
-- Frontend runtime changes: Dynamic version-bumping of HTML/JS/CSS cache-busting fingerprints is deprecated for the React migration (where assets report static `agy-v1` labels and verification is performed via Git/terminal builds).
+- Frontend runtime changes: Dynamic version-bumping of HTML/JS/CSS cache-busting fingerprints is deprecated for the React migration. Legacy dynamic fingerprint diagnostics are deprecated and should not block React/Vite deployment unless explicitly reintroduced (assets report static `agy-v1` labels and verification is performed via Git/terminal builds).
 - Worker runtime changes: Bump `WORKER_VERSION` in `worker/src/index.js`.
 - Docs-only changes: Bump neither.
 

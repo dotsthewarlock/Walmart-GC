@@ -56,9 +56,8 @@ Each implementation slice must stop and verify before committing:
 
 ## 10. Local Development Settings
 For local development and testing under the new React-based setup:
-* **Vite App Dev Server**: `http://127.0.0.1:5174`
+* **Local Dev/OAuth Port Alignment**: For local development, `http://127.0.0.1:5174` is the intended local dev/OAuth alignment (with redirect URI `http://127.0.0.1:5174/auth/callback`) that must be verified before local OAuth testing, not an approved package/config change.
 * **Worker API (Local)**: `http://localhost:8787` (run via `wrangler@3`)
-* **Local OAuth Redirect URI**: `http://127.0.0.1:5174/auth/callback`
 * **Production OAuth Redirect URI**: `https://walmart-gc.dotsthewarlock.com/auth/callback`
 * **Vite Dev Proxies**: Proxies requests under `/api/*` and `/auth/*` directly to the local Cloudflare Worker.
 * **Worker Environment Variables**: `worker/.dev.vars` contains local secrets and must remain uncommitted (tracked in `.gitignore`).

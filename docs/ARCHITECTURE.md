@@ -4,7 +4,7 @@
 
 Walmart-GC uses a React 19 + Vite + Tailwind CSS frontend environment (migration branch) plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
 
-`agy-v1` is the active development branch for the React migration, with `phase-12` serving as the behavior parity source of truth; `main` is protected. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
+`agy-v1` is the active development branch for the React migration. The current production baseline is the `phase-12` branch root (which is now the archival last-known-good target served by GitHub Pages), with `main` being the target durable production source only after approved merge/release. The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` directory, rather than serving from the branch root. Actual deployment/config modifications remain Red scope and are not yet approved. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
 
 ## Runtime Debugging Priority
@@ -63,7 +63,7 @@ The static frontend provides:
 - CSV backup and recovery.
 - Offline/local browser usability.
 
-The frontend is React 19 + Vite + Tailwind CSS, with local development running on port 5174 proxied to the Worker. Production is compiled and hosted via GitHub Pages.
+The frontend is React 19 + Vite + Tailwind CSS. Local development assumes a default port alignment (e.g., port 5174) proxied to the Worker, which must be verified before local OAuth testing rather than treated as an approved package/config change. Production is compiled and hosted via GitHub Pages.
 
 ### Cloudflare Worker
 
@@ -104,7 +104,7 @@ The Worker callback returns to:
 https://walmart-gc.dotsthewarlock.com/?auth=connected
 ```
 
-The frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials. Do not use Google Identity Services browser token flow, direct browser Drive API calls, direct browser Sheets API calls, alternate OAuth origins, `/Walmart-GC/`, or session IDs in query parameters. Production OAuth testing is cloud-only, but local OAuth callback `http://127.0.0.1:5174/auth/callback` is used specifically for local development via Vite's proxy to the Wrangler Worker.
+The frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials. Do not use Google Identity Services browser token flow, direct browser Drive API calls, direct browser Sheets API calls, alternate OAuth origins, `/Walmart-GC/`, or session IDs in query parameters. Production OAuth testing is cloud-only. For local development, the OAuth callback `http://127.0.0.1:5174/auth/callback` is the intended local dev/OAuth alignment that must be verified before local OAuth testing, not an approved package/config change.
 
 ### Google Sheet
 
