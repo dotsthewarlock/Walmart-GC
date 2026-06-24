@@ -12,11 +12,13 @@ Use archived docs only when:
 Current source of truth starts with:
 
 - `docs/ACTIVE_CONTEXT.md`
-- `docs/CODEX_ACTIVE_CONTEXT.md`
 - `AGENTS.md`
 - `docs/ARCHITECTURE.md`
 
 ### Archived Migration and Test Documents:
+- `docs/archive/CODEX_ACTIVE_CONTEXT.md` — Legacy active context entrypoint.
+- `docs/archive/PHASE_12_BEHAVIOR_INVENTORY.md` — Parity reference: inventory of Phase 12 static app behaviors.
+- `docs/archive/STATIC_TO_REACT_BEHAVIOR_MAP.md` — Parity reference: tracking static to React migration status.
 - `docs/archive/AGY_MIGRATION_RUNBOOK.md` — Historical migration runbook.
 - `docs/archive/ANTIGRAVITY_HANDOFF.md` — Historical migration handoff instructions.
 - `docs/archive/REACT_TAILWIND_M3_MIGRATION_PLAN.md` — Historical migration plan details.

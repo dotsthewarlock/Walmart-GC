@@ -1,10 +1,10 @@
-# React UX Decisions Log
+# Decisions Log
 
-Record of direct user UX decisions and AI-made UX decisions for the React + Vite + Tailwind migration of Walmart-GC. Recording these decisions ensures durability, debugging, audits, conflict detection, refinement, scalability, and token efficiency.
+Record of key decisions, architecture designs, user UX choices, and AI-made decisions for Walmart-GC. Recording these decisions ensures durability, debugging, audits, conflict detection, refinement, scalability, and token efficiency.
 
 ## Core Rules
 
-1. All key UX/UI modifications, deviations from legacy layout semantics, and interface behaviors (especially those requested by the user or derived by AI) must be documented in this log.
+1. All key architectural, database/schema, synchronization, and UX/UI decisions (especially deviations, constraints, or user preferences) must be documented in this log.
 2. Future changes should check this log to avoid regressions and design conflicts.
 
 ---

@@ -2,7 +2,7 @@
 
 ## Current Source of Truth / Fast Path
 
-Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
+Start with `docs/ACTIVE_CONTEXT.md` for compact current context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
 
 Fast rules:
 
@@ -295,7 +295,7 @@ OAuth/session/sync hardening is successful when:
 
 Before recommending architecture, schema, sync, onboarding, or implementation changes, review only the current files needed for the task:
 
-1. `docs/CODEX_ACTIVE_CONTEXT.md` for compact current context
+1. `docs/ACTIVE_CONTEXT.md` for compact current context
 2. `AGENTS.md` for mandatory guardrails
 3. `docs/ARCHITECTURE.md` for current architecture details
 4. `docs/archive/AI_HANDOFF.md` or `docs/archive/ROADMAP.md` only when the task needs handoff/roadmap context
@@ -432,7 +432,7 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 Antigravity (Agy) should minimize GitHub update interactions. The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
-Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `main` base, intended PR branch head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Agy Cloud blocker. In Agy Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
+Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/ACTIVE_CONTEXT.md`: verify intended `main` base, intended PR branch head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Agy Cloud blocker. In Agy Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
 
 Before committing, pushing, or opening a PR:
 

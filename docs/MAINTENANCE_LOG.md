@@ -59,6 +59,22 @@ Garbage-collection triggers:
 
 ## Resolved items
 
+### P2 / Low / Hygiene: Post-soak docs-only cleanup after React/Vite migration stability
+
+- Source: Post-soak cleanup task.
+- Status: Resolved on 2026-06-24.
+- Context: Performed docs-only cleanup for steady-state production following the successful React/Vite migration.
+- Changes made:
+  - Designated `docs/ACTIVE_CONTEXT.md` as the primary, authoritative context file for developer context, reducing reliance on legacy files.
+  - Archived `docs/CODEX_ACTIVE_CONTEXT.md` to `docs/archive/`.
+  - Archived legacy behavior/parity docs (`docs/PHASE_12_BEHAVIOR_INVENTORY.md` and `docs/STATIC_TO_REACT_BEHAVIOR_MAP.md`) to `docs/archive/`.
+  - Renamed `docs/REACT_UX_DECISIONS.md` to `docs/DECISIONS_LOG.md` and reframed it as a broader, durable decision log for architecture, UX, and schema choices.
+  - Updated all internal links and instructions in `AGENTS.md`, `docs/ACTIVE_CONTEXT.md`, and `docs/archive/README.md` to reflect these updates.
+- Deferred items remaining:
+  - Cleanup of legacy root files (`app.js`, `styles.css` from pre-React setup), backup refs (branches, tags), and stale rulesets (`phase-11`) remains deferred until production stability is further established and cleanup is explicitly approved.
+  - P5 Install Icon & PWA Asset Readiness remains deferred.
+  - Outstanding maintenance log issues (settings gear active CSS cleanup, workflow conflict-marker scan regex) remain open/deferred for future hygiene passes.
+
 ### P2 / Low / Hygiene: Post-merge pre-deployment hygiene cleanup on main
 
 - Source: Post-merge hygiene cleanup on branch main after merging PR #198.

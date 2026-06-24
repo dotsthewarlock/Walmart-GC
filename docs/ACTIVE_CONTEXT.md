@@ -49,10 +49,8 @@ Walmart-GC Web App (Static React 19 + Vite)
 - [Google Sheet Setup](file:///home/godfreymiu/Walmart-GC/docs/GOOGLE_SHEET_SETUP.md) — Google Sheet configuration and schema details.
 - [QA Test Checklist](file:///home/godfreymiu/Walmart-GC/docs/QA_TEST_CHECKLIST.md) — Combined QA check items and debugging scenarios.
 - [Maintenance Log](file:///home/godfreymiu/Walmart-GC/docs/MAINTENANCE_LOG.md) — Active tracking for non-blocking cleanup and deferred items.
-- [Codex Active Context](file:///home/godfreymiu/Walmart-GC/docs/CODEX_ACTIVE_CONTEXT.md) — Legacy active context entrypoint.
-- [Behavior Inventory](file:///home/godfreymiu/Walmart-GC/docs/PHASE_12_BEHAVIOR_INVENTORY.md) / [Behavior Map](file:///home/godfreymiu/Walmart-GC/docs/STATIC_TO_REACT_BEHAVIOR_MAP.md) — Parity references.
-- [UX Decisions Log](file:///home/godfreymiu/Walmart-GC/docs/REACT_UX_DECISIONS.md) — UI/UX and Material 3 design notes.
-- [Documentation Archive](file:///home/godfreymiu/Walmart-GC/docs/archive/README.md) — Retained historical references.
+- [Decisions Log](file:///home/godfreymiu/Walmart-GC/docs/DECISIONS_LOG.md) — Broader design, UX, and architectural decisions.
+- [Documentation Archive](file:///home/godfreymiu/Walmart-GC/docs/archive/README.md) — Retained historical references (including archived legacy active context and parity maps).
 
 ## Execution and Handoff Policy
 
