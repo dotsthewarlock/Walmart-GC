@@ -5,20 +5,19 @@ Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 12 context. 
 
 Project type:
 
-Static website hosted on GitHub Pages with a Cloudflare Worker OAuth/session backend.
+React 19 web app built with Vite and styled with Tailwind CSS, hosted on GitHub Pages with a Cloudflare Worker OAuth/session backend.
 
-Active phase:
+Active migration:
 
-- Phase 12 is the active workflow-planning phase.
-- Active branch: `phase-12`.
-- Protected production branch: `main`.
-- Phase 12 focus: document and stage AI workflow automation without changing runtime architecture.
+- React 19 + Vite + Tailwind migration on `agy-v1` is current.
+- `phase-12` remains behavior source of truth and protected production baseline.
+- The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
 Stack:
 
-- HTML
-- CSS
-- JavaScript
+- React 19
+- Vite
+- Tailwind CSS
 - GitHub Pages
 - Cloudflare Worker
 - Workers KV
@@ -27,10 +26,8 @@ Stack:
 
 Do not introduce:
 
-- React
 - Vue
 - Angular
-- Node.js build systems
 - Databases
 - Firebase
 - Cloud Functions
@@ -72,7 +69,7 @@ Requirements:
 - Small PRs
 - Maintainability over complexity
 - Offline usability and CSV backup/recovery remain available
-- Do not redesign core product behavior during Phase 12 unless it directly blocks OAuth, session management, Google Sheets access, or sync
+- Do not redesign core product behavior during this migration unless it directly blocks OAuth, session management, Google Sheets access, or sync
 
 Before making changes:
 

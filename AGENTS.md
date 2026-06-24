@@ -78,11 +78,7 @@ Walmart-GC Web App
 Frontend:
 
 * GitHub Pages
-* HTML
-* CSS
-* JavaScript
-* No framework
-* No build system
+* React 19 + Vite + Tailwind (migration on `agy-v1` is current; `phase-12` remains behavior source of truth and protected production baseline)
 * Production and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 
 Backend:
@@ -98,8 +94,6 @@ Do not introduce or recommend:
 * Cloud Functions
 * Apps Script sync
 * Node backend
-* Framework
-* Build step
 * New hosting
 
 ---
@@ -304,9 +298,9 @@ Before recommending architecture, schema, sync, onboarding, or implementation ch
 1. `docs/CODEX_ACTIVE_CONTEXT.md` for compact current context
 2. `AGENTS.md` for mandatory guardrails
 3. `docs/ARCHITECTURE.md` for current architecture details
-4. `docs/AI_HANDOFF.md` or `docs/ROADMAP.md` only when the task needs handoff/roadmap context
+4. `docs/archive/AI_HANDOFF.md` or `docs/archive/ROADMAP.md` only when the task needs handoff/roadmap context
 
-Historical Apps Script and Phase 6 docs live under `docs/archive/` and are not current source of truth. Read archived docs only for exact old error strings, regression comparison, explicit historical requests, or migration/history tasks.
+Historical Apps Script, Phase 6, AI handoff, and roadmap docs live under `docs/archive/` and are not current source of truth. Read archived docs only for exact old error strings, regression comparison, explicit historical requests, or migration/history tasks.
 
 ---
 
@@ -320,13 +314,13 @@ ChatGPT creates:
 * Specifications
 * Architecture guidance
 * Data model guidance
-* Dev AI / Codex briefs
+* Dev AI / Agy briefs
 * Acceptance criteria
 * Review feedback
 
-Codex is the coding agent.
+Antigravity (Agy) is the developer agent. The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
-Codex writes code, edits repository files, runs checks, reviews diffs, and prepares GitHub changes.
+Agy writes code, edits repository files, runs checks, reviews diffs, and prepares GitHub changes.
 
 ---
 
@@ -436,9 +430,9 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 ## GitHub Update Discipline
 
-Codex should minimize GitHub update interactions.
+Antigravity (Agy) should minimize GitHub update interactions. The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
 
-Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `main` base, intended `codex/*` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Codex Cloud blocker. In Codex Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
+Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/CODEX_ACTIVE_CONTEXT.md`: verify intended `main` base, intended `agy-v1` head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Agy Cloud blocker. In Agy Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
 
 Before committing, pushing, or opening a PR:
 
@@ -459,7 +453,7 @@ Avoid repeated small pushes unless fixing review feedback or failed verification
 
 Repository settings allow GitHub squash auto-merge into `main` when the required `static-checks` GitHub Actions check passes and branch rules are satisfied.
 
-Codex may enable GitHub squash auto-merge only when all of the following are true:
+Antigravity (Agy) may enable GitHub squash auto-merge only when all of the following are true:
 
 * The task explicitly authorizes auto-merge, or the task is clearly low-risk under the Minor Changes framework.
 * The PR targets `main`.
@@ -469,7 +463,7 @@ Codex may enable GitHub squash auto-merge only when all of the following are tru
 * The branch is up to date with `main`.
 * No merge conflicts exist.
 * All PR conversations are resolved.
-* The final diff has been reviewed once by Codex.
+* The final diff has been reviewed once by Antigravity (Agy).
 * Changed files match the requested scope.
 * No restricted-risk area is touched.
 
@@ -488,9 +482,9 @@ Restricted-risk areas must not be auto-merged unless the user explicitly approve
 * Destructive cleanup
 * Anything that could cause user-data loss
 
-When auto-merge is allowed, Codex should enable GitHub squash auto-merge rather than direct-merging. Do not repeatedly poll checks. If checks are still pending, enable auto-merge if GitHub allows it, or report that checks are pending.
+When auto-merge is allowed, Antigravity (Agy) should enable GitHub squash auto-merge rather than direct-merging. Do not repeatedly poll checks. If checks are still pending, enable auto-merge if GitHub allows it, or report that checks are pending.
 
-When auto-merge is blocked, Codex should leave the PR open and briefly report the blocker.
+When auto-merge is blocked, Antigravity (Agy) should leave the PR open and briefly report the blocker.
 
 ---
 

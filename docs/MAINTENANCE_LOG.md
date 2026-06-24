@@ -59,6 +59,16 @@ Garbage-collection triggers:
 
 ## Resolved items
 
+### P2 / Low / Hygiene: Pre-merge repo hygiene cleanup on agy-v1
+
+- Source: Pre-merge hygiene cleanup on branch agy-v1 before merging PR #198.
+- Status: Resolved on 2026-06-24.
+- Context: Performed pre-merge cleanup of stale Codex-era automation/policy files, archived deprecated documentation to `docs/archive/`, deleted empty/redundant context files, and removed `react-app/` orphaned scaffold.
+- Guidance:
+  - React 19 + Vite + Tailwind migration on `agy-v1` is current.
+  - `phase-12` remains behavior source of truth and protected production baseline.
+  - Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
+
 ### P2 / Low / Workflow: retire legacy Codex workflows
 
 - Source: Pre-merge safety cleanup on branch agy-v1.
