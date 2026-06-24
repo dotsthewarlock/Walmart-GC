@@ -59,6 +59,12 @@ Garbage-collection triggers:
 
 ## Resolved items
 
+### P2 / Low / Workflow: retire legacy Codex workflows
+
+- Source: Pre-merge safety cleanup on branch agy-v1.
+- Status: Resolved on 2026-06-24.
+- Context: Removed retired Codex-era workflows (`ai-cleanup-report.yml`, `ai-pr-create.yml`, `ai-pr-merge.yml`) to prevent add/add conflicts during merge to main.
+
 ### P3 / Low / Workflow validation: AI PR create and merge smoke test
 
 - Source: Task `Create a tiny docs-only smoke test branch for AI workflow validation` and PR #160 on 2026-06-20.
