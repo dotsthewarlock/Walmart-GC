@@ -54,6 +54,16 @@ Walmart-GC Web App (Static React 19 + Vite)
 
 ## Execution and Handoff Policy
 
+### Chromebook / Agy stability rule
+
+For any Agy/model-assisted task or broad repo cleanup, use two phases:
+
+- Phase A: edit, verify, and write `~/Project/wgc-handoff.md`; do not commit or push.
+- Phase B: no Agy/model execution and no broad edits; verify branch, changed-file allowlist, protected files, and `git diff --check`, then commit/push only if checks pass.
+
+Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact and put raw logs in `/tmp/wgc/*`.
+
+
 For Terminal/Agy work, use a durable, token-efficient handoff model:
 
 - Use `/tmp/agy-task.txt` for local Agy prompts.
