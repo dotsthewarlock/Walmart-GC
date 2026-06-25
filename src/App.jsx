@@ -1039,106 +1039,105 @@ function App() {
 
   return (
     <>
-      {/* Fixed responsive navigation bar */}
-      <nav 
-        className="fixed bottom-0 left-0 right-0 z-40 md:top-0 md:bottom-auto flex border-t border-slate-200 md:border-t-0 md:border-b bg-white/95 backdrop-blur-md shadow-lg md:shadow-sm px-4 py-2 md:py-1.5 gap-2" 
-        aria-label="App sections"
-      >
-        <button 
-          id="nav-list"
-          onClick={() => {
-            setActivePanel('list');
-            setPreviousPrimaryPanel('list');
-          }}
-          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
-            activePanel === 'list' 
-              ? 'bg-[#0b57d0] text-white shadow-sm' 
-              : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50'
-          }`}
-        >
-          Cards
-        </button>
-        <button 
-          id="nav-detail"
-          onClick={() => {
-            const nextIndex = ensureVisibleSelection();
-            if (nextIndex !== -1) {
-              setSelectedCardIndex(nextIndex);
-              setActivePanel('detail');
-              setPreviousPrimaryPanel('detail');
-            }
-          }}
-          disabled={visibleIndexes.length === 0}
-          className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
-            activePanel === 'detail' 
-              ? 'bg-[#0b57d0] text-white shadow-sm' 
-              : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50 disabled:opacity-50'
-          }`}
-        >
-          Checkout
-        </button>
-      </nav>
-
       {/* Header Region */}
-      <header className="bg-gradient-to-br from-[#0b57d0] to-[#0842a0] text-white pt-8 md:pt-16 pb-20 px-6 sm:px-8">
-        <div className="max-w-[52rem] mx-auto relative flex justify-between items-center">
+      <header className="bg-gradient-to-br from-[#0b57d0] to-[#0842a0] text-white py-4 md:py-6 px-6 sm:px-8">
+        <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight">
               Gift Card Manager
             </h1>
-            <p className="text-xs text-blue-100 font-medium tracking-wide uppercase mt-1">
+            <p className="text-[10px] md:text-xs text-blue-100 font-medium tracking-wide uppercase mt-0.5">
               Secure Local Gift Card Vault
             </p>
           </div>
-          <div className="bg-white/15 text-white text-xs px-3 py-1.5 rounded-full font-mono font-bold tracking-wider opacity-90">
-            agy-v1
+          <div className="flex items-center gap-3">
+            <button
+              id="open-settings"
+              onClick={() => {
+                if (activePanel === 'settings') {
+                  setActivePanel(previousPrimaryPanel);
+                } else {
+                  setPreviousPrimaryPanel(activePanel);
+                  setActivePanel('settings');
+                }
+              }}
+              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-sm backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+                activePanel === 'settings'
+                  ? 'bg-white text-[#0b57d0] border-white'
+                  : 'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50'
+              }`}
+              title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
+              aria-label="Open settings"
+              aria-expanded={activePanel === 'settings'}
+            >
+              ⚙️
+            </button>
           </div>
-          <button 
-            id="open-settings"
-            onClick={() => {
-              if (activePanel === 'settings') {
-                setActivePanel(previousPrimaryPanel);
-              } else {
-                setPreviousPrimaryPanel(activePanel);
-                setActivePanel('settings');
-              }
-            }}
-            className={`fixed top-6 md:top-14 right-4 sm:right-8 z-30 w-12 h-12 border rounded-full flex items-center justify-center text-xl transition-all active:scale-97 shadow-lg backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
-              activePanel === 'settings'
-                ? 'bg-[#0b57d0] text-white border-[#0b57d0]'
-                : 'border-white/70 bg-[#ebf6ff]/70 text-[#0842a0] hover:bg-[#ebf6ff]/90 hover:border-blue-400'
-            }`}
-            title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
-            aria-label="Open settings"
-            aria-expanded={activePanel === 'settings'}
-          >
-            ⚙️
-          </button>
         </div>
       </header>
 
+      {/* Navigation bar: mobile bottom fixed, desktop below header (static flow) */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 md:static md:bottom-auto flex border-t border-slate-200 md:border-t-0 md:border-b bg-white/95 backdrop-blur-md shadow-lg md:shadow-sm px-4 py-2 md:py-2 gap-2 w-full"
+        aria-label="App sections"
+      >
+        <div className="max-w-[60rem] mx-auto w-full flex gap-2">
+          <button
+            id="nav-list"
+            onClick={() => {
+              setActivePanel('list');
+              setPreviousPrimaryPanel('list');
+            }}
+            className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+              activePanel === 'list'
+                ? 'bg-[#0b57d0] text-white shadow-sm'
+                : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50'
+            }`}
+          >
+            Cards
+          </button>
+          <button
+            id="nav-detail"
+            onClick={() => {
+              const nextIndex = ensureVisibleSelection();
+              if (nextIndex !== -1) {
+                setSelectedCardIndex(nextIndex);
+                setActivePanel('detail');
+                setPreviousPrimaryPanel('detail');
+              }
+            }}
+            disabled={visibleIndexes.length === 0}
+            className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+              activePanel === 'detail'
+                ? 'bg-[#0b57d0] text-white shadow-sm'
+                : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50 disabled:opacity-50'
+            }`}
+          >
+            Checkout
+          </button>
+        </div>
+      </nav>
+
       <div 
-        className="min-h-screen bg-slate-100 flex flex-col items-center px-4 pb-24 md:pb-12 antialiased font-sans -mt-10 relative z-10"
+        className="min-h-screen bg-slate-100 flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative z-10"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
-        <div className={`w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden transition-all duration-300 ${
-          activePanel === 'detail' ? 'max-w-[60rem]' : 'max-w-[52rem]'
-        }`}>
+        <div className="w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden transition-all duration-300 max-w-[60rem]">
           {activePanel === 'list' ? (
             <main className="p-8 flex flex-col gap-6">
               
               {/* Wallet Diagnostics / Balances Summary */}
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col sm:flex-row justify-between gap-4">
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Visible Balance</span>
-                  <span className="text-3xl font-black text-slate-900">${activeBalance.toFixed(2)}</span>
-                  <span className="text-xs text-slate-400">Total Wallet Assets: ${totalBalance.toFixed(2)}</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Visible Balance</span>
+                  <span className="text-2xl sm:text-3xl font-black text-slate-900">${activeBalance.toFixed(2)}</span>
+                  <span className="text-[10px] sm:text-xs text-slate-400">Total Wallet Assets: ${totalBalance.toFixed(2)}</span>
                 </div>
-                <div className="flex flex-col gap-1 sm:text-right">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Card Counts</span>
-                  <span className="text-2xl font-black text-slate-800">{activeCount} / {totalCount}</span>
-                  <span className="text-xs text-slate-400">displayed / registered</span>
+                <div className="flex flex-col gap-1 text-right">
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Card Counts</span>
+                  <span className="text-xl sm:text-2xl font-black text-slate-800">{activeCount} / {totalCount}</span>
+                  <span className="text-[10px] sm:text-xs text-slate-400">displayed / registered</span>
                 </div>
               </section>
 
@@ -1182,9 +1181,9 @@ function App() {
                     <option value="card-number">Card Number</option>
                   </select>
                 </div>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
                   {cards.length === 0 ? (
-                    <div className="text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
                         <h4 className="text-sm font-bold text-slate-800">No gift cards yet</h4>
                         <p className="text-xs text-slate-500 leading-relaxed">
@@ -1213,7 +1212,7 @@ function App() {
                       </div>
                     </div>
                   ) : visibleIndexes.length === 0 ? (
-                    <div className="text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
                         <span className="text-sm font-bold text-slate-800">All registered cards are filtered out</span>
                         <p className="text-xs text-slate-500 leading-relaxed">
@@ -1252,23 +1251,23 @@ function App() {
                             isSelected
                               ? 'border-[#0b57d0]/30 ring-1 ring-[#0b57d0]/10 bg-[#0b57d0]/5'
                               : card.used
-                                ? 'border-slate-100 bg-slate-50/50 opacity-60'
+                                ? 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400'
                                 : 'border-slate-200 hover:border-blue-300 shadow-sm'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold text-slate-800">
+                            <span className={`font-mono text-sm font-bold ${card.used ? 'text-slate-500 line-through decoration-slate-400' : 'text-slate-800'}`}>
                               {maskCardNumber(card.cardNumber)}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-3">
                             {card.used && (
-                              <span className="text-[10px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded uppercase">
+                              <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase border border-slate-300">
                                 Used
                               </span>
                             )}
-                            <span className={`text-sm font-extrabold text-slate-900 ${card.used ? 'text-slate-400 font-semibold' : ''}`}>
+                            <span className={`text-sm font-extrabold ${card.used ? 'text-slate-500 font-semibold' : 'text-slate-900'}`}>
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
@@ -1573,7 +1572,7 @@ function App() {
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Diagnostics</span>
                       <small id="settings-app-shell-fingerprint" className="text-[10px] text-slate-400 font-medium">
-                        agy-v1 · matching
+                        matching
                       </small>
                     </div>
                     <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
@@ -1584,15 +1583,15 @@ function App() {
                       <ul className="text-xs text-slate-500 font-medium list-none flex flex-col gap-1.5">
                         <li className="flex justify-between border-b border-slate-100 pb-1">
                           <span>HTML version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">agy-v1</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">1.0.0</span>
                         </li>
                         <li className="flex justify-between border-b border-slate-100 pb-1">
                           <span>JS version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">agy-v1</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">1.0.0</span>
                         </li>
                         <li className="flex justify-between">
                           <span>CSS version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">agy-v1</span>
+                          <span className="font-mono text-[10px] text-slate-700 font-bold">1.0.0</span>
                         </li>
                       </ul>
                     </div>
@@ -1635,9 +1634,9 @@ function App() {
             </main>
           ) : (
             /* Checkout Detail Panel Layout */
-            <main className="p-8 flex flex-col items-center gap-6">
+            <main className="p-8 flex flex-col gap-6">
               {selectedCard ? (
-                <div id="card-detail" className="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl p-6 flex flex-col gap-6 shadow-sm">
+                <div id="card-detail" className="w-full flex flex-col gap-6">
                   
                   {/* Detail Card Navigation Header */}
                   <div className="flex justify-between items-center bg-slate-50/50 p-4 border border-slate-100 rounded-2xl">
@@ -1834,7 +1833,7 @@ function App() {
 
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl w-full max-w-2xl">
+                <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl w-full">
                   No card selected. Select a card from the inventory list first.
                 </div>
               )}
