@@ -2,6 +2,15 @@
 
 Read this document first for all current Walmart-GC tasks. It is the primary, compact source of truth for the codebase, active architecture, and developer workflows.
 
+## Current Status: Phase 2B Completed (Checkout Recovery)
+- **Phase 1 & 1A (Cards Polish / KPI correction)**: Completed.
+- **Phase 2A (Bottom Nav / App Shell)**: Completed.
+- **Phase 2B (Checkout Recovery)**: Completed. Recovered Checkout page to the locked scanner/register model. Removed fullscreen modal layout/state/handlers, Back to Inventory button, Reveal/Hide label text, explicit PIN badge, and scanner brightness/helper warnings. Large barcode is aligned cleanly with the compact, horizontal card number and plain PIN metadata row. Update Balance and Mark Used buttons are high contrast and aligned.
+- **Scope Restriction**: Only components/styles authorized under Phases 2A and 2B may be modified. All other features (sync/OAuth logic, worker configurations, settings hierarchy) are strictly out of scope.
+- **Agent Guidelines**: Prior to implementing, read [M3_Core_Guidelines.md](file:///home/godfreymiu/Walmart-GC/docs/reference/M3_Core_Guidelines.md). Follow the strict Agent Behavior Rules and the Reassessment Rule detailed in [M3_DESIGN_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md).
+
+
+
 ## Current Basics
 - **Repository**: `dotsthewarlock/Walmart-GC`
 - **Active Branch**: `main` (React 19 + Vite + Tailwind production candidate)

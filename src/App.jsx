@@ -19,6 +19,55 @@ function maskCardNumber(cardNumber) {
   return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
 }
 
+const M3_CLASSES = {
+  // App Shell & Layout
+  appShell: "min-h-screen bg-slate-50 flex flex-col antialiased font-sans relative pb-24 md:pb-6",
+  topBar: "bg-white border-b border-slate-200 py-3 md:py-4 px-4 sm:px-6 relative z-30",
+  topBarContent: "max-w-[60rem] mx-auto flex justify-between items-center gap-4",
+  topBarTitle: "text-lg md:text-xl font-bold text-slate-900 tracking-tight",
+  topBarSubtitle: "text-[10px] text-slate-500 font-medium tracking-wide uppercase mt-0.5",
+  contentShell: "max-w-[60rem] w-full mx-auto px-4 md:px-0 py-4 flex-1 flex flex-col gap-6",
+
+  // Navigation Bar (strict M3)
+  navBar: "fixed bottom-0 left-0 right-0 z-40 bg-[#f0f4f9] border-t border-slate-200/60 pb-[safe-area-inset-bottom] px-2 h-20 md:static md:h-16 md:bg-white md:border-t-0 md:border-b md:px-6 md:pb-0 flex items-center shadow-md md:shadow-none w-full",
+  navBarContent: "max-w-[60rem] mx-auto w-full flex justify-around h-full",
+  navItem: "flex-1 flex flex-col items-center justify-center h-full relative cursor-pointer text-slate-600 hover:text-slate-900 focus-visible:outline-none transition-colors",
+  navItemActive: "text-[#041e49] font-semibold",
+  navActiveIndicator: "absolute inset-x-auto top-3 h-8 w-16 bg-[#d3e3fd] rounded-full -z-10 transition-all duration-200 ease-out",
+  navLabel: "text-xs mt-1.5 text-center font-medium",
+
+  // Metric Strip
+  metricStrip: "grid grid-cols-2 gap-3 bg-[#f0f4f9] border border-slate-200/40 rounded-2xl p-4",
+  metricLabel: "text-xs font-medium text-slate-500 sentence-case tracking-normal",
+  metricValue: "text-xl sm:text-2xl font-bold text-slate-900 font-mono tracking-tight mt-0.5",
+
+  // Toolbar
+  toolbarRow: "flex justify-between items-center gap-3 px-1 min-h-[40px]",
+  statusChipConnected: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#e6f4ea] text-[#137333] border border-[#ceead6] hover:bg-[#d2e9d8] transition-colors cursor-pointer",
+  statusChipDisconnected: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer",
+  statusChipSyncing: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#e8f0fe] text-[#1a73e8] border border-[#d2e3fc] hover:bg-[#dbe7fd] transition-colors cursor-pointer",
+  statusChipError: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#fce8e6] text-[#c5221f] border border-[#fad2cf] hover:bg-[#fcdad7] transition-colors cursor-pointer",
+  sortSelect: "text-xs font-semibold border border-slate-200 rounded-full py-1.5 px-3.5 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] cursor-pointer shadow-sm transition-colors",
+
+  // Cards List Rows
+  cardRow: "flex items-center justify-between min-h-[52px] h-[52px] px-4 bg-white rounded-2xl border border-slate-200/80 hover:border-slate-300 active:bg-slate-50 transition-all gap-4 cursor-pointer relative",
+  cardRowSelected: "flex items-center justify-between min-h-[52px] h-[52px] px-4 bg-[#d3e3fd] rounded-2xl border border-[#a8c7fa] ring-1 ring-[#0b57d0]/10 transition-all gap-4 cursor-pointer relative",
+  cardRowUsed: "flex items-center justify-between min-h-[52px] h-[52px] px-4 bg-slate-100/70 rounded-2xl border border-slate-200 text-slate-400 cursor-pointer relative",
+  cardNumber: "font-mono text-sm tracking-wider font-medium text-slate-800",
+  cardNumberUsed: "font-mono text-sm tracking-wider font-medium text-slate-400 line-through decoration-slate-300",
+  cardAmount: "font-mono text-sm font-semibold text-slate-900 tabular-nums",
+  cardAmountUsed: "font-mono text-sm font-medium text-slate-400 tabular-nums",
+  usedBadge: "text-[10px] font-semibold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded border border-slate-300 uppercase scale-90",
+
+  // Checkout roles
+  checkoutShell: "w-full flex flex-col gap-4",
+  checkoutNav: "flex justify-between items-center bg-[#f0f4f9] border border-slate-200/40 rounded-2xl p-2",
+  barcodeCard: "bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 shadow-sm w-full",
+  barcodeMeta: "flex justify-between items-center w-full px-2 mt-2",
+  actionButtonRow: "grid grid-cols-2 gap-4 items-center w-full",
+  notesPanel: "bg-[#f0f4f9] border border-slate-200/40 rounded-2xl p-4 flex flex-col gap-2",
+};
+
 function App() {
   const mainTouchStart = useRef(null);
   const barcodeModalTouchStart = useRef(null);
@@ -33,24 +82,21 @@ function App() {
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const [revealNumber, setRevealNumber] = useState(false);
-  
+
   // Balance Editor Form State
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [newBalanceValue, setNewBalanceValue] = useState("");
   const [amountUsedValue, setAmountUsedValue] = useState("");
   const [balanceError, setBalanceError] = useState("");
-  const [openedFromBarcodeFocus, setOpenedFromBarcodeFocus] = useState(false);
 
   const handleCancelBalanceEdit = () => {
     setIsEditingBalance(false);
-    setOpenedFromBarcodeFocus(false);
   };
 
   // Notes Editor Form State
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [newNotesValue, setNewNotesValue] = useState("");
 
-  const [isFullscreenBarcode, setIsFullscreenBarcode] = useState(false);
   const [wakeLock, setWakeLock] = useState(null);
 
   // Raw CSV Editor Modal and backup states
@@ -103,7 +149,7 @@ function App() {
     if (isChecking) {
       return {
         key: "checking",
-        label: "Checking sync",
+        label: "Syncing…",
         help: "Local cards stay available",
       };
     }
@@ -111,7 +157,7 @@ function App() {
     if (syncState.status === syncStatuses.conflict || directSheetsState.status === directSheetsStatuses.conflict) {
       return {
         key: "conflict",
-        label: "Sync conflict",
+        label: "Sync issue",
         help: "Open backup and sync",
       };
     }
@@ -121,7 +167,7 @@ function App() {
     if (navigator.onLine === false || oauthState.status === googleOAuthStatuses.error || directSheetsState.status === directSheetsStatuses.error) {
       return {
         key: "unavailable",
-        label: "Sync unavailable",
+        label: "Sync issue",
         help: hasPendingLocalChanges ? "Open backup and sync" : "Local cards available",
       };
     }
@@ -129,7 +175,7 @@ function App() {
     if (hasPendingLocalChanges || (syncState.status === syncStatuses.unsynced && oauthState.status === googleOAuthStatuses.connected)) {
       return {
         key: "unsynced",
-        label: "Unsynced changes",
+        label: "Syncing…",
         help: "Open backup and sync",
       };
     }
@@ -137,37 +183,18 @@ function App() {
     if (oauthState.status === googleOAuthStatuses.connected && directSheetsState.status === directSheetsStatuses.ready) {
       return {
         key: "connected",
-        label: "✓ Sync ready",
+        label: "Google sync on",
         help: "",
       };
     }
 
     return {
       key: "local-only",
-      label: "Local only",
+      label: "Local only · Connect",
       help: "Connect in backup and sync",
     };
   };
 
-
-
-
-  // Handle escape key listener for barcode modal
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !isEditingBalance) {
-        setIsFullscreenBarcode(false);
-      }
-    };
-    
-    if (isFullscreenBarcode) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isFullscreenBarcode, isEditingBalance]);
 
   // Handle escape key listener for balance modal
   useEffect(() => {
@@ -184,13 +211,13 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isEditingBalance, openedFromBarcodeFocus]);
+  }, [isEditingBalance]);
 
-  // Handle screen wake lock for focused barcode scanning
+  // Handle screen wake lock for checkout scanning
   useEffect(() => {
     let activeLock = null;
     async function requestLock() {
-      if ("wakeLock" in navigator && isFullscreenBarcode) {
+      if ("wakeLock" in navigator && activePanel === 'detail') {
         try {
           activeLock = await navigator.wakeLock.request("screen");
           setWakeLock(activeLock);
@@ -199,8 +226,8 @@ function App() {
         }
       }
     }
-    
-    if (isFullscreenBarcode) {
+
+    if (activePanel === 'detail') {
       requestLock();
     } else {
       if (wakeLock) {
@@ -214,7 +241,7 @@ function App() {
         activeLock.release().catch(() => {});
       }
     };
-  }, [isFullscreenBarcode]);
+  }, [activePanel]);
 
   // Refresh Worker Session Status
   const refreshWorkerSessionStatus = async (options = {}) => {
@@ -280,7 +307,7 @@ function App() {
     const loadedSettings = loadSettings();
     setCards(loadedCards);
     setSettings(loadedSettings);
-    
+
     // Restore directSheets and sync states from local storage if available
     try {
       const storedSheets = localStorage.getItem("walmartGc.directSheets");
@@ -294,7 +321,7 @@ function App() {
     } catch {
       // ignore
     }
-    
+
     // Auto-select first visible card if possible
     const visible = calculateVisibleCards(loadedCards, loadedSettings, loadedSettings.sortMode);
     if (visible.length > 0) {
@@ -374,7 +401,7 @@ function App() {
       }
       return card;
     });
-    
+
     setCards(updatedCards);
     saveCards(updatedCards);
 
@@ -423,14 +450,13 @@ function App() {
     const currentPosition = visibleIndexes.indexOf(selectedCardIndex);
     const nextPosition = (currentPosition + 1) % visibleIndexes.length;
     setSelectedCardIndex(visibleIndexes[nextPosition]);
-    setRevealNumber(false);
     setIsEditingBalance(false);
     setIsEditingNotes(false);
   };
 
   // Touch Swiping for Page Navigation (Cards <-> Checkout)
   const handleMainTouchStart = (event) => {
-    if (isFullscreenBarcode || isRawDataModalOpen || isEditingBalance || isEditingNotes) {
+    if (isRawDataModalOpen || isEditingBalance || isEditingNotes) {
       mainTouchStart.current = null;
       return;
     }
@@ -438,8 +464,7 @@ function App() {
       mainTouchStart.current = null;
       return;
     }
-    const target = event.target;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
       mainTouchStart.current = null;
       return;
     }
@@ -464,50 +489,14 @@ function App() {
     if (deltaX < 0) {
       // Swipe left: Cards (list) -> Checkout (detail)
       if (activePanel === 'list') {
-        setActivePanel('detail');
+        if (selectedCardIndex >= 0) {
+          setActivePanel('detail');
+        }
       }
     } else if (deltaX > 0) {
       // Swipe right: Checkout (detail) -> Cards (list)
       if (activePanel === 'detail') {
         setActivePanel('list');
-      }
-    }
-  };
-
-  const handleBarcodeTouchStart = (event) => {
-    if (event.touches.length !== 1 || isEditingBalance || isEditingNotes) {
-      barcodeModalTouchStart.current = null;
-      return;
-    }
-    const target = event.target;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-      barcodeModalTouchStart.current = null;
-      return;
-    }
-    barcodeModalTouchStart.current = {
-      x: event.touches[0].clientX,
-      y: event.touches[0].clientY,
-    };
-  };
-
-  const handleBarcodeTouchEnd = (event) => {
-    if (!barcodeModalTouchStart.current) return;
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - barcodeModalTouchStart.current.x;
-    const deltaY = touch.clientY - barcodeModalTouchStart.current.y;
-    barcodeModalTouchStart.current = null;
-
-    if (Math.abs(deltaX) < 120 || Math.abs(deltaY) > 70 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
-      return;
-    }
-
-    if (deltaX < 0) {
-      if (visiblePosition < visibleIndexes.length - 1) {
-        handleNextCard();
-      }
-    } else if (deltaX > 0) {
-      if (visiblePosition > 0) {
-        handlePrevCard();
       }
     }
   };
@@ -561,10 +550,6 @@ function App() {
     setCards(updatedCards);
     saveCards(updatedCards);
     setIsEditingBalance(false);
-    if (openedFromBarcodeFocus) {
-      setIsFullscreenBarcode(false);
-    }
-    setOpenedFromBarcodeFocus(false);
   };
 
   const selectedCard = cards[selectedCardIndex];
@@ -640,7 +625,7 @@ function App() {
 
     setCards(parsedCards);
     saveCards(parsedCards);
-    
+
     // Auto-select first visible card if possible
     const visible = calculateVisibleCards(parsedCards, settings, settings.sortMode);
     if (visible.length > 0) {
@@ -994,7 +979,7 @@ function App() {
       if (payload && payload.conflict) {
         const remoteVersion = String(payload.remoteSheetVersion || "");
         const conflictMsg = "Conflict detected: the Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
-        
+
         setDirectSheetsState(prev => ({
           ...prev,
           status: directSheetsStatuses.conflict,
@@ -1003,7 +988,7 @@ function App() {
           message: conflictMsg,
           lastErrorMessage: conflictMsg,
         }));
-        
+
         setSyncState(prev => ({
           ...prev,
           status: syncStatuses.conflict,
@@ -1026,7 +1011,7 @@ function App() {
         message: mappedMsg,
         lastErrorMessage: msg,
       }));
-      
+
       setSyncState(prev => ({
         ...prev,
         status: prev.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
@@ -1038,15 +1023,19 @@ function App() {
   };
 
   return (
-    <>
+    <div
+      className={M3_CLASSES.appShell}
+      onTouchStart={handleMainTouchStart}
+      onTouchEnd={handleMainTouchEnd}
+    >
       {/* Header Region */}
-      <header className="bg-gradient-to-br from-[#0b57d0] to-[#0842a0] text-white py-4 md:py-6 px-6 sm:px-8">
-        <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
+      <header className={M3_CLASSES.topBar}>
+        <div className={M3_CLASSES.topBarContent}>
           <div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+            <h1 className={M3_CLASSES.topBarTitle}>
               Gift Card Manager
             </h1>
-            <p className="text-[10px] md:text-xs text-blue-100 font-medium tracking-wide uppercase mt-0.5">
+            <p className={M3_CLASSES.topBarSubtitle}>
               Secure Local Gift Card Vault
             </p>
           </div>
@@ -1061,10 +1050,10 @@ function App() {
                   setActivePanel('settings');
                 }
               }}
-              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-sm backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+              className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
                 activePanel === 'settings'
-                  ? 'bg-white text-[#0b57d0] border-white'
-                  : 'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50'
+                  ? 'bg-[#d3e3fd] text-[#041e49] border border-[#a8c7fa]'
+                  : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200'
               }`}
               title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
               aria-label="Open settings"
@@ -1077,24 +1066,19 @@ function App() {
       </header>
 
       {/* Navigation bar: mobile bottom fixed, desktop below header (static flow) */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-40 md:static md:bottom-auto flex border-t border-slate-200 md:border-t-0 md:border-b bg-white/95 backdrop-blur-md shadow-lg md:shadow-sm px-4 py-2 md:py-2 gap-2 w-full"
-        aria-label="App sections"
-      >
-        <div className="max-w-[60rem] mx-auto w-full flex gap-2">
+      <nav className={M3_CLASSES.navBar} aria-label="App sections">
+        <div className={M3_CLASSES.navBarContent}>
           <button
             id="nav-list"
             onClick={() => {
               setActivePanel('list');
               setPreviousPrimaryPanel('list');
             }}
-            className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
-              activePanel === 'list'
-                ? 'bg-[#0b57d0] text-white shadow-sm'
-                : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50'
-            }`}
+            className={`${M3_CLASSES.navItem} ${activePanel === 'list' ? M3_CLASSES.navItemActive : ''}`}
           >
-            Cards
+            {activePanel === 'list' && <div className={M3_CLASSES.navActiveIndicator} />}
+            <span className="text-[18px] z-10">💳</span>
+            <span className={M3_CLASSES.navLabel}>Cards</span>
           </button>
           <button
             id="nav-detail"
@@ -1107,185 +1091,188 @@ function App() {
               }
             }}
             disabled={visibleIndexes.length === 0}
-            className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
-              activePanel === 'detail'
-                ? 'bg-[#0b57d0] text-white shadow-sm'
-                : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50 disabled:opacity-50'
-            }`}
+            className={`${M3_CLASSES.navItem} ${activePanel === 'detail' ? M3_CLASSES.navItemActive : ''} disabled:opacity-50`}
           >
-            Checkout
+            {activePanel === 'detail' && <div className={M3_CLASSES.navActiveIndicator} />}
+            <span className="text-[18px] z-10">🏷️</span>
+            <span className={M3_CLASSES.navLabel}>Checkout</span>
           </button>
         </div>
       </nav>
 
-      <div 
-        className="min-h-screen bg-slate-100 flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative z-10"
-        onTouchStart={handleMainTouchStart}
-        onTouchEnd={handleMainTouchEnd}
-      >
-        <div className="w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden transition-all duration-300 max-w-[60rem]">
+      {/* Content Shell */}
+      <div className={M3_CLASSES.contentShell}>
+        <div className="w-full max-w-[60rem] bg-transparent md:bg-white md:rounded-[32px] md:shadow-md md:border md:border-slate-200/80 overflow-hidden transition-all duration-300">
           {activePanel === 'list' ? (
-            <main className="p-8 flex flex-col gap-6">
-              
-              {/* Wallet Diagnostics / Balances Summary */}
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Visible Balance</span>
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900">${activeBalance.toFixed(2)}</span>
-                  <span className="text-[10px] sm:text-xs text-slate-400">Total Wallet Assets: ${totalBalance.toFixed(2)}</span>
+            <main className="p-4 sm:p-8 flex flex-col gap-6">
+
+              {/* Cards Metrics: Strict M3 Labeled Pair */}
+              <section className={M3_CLASSES.metricStrip}>
+                <div className="flex flex-col gap-0.5">
+                  <span className={M3_CLASSES.metricLabel}>Available balance</span>
+                  <span className={M3_CLASSES.metricValue}>${activeBalance.toFixed(2)}</span>
                 </div>
-                <div className="flex flex-col gap-1 text-right">
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Card Counts</span>
-                  <span className="text-xl sm:text-2xl font-black text-slate-800">{activeCount} / {totalCount}</span>
-                  <span className="text-[10px] sm:text-xs text-slate-400">displayed / registered</span>
+                <div className="flex flex-col gap-0.5 text-right">
+                  <span className={M3_CLASSES.metricLabel}>Visible cards</span>
+                  <span className={M3_CLASSES.metricValue}>{activeCount}</span>
                 </div>
               </section>
 
-              {/* Sync Status Banner */}
-              {(() => {
-                const summary = getAppSyncSummaryState();
-                return (
-                  <div
-                    id="checkout-feedback"
-                    className={`p-3.5 rounded-2xl text-xs font-bold flex justify-between items-center transition-all ${
-                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/80' :
-                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-700 border border-amber-100/80' :
-                      ['conflict', 'unavailable'].includes(summary.key) ? 'bg-rose-50 text-rose-700 border border-rose-100/80' :
-                      'bg-slate-50 text-slate-600 border border-slate-100/80'
-                    }`}
-                    role="status"
-                    aria-live="polite"
-                    data-sync-summary={summary.key}
-                  >
-                    <span>{summary.label}</span>
-                    {summary.help && <span className="text-[10px] opacity-80">{summary.help}</span>}
-                  </div>
-                );
-              })()}
+              {/* Toolbar: Status chip and sort control form one coherent row */}
+              <section className={M3_CLASSES.toolbarRow}>
+                {(() => {
+                  const summary = getAppSyncSummaryState();
+                  let chipLabel = "Local only · Connect";
+                  let chipClass = M3_CLASSES.statusChipDisconnected;
 
-              {/* Cards Inventory Ledger */}
-              <section className="flex flex-col gap-3">
-                <div className="flex justify-between items-center px-1">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vault Inventory</h3>
-                  <select
-                    value={settings.sortMode}
-                    onChange={handleSortChange}
-                    className="text-xs font-bold border border-slate-200 rounded-xl p-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] cursor-pointer"
-                  >
-                    <option value="balance-asc">Balance: Low to High</option>
-                    <option value="balance-desc">Balance: High to Low</option>
-                    <option value="date-added-asc">Date Added: Oldest First</option>
-                    <option value="date-added-desc">Date Added: Newest First</option>
-                    <option value="date-updated-asc">Date Updated: Oldest First</option>
-                    <option value="date-updated-desc">Date Updated: Newest First</option>
-                    <option value="card-number">Card Number</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
-                  {cards.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
-                      <div className="flex flex-col gap-1.5 max-w-sm">
-                        <h4 className="text-sm font-bold text-slate-800">No gift cards yet</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          Add your Walmart gift cards to get started. Checkout and barcode scan views will become available once you have cards registered.
-                        </p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs sm:max-w-md justify-center mt-2">
-                        {oauthState.status !== googleOAuthStatuses.connected && (
-                          <button
-                            id="empty-state-connect-google"
-                            onClick={handleConnectGoogle}
-                            className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                            type="button"
-                          >
-                            Connect Google
-                          </button>
-                        )}
-                        <button
-                          id="empty-state-import-csv"
-                          onClick={() => document.getElementById('csv-file-input').click()}
-                          className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                          type="button"
-                        >
-                          ↓ Import CSV
-                        </button>
-                      </div>
+                  if (summary.key === 'connected') {
+                    chipLabel = "Google sync on";
+                    chipClass = M3_CLASSES.statusChipConnected;
+                  } else if (['unsynced', 'checking'].includes(summary.key)) {
+                    chipLabel = "Syncing…";
+                    chipClass = M3_CLASSES.statusChipSyncing;
+                  } else if (['conflict', 'unavailable'].includes(summary.key)) {
+                    chipLabel = "Sync issue";
+                    chipClass = M3_CLASSES.statusChipError;
+                  }
+
+                  return (
+                    <button
+                      id="sync-status-chip"
+                      onClick={() => setActivePanel('settings')}
+                      className={chipClass}
+                      role="status"
+                      aria-live="polite"
+                      data-sync-summary={summary.key}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-75"></span>
+                      <span>{chipLabel}</span>
+                    </button>
+                  );
+                })()}
+
+                <select
+                  value={settings.sortMode}
+                  onChange={handleSortChange}
+                  className={M3_CLASSES.sortSelect}
+                  aria-label="Sort cards"
+                >
+                  <option value="balance-asc">Balance: Low to High</option>
+                  <option value="balance-desc">Balance: High to Low</option>
+                  <option value="date-added-asc">Date Added: Oldest First</option>
+                  <option value="date-added-desc">Date Added: Newest First</option>
+                  <option value="date-updated-asc">Date Updated: Oldest First</option>
+                  <option value="date-updated-desc">Date Updated: Newest First</option>
+                  <option value="card-number">Card Number</option>
+                </select>
+              </section>
+
+              {/* Cards Ledger */}
+              <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
+                {cards.length === 0 ? (
+                  <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="flex flex-col gap-1.5 max-w-sm">
+                      <h4 className="text-sm font-bold text-slate-800">No gift cards yet</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Add your Walmart gift cards to get started. Checkout and barcode scan views will become available once you have cards registered.
+                      </p>
                     </div>
-                  ) : visibleIndexes.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
-                      <div className="flex flex-col gap-1.5 max-w-sm">
-                        <span className="text-sm font-bold text-slate-800">All registered cards are filtered out</span>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          Your settings are currently hiding all {cards.length} card{cards.length === 1 ? "" : "s"}. Reset filters or adjust them in settings to show cards.
-                        </p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center mt-1">
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs sm:max-w-md justify-center mt-2">
+                      {oauthState.status !== googleOAuthStatuses.connected && (
                         <button
-                          onClick={handleResetFilters}
+                          id="empty-state-connect-google"
+                          onClick={handleConnectGoogle}
                           className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                           type="button"
                         >
-                          Reset Filters
+                          Connect Google
                         </button>
-                        <button
-                          onClick={() => setActivePanel('settings')}
-                          className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                          type="button"
-                        >
-                          Go to Settings
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        id="empty-state-import-csv"
+                        onClick={() => document.getElementById('csv-file-input').click()}
+                        className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        type="button"
+                      >
+                        ↓ Import CSV
+                      </button>
                     </div>
-                  ) : (
-                    visibleIndexes.map((cardIndex) => {
-                      const card = cards[cardIndex];
-                      const isSelected = selectedCardIndex === cardIndex;
-                      return (
-                        <div
-                          key={card.cardNumber}
-                          onClick={() => {
-                            setSelectedCardIndex(cardIndex);
-                            setActivePanel('detail');
-                          }}
-                          className={`flex items-center justify-between p-3.5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
-                            isSelected
-                              ? 'border-[#0b57d0]/30 ring-1 ring-[#0b57d0]/10 bg-[#0b57d0]/5'
-                              : card.used
-                                ? 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400'
-                                : 'border-slate-200 hover:border-blue-300 shadow-sm'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`font-mono text-sm font-bold ${card.used ? 'text-slate-500 line-through decoration-slate-400' : 'text-slate-800'}`}>
-                              {maskCardNumber(card.cardNumber)}
-                            </span>
-                          </div>
+                  </div>
+                ) : visibleIndexes.length === 0 ? (
+                  <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="flex flex-col gap-1.5 max-w-sm">
+                      <span className="text-sm font-bold text-slate-800">All registered cards are filtered out</span>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Your settings are currently hiding all {cards.length} card{cards.length === 1 ? "" : "s"}. Reset filters or adjust them in settings to show cards.
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center mt-1">
+                      <button
+                        onClick={handleResetFilters}
+                        className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        type="button"
+                      >
+                        Reset Filters
+                      </button>
+                      <button
+                        onClick={() => setActivePanel('settings')}
+                        className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        type="button"
+                      >
+                        Go to Settings
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  visibleIndexes.map((cardIndex) => {
+                    const card = cards[cardIndex];
+                    const isSelected = selectedCardIndex === cardIndex;
 
-                          <div className="flex items-center gap-3">
-                            {card.used && (
-                              <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase border border-slate-300">
-                                Used
-                              </span>
-                            )}
-                            <span className={`text-sm font-extrabold ${card.used ? 'text-slate-500 font-semibold' : 'text-slate-900'}`}>
-                              ${card.currentBalance.toFixed(2)}
-                            </span>
-                          </div>
+                    let rowClass = M3_CLASSES.cardRow;
+                    if (isSelected) {
+                      rowClass = M3_CLASSES.cardRowSelected;
+                    } else if (card.used) {
+                      rowClass = M3_CLASSES.cardRowUsed;
+                    }
+
+                    return (
+                      <div
+                        key={card.cardNumber}
+                        onClick={() => {
+                          setSelectedCardIndex(cardIndex);
+                          setActivePanel('detail');
+                        }}
+                        className={rowClass}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={card.used ? M3_CLASSES.cardNumberUsed : M3_CLASSES.cardNumber}>
+                            {maskCardNumber(card.cardNumber)}
+                          </span>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              </section>
 
+                        <div className="flex items-center gap-3">
+                          {card.used && (
+                            <span className={M3_CLASSES.usedBadge}>
+                              Used
+                            </span>
+                          )}
+                          <span className={card.used ? M3_CLASSES.cardAmountUsed : M3_CLASSES.cardAmount}>
+                            ${card.currentBalance.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </main>
           ) : activePanel === 'settings' ? (
-            <main className="p-8 flex flex-col gap-6">
-              
+            <main className="p-4 sm:p-8 flex flex-col gap-6">
+
               {/* Local Settings / Filtering Controls */}
               <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preferences</h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
                     <span>Hide Used Cards</span>
@@ -1349,15 +1336,15 @@ function App() {
                   <div>
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Google Synchronization</h3>
                     <p className="text-xs text-slate-600 mt-1 font-medium">
-                      {oauthState.status === googleOAuthStatuses.connected 
-                        ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}` 
+                      {oauthState.status === googleOAuthStatuses.connected
+                        ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}`
                         : oauthState.message
                       }
                     </p>
                   </div>
-                  
+
                   {oauthState.status === googleOAuthStatuses.connected ? (
-                    <button 
+                    <button
                       id="disconnect-google"
                       onClick={handleDisconnectGoogle}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-3.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
@@ -1366,7 +1353,7 @@ function App() {
                       Disconnect
                     </button>
                   ) : (
-                    <button 
+                    <button
                       id="connect-google"
                       onClick={handleConnectGoogle}
                       className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-3.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
@@ -1382,7 +1369,7 @@ function App() {
                     <p id="direct-sheet-status" className="text-xs font-semibold text-slate-600">
                       {directSheetsState.message}
                     </p>
-                    
+
                     <div className="flex flex-wrap gap-2">
                       <button
                         id="ensure-sheet"
@@ -1398,26 +1385,26 @@ function App() {
                           href={directSheetsState.spreadsheetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 flex items-center justify-center text-center decoration-transparent"
                         >
-                          Open Sheet
+                          Open Google Sheet ↗
                         </a>
                       )}
                       <button
-                        id="load-from-sheets"
-                        onClick={handleLoadCardsFromSheet}
+                        id="trigger-pull"
+                        onClick={() => handleLoadCardsFromSheet({ startMessage: "Pulling cards...", successMessage: "Successfully pulled cards." })}
                         className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                       >
-                        Import from Google
+                        Pull
                       </button>
                       <button
-                        id="save-to-sheets"
-                        onClick={handleSaveCardsToSheet}
-                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        id="trigger-push"
+                        onClick={() => handleSaveCardsToSheet({ startMessage: "Pushing cards...", successMessage: "Successfully pushed cards." })}
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
                       >
-                        Export to Google
+                        Push
                       </button>
                     </div>
 
@@ -1520,15 +1507,15 @@ function App() {
                   </summary>
                   <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-slate-100">
                     <div className="flex gap-3">
-                      <input 
-                        id="csv-file-input" 
-                        type="file" 
-                        accept=".csv,text/csv" 
-                        onChange={handleImportCsvFile} 
-                        className="hidden" 
+                      <input
+                        id="csv-file-input"
+                        type="file"
+                        accept=".csv,text/csv"
+                        onChange={handleImportCsvFile}
+                        className="hidden"
                       />
-                      <button 
-                        id="import-csv" 
+                      <button
+                        id="import-csv"
                         onClick={() => document.getElementById('csv-file-input').click()}
                         className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
@@ -1536,8 +1523,8 @@ function App() {
                       >
                         ↓ Import CSV
                       </button>
-                      <button 
-                        id="export-csv" 
+                      <button
+                        id="export-csv"
                         onClick={handleExportCsv}
                         className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
@@ -1552,8 +1539,8 @@ function App() {
                         <h4 className="text-xs font-bold text-slate-700 uppercase">Raw CSV Editor</h4>
                         <p className="text-[10px] text-slate-400 mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
                       </div>
-                      <button 
-                        id="open-raw-data-modal" 
+                      <button
+                        id="open-raw-data-modal"
                         onClick={handleOpenRawEditor}
                         className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-3.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                         type="button"
@@ -1634,28 +1621,28 @@ function App() {
             </main>
           ) : (
             /* Checkout Detail Panel Layout */
-            <main className="p-8 flex flex-col gap-6">
+            <main className="p-4 md:p-6 flex flex-col gap-4">
               {selectedCard ? (
-                <div id="card-detail" className="w-full flex flex-col gap-6">
-                  
+                <div id="card-detail" className={M3_CLASSES.checkoutShell}>
+
                   {/* Detail Card Navigation Header */}
-                  <div className="flex justify-between items-center bg-slate-50/50 p-4 border border-slate-100 rounded-2xl">
+                  <div className={M3_CLASSES.checkoutNav}>
                     <button
                       id="prev-card"
                       onClick={handlePrevCard}
                       disabled={visiblePosition <= 0}
-                      className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200/50 px-4 py-3.5 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-4 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Previous
                     </button>
-                    <span id="card-position" className="text-sm font-bold text-slate-600">
+                    <span id="card-position" className="text-sm font-bold text-slate-700 font-mono">
                       Card {visiblePosition + 1} of {visibleIndexes.length}
                     </span>
                     <button
                       id="next-card"
                       onClick={handleNextCard}
                       disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200/50 px-4 py-3.5 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-4 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                     >
                       Next
                     </button>
@@ -1665,32 +1652,30 @@ function App() {
                   {(() => {
                     const payload = getBarcodePayload(selectedCard);
                     const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
-                    
+
                     return (
-                      <button
-                        id="barcode-open"
-                        onClick={() => setIsFullscreenBarcode(true)}
-                        className="bg-white border border-slate-200/60 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-300 transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                        title="Tapping opens full-screen barcode focus mode"
+                      <div
+                        id="barcode-container"
+                        className={M3_CLASSES.barcodeCard}
                       >
                         <div className="flex justify-between items-center w-full border-b border-slate-100/60 pb-2">
                           <span id="detail-barcode-status" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
+                            {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Walmart Gift Card'}
                           </span>
-                          <strong id="detail-barcode-balance" className="text-lg font-black text-slate-900">
+                          <strong id="detail-barcode-balance" className="text-lg font-black text-slate-900 font-mono">
                             ${selectedCard.currentBalance.toFixed(2)}
                           </strong>
                         </div>
-                        
+
                         {barcodeData ? (
-                          <div className="flex flex-col items-center gap-2 w-full pt-2">
+                          <div className="flex flex-col items-center gap-2 w-full pt-2 bg-white">
                             <div className="w-full bg-white border border-slate-100/60 p-2 rounded-2xl">
                               <svg
                                 viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                 preserveAspectRatio="none"
                                 role="img"
                                 aria-label="Code 128 checkout barcode"
-                                className="w-full h-16"
+                                className="w-full h-24"
                               >
                                 <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
                                 {barcodeData.rects.map((r, i) => (
@@ -1710,35 +1695,32 @@ function App() {
                           </div>
                         )}
 
-                        <div className="flex justify-between items-center w-full border-t border-slate-100/60 pt-2 text-xs font-bold text-slate-500">
-                          <span
-                            id="detail-barcode-caption"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRevealNumber(!revealNumber);
-                            }}
-                            className="font-mono cursor-pointer hover:text-blue-600"
+                        <div className={M3_CLASSES.barcodeMeta}>
+                          <button
+                            id="detail-card-number-reveal"
+                            onClick={() => setRevealNumber(!revealNumber)}
+                            className="font-mono text-sm/[20px] font-medium text-slate-800 hover:text-blue-600 cursor-pointer focus-visible:outline-none"
                             title="Click to reveal/hide card number"
+                            type="button"
                           >
                             {revealNumber
-                              ? selectedCard.cardNumber
-                              : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
+                              ? selectedCard.cardNumber.replace(/(.{4})/g, "$1 ").trim()
+                              : maskCardNumber(selectedCard.cardNumber)
                             }
+                          </button>
+                          <span id="detail-barcode-pin" className="font-mono text-sm/[20px] font-medium text-slate-800">
+                            {selectedCard.pin || "—"}
                           </span>
-                          <strong id="detail-barcode-pin">
-                            PIN {selectedCard.pin}
-                          </strong>
                         </div>
-                      </button>
+                      </div>
                     );
                   })()}
 
                   {/* Update and Mark used side-by-side */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
+                  <div className={M3_CLASSES.actionButtonRow}>
                     <button
                       id="open-balance-modal"
                       onClick={() => {
-                        setOpenedFromBarcodeFocus(false);
                         handleOpenBalanceEdit(selectedCard.currentBalance);
                       }}
                       className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
@@ -1761,7 +1743,7 @@ function App() {
                   </div>
 
                   {/* Add note row */}
-                  <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
+                  <div className={M3_CLASSES.notesPanel}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
                       {!isEditingNotes && (
@@ -1777,7 +1759,7 @@ function App() {
                         </button>
                       )}
                     </div>
-                    
+
                     {isEditingNotes ? (
                       <div className="flex flex-col gap-2 mt-1">
                         <textarea
@@ -1823,14 +1805,6 @@ function App() {
                     )}
                   </div>
 
-                  {/* Back to Inventory Button */}
-                  <button
-                    onClick={() => setActivePanel('list')}
-                    className="w-full bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-6 rounded-full border border-slate-200/50 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                  >
-                    Back to Inventory
-                  </button>
-
                 </div>
               ) : (
                 <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl w-full">
@@ -1839,232 +1813,8 @@ function App() {
               )}
             </main>
           )}
-
         </div>
       </div>
-
-      {/* Fullscreen Barcode Focus Overlay */}
-      {isFullscreenBarcode && selectedCard && (
-        <div
-          id="fullscreen-barcode"
-          onTouchStart={handleBarcodeTouchStart}
-          onTouchEnd={handleBarcodeTouchEnd}
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-1 sm:p-4 cursor-pointer"
-          onClick={() => setIsFullscreenBarcode(false)}
-        >
-          <div
-            className="bg-white rounded-3xl max-w-2xl w-full px-2 py-5 sm:p-6 flex flex-col gap-6 shadow-2xl relative cursor-default"
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Focused checkout barcode"
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setIsFullscreenBarcode(false)}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-              type="button"
-              aria-label="Close barcode focus mode"
-            >
-              ✕
-            </button>
-
-            {/* Position count */}
-            <div id="fullscreen-position" className="text-center font-bold text-slate-500 text-sm">
-              Card {visiblePosition + 1} of {visibleIndexes.length}
-            </div>
-
-            {/* Barcode Frame */}
-            <div id="fullscreen-barcode-frame" className="border border-slate-100/50 bg-slate-50/30 px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
-                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance:</span>
-                  <span id="fullscreen-current-balance" className="text-xl font-black text-[#0b57d0] font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* SVG barcode */}
-              {(() => {
-                const payload = getBarcodePayload(selectedCard);
-                const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
-                return barcodeData ? (
-                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-1 sm:p-2 rounded-xl h-48 sm:h-56 md:h-64">
-                    <svg
-                      viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
-                      preserveAspectRatio="none"
-                      role="img"
-                      aria-label="Code 128 checkout barcode"
-                      className="w-full h-full"
-                    >
-                      <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                      {barcodeData.rects.map((r, i) => (
-                        <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                      ))}
-                    </svg>
-                  </div>
-                ) : (
-                  <span id="fullscreen-barcode-caption" className="text-center text-sm font-bold text-red-600 py-4">
-                    {getBarcodeFallbackMessage(selectedCard)}
-                  </span>
-                );
-              })()}
-
-              <div className="flex flex-col gap-3 border-t border-slate-200/60 pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
-                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Card Number</span>
-                    <button
-                      id="fullscreen-card-number-reveal"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRevealNumber(!revealNumber);
-                      }}
-                      className="font-mono font-bold text-slate-800 hover:text-[#0b57d0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded px-2 py-1 bg-slate-100/80 hover:bg-slate-200/80 transition-colors cursor-pointer flex items-center gap-1.5"
-                      title="Click to reveal/hide card number"
-                      type="button"
-                    >
-                      <span>
-                        {revealNumber
-                          ? selectedCard.cardNumber.replace(/(.{4})/g, "$1 ").trim()
-                          : maskCardNumber(selectedCard.cardNumber)
-                        }
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal">
-                        ({revealNumber ? "Hide" : "Reveal"})
-                      </span>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
-                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Security PIN</span>
-                    <span id="fullscreen-pin" className="bg-slate-950 text-white font-mono font-extrabold text-sm px-3 py-1 rounded-xl tracking-wide shadow-sm min-w-[50px] text-center">
-                      {selectedCard.pin || "—"}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-[10px] text-center text-amber-800 font-semibold leading-relaxed bg-amber-50 border border-amber-200/40 rounded-xl py-2 px-3 mt-1 flex items-center justify-center gap-1.5">
-                  <span>☀️</span>
-                  <span>Turn brightness up if scanner has trouble.</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Focus Navigation Controls */}
-            <div className="flex gap-3">
-              <button
-                id="fullscreen-prev"
-                onClick={handlePrevCard}
-                disabled={visiblePosition <= 0}
-                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                type="button"
-              >
-                Previous
-              </button>
-              <button
-                id="fullscreen-next"
-                onClick={handleNextCard}
-                disabled={visiblePosition === visibleIndexes.length - 1}
-                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                type="button"
-              >
-                Next
-              </button>
-            </div>
-
-            {/* Actions Side-by-Side */}
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <button
-                id="fullscreen-update-balance"
-                onClick={() => {
-                  setOpenedFromBarcodeFocus(true);
-                  handleOpenBalanceEdit(selectedCard.currentBalance);
-                }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-              >
-                Update Balance
-              </button>
-
-              <button
-                id="fullscreen-mark-used"
-                onClick={() => handleToggleUsed(selectedCardIndex)}
-                className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
-                  selectedCard.used
-                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                    : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
-                }`}
-                type="button"
-              >
-                {selectedCard.used ? "Mark Active" : "Mark Used"}
-              </button>
-            </div>
-
-            {/* Notes Row */}
-            <div id="fullscreen-notes" className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
-                {!isEditingNotes && (
-                  <button
-                    onClick={() => {
-                      setNewNotesValue(selectedCard.notes || "");
-                      setIsEditingNotes(true);
-                    }}
-                    className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded-sm"
-                    type="button"
-                  >
-                    {selectedCard.notes ? "Edit" : "Add Note"}
-                  </button>
-                )}
-              </div>
-              
-              {isEditingNotes ? (
-                <div className="flex flex-col gap-2 mt-1">
-                  <textarea
-                    value={newNotesValue}
-                    onChange={e => setNewNotesValue(e.target.value)}
-                    className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:bg-white focus:outline-none transition-all duration-200 min-h-[80px]"
-                    placeholder="Add card notes..."
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => {
-                        const updatedCards = cards.map((c, idx) => {
-                          if (idx === selectedCardIndex) {
-                            return {
-                              ...c,
-                              notes: newNotesValue.trim(),
-                            };
-                          }
-                          return c;
-                        });
-                        setCards(updatedCards);
-                        saveCards(updatedCards);
-                        setIsEditingNotes(false);
-                      }}
-                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                      type="button"
-                    >
-                      Save Notes
-                    </button>
-                    <button
-                      onClick={() => setIsEditingNotes(false)}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                  {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Update Balance Modal */}
       {isEditingBalance && selectedCard && (
@@ -2160,11 +1910,11 @@ function App() {
 
       {/* Raw CSV Editor Modal */}
       {isRawDataModalOpen && (
-        <div 
-          id="raw-data-modal" 
+        <div
+          id="raw-data-modal"
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
         >
-          <div 
+          <div
             className="bg-white rounded-3xl max-w-lg w-full p-6 flex flex-col gap-4 shadow-2xl relative"
             role="dialog"
             aria-modal="true"
@@ -2208,26 +1958,26 @@ function App() {
             {/* Actions panel */}
             <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 mt-2">
               <div className="flex gap-2">
-                <button 
-                  id="toggle-data-lock" 
+                <button
+                  id="toggle-data-lock"
                   onClick={() => setIsRawDataLocked(!isRawDataLocked)}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
-                  type="button" 
+                  type="button"
                   title={isRawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked"}
                 >
                   {isRawDataLocked ? "Unlock 🔓" : "Lock 🔒"}
                 </button>
-                
-                <button 
-                  id="refresh-card-data" 
+
+                <button
+                  id="refresh-card-data"
                   onClick={handleRefreshRawEditor}
                   className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
                 >
                   Refresh
                 </button>
-                <button 
-                  id="update-card-data" 
+                <button
+                  id="update-card-data"
                   onClick={handleUpdateRawEditor}
                   className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
@@ -2237,16 +1987,16 @@ function App() {
               </div>
 
               <div className="flex gap-2 justify-end">
-                <button 
-                  id="cancel-raw-data-update" 
+                <button
+                  id="cancel-raw-data-update"
                   onClick={() => setIsRawDataModalOpen(false)}
                   className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
                 >
                   Cancel
                 </button>
-                <button 
-                  id="done-raw-data-update" 
+                <button
+                  id="done-raw-data-update"
                   onClick={handleDoneRawEditor}
                   className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
                   type="button"
@@ -2258,7 +2008,7 @@ function App() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
