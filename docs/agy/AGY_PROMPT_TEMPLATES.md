@@ -19,7 +19,7 @@ Read first:
 - docs/M3_DESIGN_DECISIONS.md
 - docs/reference/M3_Core_Guidelines.md
 - docs/agy/AGY_BOOTLOADER.md
-- docs/AGY_CLI_INTEGRATION_DOSSIER.md
+- docs/agy/AGY_CLI_INTEGRATION_DOSSIER.md
 
 Scope:
 [Files/features in scope]
@@ -57,7 +57,7 @@ Update documentation only.
 Read first:
 - docs/ACTIVE_CONTEXT.md
 - docs/agy/AGY_BOOTLOADER.md
-- docs/AGY_CLI_INTEGRATION_DOSSIER.md
+- docs/agy/AGY_CLI_INTEGRATION_DOSSIER.md
 
 Scope:
 [Docs to add/update]

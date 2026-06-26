@@ -5,7 +5,7 @@ Last reviewed: 2026-06-26
 Scope: Walmart-GC local agy workflow
 
 Source of truth:
-- docs/AGY_CLI_INTEGRATION_DOSSIER.md
+- docs/agy/AGY_CLI_INTEGRATION_DOSSIER.md
 
 Role split:
 - GPT/ChatGPT: planner, reviewer, QA interpreter, product decision framer, prompt writer
