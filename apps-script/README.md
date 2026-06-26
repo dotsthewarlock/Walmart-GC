@@ -6,4 +6,4 @@ Current sync is Worker-backed through `worker/src/index.js`. Do not use Apps Scr
 
 Inspect `apps-script/Code.gs` only when exact live behavior or an exact error string points to this path, or when explicitly investigating historical Apps Script behavior.
 
-For current architecture and task context, start with `docs/CODEX_ACTIVE_CONTEXT.md` and `docs/ARCHITECTURE.md`.
+For current architecture and task context, start with `docs/ACTIVE_CONTEXT.md` and `docs/ARCHITECTURE.md`.

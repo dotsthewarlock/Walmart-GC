@@ -7,7 +7,7 @@ Read this document first for all current Walmart-GC tasks. It is the primary, co
 - **Active Branch**: `main` (React 19 + Vite + Tailwind production candidate)
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
-- **Verification Status**: React/Vite production deployment is live and manually verified.
+- **Verification Status**: Current public deploy is still the legacy/root `phase-12` branch. The `main` React/Vite/Tailwind build is the production-candidate target. Tomorrow's planned work is the deployment switch to React/Vite. Do not claim React/Vite is live until verified after tomorrow's switch.
 - **Rollback Path**: GitHub Pages config pointed back to branch `phase-12` / `/` root (using backup branch `backup/phase-12-before-react-vite-2026-06-24` and tag `prod-phase-12-pre-react-vite-2026-06-24`).
 
 ## Active Architecture
@@ -45,6 +45,7 @@ Walmart-GC Web App (Static React 19 + Vite)
 
 ## Documentation Index
 - [Architecture](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) — Main system architecture and data models.
+- [Material 3 Design Decisions](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) — Durable repository documentation for locked design decisions and the strict Material 3 overhaul.
 - [Deployment Guide](file:///home/godfreymiu/Walmart-GC/docs/DEPLOYMENT_GUIDE.md) — Build, deployment, and pre-deployment checklists.
 - [Google Sheet Setup](file:///home/godfreymiu/Walmart-GC/docs/GOOGLE_SHEET_SETUP.md) — Google Sheet configuration and schema details.
 - [QA Test Checklist](file:///home/godfreymiu/Walmart-GC/docs/QA_TEST_CHECKLIST.md) — Combined QA check items and debugging scenarios.

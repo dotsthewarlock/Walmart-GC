@@ -87,8 +87,8 @@ Walmart-GC Web App
 
 Frontend:
 
-* GitHub Pages (still serves legacy `phase-12` / root with legacy build_type until deployment is explicitly approved)
-* React 19 + Vite + Tailwind (`main` is now the production-candidate branch; `phase-12` remains the archival production baseline and behavior parity source)
+* GitHub Pages serves legacy `phase-12` / root with legacy build_type as the active public deploy.
+* React 19 + Vite + Tailwind (`main` is the production-candidate target; tomorrow's planned work is the deployment switch to React/Vite. Do not claim React/Vite is live until verified after the switch).
 * Production and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 
 Backend:
@@ -438,63 +438,13 @@ Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and u
 
 ---
 
-## GitHub Update Discipline
+## GitHub and PR Workflow (Phase A/B Split)
 
-Antigravity (Agy) should minimize GitHub update interactions. The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
+All Agy operations follow the Chromebook / Agy Stability Rule (Phase A / Phase B split):
+- **Phase A (Agy/Model Execution)**: Agy edits files and performs local verification. Agy must NOT commit, push, or create/merge PRs. It writes its handoff to `~/Project/AI_HANDOFF.md` and runs `~/Project/bin/agy-handoff`.
+- **Phase B (Human/Terminal Execution)**: Committing, pushing, PR creation, and merging are manually performed by the human operator using terminal commands or the GitHub web UI. Agy does not automate these steps.
 
-Before any task requiring PR creation or auto-merge, follow the PR capability preflight rule in `docs/ACTIVE_CONTEXT.md`: verify intended `main` base, intended PR branch head, and GitHub auth / PR creation availability before editing files; for local/CLI workflows verify `origin`, but do not treat missing local `origin` as a universal Agy Cloud blocker. In Agy Cloud, a manual `Create PR` click requirement is normal PR-ready output, not a pre-implementation blocker; distinguish workspace commits/PR metadata from confirmed GitHub PRs, and report `PR not created; PR-ready only` until a PR URL/number exists. Otherwise stop with `blocked: PR creation unavailable` unless local-only or PR-ready output is explicitly approved.
-
-Before committing, pushing, or opening a PR:
-
-1. Inspect current repository state.
-2. Understand the full requested change.
-3. Plan the complete implementation.
-4. Make all related code changes locally.
-5. Run available verification.
-6. Review the complete diff.
-7. Push one coherent change set.
-8. Open one PR.
-
-Avoid repeated small pushes unless fixing review feedback or failed verification.
-
----
-
-## Auto-Merge Discipline
-
-Repository settings allow GitHub squash auto-merge into `main` when the required `static-checks` GitHub Actions check passes and branch rules are satisfied.
-
-Antigravity (Agy) may enable GitHub squash auto-merge only when all of the following are true:
-
-* The task explicitly authorizes auto-merge, or the task is clearly low-risk under the Minor Changes framework.
-* The PR targets `main`.
-* The PR uses squash merge.
-* Confidence is >=80%.
-* Required GitHub Actions checks pass.
-* The branch is up to date with `main`.
-* No merge conflicts exist.
-* All PR conversations are resolved.
-* The final diff has been reviewed once by Antigravity (Agy).
-* Changed files match the requested scope.
-* No restricted-risk area is touched.
-
-Restricted-risk areas must not be auto-merged unless the user explicitly approves auto-merge for that specific task. Restricted-risk areas include:
-
-* Schema changes
-* OAuth/session behavior
-* Worker auth/cookies
-* Sync/conflict handling
-* Google Sheet migration/recovery
-* CSV import/export/recovery
-* Deployment/routes/hosting
-* Cloudflare Worker replacement
-* Framework/build-system changes
-* Broad UI redesign
-* Destructive cleanup
-* Anything that could cause user-data loss
-
-When auto-merge is allowed, Antigravity (Agy) should enable GitHub squash auto-merge rather than direct-merging. Do not repeatedly poll checks. If checks are still pending, enable auto-merge if GitHub allows it, or report that checks are pending.
-
-When auto-merge is blocked, Antigravity (Agy) should leave the PR open and briefly report the blocker.
+GitHub Actions validation remains valuable for checking correctness on the remote repository. Squash auto-merge is optional and must be explicitly configured or initiated by the human operator, rather than being an automated default.
 
 ---
 
