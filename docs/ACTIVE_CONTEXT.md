@@ -70,11 +70,21 @@ For Terminal/Agy work, use a durable, token-efficient handoff model:
 - **AI Handoff local file**: `~/Project/AI_HANDOFF.md`
 - **AI Handoff GitHub issue**: Issue #200 "AI Handoff"
 - **Update helper**: `~/Project/bin/agy-handoff`
-- **Execution rule**: Agy writes `~/Project/AI_HANDOFF.md` at the end of each run, then runs `~/Project/bin/agy-handoff`.
-- **Initialization**: GPT reads Issue #200 first for the latest run state.
+- **Execution rule**: Every Agy run/call must end by writing `~/Project/AI_HANDOFF.md` and running `~/Project/bin/agy-handoff`.
+- **Initialization**: For Walmart-GC operational work, GPT must review GitHub Issue #200 "AI Handoff" (the live temporary handoff state between Agy/CLI, GPT, and GitHub) before responding with next-step advice, prompts, commit/merge guidance, audit conclusions, or workflow recommendations.
+- **Out-of-Sync Recovery**: If non-Agy terminal or GitHub actions materially change state after the latest handoff, update `~/Project/AI_HANDOFF.md` and sync Issue #200 before asking GPT for more next-step guidance.
 - **Log management**: Raw logs stay local in `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) and are used only for backup/debug/diagnostics.
-- **Durability**: Durable decisions belong in repo docs, not only in Issue #200.
-- Prefer `docs/MAINTENANCE_LOG.md` for dated durable result summaries (optional historical record, not mandatory default context).
-- Prefer `docs/ACTIVE_CONTEXT.md` for current operating state and short-lived-but-important project context.
+- **Durability & Cleanup Policy**:
+  - After each task, reassess whether the run created a durable decision and advise the user when durable repo docs should be updated.
+  - Issue #200 is live run-state only, not durable design authority. Durable decisions must be captured in repo docs (not Issue #200, AI_HANDOFF.md, chat history, or local logs).
+  - Recovered/stale docs must be removed, archived, or explicitly promoted to active docs.
+  - Routine cleanup follows workflow changes, recovered files, stale references, phase/milestone closures, or repeated AI confusion. Do not run after every tiny code change.
+  - Prefer `docs/MAINTENANCE_LOG.md` for dated durable summaries and `docs/ACTIVE_CONTEXT.md` for current operating state/short-lived context.
+- **Minimal GPT Review Checklist**:
+  - [ ] Did verification pass?
+  - [ ] Were only scoped files touched?
+  - [ ] Did this create a durable decision?
+  - [ ] Should stale docs/references be removed?
+  - [ ] Is Issue #200 only run-state, not source of truth?
 - Future GPT/Agy sessions must read `docs/ACTIVE_CONTEXT.md` before relying on chat memory.
 - Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs.
