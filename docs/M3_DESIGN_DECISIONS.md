@@ -62,10 +62,19 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 
 ### Out of Scope for Phase 2A (Unless explicitly authorized)
 * **Sync, OAuth, or data logic**
-* **CSV / storage / worker / package / vite / Tailwind config**
+* **CSV / storage / worker / package / vite / Tailwind config** (except for the approved narrow mapping exception below)
 * **Barcode generation**
 * **Broad Settings hierarchy implementation**
 * **Checkout scanner behavior overhaul**
+
+### Approved Tailwind Config Exception
+* **Narrow Mapping**: The user approved a narrow Tailwind config exception for semantic M3 token mapping:
+  - `tailwind.config.js` may map the existing `m3` color family to CSS custom properties.
+  - This exception does not authorize new dependencies, broad Tailwind config changes, package/build config changes, or design-system expansion.
+
+### Reference and Visual Review Rules
+* **Production Parity (Phase-12)**: Production `phase-12` may be used as a color-palette reference only, not layout/design authority.
+* **Checkout/Barcode/Notes Reviews**: Checkout/barcode/notes color-only changes must be reviewed visually before commit if they appear in an app-shell/Cards color pass.
 
 ---
 
@@ -81,8 +90,9 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 * **Surface Hierarchy**: Page background (slate-100 or default surface) acts as the base canvas. The metrics strip, toolbar controls, and individual card rows serve as the elevated surfaces.
 * **Desktop Centering**: Maintain a readable centered layout with bounded maximum width (`max-w-[60rem]`) on desktop views.
 
-### 3. Bottom Navigation
-* **M3 Navigation Bar**: Complete overhaul to implement a strict M3 Navigation Bar.
+### 3. Bottom Navigation and Header Visual Identity
+* **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill for distinct visual recognition.
+* **Top Header Visual Identity**: Header carries the primary container fill (`bg-m3-primary-container` and `text-m3-on-primary-container`) with custom properties referencing a production-inspired Walmart blue seed (#0071dc) to restore color identity while satisfying strict M3 semantic color roles.
 * **Current Scope**: Authorized under Phase 2A for full alignment with M3 spacing and layout.
 
 ### 4. Cards Rows: Strict M3 List-Item Model

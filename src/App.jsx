@@ -1040,13 +1040,13 @@ function App() {
   return (
     <>
       {/* Header Region */}
-      <header className="bg-gradient-to-br from-[#0b57d0] to-[#0842a0] text-white py-4 md:py-6 px-6 sm:px-8">
+      <header className="bg-m3-primary text-m3-on-primary border-b border-m3-outline-variant/60 py-4 md:py-6 px-6 sm:px-8">
         <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-m3-on-primary">
               Gift Card Manager
             </h1>
-            <p className="text-[10px] md:text-xs text-blue-100 font-medium tracking-wide uppercase mt-0.5">
+            <p className="text-[10px] md:text-xs text-m3-on-primary/80 font-semibold tracking-wide uppercase mt-0.5">
               Secure Local Gift Card Vault
             </p>
           </div>
@@ -1061,10 +1061,10 @@ function App() {
                   setActivePanel('settings');
                 }
               }}
-              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-sm backdrop-blur-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
                 activePanel === 'settings'
-                  ? 'bg-white text-[#0b57d0] border-white'
-                  : 'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50'
+                  ? 'bg-m3-on-primary text-m3-primary border-m3-on-primary'
+                  : 'border-m3-on-primary/30 bg-m3-primary hover:bg-m3-on-primary/10 text-m3-on-primary'
               }`}
               title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
               aria-label="Open settings"
@@ -1078,20 +1078,20 @@ function App() {
 
       {/* Navigation bar: mobile bottom fixed, desktop below header (static flow) */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 md:static md:bottom-auto flex border-t border-slate-200 md:border-t-0 md:border-b bg-white/95 backdrop-blur-md shadow-lg md:shadow-sm px-4 py-2 md:py-2 gap-2 w-full"
+        className="fixed bottom-0 left-0 right-0 z-40 md:static md:bottom-auto flex border-t border-m3-outline-variant md:border-t-0 md:border-b bg-m3-surface-container py-2 gap-2 w-full"
         aria-label="App sections"
       >
-        <div className="max-w-[60rem] mx-auto w-full flex gap-2">
+        <div className="max-w-[60rem] mx-auto w-full flex gap-2 px-4">
           <button
             id="nav-list"
             onClick={() => {
               setActivePanel('list');
               setPreviousPrimaryPanel('list');
             }}
-            className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+            className={`flex-1 text-center py-3 rounded-full font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
               activePanel === 'list'
-                ? 'bg-[#0b57d0] text-white shadow-sm'
-                : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50'
+                ? 'bg-m3-primary text-m3-on-primary shadow-sm'
+                : 'bg-m3-surface-container-lowest text-m3-on-surface hover:bg-m3-surface-container-low border border-transparent'
             }`}
           >
             Cards
@@ -1107,10 +1107,10 @@ function App() {
               }
             }}
             disabled={visibleIndexes.length === 0}
-            className={`flex-1 text-center py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+            className={`flex-1 text-center py-3 rounded-full font-bold text-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
               activePanel === 'detail'
-                ? 'bg-[#0b57d0] text-white shadow-sm'
-                : 'bg-transparent text-[#0842a0] hover:bg-[#e6f2ff]/50 disabled:opacity-50'
+                ? 'bg-m3-primary text-m3-on-primary shadow-sm'
+                : 'bg-m3-surface-container-lowest text-m3-on-surface hover:bg-m3-surface-container-low border border-transparent disabled:opacity-30'
             }`}
           >
             Checkout
@@ -1119,45 +1119,56 @@ function App() {
       </nav>
 
       <div 
-        className="min-h-screen bg-slate-100 flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative z-10"
+        className="min-h-screen bg-m3-surface flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative z-10"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
-        <div className="w-full bg-white rounded-[32px] shadow-xl border border-slate-200 overflow-hidden transition-all duration-300 max-w-[60rem]">
+        <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
           {activePanel === 'list' ? (
-            <main className="p-8 flex flex-col gap-6">
+            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6">
               
-              {/* Wallet Diagnostics / Balances Summary */}
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
+              {/* Wallet Diagnostics / Balances Summary (Metric Strip) */}
+              <section className="bg-m3-surface-container border border-m3-outline-variant rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Visible Balance</span>
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900">${activeBalance.toFixed(2)}</span>
-                  <span className="text-[10px] sm:text-xs text-slate-400">Total Wallet Assets: ${totalBalance.toFixed(2)}</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Available balance</span>
+                  <span className="text-2xl sm:text-3xl font-black text-m3-on-surface">${activeBalance.toFixed(2)}</span>
                 </div>
                 <div className="flex flex-col gap-1 text-right">
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Card Counts</span>
-                  <span className="text-xl sm:text-2xl font-black text-slate-800">{activeCount} / {totalCount}</span>
-                  <span className="text-[10px] sm:text-xs text-slate-400">displayed / registered</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Visible cards</span>
+                  <span className="text-xl sm:text-2xl font-black text-m3-on-surface">{activeCount}</span>
                 </div>
               </section>
 
               {/* Sync Status Banner */}
               {(() => {
                 const summary = getAppSyncSummaryState();
+
+                // M3 Status Labels
+                let syncLabel = summary.label;
+                if (syncLabel === "✓ Sync ready") {
+                  syncLabel = "Google sync on";
+                } else if (syncLabel === "Local only") {
+                  syncLabel = "Local only · Connect";
+                } else if (syncLabel === "Checking sync") {
+                  syncLabel = "Syncing…";
+                } else if (syncLabel === "Sync conflict" || syncLabel === "Sync unavailable") {
+                  syncLabel = "Sync issue";
+                }
+
                 return (
                   <div
                     id="checkout-feedback"
                     className={`p-3.5 rounded-2xl text-xs font-bold flex justify-between items-center transition-all ${
-                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/80' :
-                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-700 border border-amber-100/80' :
-                      ['conflict', 'unavailable'].includes(summary.key) ? 'bg-rose-50 text-rose-700 border border-rose-100/80' :
-                      'bg-slate-50 text-slate-600 border border-slate-100/80'
+                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                      ['conflict', 'unavailable'].includes(summary.key) ? 'bg-m3-error-container text-m3-error border border-m3-error' :
+                      'bg-m3-surface-container text-m3-on-surface border border-m3-outline-variant'
                     }`}
                     role="status"
                     aria-live="polite"
                     data-sync-summary={summary.key}
                   >
-                    <span>{summary.label}</span>
+                    <span>{syncLabel}</span>
                     {summary.help && <span className="text-[10px] opacity-80">{summary.help}</span>}
                   </div>
                 );
@@ -1166,11 +1177,11 @@ function App() {
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">
                 <div className="flex justify-between items-center px-1">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vault Inventory</h3>
+                  <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Cards</h3>
                   <select
                     value={settings.sortMode}
                     onChange={handleSortChange}
-                    className="text-xs font-bold border border-slate-200 rounded-xl p-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b57d0] cursor-pointer"
+                    className="text-xs font-bold border border-m3-outline rounded-xl p-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer"
                   >
                     <option value="balance-asc">Balance: Low to High</option>
                     <option value="balance-desc">Balance: High to Low</option>
@@ -1183,10 +1194,10 @@ function App() {
                 </div>
                 <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
                   {cards.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-2xl flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
-                        <h4 className="text-sm font-bold text-slate-800">No gift cards yet</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed">
+                        <h4 className="text-sm font-bold text-m3-on-surface">No gift cards yet</h4>
+                        <p className="text-xs text-m3-on-surface-variant leading-relaxed">
                           Add your Walmart gift cards to get started. Checkout and barcode scan views will become available once you have cards registered.
                         </p>
                       </div>
@@ -1195,7 +1206,7 @@ function App() {
                           <button
                             id="empty-state-connect-google"
                             onClick={handleConnectGoogle}
-                            className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                            className="flex-1 bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-full transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                             type="button"
                           >
                             Connect Google
@@ -1204,7 +1215,7 @@ function App() {
                         <button
                           id="empty-state-import-csv"
                           onClick={() => document.getElementById('csv-file-input').click()}
-                          className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          className="flex-1 bg-m3-surface hover:bg-m3-surface-container text-m3-on-surface text-xs font-bold py-3 px-4 rounded-full border border-m3-outline transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                           type="button"
                         >
                           ↓ Import CSV
@@ -1212,24 +1223,24 @@ function App() {
                       </div>
                     </div>
                   ) : visibleIndexes.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-2xl flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
-                        <span className="text-sm font-bold text-slate-800">All registered cards are filtered out</span>
-                        <p className="text-xs text-slate-500 leading-relaxed">
+                        <span className="text-sm font-bold text-m3-on-surface">All registered cards are filtered out</span>
+                        <p className="text-xs text-m3-on-surface-variant leading-relaxed">
                           Your settings are currently hiding all {cards.length} card{cards.length === 1 ? "" : "s"}. Reset filters or adjust them in settings to show cards.
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center mt-1">
                         <button
                           onClick={handleResetFilters}
-                          className="flex-1 bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3 px-4 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          className="flex-1 bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-full transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary"
                           type="button"
                         >
                           Reset Filters
                         </button>
                         <button
                           onClick={() => setActivePanel('settings')}
-                          className="flex-1 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          className="flex-1 bg-m3-surface hover:bg-m3-surface-container text-m3-on-surface text-xs font-bold py-3 px-4 rounded-full border border-m3-outline transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary"
                           type="button"
                         >
                           Go to Settings
@@ -1247,27 +1258,27 @@ function App() {
                             setSelectedCardIndex(cardIndex);
                             setActivePanel('detail');
                           }}
-                          className={`flex items-center justify-between p-3.5 bg-white rounded-2xl border transition-all gap-4 cursor-pointer ${
+                          className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all gap-4 cursor-pointer min-h-[48px] ${
                             isSelected
-                              ? 'border-[#0b57d0]/30 ring-1 ring-[#0b57d0]/10 bg-[#0b57d0]/5'
+                              ? 'border-m3-outline bg-m3-primary-container text-m3-on-primary-container'
                               : card.used
-                                ? 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400'
-                                : 'border-slate-200 hover:border-blue-300 shadow-sm'
+                                ? 'border-m3-outline-variant bg-m3-surface-container-low text-m3-on-surface-variant hover:border-m3-outline'
+                                : 'border-m3-outline-variant bg-m3-surface-container-lowest text-m3-on-surface hover:border-m3-primary'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className={`font-mono text-sm font-bold ${card.used ? 'text-slate-500 line-through decoration-slate-400' : 'text-slate-800'}`}>
+                            <span className={`font-mono text-sm font-bold ${card.used ? 'line-through decoration-m3-on-surface-variant' : ''}`}>
                               {maskCardNumber(card.cardNumber)}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-3">
                             {card.used && (
-                              <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase border border-slate-300">
+                              <span className="text-[10px] font-bold bg-m3-surface-container-low text-m3-on-surface-variant px-2 py-0.5 rounded uppercase border border-m3-outline-variant">
                                 Used
                               </span>
                             )}
-                            <span className={`text-sm font-extrabold ${card.used ? 'text-slate-500 font-semibold' : 'text-slate-900'}`}>
+                            <span className={`text-sm font-bold font-mono`}>
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
@@ -1283,11 +1294,11 @@ function App() {
             <main className="p-8 flex flex-col gap-6">
               
               {/* Local Settings / Filtering Controls */}
-              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preferences</h3>
+              <section className="bg-m3-surface border border-m3-outline-variant rounded-2xl p-6 flex flex-col gap-4">
+                <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Preferences</h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
                     <span>Hide Used Cards</span>
                     <div className="relative w-[52px] h-[32px] shrink-0">
                       <input
@@ -1670,21 +1681,21 @@ function App() {
                       <button
                         id="barcode-open"
                         onClick={() => setIsFullscreenBarcode(true)}
-                        className="bg-white border border-slate-200/60 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm min-h-[140px] cursor-pointer hover:border-blue-300 transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="bg-m3-surface-container border border-m3-outline-variant rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] cursor-pointer hover:border-m3-primary transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         title="Tapping opens full-screen barcode focus mode"
                       >
-                        <div className="flex justify-between items-center w-full border-b border-slate-100/60 pb-2">
-                          <span id="detail-barcode-status" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
+                          <span id="detail-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
                             {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                           </span>
-                          <strong id="detail-barcode-balance" className="text-lg font-black text-slate-900">
+                          <strong id="detail-barcode-balance" className="text-lg font-black text-m3-on-surface font-mono">
                             ${selectedCard.currentBalance.toFixed(2)}
                           </strong>
                         </div>
                         
                         {barcodeData ? (
                           <div className="flex flex-col items-center gap-2 w-full pt-2">
-                            <div className="w-full bg-white border border-slate-100/60 p-2 rounded-2xl">
+                            <div className="w-full bg-white border border-m3-outline-variant p-2 rounded-2xl">
                               <svg
                                 viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                 preserveAspectRatio="none"
@@ -1700,24 +1711,24 @@ function App() {
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-1 border border-slate-100/50 bg-slate-50/30 rounded-2xl p-4 w-full text-center">
-                            <span className="text-sm text-red-600 font-bold">
+                          <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-2xl p-4 w-full text-center">
+                            <span className="text-sm text-m3-error font-bold">
                               {getBarcodeFallbackMessage(selectedCard)}
                             </span>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-[10px] text-m3-on-surface-variant">
                               Card number and PIN remain available below.
                             </span>
                           </div>
                         )}
 
-                        <div className="flex justify-between items-center w-full border-t border-slate-100/60 pt-2 text-xs font-bold text-slate-500">
+                        <div className="flex justify-between items-center w-full border-t border-m3-outline-variant pt-2 text-xs font-bold text-m3-on-surface-variant">
                           <span
                             id="detail-barcode-caption"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRevealNumber(!revealNumber);
                             }}
-                            className="font-mono cursor-pointer hover:text-blue-600"
+                            className="font-mono cursor-pointer hover:text-m3-primary"
                             title="Click to reveal/hide card number"
                           >
                             {revealNumber
@@ -1725,7 +1736,7 @@ function App() {
                               : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
                             }
                           </span>
-                          <strong id="detail-barcode-pin">
+                          <strong id="detail-barcode-pin" className="font-mono">
                             PIN {selectedCard.pin}
                           </strong>
                         </div>
@@ -1741,7 +1752,7 @@ function App() {
                         setOpenedFromBarcodeFocus(false);
                         handleOpenBalanceEdit(selectedCard.currentBalance);
                       }}
-                      className="w-full bg-white hover:bg-slate-100 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="w-full bg-m3-surface hover:bg-m3-surface-container text-m3-primary text-xs font-bold py-4 rounded-full border border-m3-outline transition-all active:scale-95 shadow-none cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                     >
                       Update Balance
                     </button>
@@ -1749,10 +1760,10 @@ function App() {
                     <button
                       id="mark-used"
                       onClick={() => handleToggleUsed(selectedCardIndex)}
-                      className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+                      className={`w-full font-bold py-4 rounded-full transition-all shadow-none text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
                         selectedCard.used
-                          ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                          : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
+                          ? 'bg-m3-surface-container-low hover:bg-m3-surface-container text-m3-on-surface-variant border border-m3-outline-variant'
+                          : 'bg-m3-primary hover:bg-m3-primary/95 text-m3-on-primary'
                       }`}
                       type="button"
                     >
@@ -1761,16 +1772,16 @@ function App() {
                   </div>
 
                   {/* Add note row */}
-                  <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
+                  <div className="bg-m3-surface-container border border-m3-outline-variant rounded-2xl p-4 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
+                      <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Notes</span>
                       {!isEditingNotes && (
                         <button
                           onClick={() => {
                             setNewNotesValue(selectedCard.notes || "");
                             setIsEditingNotes(true);
                           }}
-                          className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded-sm"
+                          className="text-xs font-bold text-m3-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded-sm"
                           type="button"
                         >
                           {selectedCard.notes ? "Edit" : "Add Note"}
@@ -1783,7 +1794,7 @@ function App() {
                         <textarea
                           value={newNotesValue}
                           onChange={e => setNewNotesValue(e.target.value)}
-                          className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:bg-white focus:outline-none transition-all duration-200 min-h-[80px]"
+                          className="w-full text-sm bg-m3-surface border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none transition-all duration-200 min-h-[80px]"
                           placeholder="Add card notes..."
                         />
                         <div className="flex gap-2 justify-end">
@@ -1802,14 +1813,14 @@ function App() {
                               saveCards(updatedCards);
                               setIsEditingNotes(false);
                             }}
-                            className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                            className="bg-m3-primary hover:bg-m3-primary/95 text-m3-on-primary font-bold px-4 py-2.5 rounded-full text-xs transition-all shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                             type="button"
                           >
                             Save Notes
                           </button>
                           <button
                             onClick={() => setIsEditingNotes(false)}
-                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                            className="bg-m3-surface-container-low hover:bg-m3-surface-container text-m3-on-surface-variant border border-m3-outline-variant font-bold px-4 py-2.5 rounded-full text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                             type="button"
                           >
                             Cancel
@@ -1817,8 +1828,8 @@ function App() {
                         </div>
                       </div>
                     ) : (
-                      <p id="detail-notes" className="text-sm text-slate-600 leading-relaxed font-medium">
-                        {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
+                      <p id="detail-notes" className="text-sm text-m3-on-surface leading-relaxed font-medium">
+                        {selectedCard.notes || <span className="text-m3-on-surface-variant italic">No notes added to this card.</span>}
                       </p>
                     )}
                   </div>
@@ -1826,14 +1837,14 @@ function App() {
                   {/* Back to Inventory Button */}
                   <button
                     onClick={() => setActivePanel('list')}
-                    className="w-full bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-6 rounded-full border border-slate-200/50 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                    className="w-full bg-m3-surface hover:bg-m3-surface-container text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-6 rounded-full border border-m3-outline transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   >
                     Back to Inventory
                   </button>
 
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-200 rounded-3xl w-full">
+                <div className="text-center py-12 text-m3-on-surface-variant font-semibold bg-m3-surface-container border border-dashed border-m3-outline-variant rounded-3xl w-full">
                   No card selected. Select a card from the inventory list first.
                 </div>
               )}
