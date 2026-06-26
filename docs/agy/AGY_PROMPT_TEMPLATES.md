@@ -6,6 +6,9 @@ Scope: Walmart-GC GPT to agy handoff prompts
 
 Use these templates when GPT hands off bounded repo work to agy CLI. Agy does not have ChatGPT context, so each prompt must be self-contained.
 
+## Instructions Formatting Default
+GPT instructions for executing these prompts should normally be provided as a single copy/paste terminal block. This block should write the prompt text to `/tmp/prompt.txt`, run agy redirecting to a local task log, and run verification command(s), relying on Issue #200 for follow-up review. Avoid asking the user to paste back output unless the sync fails, Issue #200 is stale, or local failure details are needed. This remains a practical default rather than an absolute rule.
+
 ## Milestone implementation batch
 
 ```text

@@ -71,6 +71,7 @@ For Terminal/Agy work, use a durable, token-efficient handoff model:
 - **AI Handoff GitHub issue**: Issue #200 "AI Handoff"
 - **Update helper**: `~/Project/bin/agy-handoff`
 - **Execution rule**: Every Agy run/call must end by writing `~/Project/AI_HANDOFF.md` and running `~/Project/bin/agy-handoff`.
+- **Single Executable Block Default**: GPT terminal instructions for Agy tasks should normally be provided as a single copy/paste terminal block (that writes the prompt, runs Agy, captures logs, and prints compact verification/log tail) rather than split across separate run and paste-back/check-output blocks. GPT should rely on Issue #200 for follow-up review instead of asking the user to paste output back. Paste-back instructions should only be used if sync fails, Issue #200 is stale/unavailable, or local-only failure details are needed. This is a practical default, not an absolute rule.
 - **Initialization**: For Walmart-GC operational work, GPT must review GitHub Issue #200 "AI Handoff" (the live temporary handoff state between Agy/CLI, GPT, and GitHub) before responding with next-step advice, prompts, commit/merge guidance, audit conclusions, or workflow recommendations.
 - **Out-of-Sync Recovery**: If non-Agy terminal or GitHub actions materially change state after the latest handoff, update `~/Project/AI_HANDOFF.md` and sync Issue #200 before asking GPT for more next-step guidance.
 - **Log management**: Raw logs stay local in `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) and are used only for backup/debug/diagnostics.

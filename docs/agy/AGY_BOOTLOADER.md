@@ -16,9 +16,9 @@ Role split:
 Default local command shape:
 - Load Node through nvm.
 - For Walmart-GC operational work, GPT must review GitHub Issue #200 "AI Handoff" (the live temporary run state) before responding.
-- Write the full prompt to /tmp/prompt.txt.
-- Run agy in foreground print mode.
-- Redirect output to `~/Project/<task>.log` (raw logs stay local in `~/Project/*.log` for backup/debug/diagnostics).
+- Provide instructions as a single copy/paste terminal block: write the full prompt to /tmp/prompt.txt, run agy in foreground print mode redirecting output to `~/Project/<task>.log`, and run compact verification (e.g. `npm run build`, `git diff --check`, `git status --short`).
+- Avoid splitting instructions into separate run + paste-back/check-output blocks. Rely on Issue #200 for follow-up review.
+- Ask the user to paste terminal output back only if the handoff sync fails, Issue #200 is stale/unavailable, or local-only failure details are needed. Keep this as a practical default, not an absolute rule.
 - Do not background agy or use setsid.
 
 Required verification:

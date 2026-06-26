@@ -9,7 +9,7 @@ For any Agy/model-assisted task or broad repo cleanup, split work into two phase
 - Phase A may use Agy/model execution and may edit files, but it must stop after compact verification and writing handoff to `~/Project/AI_HANDOFF.md` (syncing to GitHub Issue #200 via `~/Project/bin/agy-handoff`); it must not commit or push.
 - Phase B must be finish-only: no Agy/model execution, no broad edits, verify branch, changed-file allowlist, protected files, and `git diff --check`, then commit/push only if checks pass.
 
-Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact; write raw logs local to `~/Project/*.log`.
+Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact; write raw logs local to `~/Project/*.log`. GPT terminal instructions for Agy tasks should normally be provided as a single copy/paste executable block (writing prompt, running Agy, capturing logs, and running verification) that relies on Issue #200 sync, rather than separate blocks prompting the user to paste output back. Paste-back is a fallback if sync fails or local details are needed.
 
 
 Start with `docs/ACTIVE_CONTEXT.md` for compact current context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
