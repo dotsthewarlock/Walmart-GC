@@ -74,7 +74,7 @@ For Terminal/Agy work, use a durable, token-efficient handoff model:
 - **Initialization**: GPT reads Issue #200 first for the latest run state.
 - **Log management**: Raw logs stay local in `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) and are used only for backup/debug/diagnostics.
 - **Durability**: Durable decisions belong in repo docs, not only in Issue #200.
-- Prefer `docs/MAINTENANCE_LOG.md` for dated durable result summaries.
+- Prefer `docs/MAINTENANCE_LOG.md` for dated durable result summaries (optional historical record, not mandatory default context).
 - Prefer `docs/ACTIVE_CONTEXT.md` for current operating state and short-lived-but-important project context.
-- Future GPT/Agy sessions must read `docs/ACTIVE_CONTEXT.md` and recent `docs/MAINTENANCE_LOG.md` entries before relying on chat memory.
+- Future GPT/Agy sessions must read `docs/ACTIVE_CONTEXT.md` before relying on chat memory.
 - Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs.

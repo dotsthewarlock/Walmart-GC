@@ -64,7 +64,7 @@ Garbage-collection triggers:
 - Source: Terminal crash recovery after interrupted post-soak docs cleanup.
 - Status: Resolved on 2026-06-24.
 - Decision: Agy/model-assisted tasks and broad repo cleanup must split edit/verify/handoff from commit/push.
-- Effect: Future Phase A batches may use Agy and write files but must stop after compact verification and `~/Project/wgc-handoff.md`; Phase B batches must be finish-only, with no Agy/model execution, and must verify branch, changed-file allowlist, protected files, and `git diff --check` before commit/push.
+- Effect: Future Phase A batches may use Agy and write files but must stop after compact verification and `~/Project/AI_HANDOFF.md`; Phase B batches must be finish-only, with no Agy/model execution, and must verify branch, changed-file allowlist, protected files, and `git diff --check` before commit/push.
 
 
 ### P2 / Low / Hygiene: Post-soak docs-only cleanup after React/Vite migration stability

@@ -19,14 +19,14 @@ I will view `docs/ARCHITECTURE.md` to ensure our audit findings align with the a
 I will write the UX architecture audit findings to `docs/WGC_UX_ARCHITECTURE_AUDIT.md`.
 I will write the audit file to the project's `docs/` directory without the artifact metadata parameter.
 I will also write the audit file copy to `/home/godfreymiu/Project/WGC_UX_ARCHITECTURE_AUDIT.md`.
-I will write a short handoff log in `/home/godfreymiu/Project/wgc-handoff.md` to document the completed Phase A of the audit task.
+I will write a short handoff log in `/home/godfreymiu/Project/AI_HANDOFF.md` to document the completed Phase A of the audit task.
 I will run a quick verification command to check the git status and ensure no implementation code was modified.
 I have completed the UX architecture audit of the Walmart-GC application. The findings have been written to the following locations:
 
 1. [docs/WGC_UX_ARCHITECTURE_AUDIT.md](file:///home/godfreymiu/Walmart-GC/docs/WGC_UX_ARCHITECTURE_AUDIT.md)
 2. [/home/godfreymiu/Project/WGC_UX_ARCHITECTURE_AUDIT.md](file:///home/godfreymiu/Project/WGC_UX_ARCHITECTURE_AUDIT.md)
 
-Additionally, I created the required Chromebook-safety handoff file at [/home/godfreymiu/Project/wgc-handoff.md](file:///home/godfreymiu/Project/wgc-handoff.md).
+Additionally, I created the required Chromebook-safety handoff file at [/home/godfreymiu/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md).
 
 No implementation code changes were made to any repository files, in strict adherence to the instructions.
 
