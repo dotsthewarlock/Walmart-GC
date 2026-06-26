@@ -6,10 +6,10 @@
 
 For any Agy/model-assisted task or broad repo cleanup, split work into two phases:
 
-- Phase A may use Agy/model execution and may edit files, but it must stop after compact verification and `~/Project/wgc-handoff.md`; it must not commit or push.
+- Phase A may use Agy/model execution and may edit files, but it must stop after compact verification and writing handoff to `~/Project/AI_HANDOFF.md` (syncing to GitHub Issue #200 via `~/Project/bin/agy-handoff`); it must not commit or push.
 - Phase B must be finish-only: no Agy/model execution, no broad edits, verify branch, changed-file allowlist, protected files, and `git diff --check`, then commit/push only if checks pass.
 
-Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact; write raw logs to `/tmp/wgc/*`.
+Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact; write raw logs local to `~/Project/*.log`.
 
 
 Start with `docs/ACTIVE_CONTEXT.md` for compact current context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.

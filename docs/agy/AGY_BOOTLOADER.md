@@ -15,7 +15,7 @@ Role split:
 
 Default local command shape:
 - Load Node through nvm.
-- GPT reads GitHub Issue #200 first for the latest run state.
+- For Walmart-GC operational work, GPT must review GitHub Issue #200 "AI Handoff" (the live temporary run state) before responding.
 - Write the full prompt to /tmp/prompt.txt.
 - Run agy in foreground print mode.
 - Redirect output to `~/Project/<task>.log` (raw logs stay local in `~/Project/*.log` for backup/debug/diagnostics).
@@ -39,10 +39,21 @@ Do not use:
 - dependency/framework/config changes unless explicitly scoped
 
 Durable AI Handoff Workflow:
-- At the end of each run, agy writes the final handoff to the local file: `~/Project/AI_HANDOFF.md`
-- Once written, agy runs the update helper script: `~/Project/bin/agy-handoff` to update GitHub Issue #200 "AI Handoff".
-- Raw logs stay local in `~/Project/*.log` and are only for backup/debug.
-- Durable decisions must be committed to repo docs (e.g. `docs/ACTIVE_CONTEXT.md`), not only captured in Issue #200.
+- For Walmart-GC operational work, GPT must review GitHub Issue #200 "AI Handoff" (the live temporary handoff state between Agy/CLI, GPT, and GitHub) before responding with next-step advice, prompts, commit/merge guidance, audit conclusions, or workflow recommendations.
+- Every Agy run/call must end by writing the final handoff to the local file `~/Project/AI_HANDOFF.md` and running the update helper script `~/Project/bin/agy-handoff` to sync to GitHub Issue #200.
+- If non-Agy terminal or GitHub actions materially change state after the latest handoff, update `~/Project/AI_HANDOFF.md` and sync Issue #200 before asking GPT for more next-step guidance.
+- Raw logs stay local in `~/Project/*.log` and are only for backup/debug/diagnostics.
+- **Durability & Cleanup**:
+  - After each task, reassess whether the run created a durable decision and advise the user when durable repo docs should be updated.
+  - Issue #200 is live run-state only, not durable design authority. Durable decisions must be captured in repo docs (not Issue #200, AI_HANDOFF.md, chat, or local logs).
+  - Recovered/stale docs must be removed, archived, or explicitly promoted to active docs.
+  - Routine cleanup of recovered/stale docs/references should follow workflow changes, recovered files, phase closures, or repeated AI confusion (not for tiny code changes).
+- **Minimal GPT Review Checklist**:
+  1. Did verification pass?
+  2. Were only scoped files touched?
+  3. Did this create a durable decision?
+  4. Should stale docs/references be removed?
+  5. Is Issue #200 only run-state, not source of truth?
 
 Handoff contents must include:
 - files changed
