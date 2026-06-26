@@ -25,6 +25,11 @@
 
   --md-sys-color-error: #ba1a1a;
   --md-sys-color-error-container: #ffdad6;
+
+  --md-sys-color-success-container: #d1e7dd;
+  --md-sys-color-on-success-container: #0f5132;
+  --md-sys-color-warning-container: #fff3cd;
+  --md-sys-color-on-warning-container: #664d03;
 }
 
 body {

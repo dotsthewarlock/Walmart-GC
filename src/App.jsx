@@ -21,7 +21,7 @@ function maskCardNumber(cardNumber) {
 
 function App() {
   const mainTouchStart = useRef(null);
-  const barcodeModalTouchStart = useRef(null);
+  const barcodeFocusTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [settings, setSettings] = useState({
     advanceOnMarkUsed: true,
@@ -50,7 +50,7 @@ function App() {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [newNotesValue, setNewNotesValue] = useState("");
 
-  const [isFullscreenBarcode, setIsFullscreenBarcode] = useState(false);
+  const [isBarcodeFocusOpen, setIsBarcodeFocusOpen] = useState(false);
   const [wakeLock, setWakeLock] = useState(null);
 
   // Raw CSV Editor Modal and backup states
@@ -103,7 +103,7 @@ function App() {
     if (isChecking) {
       return {
         key: "checking",
-        label: "Checking sync",
+        label: "Syncing…",
         help: "Local cards stay available",
       };
     }
@@ -111,7 +111,7 @@ function App() {
     if (syncState.status === syncStatuses.conflict || directSheetsState.status === directSheetsStatuses.conflict) {
       return {
         key: "conflict",
-        label: "Sync conflict",
+        label: "Sync issue",
         help: "Open backup and sync",
       };
     }
@@ -121,7 +121,7 @@ function App() {
     if (navigator.onLine === false || oauthState.status === googleOAuthStatuses.error || directSheetsState.status === directSheetsStatuses.error) {
       return {
         key: "unavailable",
-        label: "Sync unavailable",
+        label: "Sync issue",
         help: hasPendingLocalChanges ? "Open backup and sync" : "Local cards available",
       };
     }
@@ -129,7 +129,7 @@ function App() {
     if (hasPendingLocalChanges || (syncState.status === syncStatuses.unsynced && oauthState.status === googleOAuthStatuses.connected)) {
       return {
         key: "unsynced",
-        label: "Unsynced changes",
+        label: "Sync issue",
         help: "Open backup and sync",
       };
     }
@@ -137,14 +137,14 @@ function App() {
     if (oauthState.status === googleOAuthStatuses.connected && directSheetsState.status === directSheetsStatuses.ready) {
       return {
         key: "connected",
-        label: "✓ Sync ready",
+        label: "Google sync on",
         help: "",
       };
     }
 
     return {
       key: "local-only",
-      label: "Local only",
+      label: "Local only · Connect",
       help: "Connect in backup and sync",
     };
   };
@@ -152,22 +152,22 @@ function App() {
 
 
 
-  // Handle escape key listener for barcode modal
+  // Handle escape key listener for barcode focus overlay
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape" && !isEditingBalance) {
-        setIsFullscreenBarcode(false);
+        setIsBarcodeFocusOpen(false);
       }
     };
     
-    if (isFullscreenBarcode) {
+    if (isBarcodeFocusOpen) {
       window.addEventListener("keydown", handleKeyDown);
     }
     
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isFullscreenBarcode, isEditingBalance]);
+  }, [isBarcodeFocusOpen, isEditingBalance]);
 
   // Handle escape key listener for balance modal
   useEffect(() => {
@@ -190,7 +190,7 @@ function App() {
   useEffect(() => {
     let activeLock = null;
     async function requestLock() {
-      if ("wakeLock" in navigator && isFullscreenBarcode) {
+      if ("wakeLock" in navigator && isBarcodeFocusOpen) {
         try {
           activeLock = await navigator.wakeLock.request("screen");
           setWakeLock(activeLock);
@@ -200,7 +200,7 @@ function App() {
       }
     }
     
-    if (isFullscreenBarcode) {
+    if (isBarcodeFocusOpen) {
       requestLock();
     } else {
       if (wakeLock) {
@@ -214,7 +214,7 @@ function App() {
         activeLock.release().catch(() => {});
       }
     };
-  }, [isFullscreenBarcode]);
+  }, [isBarcodeFocusOpen]);
 
   // Refresh Worker Session Status
   const refreshWorkerSessionStatus = async (options = {}) => {
@@ -430,7 +430,7 @@ function App() {
 
   // Touch Swiping for Page Navigation (Cards <-> Checkout)
   const handleMainTouchStart = (event) => {
-    if (isFullscreenBarcode || isRawDataModalOpen || isEditingBalance || isEditingNotes) {
+    if (isBarcodeFocusOpen || isRawDataModalOpen || isEditingBalance || isEditingNotes) {
       mainTouchStart.current = null;
       return;
     }
@@ -474,28 +474,28 @@ function App() {
     }
   };
 
-  const handleBarcodeTouchStart = (event) => {
+  const handleBarcodeFocusTouchStart = (event) => {
     if (event.touches.length !== 1 || isEditingBalance || isEditingNotes) {
-      barcodeModalTouchStart.current = null;
+      barcodeFocusTouchStart.current = null;
       return;
     }
     const target = event.target;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-      barcodeModalTouchStart.current = null;
+      barcodeFocusTouchStart.current = null;
       return;
     }
-    barcodeModalTouchStart.current = {
+    barcodeFocusTouchStart.current = {
       x: event.touches[0].clientX,
       y: event.touches[0].clientY,
     };
   };
 
-  const handleBarcodeTouchEnd = (event) => {
-    if (!barcodeModalTouchStart.current) return;
+  const handleBarcodeFocusTouchEnd = (event) => {
+    if (!barcodeFocusTouchStart.current) return;
     const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - barcodeModalTouchStart.current.x;
-    const deltaY = touch.clientY - barcodeModalTouchStart.current.y;
-    barcodeModalTouchStart.current = null;
+    const deltaX = touch.clientX - barcodeFocusTouchStart.current.x;
+    const deltaY = touch.clientY - barcodeFocusTouchStart.current.y;
+    barcodeFocusTouchStart.current = null;
 
     if (Math.abs(deltaX) < 120 || Math.abs(deltaY) > 70 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
       return;
@@ -562,7 +562,7 @@ function App() {
     saveCards(updatedCards);
     setIsEditingBalance(false);
     if (openedFromBarcodeFocus) {
-      setIsFullscreenBarcode(false);
+      setIsBarcodeFocusOpen(false);
     }
     setOpenedFromBarcodeFocus(false);
   };
@@ -1145,9 +1145,7 @@ function App() {
 
                 // M3 Status Labels
                 let syncLabel = summary.label;
-                if (syncLabel === "✓ Sync ready") {
-                  syncLabel = "Google sync on";
-                } else if (syncLabel === "Local only") {
+                if (syncLabel === "Local only") {
                   syncLabel = "Local only · Connect";
                 } else if (syncLabel === "Checking sync") {
                   syncLabel = "Syncing…";
@@ -1159,8 +1157,8 @@ function App() {
                   <div
                     id="checkout-feedback"
                     className={`p-3.5 rounded-2xl text-xs font-bold flex justify-between items-center transition-all ${
-                      summary.key === 'connected' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                      summary.key === 'connected' ? 'bg-m3-success-container text-m3-on-success-container border border-m3-outline-variant/30' :
+                      ['unsynced', 'checking'].includes(summary.key) ? 'bg-m3-warning-container text-m3-on-warning-container border border-m3-outline-variant/30' :
                       ['conflict', 'unavailable'].includes(summary.key) ? 'bg-m3-error-container text-m3-error border border-m3-error' :
                       'bg-m3-surface-container text-m3-on-surface border border-m3-outline-variant'
                     }`}
@@ -1288,13 +1286,12 @@ function App() {
                   )}
                 </div>
               </section>
-
-            </main>
+                      </main>
           ) : activePanel === 'settings' ? (
             <main className="p-8 flex flex-col gap-6">
               
               {/* Local Settings / Filtering Controls */}
-              <section className="bg-m3-surface border border-m3-outline-variant rounded-2xl p-6 flex flex-col gap-4">
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Preferences</h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1307,12 +1304,12 @@ function App() {
                         onChange={() => handleToggleSetting('hideUsedCards')}
                         className="sr-only peer"
                       />
-                      <div className="w-full h-full bg-[#e3e2e6] border-2 border-[#79747e] rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#0b57d0] peer-focus-visible:ring-offset-2 peer-checked:bg-[#0b57d0] peer-checked:border-[#0b57d0]"></div>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-[#79747e] rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-white peer-checked:left-[4px]"></div>
+                      <div className="w-full h-full bg-m3-outline-variant/30 border-2 border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-m3-on-primary peer-checked:left-[4px]"></div>
                     </div>
                   </label>
 
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
                     <span>Hide $0 Cards</span>
                     <div className="relative w-[52px] h-[32px] shrink-0">
                       <input
@@ -1321,12 +1318,12 @@ function App() {
                         onChange={() => handleToggleSetting('hideZeroBalanceCards')}
                         className="sr-only peer"
                       />
-                      <div className="w-full h-full bg-[#e3e2e6] border-2 border-[#79747e] rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#0b57d0] peer-focus-visible:ring-offset-2 peer-checked:bg-[#0b57d0] peer-checked:border-[#0b57d0]"></div>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-[#79747e] rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-white peer-checked:left-[4px]"></div>
+                      <div className="w-full h-full bg-m3-outline-variant/30 border-2 border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-m3-on-primary peer-checked:left-[4px]"></div>
                     </div>
                   </label>
 
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 cursor-pointer min-h-[48px] py-2 px-3 hover:bg-slate-50 rounded-xl transition-colors">
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
                     <span>Auto-Advance</span>
                     <div className="relative w-[52px] h-[32px] shrink-0">
                       <input
@@ -1335,8 +1332,8 @@ function App() {
                         onChange={() => handleToggleSetting('advanceOnMarkUsed')}
                         className="sr-only peer"
                       />
-                      <div className="w-full h-full bg-[#e3e2e6] border-2 border-[#79747e] rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#0b57d0] peer-focus-visible:ring-offset-2 peer-checked:bg-[#0b57d0] peer-checked:border-[#0b57d0]"></div>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-[#79747e] rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-white peer-checked:left-[4px]"></div>
+                      <div className="w-full h-full bg-m3-outline-variant/30 border-2 border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-m3-on-primary peer-checked:left-[4px]"></div>
                     </div>
                   </label>
 
@@ -1344,22 +1341,22 @@ function App() {
                     <button
                       id="mark-zero-used"
                       onClick={handleMarkZeroBalanceUsed}
-                      className="w-full sm:col-span-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl p-3.5 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="w-full sm:col-span-2 text-xs font-bold bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 rounded-xl p-3.5 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                       type="button"
                     >
                       <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
-                      <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
+                      <span className="bg-m3-surface-container-low text-m3-on-surface px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
                     </button>
                   )}
                 </div>
               </section>
 
               {/* Google Sync Connection Panel */}
-              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Google Synchronization</h3>
-                    <p className="text-xs text-slate-600 mt-1 font-medium">
+                    <h3 className="text-xs font-bold text-m3-outline uppercase tracking-wider">Google Synchronization</h3>
+                    <p className="text-xs text-m3-on-surface-variant mt-1 font-medium">
                       {oauthState.status === googleOAuthStatuses.connected 
                         ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}` 
                         : oauthState.message
@@ -1371,7 +1368,7 @@ function App() {
                     <button 
                       id="disconnect-google"
                       onClick={handleDisconnectGoogle}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-3.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold px-4 py-3.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                       type="button"
                     >
                       Disconnect
@@ -1380,7 +1377,7 @@ function App() {
                     <button 
                       id="connect-google"
                       onClick={handleConnectGoogle}
-                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold px-4 py-3.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold px-4 py-3.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                       type="button"
                     >
                       Connect Google
@@ -1389,8 +1386,8 @@ function App() {
                 </div>
 
                 {oauthState.status === googleOAuthStatuses.connected && (
-                  <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-slate-100">
-                    <p id="direct-sheet-status" className="text-xs font-semibold text-slate-600">
+                  <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-m3-outline-variant/30">
+                    <p id="direct-sheet-status" className="text-xs font-semibold text-m3-on-surface-variant">
                       {directSheetsState.message}
                     </p>
                     
@@ -1398,7 +1395,7 @@ function App() {
                       <button
                         id="ensure-sheet"
                         onClick={handleEnsureSheet}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                       >
                         Fix Google Sheet
@@ -1409,7 +1406,7 @@ function App() {
                           href={directSheetsState.spreadsheetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                          className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         >
                           Open Sheet
                         </a>
@@ -1417,7 +1414,7 @@ function App() {
                       <button
                         id="load-from-sheets"
                         onClick={handleLoadCardsFromSheet}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3.5 px-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                       >
                         Import from Google
@@ -1425,7 +1422,7 @@ function App() {
                       <button
                         id="save-to-sheets"
                         onClick={handleSaveCardsToSheet}
-                        className="bg-[#0b57d0] hover:bg-[#0842a0] text-white text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                       >
                         Export to Google
@@ -1440,15 +1437,15 @@ function App() {
 
                       if (syncState.status === syncStatuses.conflict) {
                         return (
-                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-900 mt-2">
-                            <h4 className="font-bold text-rose-800 text-sm">Conflict recovery</h4>
+                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-2xl text-xs mt-2">
+                            <h4 className="font-bold text-m3-error text-sm">Conflict recovery</h4>
                             <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
-                            <p className="font-semibold text-rose-700">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
-                            {unavailableMessage && <p className="font-bold text-red-600 mt-1">{unavailableMessage}</p>}
+                            <p className="font-semibold text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+                            {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
                             <div className="flex flex-wrap gap-2 mt-2">
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1456,7 +1453,7 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Replace local data from Sheet
@@ -1464,7 +1461,7 @@ function App() {
                               <button
                                 onClick={useCurrentSessionToOverwriteDirectSheets}
                                 disabled={disableSheetsActions}
-                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
+                                className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Overwrite sheet with this session
@@ -1476,16 +1473,16 @@ function App() {
 
                       if (syncState.status === syncStatuses.unsynced) {
                         return (
-                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 mt-2">
-                            <h4 className="font-bold text-amber-800 text-sm">Unsynced recovery</h4>
+                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-warning-container text-m3-on-warning-container border border-m3-outline-variant/30 rounded-2xl text-xs mt-2">
+                            <h4 className="font-bold text-m3-on-warning-container text-sm">Unsynced recovery</h4>
                             <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
                             <p>Replace local data from Sheet overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
-                            {unavailableMessage && <p className="font-bold text-red-600 mt-1">{unavailableMessage}</p>}
+                            {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
                             <div className="flex flex-wrap gap-2 mt-2">
                               <button
                                 onClick={retrySyncCurrentSession}
                                 disabled={disableSheetsActions}
-                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                                className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Try sync again
@@ -1493,14 +1490,14 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Replace local data from Sheet
                               </button>
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1516,20 +1513,20 @@ function App() {
                 )}
 
                 {oauthState.lastErrorMessage && (
-                  <p id="google-oauth-status" className="text-xs font-bold text-red-600 border-t border-red-50/50 pt-2 mt-1">
+                  <p id="google-oauth-status" className="text-xs font-bold text-m3-error border-t border-m3-outline-variant/20 pt-2 mt-1">
                     {oauthState.lastErrorMessage}
                   </p>
                 )}
               </section>
 
               {/* Data Panel / Backup Controls */}
-              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group" open>
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Backup & CSV Controls</span>
-                    <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    <span className="text-xs font-bold text-m3-outline uppercase tracking-wider">Backup & CSV Controls</span>
+                    <span className="text-m3-outline group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-slate-100">
+                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-m3-outline-variant/30">
                     <div className="flex gap-3">
                       <input 
                         id="csv-file-input" 
@@ -1541,7 +1538,7 @@ function App() {
                       <button 
                         id="import-csv" 
                         onClick={() => document.getElementById('csv-file-input').click()}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                         title="Import CSV backup"
                       >
@@ -1550,7 +1547,7 @@ function App() {
                       <button 
                         id="export-csv" 
                         onClick={handleExportCsv}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-200 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                         title="Export CSV backup"
                       >
@@ -1558,15 +1555,15 @@ function App() {
                       </button>
                     </div>
 
-                    <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex justify-between items-center gap-3">
+                    <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex justify-between items-center gap-3">
                       <div>
-                        <h4 className="text-xs font-bold text-slate-700 uppercase">Raw CSV Editor</h4>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
+                        <h4 className="text-xs font-bold text-m3-on-surface uppercase">Raw CSV Editor</h4>
+                        <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
                       </div>
                       <button 
                         id="open-raw-data-modal" 
                         onClick={handleOpenRawEditor}
-                        className="bg-white hover:bg-slate-50 text-[#0b57d0] text-xs font-bold px-4 py-3.5 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                        className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-bold px-4 py-3.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                       >
                         Open Editor
@@ -1576,59 +1573,36 @@ function App() {
                 </details>
               </section>
 
-              {/* Diagnostics & Technical Details */}
-              <section className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4">
+              {/* Troubleshooting (Unified Container) */}
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group">
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Diagnostics</span>
-                      <small id="settings-app-shell-fingerprint" className="text-[10px] text-slate-400 font-medium">
-                        matching
-                      </small>
-                    </div>
-                    <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    <span className="text-xs font-bold text-m3-outline uppercase tracking-wider">Troubleshooting</span>
+                    <span className="text-m3-outline group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-slate-100">
-                    <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase">App shell diagnostics</h4>
-                      <ul className="text-xs text-slate-500 font-medium list-none flex flex-col gap-1.5">
-                        <li className="flex justify-between border-b border-slate-100 pb-1">
-                          <span>HTML version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">1.0.0</span>
+                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-m3-outline-variant/30">
+                    <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-m3-on-surface uppercase">System Status</h4>
+                      <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
+                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                          <span>Connection State</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                            {oauthState.status === googleOAuthStatuses.connected ? "Connected" : "Disconnected"}
+                          </span>
                         </li>
-                        <li className="flex justify-between border-b border-slate-100 pb-1">
-                          <span>JS version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">1.0.0</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>CSS version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">1.0.0</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="border border-slate-100 bg-slate-50 rounded-2xl p-4 flex flex-col gap-2">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase">Technical Details</h4>
-                      <ul className="text-xs text-slate-500 font-medium list-none flex flex-col gap-1.5">
-                        <li className="flex justify-between border-b border-slate-100 pb-1">
-                          <span>Worker session</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.status}</span>
-                        </li>
-                        <li className="flex justify-between border-b border-slate-100 pb-1">
-                          <span>Connection state</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.status === googleOAuthStatuses.connected ? "connected" : "disconnected"}</span>
-                        </li>
-                        <li className="flex justify-between border-b border-slate-100 pb-1">
-                          <span>Worker version</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.workerVersion}</span>
+                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                          <span>Sync Status</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">{syncState.status}</span>
                         </li>
                         <li className="flex justify-between">
-                          <span>Schema mode</span>
-                          <span className="font-mono text-[10px] text-slate-700 font-bold">{oauthState.schemaMode}</span>
+                          <span>Sheets Configured</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                            {directSheetsState.spreadsheetId ? "Yes" : "No"}
+                          </span>
                         </li>
                       </ul>
-                      <div id="advanced-sync-diagnostics" className="text-[10px] text-slate-400 leading-relaxed border-t border-slate-100 pt-2 mt-1">
-                        Local database matches storage specifications. Sync status: {syncState.status}. {syncState.message || directSheetsState.message}
+                      <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
+                        {syncState.message || directSheetsState.message}
                       </div>
                     </div>
                   </div>
@@ -1637,7 +1611,7 @@ function App() {
 
               <button
                 onClick={() => setActivePanel(previousPrimaryPanel)}
-                className="w-full bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-6 rounded-full border border-slate-200/50 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="w-full bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-6 rounded-full border border-m3-outline-variant/30 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
               >
                 Back
               </button>
@@ -1650,23 +1624,23 @@ function App() {
                 <div id="card-detail" className="w-full flex flex-col gap-6">
                   
                   {/* Detail Card Navigation Header */}
-                  <div className="flex justify-between items-center bg-slate-50/50 p-4 border border-slate-100 rounded-2xl">
+                  <div className="flex justify-between items-center bg-m3-surface-container-low p-3 border border-m3-outline-variant/30 rounded-2xl">
                     <button
                       id="prev-card"
                       onClick={handlePrevCard}
                       disabled={visiblePosition <= 0}
-                      className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200/50 px-4 py-3.5 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-semibold text-m3-on-surface-variant hover:text-m3-on-surface bg-m3-surface-container-lowest border border-m3-outline-variant/30 px-3.5 py-2.5 rounded-xl hover:bg-m3-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                     >
                       Previous
                     </button>
-                    <span id="card-position" className="text-sm font-bold text-slate-600">
+                    <span id="card-position" className="text-xs font-bold text-m3-on-surface-variant">
                       Card {visiblePosition + 1} of {visibleIndexes.length}
                     </span>
                     <button
                       id="next-card"
                       onClick={handleNextCard}
                       disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200/50 px-4 py-3.5 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="text-xs font-semibold text-m3-on-surface-variant hover:text-m3-on-surface bg-m3-surface-container-lowest border border-m3-outline-variant/30 px-3.5 py-2.5 rounded-xl hover:bg-m3-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                     >
                       Next
                     </button>
@@ -1680,9 +1654,9 @@ function App() {
                     return (
                       <button
                         id="barcode-open"
-                        onClick={() => setIsFullscreenBarcode(true)}
+                        onClick={() => setIsBarcodeFocusOpen(true)}
                         className="bg-m3-surface-container border border-m3-outline-variant rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] cursor-pointer hover:border-m3-primary transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                        title="Tapping opens full-screen barcode focus mode"
+                        title="Open focused barcode view"
                       >
                         <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
                           <span id="detail-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
@@ -1729,7 +1703,7 @@ function App() {
                               setRevealNumber(!revealNumber);
                             }}
                             className="font-mono cursor-pointer hover:text-m3-primary"
-                            title="Click to reveal/hide card number"
+                            title="Toggle card number visibility"
                           >
                             {revealNumber
                               ? selectedCard.cardNumber
@@ -1834,12 +1808,12 @@ function App() {
                     )}
                   </div>
 
-                  {/* Back to Inventory Button */}
+                  {/* Back Button */}
                   <button
                     onClick={() => setActivePanel('list')}
-                    className="w-full bg-m3-surface hover:bg-m3-surface-container text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-6 rounded-full border border-m3-outline transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                    className="w-full bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-6 rounded-full border border-m3-outline-variant transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   >
-                    Back to Inventory
+                    Back
                   </button>
 
                 </div>
@@ -1854,17 +1828,17 @@ function App() {
         </div>
       </div>
 
-      {/* Fullscreen Barcode Focus Overlay */}
-      {isFullscreenBarcode && selectedCard && (
+      {/* Barcode Focus Overlay */}
+      {isBarcodeFocusOpen && selectedCard && (
         <div
           id="fullscreen-barcode"
-          onTouchStart={handleBarcodeTouchStart}
-          onTouchEnd={handleBarcodeTouchEnd}
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-1 sm:p-4 cursor-pointer"
-          onClick={() => setIsFullscreenBarcode(false)}
+          onTouchStart={handleBarcodeFocusTouchStart}
+          onTouchEnd={handleBarcodeFocusTouchEnd}
+          className="fixed inset-0 bg-m3-on-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-1 sm:p-4 cursor-pointer"
+          onClick={() => setIsBarcodeFocusOpen(false)}
         >
           <div
-            className="bg-white rounded-3xl max-w-2xl w-full px-2 py-5 sm:p-6 flex flex-col gap-6 shadow-2xl relative cursor-default"
+            className="bg-m3-surface rounded-3xl max-w-2xl w-full px-2 py-5 sm:p-6 flex flex-col gap-6 shadow-2xl relative cursor-default border border-m3-outline-variant/30"
             onClick={e => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -1872,8 +1846,8 @@ function App() {
           >
             {/* Close Button */}
             <button
-              onClick={() => setIsFullscreenBarcode(false)}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+              onClick={() => setIsBarcodeFocusOpen(false)}
+              className="absolute top-2 right-2 text-m3-outline hover:text-m3-on-surface hover:bg-m3-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
               type="button"
               aria-label="Close barcode focus mode"
             >
@@ -1881,19 +1855,19 @@ function App() {
             </button>
 
             {/* Position count */}
-            <div id="fullscreen-position" className="text-center font-bold text-slate-500 text-sm">
+            <div id="fullscreen-position" className="text-center font-bold text-m3-on-surface-variant text-sm">
               Card {visiblePosition + 1} of {visibleIndexes.length}
             </div>
 
             {/* Barcode Frame */}
-            <div id="fullscreen-barcode-frame" className="border border-slate-100/50 bg-slate-50/30 px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
-                <span id="fullscreen-barcode-status" className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <div id="fullscreen-barcode-frame" className="border border-m3-outline-variant/30 bg-m3-surface-container-low px-1.5 py-3 sm:p-6 rounded-2xl flex flex-col gap-4">
+              <div className="flex justify-between items-center border-b border-m3-outline-variant/20 pb-3">
+                <span id="fullscreen-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
                   {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance:</span>
-                  <span id="fullscreen-current-balance" className="text-xl font-black text-[#0b57d0] font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
+                  <span className="text-[10px] font-bold text-m3-outline uppercase tracking-wider">Balance:</span>
+                  <span id="fullscreen-current-balance" className="text-xl font-black text-m3-primary font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -1902,7 +1876,7 @@ function App() {
                 const payload = getBarcodePayload(selectedCard);
                 const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
                 return barcodeData ? (
-                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-1 sm:p-2 rounded-xl h-48 sm:h-56 md:h-64">
+                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-1 sm:p-2 rounded-xl h-48 sm:h-56 md:h-64 border border-m3-outline-variant/30">
                     <svg
                       viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                       preserveAspectRatio="none"
@@ -1917,24 +1891,24 @@ function App() {
                     </svg>
                   </div>
                 ) : (
-                  <span id="fullscreen-barcode-caption" className="text-center text-sm font-bold text-red-600 py-4">
+                  <span id="fullscreen-barcode-caption" className="text-center text-sm font-bold text-m3-error py-4">
                     {getBarcodeFallbackMessage(selectedCard)}
                   </span>
                 );
               })()}
 
-              <div className="flex flex-col gap-3 border-t border-slate-200/60 pt-4">
+              <div className="flex flex-col gap-3 border-t border-m3-outline-variant/20 pt-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
-                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Card Number</span>
+                  <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant font-sans">
+                    <span className="font-semibold text-m3-outline uppercase tracking-wider text-[10px]">Card Number</span>
                     <button
                       id="fullscreen-card-number-reveal"
                       onClick={(e) => {
                         e.stopPropagation();
                         setRevealNumber(!revealNumber);
                       }}
-                      className="font-mono font-bold text-slate-800 hover:text-[#0b57d0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded px-2 py-1 bg-slate-100/80 hover:bg-slate-200/80 transition-colors cursor-pointer flex items-center gap-1.5"
-                      title="Click to reveal/hide card number"
+                      className="font-mono font-bold text-m3-on-surface hover:text-m3-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded px-2 py-1 bg-m3-surface-container hover:bg-m3-surface-container-high transition-colors cursor-pointer flex items-center gap-1.5"
+                      title="Toggle card number visibility"
                       type="button"
                     >
                       <span>
@@ -1943,21 +1917,14 @@ function App() {
                           : maskCardNumber(selectedCard.cardNumber)
                         }
                       </span>
-                      <span className="text-[10px] text-slate-400 font-normal">
-                        ({revealNumber ? "Hide" : "Reveal"})
-                      </span>
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
-                    <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Security PIN</span>
-                    <span id="fullscreen-pin" className="bg-slate-950 text-white font-mono font-extrabold text-sm px-3 py-1 rounded-xl tracking-wide shadow-sm min-w-[50px] text-center">
+                  <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant font-sans">
+                    <span className="font-semibold text-m3-outline uppercase tracking-wider text-[10px]">Security PIN</span>
+                    <span id="fullscreen-pin" className="font-mono font-bold text-m3-on-surface text-sm">
                       {selectedCard.pin || "—"}
                     </span>
                   </div>
-                </div>
-                <div className="text-[10px] text-center text-amber-800 font-semibold leading-relaxed bg-amber-50 border border-amber-200/40 rounded-xl py-2 px-3 mt-1 flex items-center justify-center gap-1.5">
-                  <span>☀️</span>
-                  <span>Turn brightness up if scanner has trouble.</span>
                 </div>
               </div>
             </div>
@@ -1968,7 +1935,7 @@ function App() {
                 id="fullscreen-prev"
                 onClick={handlePrevCard}
                 disabled={visiblePosition <= 0}
-                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                 type="button"
               >
                 Previous
@@ -1977,7 +1944,7 @@ function App() {
                 id="fullscreen-next"
                 onClick={handleNextCard}
                 disabled={visiblePosition === visibleIndexes.length - 1}
-                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                 type="button"
               >
                 Next
@@ -1992,7 +1959,7 @@ function App() {
                   setOpenedFromBarcodeFocus(true);
                   handleOpenBalanceEdit(selectedCard.currentBalance);
                 }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-[#0b57d0] text-xs font-bold py-4 rounded-xl border border-slate-200 transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="w-full bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-primary text-xs font-bold py-4 rounded-xl border border-m3-outline-variant transition-all active:scale-95 shadow-sm cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
               >
                 Update Balance
               </button>
@@ -2000,10 +1967,10 @@ function App() {
               <button
                 id="fullscreen-mark-used"
                 onClick={() => handleToggleUsed(selectedCardIndex)}
-                className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 ${
+                className={`w-full font-bold py-4 rounded-xl transition-all shadow-sm text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
                   selectedCard.used
-                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                    : 'bg-[#0b57d0] hover:bg-[#0842a0] text-white'
+                    ? 'bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant'
+                    : 'bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary'
                 }`}
                 type="button"
               >
@@ -2012,16 +1979,16 @@ function App() {
             </div>
 
             {/* Notes Row */}
-            <div id="fullscreen-notes" className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
+            <div id="fullscreen-notes" className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
+                <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Notes</span>
                 {!isEditingNotes && (
                   <button
                     onClick={() => {
                       setNewNotesValue(selectedCard.notes || "");
                       setIsEditingNotes(true);
                     }}
-                    className="text-xs font-bold text-[#0b57d0] hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-1 rounded-sm"
+                    className="text-xs font-bold text-m3-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded-sm"
                     type="button"
                   >
                     {selectedCard.notes ? "Edit" : "Add Note"}
@@ -2034,7 +2001,7 @@ function App() {
                   <textarea
                     value={newNotesValue}
                     onChange={e => setNewNotesValue(e.target.value)}
-                    className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:bg-white focus:outline-none transition-all duration-200 min-h-[80px]"
+                    className="w-full text-sm bg-m3-surface border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none transition-all duration-200 min-h-[80px]"
                     placeholder="Add card notes..."
                   />
                   <div className="flex gap-2 justify-end">
@@ -2053,14 +2020,14 @@ function App() {
                         saveCards(updatedCards);
                         setIsEditingNotes(false);
                       }}
-                      className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                       type="button"
                     >
                       Save Notes
                     </button>
                     <button
                       onClick={() => setIsEditingNotes(false)}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                      className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                       type="button"
                     >
                       Cancel
@@ -2068,8 +2035,8 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                  {selectedCard.notes || <span className="text-slate-400 italic">No notes added to this card.</span>}
+                <p className="text-sm text-m3-on-surface leading-relaxed font-medium">
+                  {selectedCard.notes || <span className="text-m3-on-surface-variant italic">No notes added to this card.</span>}
                 </p>
               )}
             </div>
@@ -2081,10 +2048,10 @@ function App() {
       {isEditingBalance && selectedCard && (
         <div
           id="balance-modal"
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-m3-on-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         >
           <div
-            className="bg-white rounded-3xl max-w-sm w-full p-6 flex flex-col gap-4 shadow-2xl relative"
+            className="bg-m3-surface rounded-3xl max-w-sm w-full p-6 flex flex-col gap-4 shadow-2xl relative border border-m3-outline-variant/30"
             role="dialog"
             aria-modal="true"
             aria-labelledby="balance-modal-title"
@@ -2092,25 +2059,25 @@ function App() {
             {/* Close Button */}
             <button
               onClick={handleCancelBalanceEdit}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+              className="absolute top-2 right-2 text-m3-outline hover:text-m3-on-surface hover:bg-m3-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
               type="button"
               aria-label="Close update balance modal"
             >
               ✕
             </button>
 
-            <h2 id="balance-modal-title" className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">
+            <h2 id="balance-modal-title" className="text-lg font-bold text-m3-on-surface border-b border-m3-outline-variant/20 pb-2">
               Update Balance
             </h2>
 
             <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center text-sm font-semibold text-slate-700">
+              <div className="flex justify-between items-center text-sm font-semibold text-m3-on-surface">
                 <span>Current Balance</span>
-                <span>${selectedCard.currentBalance.toFixed(2)}</span>
+                <span className="font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="amount-used-input" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <label htmlFor="amount-used-input" className="text-xs font-bold text-m3-outline uppercase tracking-wider">
                   Amount Used
                 </label>
                 <input
@@ -2119,14 +2086,14 @@ function App() {
                   step="0.01"
                   value={amountUsedValue}
                   onChange={handleAmountUsedChange}
-                  className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3 focus:bg-white focus:outline-none transition-all duration-200"
+                  className="w-full text-sm bg-m3-surface-container border border-m3-outline-variant focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3 focus:bg-m3-surface-container-lowest focus:outline-none transition-all duration-200"
                   placeholder="0.00"
                   autoFocus
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="balance-input" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <label htmlFor="balance-input" className="text-xs font-bold text-m3-outline uppercase tracking-wider">
                   Remaining Balance
                 </label>
                 <input
@@ -2135,23 +2102,23 @@ function App() {
                   step="0.01"
                   value={newBalanceValue}
                   onChange={handleRemainingBalanceChange}
-                  className="w-full text-sm bg-slate-50/50 border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3 focus:bg-white focus:outline-none transition-all duration-200"
+                  className="w-full text-sm bg-m3-surface-container border border-m3-outline-variant focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3 focus:bg-m3-surface-container-lowest focus:outline-none transition-all duration-200"
                   placeholder="0.00"
                 />
               </div>
 
               {balanceError && (
-                <span id="balance-error" className="text-[10px] text-red-600 font-semibold mt-1">
+                <span id="balance-error" className="text-[10px] text-m3-error font-semibold mt-1">
                   {balanceError}
                 </span>
               )}
             </div>
 
-            <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
+            <div className="flex gap-2 justify-end border-t border-m3-outline-variant/20 pt-4 mt-2">
               <button
                 id="cancel-balance-update"
                 onClick={handleCancelBalanceEdit}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                 type="button"
               >
                 Cancel
@@ -2159,7 +2126,7 @@ function App() {
               <button
                 id="save-balance-update"
                 onClick={handleSaveBalance}
-                className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                 type="button"
               >
                 Save
@@ -2173,25 +2140,25 @@ function App() {
       {isRawDataModalOpen && (
         <div 
           id="raw-data-modal" 
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-m3-on-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         >
           <div 
-            className="bg-white rounded-3xl max-w-lg w-full p-6 flex flex-col gap-4 shadow-2xl relative"
+            className="bg-m3-surface rounded-3xl max-w-lg w-full p-6 flex flex-col gap-4 shadow-2xl relative border border-m3-outline-variant/30"
             role="dialog"
             aria-modal="true"
             aria-labelledby="raw-data-modal-title"
           >
-            <h2 id="raw-data-modal-title" className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">
+            <h2 id="raw-data-modal-title" className="text-lg font-bold text-m3-on-surface border-b border-m3-outline-variant/20 pb-2">
               Raw CSV editor
             </h2>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="raw-data-input" className="text-xs font-bold text-slate-400 uppercase">
+              <label htmlFor="raw-data-input" className="text-xs font-bold text-m3-outline uppercase">
                 Raw CSV card data
               </label>
               <textarea
                 id="raw-data-input"
-                className="w-full font-mono text-xs border border-slate-300 hover:border-slate-400 focus:border-[#0b57d0] focus:ring-2 focus:ring-[#0b57d0]/20 rounded-xl p-3.5 focus:outline-none bg-slate-50 disabled:bg-slate-100 text-slate-700 disabled:text-slate-500 leading-relaxed transition-all duration-200"
+                className="w-full font-mono text-xs border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none bg-m3-surface-container disabled:bg-m3-surface-container-low text-m3-on-surface disabled:text-m3-on-surface-variant/75 leading-relaxed transition-all duration-200"
                 spellCheck="false"
                 rows="8"
                 placeholder="Paste or import card data here..."
@@ -2202,12 +2169,12 @@ function App() {
             </div>
 
             {/* Validation warnings card details */}
-            <div className="border border-slate-100/50 bg-slate-50/30 rounded-xl p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
-              <h4 className="text-xs font-bold text-slate-700 uppercase">Validation details</h4>
-              <div id="data-validation-warnings" className="text-xs font-semibold text-slate-600 leading-relaxed" role="status">
+            <div className="border border-m3-outline-variant/30 bg-m3-surface-container-low rounded-xl p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
+              <h4 className="text-xs font-bold text-m3-on-surface uppercase">Validation details</h4>
+              <div id="data-validation-warnings" className="text-xs font-semibold text-m3-on-surface-variant leading-relaxed" role="status">
                 <p>{validationSummary}</p>
                 {validationWarnings.length > 0 && (
-                  <ul className="list-disc pl-4 mt-1 flex flex-col gap-1 text-red-600">
+                  <ul className="list-disc pl-4 mt-1 flex flex-col gap-1 text-m3-error">
                     {validationWarnings.map((warning, index) => (
                       <li key={index}>{warning}</li>
                     ))}
@@ -2217,12 +2184,12 @@ function App() {
             </div>
 
             {/* Actions panel */}
-            <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 mt-2">
+            <div className="flex flex-col gap-3 border-t border-m3-outline-variant/20 pt-4 mt-2">
               <div className="flex gap-2">
                 <button 
                   id="toggle-data-lock" 
                   onClick={() => setIsRawDataLocked(!isRawDataLocked)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                  className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   type="button" 
                   title={isRawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked"}
                 >
@@ -2232,7 +2199,7 @@ function App() {
                 <button 
                   id="refresh-card-data" 
                   onClick={handleRefreshRawEditor}
-                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                  className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-on-surface-variant font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   type="button"
                 >
                   Refresh
@@ -2240,7 +2207,7 @@ function App() {
                 <button 
                   id="update-card-data" 
                   onClick={handleUpdateRawEditor}
-                  className="bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-3.5 px-4 rounded-xl text-xs border border-slate-100 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                  className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-on-surface-variant font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   type="button"
                 >
                   Update
@@ -2251,7 +2218,7 @@ function App() {
                 <button 
                   id="cancel-raw-data-update" 
                   onClick={() => setIsRawDataModalOpen(false)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                  className="bg-m3-surface-container-high hover:bg-m3-surface-container-highest text-m3-on-surface-variant font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   type="button"
                 >
                   Cancel
@@ -2259,7 +2226,7 @@ function App() {
                 <button 
                   id="done-raw-data-update" 
                   onClick={handleDoneRawEditor}
-                  className="bg-[#0b57d0] hover:bg-[#0842a0] text-white font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b57d0] focus-visible:ring-offset-2"
+                  className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                   type="button"
                 >
                   Done

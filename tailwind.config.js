@@ -24,6 +24,10 @@ export default {
           'outline-variant': 'var(--md-sys-color-outline-variant)',
           error: 'var(--md-sys-color-error)',
           'error-container': 'var(--md-sys-color-error-container)',
+          'success-container': 'var(--md-sys-color-success-container)',
+          'on-success-container': 'var(--md-sys-color-on-success-container)',
+          'warning-container': 'var(--md-sys-color-warning-container)',
+          'on-warning-container': 'var(--md-sys-color-on-warning-container)',
         }
       }
     },

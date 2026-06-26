@@ -121,8 +121,11 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 ### 9. Typography: Strict M3 Type-Role System
 * Use strict type rhythm, weight, contrast, and family settings (Outfit for sans-serif text, Roboto Mono/mono for tabular values/numbers).
 
-### 10. Phased Implementation
-* Strictly follow the phased sequence. Do not combine scopes or execute broad, multi-component refactors in a single pass.
+### 10. Visual M3 Compliance Cleanup
+* **Diagnostics/Technical Details**: Grouped diagnostics and logs under a collapsed `Troubleshooting` card pane. Removed versioning, fingerprints, and local device environment rows.
+* **Checkout Overlay Overhaul**: Styled with `--md-sys-color-surface` base background, M3-rounded borders, and no darkened scrim. Removed brightness advice, Reveal/Hide label noise, and optimized button structure with high contrast update/mark states.
+* **Google Privacy Guardrail**: Avoid displaying the Google account email or personal identifiers in main list, settings status, or checkout screens to maintain strict privacy compliance.
+* **Low-Friction Tokens**: Swapped remaining raw colors (`slate`, `rose`, `amber`, `white`, `black` labels/cards/borders/toggles) for semantic `--md-sys-color-*` variables mapping standard light/dark modes.
 
 ---
 
