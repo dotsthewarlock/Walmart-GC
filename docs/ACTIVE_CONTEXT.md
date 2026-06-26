@@ -58,20 +58,23 @@ Walmart-GC Web App (Static React 19 + Vite)
 
 For any Agy/model-assisted task or broad repo cleanup, use two phases:
 
-- Phase A: edit, verify, and write `~/Project/wgc-handoff.md`; do not commit or push.
+- Phase A: edit, verify, and write handoff to `~/Project/AI_HANDOFF.md`, then run the update helper `~/Project/bin/agy-handoff` to sync to GitHub Issue #200 "AI Handoff"; do not commit or push.
 - Phase B: no Agy/model execution and no broad edits; verify branch, changed-file allowlist, protected files, and `git diff --check`, then commit/push only if checks pass.
 
-Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact and put raw logs in `/tmp/wgc/*`.
+Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact.
 
+### Durable AI Handoff Workflow
 
 For Terminal/Agy work, use a durable, token-efficient handoff model:
 
-- Use `/tmp/agy-task.txt` for local Agy prompts.
-- Use `/tmp/agy-task.log` for verbose local Agy output.
-- Do not commit raw logs or large terminal transcripts.
-- Commit compact durable summaries only when results affect future work, production state, rollback safety, docs architecture, or user decisions.
+- **AI Handoff local file**: `~/Project/AI_HANDOFF.md`
+- **AI Handoff GitHub issue**: Issue #200 "AI Handoff"
+- **Update helper**: `~/Project/bin/agy-handoff`
+- **Execution rule**: Agy writes `~/Project/AI_HANDOFF.md` at the end of each run, then runs `~/Project/bin/agy-handoff`.
+- **Initialization**: GPT reads Issue #200 first for the latest run state.
+- **Log management**: Raw logs stay local in `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) and are used only for backup/debug/diagnostics.
+- **Durability**: Durable decisions belong in repo docs, not only in Issue #200.
 - Prefer `docs/MAINTENANCE_LOG.md` for dated durable result summaries.
 - Prefer `docs/ACTIVE_CONTEXT.md` for current operating state and short-lived-but-important project context.
-- Future GPT/Agy sessions should read `docs/ACTIVE_CONTEXT.md` and recent `docs/MAINTENANCE_LOG.md` entries before relying on chat memory.
-- If ChatGPT needs results without pasted terminal output, those results must be committed or otherwise pushed to GitHub in a compact form; local `/tmp` files and uncommitted diffs are not durable or remotely visible.
-- Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs or full raw logs.
+- Future GPT/Agy sessions must read `docs/ACTIVE_CONTEXT.md` and recent `docs/MAINTENANCE_LOG.md` entries before relying on chat memory.
+- Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs.

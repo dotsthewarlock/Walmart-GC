@@ -15,9 +15,10 @@ Role split:
 
 Default local command shape:
 - Load Node through nvm.
+- GPT reads GitHub Issue #200 first for the latest run state.
 - Write the full prompt to /tmp/prompt.txt.
 - Run agy in foreground print mode.
-- Redirect output to ~/Project/<task>.log.
+- Redirect output to `~/Project/<task>.log` (raw logs stay local in `~/Project/*.log` for backup/debug/diagnostics).
 - Do not background agy or use setsid.
 
 Required verification:
@@ -37,7 +38,13 @@ Do not use:
 - broad permission bypass unless explicitly approved
 - dependency/framework/config changes unless explicitly scoped
 
-Handoff must include:
+Durable AI Handoff Workflow:
+- At the end of each run, agy writes the final handoff to the local file: `~/Project/AI_HANDOFF.md`
+- Once written, agy runs the update helper script: `~/Project/bin/agy-handoff` to update GitHub Issue #200 "AI Handoff".
+- Raw logs stay local in `~/Project/*.log` and are only for backup/debug.
+- Durable decisions must be committed to repo docs (e.g. `docs/ACTIVE_CONTEXT.md`), not only captured in Issue #200.
+
+Handoff contents must include:
 - files changed
 - docs updated
 - build result

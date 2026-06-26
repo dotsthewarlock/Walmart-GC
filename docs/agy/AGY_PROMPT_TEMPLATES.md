@@ -36,7 +36,7 @@ Verification:
 - git status --short
 
 Handoff:
-State files changed, docs updated, build/diff/status results, grep results if relevant, screenshot QA notes if relevant, and unresolved risks.
+Write a concise summary to ~/Project/AI_HANDOFF.md, then run ~/Project/bin/agy-handoff. State files changed, docs updated, build/diff/status results, grep results if relevant, screenshot QA notes if relevant, and unresolved risks.
 
 Stop/reassess if:
 - brittle offsets or viewport hacks are needed
@@ -74,7 +74,7 @@ Verification:
 - git status --short
 
 Handoff:
-State docs changed, durable decisions captured, diff-check result, git status, and unresolved risks.
+Write a concise summary to ~/Project/AI_HANDOFF.md, then run ~/Project/bin/agy-handoff. State docs changed, durable decisions captured, diff-check result, git status, and unresolved risks.
 ```
 
 ## Verification-only pass
@@ -136,5 +136,5 @@ Verification:
 - git status --short
 
 Handoff:
-State files changed, visual changes made, build/diff/status results, remaining QA risks, and whether docs need updating.
+Write a concise summary to ~/Project/AI_HANDOFF.md, then run ~/Project/bin/agy-handoff. State files changed, visual changes made, build/diff/status results, remaining QA risks, and whether docs need updating.
 ```
