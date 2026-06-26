@@ -1,6 +1,6 @@
 # Walmart-GC Development Instructions
 
-Start with `docs/CODEX_ACTIVE_CONTEXT.md` for compact current Phase 12 context. Use `docs/archive/` only for historical/regression tasks, not normal implementation guidance.
+Start with `docs/ACTIVE_CONTEXT.md` for compact current Phase 12 context. Use `docs/archive/` only for historical/regression tasks, not normal implementation guidance.
 
 
 Project type:
@@ -64,7 +64,7 @@ OAuth/session rules:
 Requirements:
 
 - Mobile-first
-- For UI/design decisions, follow the Material 3 governance guidance in `docs/CODEX_ACTIVE_CONTEXT.md`.
+- For UI/design decisions, follow the Material 3 governance guidance in `docs/M3_DESIGN_DECISIONS.md`.
 - Fast loading
 - Minimal dependencies
 - Small PRs

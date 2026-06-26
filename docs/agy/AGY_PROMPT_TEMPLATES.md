@@ -19,8 +19,8 @@ Goal:
 
 Read first:
 - docs/ACTIVE_CONTEXT.md
-- docs/M3_DESIGN_DECISIONS.md
-- docs/reference/M3_Core_Guidelines.md
+- docs/M3_DESIGN_DECISIONS.md (if UI/M3/design work)
+- docs/reference/M3_Core_Guidelines.md (if UI/M3/design work)
 - docs/agy/AGY_BOOTLOADER.md
 - docs/agy/AGY_CLI_INTEGRATION_DOSSIER.md
 

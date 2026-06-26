@@ -103,7 +103,7 @@ Production OAuth testing is cloud-only. Do not use localhost OAuth or alternate 
 Start with the [Active Context](docs/ACTIVE_CONTEXT.md) for the compact, first-read current context. Archived docs are historical references only and are not current setup guidance.
 
 - [Active Context](docs/ACTIVE_CONTEXT.md) — Compact current-state summary (read this first).
-- [Codex Active Context](docs/CODEX_ACTIVE_CONTEXT.md) — Legacy active context entrypoint.
+- [Material 3 Design Decisions](docs/M3_DESIGN_DECISIONS.md) — Durable repository documentation for locked design decisions and the strict Material 3 overhaul.
 - [Architecture](docs/ARCHITECTURE.md) — Main system architecture and data models.
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) — Frontend build and Worker deployment instructions.
 - [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md) — Dedicated sheet setup and schema rules.

@@ -17,6 +17,9 @@ Current source of truth starts with:
 
 ### Archived Migration and Test Documents:
 - `docs/archive/CODEX_ACTIVE_CONTEXT.md` — Legacy active context entrypoint.
+- `docs/archive/M3_AUDIT_HANDOFF.md` — Historical Material 3 Adherence Audit & Handoff (Step 2 Prep).
+- `docs/archive/WGC_UX_ARCHITECTURE_AUDIT.md` — Historical WGC UX Architecture Audit.
+- `docs/archive/handoff.md` — Historical Material 3 Foundation Handoff (Step 1).
 - `docs/archive/PHASE_12_BEHAVIOR_INVENTORY.md` — Parity reference: inventory of Phase 12 static app behaviors.
 - `docs/archive/STATIC_TO_REACT_BEHAVIOR_MAP.md` — Parity reference: tracking static to React migration status.
 - `docs/archive/AGY_MIGRATION_RUNBOOK.md` — Historical migration runbook.
