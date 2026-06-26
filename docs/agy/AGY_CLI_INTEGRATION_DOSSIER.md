@@ -1,5 +1,8 @@
 # Antigravity CLI Integration Dossier
 
+> [!NOTE]
+> This dossier is the long-form reference. Day-to-day Agy usage should start with [AGY_BOOTLOADER.md](AGY_BOOTLOADER.md) and [AGY_PROMPT_TEMPLATES.md](AGY_PROMPT_TEMPLATES.md). Walmart-GC project workflow overrides generic Agy guidance where they conflict.
+
 ## Executive summary
 
 Google’s **Antigravity CLI** (command `agy`) brings the core capabilities of Antigravity 2.0’s multi‑step reasoning, multi‑file editing and tool calling directly to the terminal.  It prioritizes keyboard efficiency and remote SSH workflows while sharing the same agent engine, settings and session history with the GUI product【44756431148211†L14-L41】.  The CLI is installed via a small installer script (`curl -fsSL https://antigravity.google/cli/install.sh | bash`) or equivalent Windows commands【44756431148211†L45-L60】 and authenticates through Google Sign‑In.  An official codelab published on 17 June 2026 provides the most detailed guidance on using the CLI.  It documents interactive commands, settings, permission modes and non‑interactive flags.  The versioned changelog on GitHub confirms feature additions such as `--model` selection, improved sandbox behaviour and conversation file formats【977256602485969†L488-L520】.
@@ -25,6 +28,9 @@ The container environment did not include the `agy` binary.  Attempting to run `
 ### Command surface
 
 * **Installation and invocation** – The CLI is installed via one‑line commands.  On macOS/Linux the recommended installer is `curl -fsSL https://antigravity.google/cli/install.sh | bash`; on Windows PowerShell `irm …install.ps1 | iex`; on Windows CMD download and run `install.cmd`【44756431148211†L45-L60】.  After installation the command `agy` is available.
+
+  > [!CAUTION]
+  > These installer, curl-pipe-bash, or --dangerously-skip-permissions examples are reference examples, not Walmart-GC defaults. Permission bypass must not be used unless explicitly approved.
 
 * **Shared engine and session export** – Antigravity CLI shares the same core agent engine and settings as Antigravity 2.0, and sessions can be exported between them【44756431148211†L14-L41】.  Authentication uses Google Sign‑In and the system keyring【44756431148211†L65-L73】.
 
@@ -93,7 +99,7 @@ The project aims to implement features in a **React /Vite /Tailwind static web
 |---|---|---|
 | **High‑level planning, documentation generation or asking the agent to explain code** | `agy --print` | No side effects; one‑shot responses; safe to run non‑interactive. |
 | **Implementation of bounded feature or bug fix requiring multiple steps** | Interactive TUI | Allows reviewing agent proposals, approving file edits and running verification commands.  Slash commands like `/diff` and `/shell` are available. |
-| **Long‑running processes (build, tests) or tasks that must not block terminal** | Interactive with asynchronous subagents (background tasks) | The CLI’s architecture supports asynchronous tasks in background (as per the developers blog【203318192013127†L60-L73】); this prevents terminal lock‑up. |
+| **Long‑running processes (build, tests) or tasks that must not block terminal** | Interactive with asynchronous subagents (background tasks) | The CLI’s architecture supports asynchronous tasks in background (as per the developers blog【203318192013127†L60-L73】); this prevents terminal lock‑up.<br><br>**Walmart-GC Override Note:** For Walmart-GC, prefer foreground agy --print runs. Do not background Agy or use setsid unless explicitly approved. |
 | **CI/automation** | `--print` with `--model`, optional `--add-dir` and `--print-timeout` | Avoids manual intervention; ensure prompts include all context and verification steps; run with caution. |
 
 ## Recommended default command patterns
@@ -303,12 +309,12 @@ To maintain long‑term effectiveness of GPT + Agy integration, the project sh
 
 | Document | Purpose | Owner | When to update | Minimum contents | Repo vs private |
 |---|---|---|---|---|---|
-|**docs/AGY_CLI_SPEC.md**|Authoritative summary of CLI flags, slash commands, permission modes and known behaviours.|Technical lead or dev‑ops engineer.|Update when new CLI versions introduce changes.|Flag descriptions, default settings, sample commands, differences between interactive and non‑interactive modes.|Repository.|
-|**docs/GPT_AGY_WORKFLOW.md**|High‑level workflow for GPT + Agy integration, describing roles, prompt patterns and decision matrix.|GPT integrator.|Whenever workflow changes or new tasks are added.|Architecture diagram, prompt templates, when to use interactive vs print mode.|Repository.|
-|**docs/AGY_PROMPT_PATTERNS.md**|Library of proven prompt templates for different tasks.|Prompt architect or AI/UX writer.|After each successful milestone or when new patterns emerge.|Complete templates with examples, guidelines on including context, constraints, verification steps.|Repository.|
-|**docs/AGY_VALIDATION_RESULTS.md**|Record of local validation tests (see matrix above).|Dev‑ops engineer.|When tests are run or CLI updates occur.|Commands, dates, outputs, unexpected behaviours and mitigation.|Repository.|
-|**docs/AGY_FAILURE_MODES.md**|Known failure modes, workarounds and safe defaults.|All contributors.|Whenever a failure or bug is encountered.|Descriptions of timeouts, permission failures, model selection issues and recommended mitigations.|Repository.|
-|**docs/AGY_SECURITY_PRIVACY_GUARDRAILS.md**|Guidelines for handling sensitive data and preventing exfiltration.|Security lead.|When new data flows or third‑party integrations are introduced.|Explanation of permission modes, sandbox usage, restricted directories and monitoring logs.|Repository.|
+|**docs/agy/AGY_CLI_SPEC.md**|Authoritative summary of CLI flags, slash commands, permission modes and known behaviours.|Technical lead or dev‑ops engineer.|Update when new CLI versions introduce changes.|Flag descriptions, default settings, sample commands, differences between interactive and non‑interactive modes.|Repository.|
+|**docs/agy/GPT_AGY_WORKFLOW.md**|High‑level workflow for GPT + Agy integration, describing roles, prompt patterns and decision matrix.|GPT integrator.|Whenever workflow changes or new tasks are added.|Architecture diagram, prompt templates, when to use interactive vs print mode.|Repository.|
+|**docs/agy/AGY_PROMPT_PATTERNS.md**|Library of proven prompt templates for different tasks.|Prompt architect or AI/UX writer.|After each successful milestone or when new patterns emerge.|Complete templates with examples, guidelines on including context, constraints, verification steps.|Repository.|
+|**docs/agy/AGY_VALIDATION_RESULTS.md**|Record of local validation tests (see matrix above).|Dev‑ops engineer.|When tests are run or CLI updates occur.|Commands, dates, outputs, unexpected behaviours and mitigation.|Repository.|
+|**docs/agy/AGY_FAILURE_MODES.md**|Known failure modes, workarounds and safe defaults.|All contributors.|Whenever a failure or bug is encountered.|Descriptions of timeouts, permission failures, model selection issues and recommended mitigations.|Repository.|
+|**docs/agy/AGY_SECURITY_PRIVACY_GUARDRAILS.md**|Guidelines for handling sensitive data and preventing exfiltration.|Security lead.|When new data flows or third‑party integrations are introduced.|Explanation of permission modes, sandbox usage, restricted directories and monitoring logs.|Repository.|
 |**docs/VISUAL_QA_WORKFLOW.md**|Process for screenshot‑based UI verification (if the CLI supports screenshot capture).|QA engineer.|Before each UI polish pass.|Steps for launching the dev server, capturing screenshots, comparing before/after images and reporting issues.|Repository.|
 |**docs/M3_IMPLEMENTATION_GUARDRAILS.md**|Guidelines for implementing Material 3 components consistently.|Front‑end lead.|When design tokens or components change.|Use of typography scales, spacing, colours, states and responsive patterns.|Repository.|
 |**docs/RELEASE_VERIFICATION_CHECKLIST.md**|Checklist for verifying builds before release.|Release manager.|Before each release.|List of commands (build, lint, tests), environment checks, diff reviews, banned string searches.|Repository.|
@@ -317,10 +323,10 @@ To maintain long‑term effectiveness of GPT + Agy integration, the project sh
 
 ## Final recommended repository doc changes
 
-1. **Add `docs/AGY_CLI_SPEC.md`** summarising the CLI flags, interactive commands and behaviours, using the information consolidated in this report.  Include a clear note on unknown flags and the need for local validation.
-2. **Create `docs/GPT_AGY_WORKFLOW.md`** to document the roles and processes for using GPT with Antigravity CLI.  Incorporate the recommended prompt templates and operating architecture.
+1. **Add `docs/agy/AGY_CLI_SPEC.md`** summarising the CLI flags, interactive commands and behaviours, using the information consolidated in this report.  Include a clear note on unknown flags and the need for local validation.
+2. **Create `docs/agy/GPT_AGY_WORKFLOW.md`** to document the roles and processes for using GPT with Antigravity CLI.  Incorporate the recommended prompt templates and operating architecture.
 3. **Update `AGENTS.md`** to explain how the CLI fits into the project’s agent architecture and how custom subagents or skills should be integrated.
-4. **Add `docs/AGY_VALIDATION_RESULTS.md`** with results from the local test matrix and update it regularly as new versions of the CLI are released.
+4. **Add `docs/agy/AGY_VALIDATION_RESULTS.md`** with results from the local test matrix and update it regularly as new versions of the CLI are released.
 5. **Include guidelines on model selection** in the README or a dedicated document so that developers understand when to use each model.
 6. **Ensure sensitive information is protected** – emphasise the use of `AGY_CLI_HIDE_ACCOUNT_INFO` environment variable【977256602485969†L589-L593】 and the importance of trusted workspaces.
 
