@@ -91,7 +91,7 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 * **Desktop Centering**: Maintain a readable centered layout with bounded maximum width (`max-w-[60rem]`) on desktop views.
 
 ### 3. Bottom Navigation and Header Visual Identity
-* **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill for distinct visual recognition.
+* **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill for distinct visual recognition. Destinations use equal spacing, vertical layout with icon on top of the text label, and a smaller rounded-full active indicator pill (`w-16 h-8`). Inline SVG icons are used to represent Card list and Checkout destinations without extra dependencies.
 * **Top Header Visual Identity**: Header carries the primary container fill (`bg-m3-primary-container` and `text-m3-on-primary-container`) with custom properties referencing a production-inspired Walmart blue seed (#0071dc) to restore color identity while satisfying strict M3 semantic color roles.
 * **Current Scope**: Authorized under Phase 2A for full alignment with M3 spacing and layout.
 
@@ -102,7 +102,7 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 * **Selected Row State**: Restrained tonal primary-container highlight (`bg-[#d3e3fd]` in light theme) with subtle borders. No layout shift/jump or heavy shadows.
 
 ### 5. Sync & Status Identity: Privacy-First Chip
-* **Status Pill**: Show privacy-safe, system-level labels on the Cards screen:
+* **Status Pill**: Show privacy-safe, system-level labels styled as a compact inline M3 Assist Chip next to the section heading rather than a full-width block banner:
   - `Google sync on`
   - `Local only · Connect`
   - `Syncing…`
@@ -110,7 +110,8 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 * **Account Info**: Do **NOT** show full Google emails, usernames, or account handles on the primary list screen. Defer detailed credential profiles/full account details strictly to Settings.
 
 ### 6. Checkout Scanner
-* **Modal Scrim**: Strict non-modal M3 scrim, with a fallback to optimized no-darken or deliberate fullscreen scanner if warranted.
+* **Modal Scrim**: Strict non-modal M3 scrim layout. The backdrop uses the default light surface background (`bg-m3-surface`) with no darkened scrim overlay (`bg-m3-on-surface/40`) or backdrop blurring (`backdrop-blur-sm`).
+* **Scanner Overlay Overhaul**: Styled with `bg-m3-surface-container-lowest` base card background, M3-rounded borders (`rounded-3xl`), and no darkened scrim. Crucial checkout actions (Update Balance and Mark Used) are styled as high-contrast buttons, and notes display with reduced visual emphasis (borderless details block) to stay clearly secondary.
 
 ### 7. Settings Hierarchy
 * **Restructuring**: Redesign of preferences, syncing options, and backup configurations to match a strict M3 hierarchy.
