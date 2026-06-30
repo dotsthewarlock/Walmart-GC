@@ -1797,7 +1797,7 @@ function App() {
                   })()}
 
                   {/* Update and Mark used side-by-side */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
+                  <div className={`grid grid-cols-2 gap-4 items-center transition-all duration-300 ${isBarcodeFocusOpen ? 'relative z-50' : ''}`}>
                     <button
                       id="open-balance-modal"
                       onClick={() => {
