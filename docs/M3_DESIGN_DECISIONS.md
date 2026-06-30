@@ -121,7 +121,7 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 * **Troubleshooting Pane**: Cleanup and grouping of app-level runtime diagnostics logs into a collapsed Troubleshooting container.
 
 ### 9. Typography: Strict M3 Type-Role System
-* Use strict type rhythm, weight, contrast, and family settings (Outfit for sans-serif text, Roboto Mono/mono for tabular values/numbers).
+* Use strict type rhythm, weight, contrast, and family settings (Outfit for sans-serif text, Google Sans Code/mono for tabular values/numbers).
 
 ### 10. Visual M3 Compliance Cleanup
 * **Diagnostics/Technical Details**: Grouped diagnostics and logs under a collapsed `Troubleshooting` card pane. Removed versioning, fingerprints, and local device environment rows.
