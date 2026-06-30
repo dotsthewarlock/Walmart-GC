@@ -1683,6 +1683,14 @@ function App() {
                         {syncState.message || directSheetsState.message}
                       </div>
                     </div>
+
+                    <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex flex-col gap-1.5">
+                      <h4 className="text-xs font-bold text-m3-on-surface uppercase">Recent Update</h4>
+                      <div className="text-xs text-m3-on-surface-variant font-medium flex flex-col gap-0.5">
+                        <span className="font-semibold text-m3-on-surface">M3 cleanup applied</span>
+                        <span className="text-[10px] text-m3-on-surface-variant">Cards, Checkout, Settings polish</span>
+                      </div>
+                    </div>
                   </div>
                 </details>
               </section>
