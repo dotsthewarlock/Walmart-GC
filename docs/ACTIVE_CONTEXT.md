@@ -4,11 +4,11 @@ Read this document first for all current Walmart-GC tasks. It is the primary, co
 
 ## Current Basics
 - **Repository**: `dotsthewarlock/Walmart-GC`
-- **Active Branch**: `main` (React 19 + Vite + Tailwind production candidate)
+- **Active Branch**: `main` (React 19 + Vite + Tailwind CSS)
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
-- **Verification Status**: Current public deploy is still the legacy/root `phase-12` branch. The `main` React/Vite/Tailwind build is the production-candidate target. Tomorrow's planned work is the deployment switch to React/Vite. Do not claim React/Vite is live until verified after tomorrow's switch.
-- **Rollback Path**: GitHub Pages config pointed back to branch `phase-12` / `/` root (using backup branch `backup/phase-12-before-react-vite-2026-06-24` and tag `prod-phase-12-pre-react-vite-2026-06-24`).
+- **Verification Status**: The React 19 + Vite + Tailwind CSS build on `main` is successfully switched and verified live via GitHub Actions deployment.
+- **Rollback Path**: Revert GitHub Pages source selection back to serving from branch `phase-12` / `/` root (using backup branch `backup/phase-12-before-react-vite-2026-06-24` and tag `prod-phase-12-pre-react-vite-2026-06-24`).
 
 ## Active Architecture
 ```text

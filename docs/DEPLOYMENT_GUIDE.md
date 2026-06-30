@@ -35,11 +35,10 @@ Normal users should only need to open the custom-domain app, select **Connect Go
 
 ## Branches & Production State
 
-- **Live Production**: Current public deploy is still the legacy/root `phase-12` branch. The `main` React/Vite/Tailwind build is the production-candidate target. Tomorrow's planned work is the deployment switch to React/Vite. Do not claim React/Vite is live until verified after tomorrow's switch.
-- **Pages Metadata Caveat**: The GitHub Pages API may still report legacy `phase-12 / /` metadata. Verify live HTML after tomorrow's switch before changing Pages settings.
+- **Live Production**: The application is built and deployed live to GitHub Pages using GitHub Actions triggered by changes on `main`. The deployment compiles React 19 + Vite + Tailwind CSS assets and hosts them from the `dist/` directory.
+- **Pages Metadata Caveat**: The GitHub Pages API may still report legacy `phase-12 / /` metadata even while live HTML serves built Vite assets. Treat this as a known GitHub Pages API metadata inconsistency.
 - **Archival Baseline**: `phase-12` remains the archival last-known-good baseline and behavior parity source.
-- **Target Pages Model**: The target Pages model is GitHub Actions building from `main` and deploying the compiled `dist/` folder, not serving from a branch root. Tomorrow's planned work is to execute and verify this deployment switch.
-- **Deployment/Config Control**: Actual deployment/config modifications remain Red scope and are not yet approved until tomorrow's scheduled switch.
+- **Deployment Control**: The deployment switch to GitHub Actions-built `main` is now executed, verified, and complete. Future updates to the frontend are deployed automatically on push to `main`.
 - **Production Safety References (94c30c2536a63a721953fc3ea3e1dfc3cdd590b0)**:
   - Backup Branch: `backup/phase-12-before-react-vite-2026-06-24`
   - Backup Tag: `prod-phase-12-pre-react-vite-2026-06-24`

@@ -4,7 +4,7 @@
 
 Walmart-GC uses a React 19 + Vite + Tailwind CSS frontend environment plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
 
-`main` is now the React 19 + Vite + Tailwind production-candidate target. The current production baseline/public deploy is the legacy `phase-12` branch root served by GitHub Pages. Tomorrow's planned work is the deployment switch to React/Vite. Do not claim React/Vite is live until verified after the switch. Actual deployment/config modifications remain Red scope and are not yet approved. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
+`main` is the active live branch. The application is built and deployed to GitHub Pages via GitHub Actions from `main` (React 19 + Vite + Tailwind CSS). The legacy `phase-12` branch remains preserved as the archival baseline. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
 
 ## Runtime Debugging Priority
