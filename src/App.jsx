@@ -1346,7 +1346,7 @@ function App() {
                                 Used
                               </span>
                             )}
-                            <span className="text-sm font-bold">
+                            <span className="text-sm font-bold font-mono">
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
@@ -1672,15 +1672,11 @@ function App() {
                           <span>Sync Status</span>
                           <span className="font-mono text-[10px] text-m3-on-surface font-bold">{syncState.status}</span>
                         </li>
-                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                        <li className="flex justify-between">
                           <span>Sheets Configured</span>
                           <span className="font-mono text-[10px] text-m3-on-surface font-bold">
                             {directSheetsState.spreadsheetId ? "Yes" : "No"}
                           </span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>Active Git Branch</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">agy/shadcn-refactor-docs</span>
                         </li>
                       </ul>
                       <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
@@ -1938,7 +1934,7 @@ function App() {
       {isBarcodeFocusOpen && (
         <div
           id="spotlight-scrim"
-          className="fixed inset-0 bg-black/60 z-45 transition-opacity duration-300 cursor-pointer animate-fade-in"
+          className="fixed inset-0 bg-m3-on-surface/10 z-45 transition-opacity duration-300 cursor-pointer animate-fade-in"
           onClick={() => setIsBarcodeFocusOpen(false)}
         />
       )}
