@@ -112,6 +112,7 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 ### 6. Checkout Scanner
 * **Modal Scrim**: Strict non-modal M3 scrim layout. The backdrop uses the default light surface background (`bg-m3-surface`) with no darkened scrim overlay (`bg-m3-on-surface/40`) or backdrop blurring (`backdrop-blur-sm`).
 * **Scanner Overlay Overhaul**: Styled with `bg-m3-surface-container-lowest` base card background, M3-rounded borders (`rounded-3xl`), and no darkened scrim. Crucial checkout actions (Update Balance and Mark Used) are styled as high-contrast buttons, and notes display with reduced visual emphasis (borderless details block) to stay clearly secondary.
+* **Desktop Code/PIN Copy**: On desktop/fine-pointer checkout views, clicking the displayed card code or PIN display copies a single `CODE/PIN` clipboard value using the full digits-only card code and trimmed PIN. Barcode payload and generation remain unchanged, and mobile/touch scanning behavior remains the primary unchanged workflow.
 
 ### 7. Settings Hierarchy
 * **Restructuring**: Redesign of preferences, syncing options, and backup configurations to match a strict M3 hierarchy.

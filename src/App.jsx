@@ -19,9 +19,59 @@ function maskCardNumber(cardNumber) {
   return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
 }
 
+function getCardCode(card) {
+  return String(card?.cardNumber ?? "").replace(/\D/g, "");
+}
+
+function formatCodePin(card) {
+  const code = getCardCode(card);
+  const pin = String(card?.pin ?? "").trim();
+  return `${code}/${pin}`;
+}
+
+function isDesktopCopyTarget() {
+  return typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+async function writeClipboardText(text) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the textarea copy path for browsers that block Clipboard API writes.
+    }
+  }
+
+  if (typeof document === "undefined" || !document.body) {
+    return false;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.append(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
 function App() {
   const mainTouchStart = useRef(null);
   const barcodeFocusTouchStart = useRef(null);
+  const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
   const [settings, setSettings] = useState({
     advanceOnMarkUsed: true,
@@ -33,6 +83,7 @@ function App() {
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const [revealNumber, setRevealNumber] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState("");
   
   // Balance Editor Form State
   const [isEditingBalance, setIsEditingBalance] = useState(false);
@@ -149,8 +200,13 @@ function App() {
     };
   };
 
-
-
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimer.current) {
+        clearTimeout(copyFeedbackTimer.current);
+      }
+    };
+  }, []);
 
   // Handle escape key listener for barcode focus overlay
   useEffect(() => {
@@ -510,6 +566,24 @@ function App() {
         handlePrevCard();
       }
     }
+  };
+
+  const handleCopyCodePin = async (event, card) => {
+    event?.stopPropagation();
+    if (!isDesktopCopyTarget()) {
+      return false;
+    }
+
+    const copied = await writeClipboardText(formatCodePin(card));
+    if (copyFeedbackTimer.current) {
+      clearTimeout(copyFeedbackTimer.current);
+    }
+    setCopyFeedback(copied ? "Code/PIN copied" : "Copy unavailable");
+    copyFeedbackTimer.current = setTimeout(() => {
+      setCopyFeedback("");
+      copyFeedbackTimer.current = null;
+    }, 1500);
+    return copied;
   };
 
   // Balance Update Action
@@ -1668,69 +1742,97 @@ function App() {
                     const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
                     
                     return (
-                      <button
-                        id="barcode-open"
-                        onClick={() => setIsBarcodeFocusOpen(true)}
-                        className="bg-m3-surface-container border border-m3-outline-variant rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] cursor-pointer hover:border-m3-primary transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                        title="Open focused barcode view"
-                      >
-                        <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
-                          <span id="detail-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
-                            {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
-                          </span>
-                          <strong id="detail-barcode-balance" className="text-lg font-black text-m3-on-surface font-mono">
-                            ${selectedCard.currentBalance.toFixed(2)}
-                          </strong>
-                        </div>
-                        
-                        {barcodeData ? (
-                          <div className="flex flex-col items-center gap-2 w-full pt-2">
-                            <div className="w-full bg-white border border-m3-outline-variant p-2 rounded-2xl">
-                              <svg
-                                viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
-                                preserveAspectRatio="none"
-                                role="img"
-                                aria-label="Code 128 checkout barcode"
-                                className="w-full h-16"
-                              >
-                                <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                                {barcodeData.rects.map((r, i) => (
-                                  <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                                ))}
-                              </svg>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-2xl p-4 w-full text-center">
-                            <span className="text-sm text-m3-error font-bold">
-                              {getBarcodeFallbackMessage(selectedCard)}
+                      <div className="bg-m3-surface-container border border-m3-outline-variant rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] hover:border-m3-primary transition-colors w-full text-left">
+                        <button
+                          id="barcode-open"
+                          onClick={() => setIsBarcodeFocusOpen(true)}
+                          className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                          title="Open focused barcode view"
+                          aria-label="Open focused barcode view"
+                          type="button"
+                        >
+                          <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
+                            <span id="detail-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
+                              {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                             </span>
-                            <span className="text-[10px] text-m3-on-surface-variant">
-                              Card number and PIN remain available below.
-                            </span>
+                            <strong id="detail-barcode-balance" className="text-lg font-black text-m3-on-surface font-mono">
+                              ${selectedCard.currentBalance.toFixed(2)}
+                            </strong>
                           </div>
-                        )}
 
-                        <div className="flex justify-between items-center w-full border-t border-m3-outline-variant pt-2 text-xs font-bold text-m3-on-surface-variant">
-                          <span
-                            id="detail-barcode-caption"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRevealNumber(!revealNumber);
-                            }}
-                            className="font-mono cursor-pointer hover:text-m3-primary"
-                            title="Toggle card number visibility"
+                          {barcodeData ? (
+                            <div className="flex flex-col items-center gap-2 w-full pt-2">
+                              <div className="w-full bg-white border border-m3-outline-variant p-2 rounded-2xl">
+                                <svg
+                                  viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
+                                  preserveAspectRatio="none"
+                                  role="img"
+                                  aria-label="Code 128 checkout barcode"
+                                  className="w-full h-16"
+                                >
+                                  <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
+                                  {barcodeData.rects.map((r, i) => (
+                                    <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
+                                  ))}
+                                </svg>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-2xl p-4 w-full text-center">
+                              <span className="text-sm text-m3-error font-bold">
+                                {getBarcodeFallbackMessage(selectedCard)}
+                              </span>
+                              <span className="text-[10px] text-m3-on-surface-variant">
+                                Card number and PIN remain available below.
+                              </span>
+                            </div>
+                          )}
+                        </button>
+
+                        <div className="flex flex-wrap justify-between items-center gap-2 w-full border-t border-m3-outline-variant pt-2 text-xs font-bold text-m3-on-surface-variant">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <button
+                              id="detail-barcode-caption"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (isDesktopCopyTarget()) {
+                                  await handleCopyCodePin(e, selectedCard);
+                                  return;
+                                }
+                                setRevealNumber(!revealNumber);
+                              }}
+                              className="font-mono cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
+                              title="Copy code and PIN"
+                              aria-label="Copy code and PIN"
+                              type="button"
+                            >
+                              {revealNumber
+                                ? selectedCard.cardNumber
+                                : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
+                              }
+                            </button>
+                            {copyFeedback && (
+                              <span
+                                className="rounded-full border border-m3-outline-variant/40 bg-m3-surface-container-low px-2 py-0.5 text-[10px] font-semibold text-m3-on-surface-variant"
+                                role="status"
+                                aria-live="polite"
+                              >
+                                {copyFeedback}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            id="detail-barcode-pin"
+                            onClick={(e) => handleCopyCodePin(e, selectedCard)}
+                            className="font-mono cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
+                            title="Copy code and PIN"
+                            aria-label="Copy code and PIN"
+                            type="button"
                           >
-                            {revealNumber
-                              ? selectedCard.cardNumber
-                              : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
-                            }
-                          </span>
-                          <strong id="detail-barcode-pin" className="font-mono">
-                            PIN {selectedCard.pin}
-                          </strong>
+                            PIN {selectedCard.pin || "—"}
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     );
                   })()}
 
@@ -1918,12 +2020,17 @@ function App() {
                     <span className="font-semibold text-m3-outline uppercase tracking-wider text-[10px]">Card Number</span>
                     <button
                       id="fullscreen-card-number-reveal"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
+                        if (isDesktopCopyTarget()) {
+                          await handleCopyCodePin(e, selectedCard);
+                          return;
+                        }
                         setRevealNumber(!revealNumber);
                       }}
                       className="font-mono font-bold text-m3-on-surface hover:text-m3-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded px-2 py-1 bg-m3-surface-container hover:bg-m3-surface-container-high transition-colors cursor-pointer flex items-center gap-1.5"
-                      title="Toggle card number visibility"
+                      title="Copy code and PIN"
+                      aria-label="Copy code and PIN"
                       type="button"
                     >
                       <span>
@@ -1936,11 +2043,27 @@ function App() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant font-sans">
                     <span className="font-semibold text-m3-outline uppercase tracking-wider text-[10px]">Security PIN</span>
-                    <span id="fullscreen-pin" className="font-mono font-bold text-m3-on-surface text-sm">
+                    <button
+                      id="fullscreen-pin"
+                      onClick={(e) => handleCopyCodePin(e, selectedCard)}
+                      className="font-mono font-bold text-m3-on-surface hover:text-m3-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded px-2 py-1 bg-m3-surface-container hover:bg-m3-surface-container-high transition-colors cursor-pointer"
+                      title="Copy code and PIN"
+                      aria-label="Copy code and PIN"
+                      type="button"
+                    >
                       {selectedCard.pin || "—"}
-                    </span>
+                    </button>
                   </div>
                 </div>
+                {copyFeedback && (
+                  <span
+                    className="self-start rounded-full border border-m3-outline-variant/40 bg-m3-surface-container px-2 py-0.5 text-[10px] font-semibold text-m3-on-surface-variant"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {copyFeedback}
+                  </span>
+                )}
               </div>
             </div>
 
