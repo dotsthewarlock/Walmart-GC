@@ -1702,7 +1702,7 @@ function App() {
                   {/* Large Barcode Frame */}
                   {(() => {
                     const payload = getBarcodePayload(selectedCard);
-                    const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
+                    const barcodeData = payload ? getCode128BarcodeBars(payload, { quietZone: 0 }) : null;
                     
                     return (
                       <div className={`transition-all duration-300 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left ${
@@ -1729,7 +1729,7 @@ function App() {
 
                           {barcodeData ? (
                             <div className="flex flex-col items-center gap-2 w-full pt-2">
-                              <div className={`w-full bg-white py-2 px-0 rounded-2xl transition-all duration-300 ${
+                              <div className={`w-full bg-white py-2 px-4 rounded-2xl transition-all duration-300 ${
                                 isBarcodeFocusOpen ? 'h-32 sm:h-48' : 'h-16'
                               }`}>
                                 <svg
