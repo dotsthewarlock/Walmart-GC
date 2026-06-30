@@ -1729,7 +1729,7 @@ function App() {
 
                           {barcodeData ? (
                             <div className="flex flex-col items-center gap-2 w-full pt-2">
-                              <div className={`w-full bg-white border border-m3-outline-variant p-2 rounded-2xl transition-all duration-300 ${
+                              <div className={`w-full bg-white py-2 px-0 rounded-2xl transition-all duration-300 ${
                                 isBarcodeFocusOpen ? 'h-32 sm:h-48' : 'h-16'
                               }`}>
                                 <svg
