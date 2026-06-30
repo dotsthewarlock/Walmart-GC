@@ -450,11 +450,9 @@ GitHub Actions validation remains valuable for checking correctness on the remot
 
 ## App-Shell Debug Version Convention
 
-- Frontend runtime changes bump all app-shell cache/debug fingerprints together in `index.html`, `app.js`, and `styles.css`, including CSS/JS query strings.
+- Under the React/Vite/Tailwind architecture, dynamic fingerprint versioning is deprecated. Static asset cache-busting is handled automatically by Vite's standard bundle hash compile output.
 - Worker runtime changes bump `WORKER_VERSION` in `worker/src/index.js`.
-- Frontend plus Worker changes bump both the frontend app-shell fingerprints and `WORKER_VERSION`.
-- Docs-only changes bump neither.
-- App-shell fingerprints are lightweight cache/debug aids for confirming which static files GitHub Pages and the browser loaded; they are not product release numbers.
+- Docs-only changes bump nothing.
 
 ---
 
