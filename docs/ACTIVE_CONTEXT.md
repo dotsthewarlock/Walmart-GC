@@ -90,3 +90,23 @@ For Terminal/Agy work, use a durable, token-efficient handoff model:
   - [ ] Is Issue #200 only run-state, not source of truth?
 - Future GPT/Agy sessions must read `docs/ACTIVE_CONTEXT.md` before relying on chat memory.
 - Keep terminal output Chromebook-safe: print changed-file lists, `git diff --stat`, build tails, and `tail -80` logs rather than full recursive diffs.
+
+## Shadcn / M3 Refactoring Guardrails (Setup Phase)
+
+1. **Design Authority**:
+   The Material 3 (M3)-inspired Walmart-GC design remains the visual source of truth. Shadcn/ui is approved only as an accessibility/implementation primitive, not the visual style guide.
+
+2. **Primitive Customization**:
+   All installed shadcn components must be customized locally in `src/components/ui/` to:
+   * Preserve larger rounded shapes (e.g. `rounded-3xl` or `rounded-2xl`).
+   * Match existing tonal surface and outline token/class roles. If a needed reusable class does not exist, propose or add it deliberately as part of the primitive layer rather than scattering one-off Tailwind strings.
+   * Retain mobile-first touch targets (minimum `48px` height for interactive regions).
+
+3. **Phase-Scoped State Constraint**:
+   Preserve the existing state flow. Do not move card data, preferences, modal controls, sync state, or checkout state into a new state-management architecture during setup.
+
+4. **Phase-Scoped Feature Constraint**:
+   Do not migrate or redesign the Cards list or Checkout/detail layout during this setup pass.
+
+5. **Icon Strategy**:
+   Lucide icons are permitted only within newly added or directly touched shadcn components. Do not perform an app-wide icon migration.

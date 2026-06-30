@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&family=Google+Sans+Code:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&family=Google+Sans+Code:wght@400;700&display=swap');
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -36,7 +38,7 @@ body {
   margin: 0;
   background-color: var(--md-sys-color-surface);
   color: var(--md-sys-color-on-surface);
-  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  font-family: 'Google Sans Flex', 'Google Sans', Arial, Helvetica, sans-serif;
 }
 
 .font-mono {
@@ -56,4 +58,90 @@ body {
 
 .animate-snackbar {
   animation: fadeInUp 0.18s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+@layer base {
+  .theme {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Google Sans Flex', 'Google Sans', Arial, Helvetica, sans-serif;
+  }
+  :root {
+    --background: var(--md-sys-color-surface);
+    --foreground: var(--md-sys-color-on-surface);
+    --card: var(--md-sys-color-surface-container-lowest);
+    --card-foreground: var(--md-sys-color-on-surface);
+    --popover: var(--md-sys-color-surface-container-lowest);
+    --popover-foreground: var(--md-sys-color-on-surface);
+    --primary: var(--md-sys-color-primary);
+    --primary-foreground: var(--md-sys-color-on-primary);
+    --secondary: var(--md-sys-color-surface-container-low);
+    --secondary-foreground: var(--md-sys-color-on-surface);
+    --muted: var(--md-sys-color-surface-container-low);
+    --muted-foreground: var(--md-sys-color-on-surface-variant);
+    --accent: var(--md-sys-color-surface-container);
+    --accent-foreground: var(--md-sys-color-on-surface);
+    --destructive: var(--md-sys-color-error);
+    --destructive-foreground: #ffffff;
+    --border: var(--md-sys-color-outline-variant);
+    --input: var(--md-sys-color-outline);
+    --ring: var(--md-sys-color-primary);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 1.5rem;
+    --sidebar: var(--md-sys-color-surface-container-lowest);
+    --sidebar-foreground: var(--md-sys-color-on-surface);
+    --sidebar-primary: var(--md-sys-color-primary);
+    --sidebar-primary-foreground: var(--md-sys-color-on-primary);
+    --sidebar-accent: var(--md-sys-color-surface-container-low);
+    --sidebar-accent-foreground: var(--md-sys-color-on-surface);
+    --sidebar-border: var(--md-sys-color-outline-variant);
+    --sidebar-ring: var(--md-sys-color-primary);
+  }
+  .dark {
+    --background: var(--md-sys-color-surface);
+    --foreground: var(--md-sys-color-on-surface);
+    --card: var(--md-sys-color-surface-container-lowest);
+    --card-foreground: var(--md-sys-color-on-surface);
+    --popover: var(--md-sys-color-surface-container-lowest);
+    --popover-foreground: var(--md-sys-color-on-surface);
+    --primary: var(--md-sys-color-primary);
+    --primary-foreground: var(--md-sys-color-on-primary);
+    --secondary: var(--md-sys-color-surface-container-low);
+    --secondary-foreground: var(--md-sys-color-on-surface);
+    --muted: var(--md-sys-color-surface-container-low);
+    --muted-foreground: var(--md-sys-color-on-surface-variant);
+    --accent: var(--md-sys-color-surface-container);
+    --accent-foreground: var(--md-sys-color-on-surface);
+    --destructive: var(--md-sys-color-error);
+    --destructive-foreground: #ffffff;
+    --border: var(--md-sys-color-outline-variant);
+    --input: var(--md-sys-color-outline);
+    --ring: var(--md-sys-color-primary);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: var(--md-sys-color-surface-container-lowest);
+    --sidebar-foreground: var(--md-sys-color-on-surface);
+    --sidebar-primary: var(--md-sys-color-primary);
+    --sidebar-primary-foreground: var(--md-sys-color-on-primary);
+    --sidebar-accent: var(--md-sys-color-surface-container-low);
+    --sidebar-accent-foreground: var(--md-sys-color-on-surface);
+    --sidebar-border: var(--md-sys-color-outline-variant);
+    --sidebar-ring: var(--md-sys-color-primary);
+  }
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  div:has(> #barcode-open) {
+    background-color: #ffffff !important;
+  }
 }

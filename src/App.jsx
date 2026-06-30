@@ -14,8 +14,13 @@ function maskCardNumber(cardNumber) {
   if (!digits) {
     return "—";
   }
+  if (digits.length <= 8) {
+    return digits;
+  }
+  const firstFour = digits.slice(0, 4);
   const lastFour = digits.slice(-4);
-  const maskedDigits = `${"•".repeat(Math.max(digits.length - 4, 0))}${lastFour}`;
+  const middleMaskLength = digits.length - 8;
+  const maskedDigits = `${firstFour}${"•".repeat(middleMaskLength)}${lastFour}`;
   return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
 }
 
@@ -446,6 +451,10 @@ function App() {
 
   // Mark all $0 cards used helper from phase-12
   const handleMarkZeroBalanceUsed = () => {
+    if (!window.confirm(`Are you sure you want to mark all ${zeroBalanceCount} zero-balance card(s) as used?`)) {
+      return;
+    }
+
     const updatedCards = cards.map((card) => {
       if (card.currentBalance === 0 && !card.used) {
         return {
@@ -719,6 +728,10 @@ function App() {
   };
 
   const handleDisconnectGoogle = async () => {
+    if (!window.confirm("Are you sure you want to disconnect your Google Account? This will pause sheet synchronization, though your local gift cards will not be changed.")) {
+      return;
+    }
+
     setOauthState(prev => ({
       ...prev,
       status: googleOAuthStatuses.connecting,
@@ -908,6 +921,10 @@ function App() {
 
   // Fetch gift cards details from active Google Sheet
   const handleLoadCardsFromSheet = async () => {
+    if (!window.confirm("Are you sure you want to import cards from Google Sheets? This will completely replace your current local browser session with the spreadsheet data.")) {
+      return;
+    }
+
     setDirectSheetsState(prev => ({
       ...prev,
       status: directSheetsStatuses.checking,
@@ -1080,11 +1097,11 @@ function App() {
       <header className="bg-m3-primary text-m3-on-primary border-b border-m3-outline-variant/60 py-4 md:py-6 px-6 sm:px-8">
         <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-m3-on-primary">
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-m3-on-primary">
               Gift Card Manager
             </h1>
             <p className="text-[10px] md:text-xs text-m3-on-primary/80 font-semibold tracking-wide uppercase mt-0.5">
-              Secure Local Gift Card Vault
+              Private gift card wallet
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -1137,7 +1154,7 @@ function App() {
                 <line x1="2" y1="10" x2="22" y2="10" />
               </svg>
             </div>
-            <span className={`text-[11px] font-black mt-1 tracking-wide transition-all ${
+            <span className={`text-[11px] font-bold mt-1 tracking-wide transition-all ${
               activePanel === 'list' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'
             }`}>
               Cards
@@ -1165,7 +1182,7 @@ function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 5v14M9 5v14M13 5v14M17 5v14M20 5v14" />
               </svg>
             </div>
-            <span className={`text-[11px] font-black mt-1 tracking-wide transition-all ${
+            <span className={`text-[11px] font-bold mt-1 tracking-wide transition-all ${
               activePanel === 'detail' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'
             }`}>
               Checkout
@@ -1175,7 +1192,7 @@ function App() {
       </nav>
 
       <div 
-        className="min-h-screen bg-m3-surface flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative"
+        className="bg-m3-surface flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
@@ -1187,11 +1204,11 @@ function App() {
               <section className="bg-m3-surface-container border border-m3-outline-variant rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Available balance</span>
-                  <span className="text-2xl sm:text-3xl font-black text-m3-on-surface">${activeBalance.toFixed(2)}</span>
+                  <span className="text-2xl sm:text-3xl font-bold text-m3-on-surface">${activeBalance.toFixed(2)}</span>
                 </div>
                 <div className="flex flex-col gap-1 text-right">
                   <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Visible cards</span>
-                  <span className="text-xl sm:text-2xl font-black text-m3-on-surface">{activeCount}</span>
+                  <span className="text-xl sm:text-2xl font-bold text-m3-on-surface">{activeCount}</span>
                 </div>
               </section>
 
@@ -1329,7 +1346,7 @@ function App() {
                                 Used
                               </span>
                             )}
-                            <span className={`text-sm font-bold font-mono`}>
+                            <span className="text-sm font-bold">
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
@@ -1444,11 +1461,11 @@ function App() {
                       {directSheetsState.message}
                     </p>
                     
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                       <button
                         id="ensure-sheet"
                         onClick={handleEnsureSheet}
-                        className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                       >
                         Fix Google Sheet
@@ -1459,7 +1476,7 @@ function App() {
                           href={directSheetsState.spreadsheetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm text-center flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                          className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         >
                           Open Sheet
                         </a>
@@ -1467,15 +1484,19 @@ function App() {
                       <button
                         id="load-from-sheets"
                         onClick={handleLoadCardsFromSheet}
-                        className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                       >
                         Import from Google
                       </button>
                       <button
                         id="save-to-sheets"
-                        onClick={handleSaveCardsToSheet}
-                        className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        onClick={() => {
+                          if (window.confirm("Warning: Exporting to Google will replace all gift card rows in your Google Sheet with your current local browser session. Do you want to proceed?")) {
+                            handleSaveCardsToSheet();
+                          }
+                        }}
+                        className={`w-full text-center flex items-center justify-center bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${!directSheetsState.spreadsheetUrl ? "sm:col-span-2" : ""}`}
                         type="button"
                       >
                         Export to Google
@@ -1590,7 +1611,11 @@ function App() {
                       />
                       <button 
                         id="import-csv" 
-                        onClick={() => document.getElementById('csv-file-input').click()}
+                        onClick={() => {
+                          if (window.confirm("Warning: Importing a CSV will load cards into the editor, which can overwrite or modify your current local session. Do you want to proceed?")) {
+                            document.getElementById('csv-file-input').click();
+                          }
+                        }}
                         className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
                         type="button"
                         title="Import CSV backup"
@@ -1647,11 +1672,15 @@ function App() {
                           <span>Sync Status</span>
                           <span className="font-mono text-[10px] text-m3-on-surface font-bold">{syncState.status}</span>
                         </li>
-                        <li className="flex justify-between">
+                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                           <span>Sheets Configured</span>
                           <span className="font-mono text-[10px] text-m3-on-surface font-bold">
                             {directSheetsState.spreadsheetId ? "Yes" : "No"}
                           </span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Active Git Branch</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">agy/shadcn-refactor-docs</span>
                         </li>
                       </ul>
                       <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
@@ -1707,7 +1736,7 @@ function App() {
                     return (
                       <div className={`transition-all duration-300 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left ${
                         isBarcodeFocusOpen
-                          ? 'relative z-50 bg-m3-surface-container-lowest border-2 border-m3-primary shadow-2xl scale-[1.02]'
+                          ? 'relative z-50 bg-white border-2 border-m3-primary shadow-2xl scale-[1.02]'
                           : 'bg-m3-surface-container border border-m3-outline-variant hover:border-m3-primary'
                       }`}>
                         <button
@@ -1719,17 +1748,17 @@ function App() {
                           type="button"
                         >
                           <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
-                            <span id="detail-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
+                            <span id="detail-barcode-status" className="text-sm font-bold text-m3-on-surface-variant">
                               {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
                             </span>
-                            <strong id="detail-barcode-balance" className="text-lg font-black text-m3-on-surface font-mono">
+                            <strong id="detail-barcode-balance" className="text-sm font-bold text-m3-on-surface">
                               ${selectedCard.currentBalance.toFixed(2)}
                             </strong>
                           </div>
 
                           {barcodeData ? (
-                            <div className="flex flex-col items-center gap-2 w-full pt-2">
-                              <div className={`w-full bg-white py-2 px-4 rounded-2xl transition-all duration-300 ${
+                            <div className="flex flex-col items-center gap-2 w-[calc(100%+3rem)] mx-[-1.5rem] pt-2">
+                              <div className={`w-full bg-white transition-all duration-300 ${
                                 isBarcodeFocusOpen ? 'h-32 sm:h-48' : 'h-16'
                               }`}>
                                 <svg
@@ -1789,7 +1818,7 @@ function App() {
                             aria-label="Copy code and PIN"
                             type="button"
                           >
-                            PIN {selectedCard.pin || "—"}
+                            {selectedCard.pin || "—"}
                           </button>
                         </div>
                       </div>
@@ -1943,7 +1972,7 @@ function App() {
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center text-sm font-semibold text-m3-on-surface">
                 <span>Current Balance</span>
-                <span className="font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
+                <span>${selectedCard.currentBalance.toFixed(2)}</span>
               </div>
 
               <div className="flex flex-col gap-1.5">

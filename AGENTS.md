@@ -529,3 +529,11 @@ Historical/archival/protected:
 Upcoming:
 
 * Post-MVP enhancements only after OAuth/session flow is fully functional and durable on `main`
+
+---
+
+## Shadcn / M3 Refactoring Summary (Setup Phase)
+Refer to [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md) for full style customization and design token guardrails.
+* Do not migrate Cards or Checkout views during setup.
+* Do not introduce React Context or state architecture changes; preserve the existing state flow.
+* Shadcn/ui is an implementation tool. The M3-inspired visual theme remains the source of truth.

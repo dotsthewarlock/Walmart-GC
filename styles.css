@@ -40,7 +40,7 @@
   --shadow: var(--elevation-panel);
   --unused: var(--state-success);
   --used: #6d7480;
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-sans: "Google Sans Flex", "Google Sans", Arial, Helvetica, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --type-body-size: 1rem;
   --type-body-line-height: 1.5;
   --type-body-weight: 400;
