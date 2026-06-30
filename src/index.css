@@ -42,3 +42,18 @@ body {
 .font-mono {
   font-family: 'Roboto Mono', monospace;
 }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-snackbar {
+  animation: fadeInUp 0.18s cubic-bezier(0, 0, 0.2, 1) forwards;
+}

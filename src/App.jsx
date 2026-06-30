@@ -582,7 +582,7 @@ function App() {
     copyFeedbackTimer.current = setTimeout(() => {
       setCopyFeedback("");
       copyFeedbackTimer.current = null;
-    }, 1500);
+    }, 2500);
     return copied;
   };
 
@@ -1811,15 +1811,6 @@ function App() {
                                 : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
                               }
                             </button>
-                            {copyFeedback && (
-                              <span
-                                className="rounded-full border border-m3-outline-variant/40 bg-m3-surface-container-low px-2 py-0.5 text-[10px] font-semibold text-m3-on-surface-variant"
-                                role="status"
-                                aria-live="polite"
-                              >
-                                {copyFeedback}
-                              </span>
-                            )}
                           </div>
                           <button
                             id="detail-barcode-pin"
@@ -2055,15 +2046,6 @@ function App() {
                     </button>
                   </div>
                 </div>
-                {copyFeedback && (
-                  <span
-                    className="self-start rounded-full border border-m3-outline-variant/40 bg-m3-surface-container px-2 py-0.5 text-[10px] font-semibold text-m3-on-surface-variant"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {copyFeedback}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -2372,6 +2354,13 @@ function App() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* M3 Snackbar Toast */}
+      {copyFeedback && (
+        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-xs font-bold px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4 min-w-[288px] max-w-sm pointer-events-none animate-snackbar">
+          <span className="w-full text-center">{copyFeedback}</span>
         </div>
       )}
     </>
