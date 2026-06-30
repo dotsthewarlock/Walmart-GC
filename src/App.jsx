@@ -1686,7 +1686,7 @@ function App() {
                     >
                       ← Prev
                     </button>
-                    <span id="card-position" className="text-xs font-bold text-m3-on-surface-variant font-mono">
+                    <span id="card-position" className="text-xs font-bold text-m3-on-surface-variant">
                       Card {visiblePosition + 1} of {visibleIndexes.length}
                     </span>
                     <button
