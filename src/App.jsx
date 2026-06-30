@@ -70,7 +70,6 @@ async function writeClipboardText(text) {
 
 function App() {
   const mainTouchStart = useRef(null);
-  const barcodeFocusTouchStart = useRef(null);
   const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
   const [settings, setSettings] = useState({
@@ -530,43 +529,7 @@ function App() {
     }
   };
 
-  const handleBarcodeFocusTouchStart = (event) => {
-    if (event.touches.length !== 1 || isEditingBalance || isEditingNotes) {
-      barcodeFocusTouchStart.current = null;
-      return;
-    }
-    const target = event.target;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-      barcodeFocusTouchStart.current = null;
-      return;
-    }
-    barcodeFocusTouchStart.current = {
-      x: event.touches[0].clientX,
-      y: event.touches[0].clientY,
-    };
-  };
 
-  const handleBarcodeFocusTouchEnd = (event) => {
-    if (!barcodeFocusTouchStart.current) return;
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - barcodeFocusTouchStart.current.x;
-    const deltaY = touch.clientY - barcodeFocusTouchStart.current.y;
-    barcodeFocusTouchStart.current = null;
-
-    if (Math.abs(deltaX) < 120 || Math.abs(deltaY) > 70 || Math.abs(deltaY) > Math.abs(deltaX) * 0.7) {
-      return;
-    }
-
-    if (deltaX < 0) {
-      if (visiblePosition < visibleIndexes.length - 1) {
-        handleNextCard();
-      }
-    } else if (deltaX > 0) {
-      if (visiblePosition > 0) {
-        handlePrevCard();
-      }
-    }
-  };
 
   const handleCopyCodePin = async (event, card) => {
     event?.stopPropagation();
@@ -1212,7 +1175,7 @@ function App() {
       </nav>
 
       <div 
-        className="min-h-screen bg-m3-surface flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative z-10"
+        className="min-h-screen bg-m3-surface flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
@@ -1742,13 +1705,17 @@ function App() {
                     const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
                     
                     return (
-                      <div className="bg-m3-surface-container border border-m3-outline-variant rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] hover:border-m3-primary transition-colors w-full text-left">
+                      <div className={`transition-all duration-300 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left ${
+                        isBarcodeFocusOpen
+                          ? 'relative z-50 bg-m3-surface-container-lowest border-2 border-m3-primary shadow-2xl scale-[1.02]'
+                          : 'bg-m3-surface-container border border-m3-outline-variant hover:border-m3-primary'
+                      }`}>
                         <button
                           id="barcode-open"
-                          onClick={() => setIsBarcodeFocusOpen(true)}
+                          onClick={() => setIsBarcodeFocusOpen(!isBarcodeFocusOpen)}
                           className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                          title="Open focused barcode view"
-                          aria-label="Open focused barcode view"
+                          title={isBarcodeFocusOpen ? "Close barcode focus mode" : "Open focused barcode view"}
+                          aria-label={isBarcodeFocusOpen ? "Close barcode focus mode" : "Open focused barcode view"}
                           type="button"
                         >
                           <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
@@ -1762,13 +1729,15 @@ function App() {
 
                           {barcodeData ? (
                             <div className="flex flex-col items-center gap-2 w-full pt-2">
-                              <div className="w-full bg-white border border-m3-outline-variant p-2 rounded-2xl">
+                              <div className={`w-full bg-white border border-m3-outline-variant p-2 rounded-2xl transition-all duration-300 ${
+                                isBarcodeFocusOpen ? 'h-32 sm:h-48' : 'h-16'
+                              }`}>
                                 <svg
                                   viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                   preserveAspectRatio="none"
                                   role="img"
                                   aria-label="Code 128 checkout barcode"
-                                  className="w-full h-16"
+                                  className="w-full h-full"
                                 >
                                   <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
                                   {barcodeData.rects.map((r, i) => (
@@ -1936,232 +1905,13 @@ function App() {
         </div>
       </div>
 
-      {/* Barcode Focus Overlay */}
-      {isBarcodeFocusOpen && selectedCard && (
+      {/* Spotlight Scrim Overlay */}
+      {isBarcodeFocusOpen && (
         <div
-          id="fullscreen-barcode"
-          onTouchStart={handleBarcodeFocusTouchStart}
-          onTouchEnd={handleBarcodeFocusTouchEnd}
-          className="fixed inset-0 bg-m3-surface z-50 flex items-center justify-center p-4 cursor-pointer overflow-y-auto"
+          id="spotlight-scrim"
+          className="fixed inset-0 bg-black/60 z-45 transition-opacity duration-300 cursor-pointer animate-fade-in"
           onClick={() => setIsBarcodeFocusOpen(false)}
-        >
-          <div
-            className="bg-m3-surface-container-lowest rounded-3xl max-w-2xl w-full p-6 flex flex-col gap-6 relative cursor-default border border-m3-outline-variant/40"
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Focused checkout barcode"
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setIsBarcodeFocusOpen(false)}
-              className="absolute top-3 right-3 text-m3-on-surface-variant hover:text-m3-on-surface hover:bg-m3-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-              type="button"
-              aria-label="Close barcode focus mode"
-            >
-              ✕
-            </button>
-
-            {/* Position count */}
-            <div id="fullscreen-position" className="text-center font-bold text-m3-on-surface-variant text-sm font-mono">
-              Card {visiblePosition + 1} of {visibleIndexes.length}
-            </div>
-
-            {/* Barcode Frame */}
-            <div id="fullscreen-barcode-frame" className="border border-m3-outline-variant/30 bg-m3-surface-container-low p-4 sm:p-6 rounded-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-m3-outline-variant/20 pb-3">
-                <span id="fullscreen-barcode-status" className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">
-                  {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-m3-outline uppercase tracking-wider">Balance:</span>
-                  <span id="fullscreen-current-balance" className="text-xl font-black text-m3-primary font-mono">${selectedCard.currentBalance.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* SVG barcode */}
-              {(() => {
-                const payload = getBarcodePayload(selectedCard);
-                const barcodeData = payload ? getCode128BarcodeBars(payload) : null;
-                return barcodeData ? (
-                  <div id="fullscreen-barcode-render" className="w-full flex items-center justify-center bg-white p-2 rounded-xl h-48 sm:h-56 md:h-64 border border-m3-outline-variant/30">
-                    <svg
-                      viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
-                      preserveAspectRatio="none"
-                      role="img"
-                      aria-label="Code 128 checkout barcode"
-                      className="w-full h-full"
-                    >
-                      <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                      {barcodeData.rects.map((r, i) => (
-                        <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                      ))}
-                    </svg>
-                  </div>
-                ) : (
-                  <span id="fullscreen-barcode-caption" className="text-center text-sm font-bold text-m3-error py-4">
-                    {getBarcodeFallbackMessage(selectedCard)}
-                  </span>
-                );
-              })()}
-
-              <div className="flex flex-col gap-3 border-t border-m3-outline-variant/20 pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant font-sans">
-                    <span className="font-semibold text-m3-outline uppercase tracking-wider text-[10px]">Card Number</span>
-                    <button
-                      id="fullscreen-card-number-reveal"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (isDesktopCopyTarget()) {
-                          await handleCopyCodePin(e, selectedCard);
-                          return;
-                        }
-                        setRevealNumber(!revealNumber);
-                      }}
-                      className="font-mono font-bold text-m3-on-surface hover:text-m3-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded px-2 py-1 bg-m3-surface-container hover:bg-m3-surface-container-high transition-colors cursor-pointer flex items-center gap-1.5"
-                      title="Copy code and PIN"
-                      aria-label="Copy code and PIN"
-                      type="button"
-                    >
-                      <span>
-                        {revealNumber
-                          ? selectedCard.cardNumber.replace(/(.{4})/g, "$1 ").trim()
-                          : maskCardNumber(selectedCard.cardNumber)
-                        }
-                      </span>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant font-sans">
-                    <span className="font-semibold text-m3-outline uppercase tracking-wider text-[10px]">Security PIN</span>
-                    <button
-                      id="fullscreen-pin"
-                      onClick={(e) => handleCopyCodePin(e, selectedCard)}
-                      className="font-mono font-bold text-m3-on-surface hover:text-m3-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded px-2 py-1 bg-m3-surface-container hover:bg-m3-surface-container-high transition-colors cursor-pointer"
-                      title="Copy code and PIN"
-                      aria-label="Copy code and PIN"
-                      type="button"
-                    >
-                      {selectedCard.pin || "—"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Focus Navigation Controls */}
-            <div className="flex gap-3">
-              <button
-                id="fullscreen-prev"
-                onClick={handlePrevCard}
-                disabled={visiblePosition <= 0}
-                className="flex-1 bg-m3-surface hover:bg-m3-surface-container-low text-m3-on-surface border border-m3-outline-variant/50 font-semibold py-3 px-4 rounded-full text-xs transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                type="button"
-              >
-                Previous
-              </button>
-              <button
-                id="fullscreen-next"
-                onClick={handleNextCard}
-                disabled={visiblePosition === visibleIndexes.length - 1}
-                className="flex-1 bg-m3-surface hover:bg-m3-surface-container-low text-m3-on-surface border border-m3-outline-variant/50 font-semibold py-3 px-4 rounded-full text-xs transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                type="button"
-              >
-                Next
-              </button>
-            </div>
-
-            {/* Actions Side-by-Side */}
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <button
-                id="fullscreen-update-balance"
-                onClick={() => {
-                  setOpenedFromBarcodeFocus(true);
-                  handleOpenBalanceEdit(selectedCard.currentBalance);
-                }}
-                className="w-full bg-m3-secondary-container hover:bg-m3-secondary-container/85 text-m3-on-secondary-container text-xs font-bold py-4 rounded-full transition-all active:scale-95 shadow-none cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-              >
-                Update Balance
-              </button>
-
-              <button
-                id="fullscreen-mark-used"
-                onClick={() => handleToggleUsed(selectedCardIndex)}
-                className={`w-full font-bold py-4 rounded-full transition-all shadow-none text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
-                  selectedCard.used
-                    ? 'bg-m3-surface-container-low hover:bg-m3-surface-container text-m3-on-surface-variant border border-m3-outline-variant'
-                    : 'bg-m3-primary hover:bg-m3-primary/95 text-m3-on-primary'
-                }`}
-                type="button"
-              >
-                {selectedCard.used ? "Mark Active" : "Mark Used"}
-              </button>
-            </div>
-
-            {/* Notes Row */}
-            <div id="fullscreen-notes" className="p-1 flex flex-col gap-2">
-              <div className="flex justify-between items-center border-b border-m3-outline-variant/20 pb-1">
-                <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Notes</span>
-                {!isEditingNotes && (
-                  <button
-                    onClick={() => {
-                      setNewNotesValue(selectedCard.notes || "");
-                      setIsEditingNotes(true);
-                    }}
-                    className="text-xs font-bold text-m3-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded-sm"
-                    type="button"
-                  >
-                    {selectedCard.notes ? "Edit" : "Add Note"}
-                  </button>
-                )}
-              </div>
-              
-              {isEditingNotes ? (
-                <div className="flex flex-col gap-2 mt-1">
-                  <textarea
-                    value={newNotesValue}
-                    onChange={e => setNewNotesValue(e.target.value)}
-                    className="w-full text-sm bg-m3-surface border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none transition-all duration-200 min-h-[80px]"
-                    placeholder="Add card notes..."
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => {
-                        const updatedCards = cards.map((c, idx) => {
-                          if (idx === selectedCardIndex) {
-                            return {
-                              ...c,
-                              notes: newNotesValue.trim(),
-                            };
-                          }
-                          return c;
-                        });
-                        setCards(updatedCards);
-                        saveCards(updatedCards);
-                        setIsEditingNotes(false);
-                      }}
-                      className="bg-m3-primary hover:bg-m3-primary/95 text-m3-on-primary font-bold px-4 py-2 rounded-full text-xs transition-all shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                      type="button"
-                    >
-                      Save Notes
-                    </button>
-                    <button
-                      onClick={() => setIsEditingNotes(false)}
-                      className="bg-m3-surface-container-low hover:bg-m3-surface-container text-m3-on-surface-variant border border-m3-outline-variant font-bold px-4 py-2 rounded-full text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-m3-on-surface leading-relaxed font-medium">
-                  {selectedCard.notes || <span className="text-m3-on-surface-variant italic">No notes added to this card.</span>}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        />
       )}
 
       {/* Update Balance Modal */}
