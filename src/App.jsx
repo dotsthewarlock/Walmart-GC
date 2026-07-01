@@ -1491,7 +1491,7 @@ function App() {
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
-                    <h3 className="text-xs font-bold text-m3-outline uppercase tracking-wider">Google Synchronization</h3>
+                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Synchronization</h3>
                     <p className="text-xs text-m3-on-surface-variant mt-1 font-medium">
                       {oauthState.status === googleOAuthStatuses.connected 
                         ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}` 
@@ -1663,8 +1663,8 @@ function App() {
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group">
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none">
-                    <span className="text-xs font-bold text-m3-outline uppercase tracking-wider">Backup & CSV Controls</span>
-                    <span className="text-m3-outline group-open:rotate-180 transition-transform">▼</span>
+                    <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
+                    <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                   </summary>
                   <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-m3-outline-variant/30">
                     <div className="flex gap-3">
@@ -1721,8 +1721,8 @@ function App() {
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group">
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none">
-                    <span className="text-xs font-bold text-m3-outline uppercase tracking-wider">Troubleshooting</span>
-                    <span className="text-m3-outline group-open:rotate-180 transition-transform">▼</span>
+                    <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
+                    <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                   </summary>
                   <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-m3-outline-variant/30">
                     <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex flex-col gap-2">
