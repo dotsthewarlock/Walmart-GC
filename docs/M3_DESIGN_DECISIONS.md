@@ -30,51 +30,16 @@ This document serves as the durable repository documentation for locked design d
 
 ---
 
-## Phased M3 Overhaul Plan
+## Design Governance & Scope
 
-1. **Phase 1: Cards Final Polish** (Completed)
-   - Refine card lists, metric values, and sync status elements.
-   - Lock visual/typographic layout properties using semantic CSS class roles.
-2. **Phase 2: Bottom Navigation / App Shell** (Current / Phase 2A)
-   - Re-evaluate bottom navigation bar layouts and global outer padding/insets.
-3. **Phase 3: Checkout Scanner**
-   - Streamline scanner/scrim presentation logic.
-4. **Phase 5: Diagnostics/Troubleshooting Cleanup**
-   - Refactor diagnostics pane into a unified Troubleshooting container.
-5. **Phase 4: Settings Hierarchy**
-   - Complete reorganization of preferences controls.
-6. **Phase 6: Final M3 Audit**
-   - Conduct app-wide audit for responsive layout spacing, color tones, and accessibility targets.
-
----
-
-## Phase 2A Authority
-
-The next consolidated visual pass (Phase 2A) is authorized to change these components/styles together:
-* **App shell visual structure**
-* **Mobile Cards surface model**
-* **Bottom navigation bar**
-* **Cards metric strip**
-* **Cards toolbar/status/sort row**
-* **Cards list rows and selected state**
-* **Content spacing/insets/safe-area handling**
-* **Shared M3 class roles**
-
-### Out of Scope for Phase 2A (Unless explicitly authorized)
-* **Sync, OAuth, or data logic**
-* **CSV / storage / worker / package / vite / Tailwind config** (except for the approved narrow mapping exception below)
-* **Barcode generation**
-* **Broad Settings hierarchy implementation**
-* **Checkout scanner behavior overhaul**
-
-### Approved Tailwind Config Exception
-* **Narrow Mapping**: The user approved a narrow Tailwind config exception for semantic M3 token mapping:
-  - `tailwind.config.js` may map the existing `m3` color family to CSS custom properties.
-  - This exception does not authorize new dependencies, broad Tailwind config changes, package/build config changes, or design-system expansion.
-
-### Reference and Visual Review Rules
-* **Production Parity (Phase-12)**: Production `phase-12` may be used as a color-palette reference only, not layout/design authority.
-* **Checkout/Barcode/Notes Reviews**: Checkout/barcode/notes color-only changes must be reviewed visually before commit if they appear in an app-shell/Cards color pass.
+1. **Strategic Roadmap**: Refer to the 4 strategic roadmap lanes in [ROADMAP.md](file:///home/godfreymiu/Walmart-GC/docs/ROADMAP.md) for future vision and unapproved boundaries.
+2. **Current Development Scope**: Active UI work focuses on **PR 3: Focus Mode Removal Implementation** (refactoring `src/App.jsx` to completely remove Focus Mode states and transition the checkout screen to passive inline barcode rendering).
+3. **Approved Tailwind Config Exception**:
+   - `tailwind.config.js` may map the existing `m3` color family to CSS custom properties referencing strict semantic M3 tokens.
+   - This exception does not authorize new dependencies, broad Tailwind config changes, package/build config changes, or design-system expansion.
+4. **Reference and Visual Review Rules**:
+   - Production `phase-12` may be used as a color-palette reference only, not layout/design authority.
+   - All visual and color-only changes must be verified locally before completing a handoff.
 
 ---
 

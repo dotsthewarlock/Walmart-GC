@@ -1,537 +1,102 @@
-# Walmart-GC Agent Instructions
+# AI Operating Rules & Workflow Guidelines (AGENTS.md)
 
-## Current Source of Truth / Fast Path
+This file contains the mandatory operating rules, workflow guidelines, and execution guardrails for AI agents working on the GC Wallet project.
 
-### Chromebook / Agy Stability Rule
-
-For any Agy/model-assisted task or broad repo cleanup, split work into two phases:
-
-- Phase A may use Agy/model execution and may edit files, but it must stop after compact verification and writing handoff to `~/Project/AI_HANDOFF.md` (syncing to GitHub Issue #200 via `~/Project/bin/agy-handoff`); it must not commit or push.
-- Phase B must be finish-only: no Agy/model execution, no broad edits, verify branch, changed-file allowlist, protected files, and `git diff --check`, then commit/push only if checks pass.
-
-Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact; write raw logs local to `~/Project/*.log`. GPT terminal instructions for Agy tasks should normally be provided as a single copy/paste executable block (writing prompt, running Agy, capturing logs, and running verification) that relies on Issue #200 sync, rather than separate blocks prompting the user to paste output back. Paste-back is a fallback if sync fails or local details are needed.
-
-
-Start with `docs/ACTIVE_CONTEXT.md` for compact current context. Use this `AGENTS.md` for mandatory agent rules and hard guardrails, and `docs/ARCHITECTURE.md` for current architecture details. Use `docs/archive/` only for historical/regression tasks; do not read large historical docs for normal work.
-
-Fast rules:
-
-* Exact error string / live behavior outranks assumptions.
-* Current repo files and active deployment/config outrank older docs.
-* Do not assume Worker, Apps Script, Wrangler, or GitHub Pages deployment path without confirming active runtime.
-* Do not change schema, OAuth scope, auth/session architecture, backend architecture, deployment system, sync behavior, or CSV backup/recovery without discussion.
-* Preserve offline/local usability and CSV backup/recovery.
-* For small UI/docs tasks, inspect only targeted files.
-* Read only task-relevant files; prefer exact-string search over broad scans; avoid `docs/archive/` unless history is required.
-* UI/UX recommendations should consider Material 3 guidance; identify likely conflicts and note tradeoffs for intentional deviations.
+For current system state, architecture, design authority, and data schemas, follow the links in the [Documentation Index](#documentation-index).
 
 ---
 
-## Repository
+## AI Start Here / Fast Path
 
-Repository: `dotsthewarlock/Walmart-GC`
-
----
-
-## Product Overview
-
-Walmart-GC is a mobile-first web application for managing large numbers of Walmart gift cards.
-
-Primary use case:
-
-* Store and organize 30–100+ Walmart gift cards
-* Display barcodes for fast in-store checkout
-* Track balances and usage state
-* Synchronize records between desktop and mobile devices
-* Use Google Sheets as the source of truth
-
-This is a gift card management system, not merely a barcode generator.
+1. **First Read**: Always read [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md) at the start of any conversation to understand the current work state.
+2. **Design Authority**: Use [M3_DESIGN_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) as the absolute source of truth for UI, navigation, typography, and visual compliance.
+3. **Architecture Authority**: Use [ARCHITECTURE.md](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) as the sole source of truth for data flow, APIs, session cookies, synchronization, and schemas.
+4. **Task Scope Rules**:
+   - Keep changes small and PR-focused.
+   - Inspect current repository files before proposing implementation.
+   - Prefer the smallest safe change that achieves the goal.
+   - Flag security, deployment, OAuth, session, schema, migration, sync, or user-data risks before implementation.
 
 ---
 
-## Current Branch and Hardening Context
+## Chromebook / Agy Stability Rule (Phase A/B Split)
 
-`main` is the active/base branch. `phase-11` is historical/archival/protected and must not be used as the active base. OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
+To ensure workspace integrity and prevent terminal crashes or git corruptions on Chromebook-based environments, all agent tasks must split work into two separate phases:
 
-Active/base branch:
+### Phase A: Edit & Verify (Model/Agy Execution)
+- AI agents edit files and perform local verification inside the workspace.
+- **Hard Stop**: Agents must NOT perform `git commit`, `git push`, or open/merge PRs.
+- **Handoff**: Agents must terminate their turn by writing the final run status to [~/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md) and running the update helper `~/Project/bin/agy-handoff` to sync with GitHub Issue #200.
 
-```text
-main
-```
-
-Current hardening focus:
-
-```text
-Maintain durable OAuth/session flow and Google Sheets access/sync on main.
-```
-
-Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Do not redesign the product during this hardening work.
-
-Historical references to Phase 9, `phase-9-oauth`, Phase 10, Phase 10E, `phase-11`, and the Apps Script MVP are historical only.
+### Phase B: Commit & Deploy (Human/Terminal Execution)
+- The human operator reviews the git diff, statuses, and build success locally.
+- Committing, pushing, PR creation, and merging are manually performed by the human operator using terminal commands or the GitHub web UI.
+- No AI model or Agy automation is run during Phase B.
 
 ---
 
-## Current Architecture
+## Command Execution & Terminal Best Practices
 
-```text
-User Google Account
-        ↕
-Google OAuth
-        ↕
-Cloudflare Worker
-        ↕
-Google Drive API / Google Sheets API
-        ↕
-Walmart-GC Web App
-```
-
-Frontend:
-
-* GitHub Pages serves the React 19 + Vite + Tailwind CSS static app built from the `main` branch.
-* React 19 + Vite + Tailwind is the active live deployment, fully verified and serving production traffic.
-* Production and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
-
-Backend:
-
-* Cloudflare Worker same-origin routes: `https://walmart-gc.dotsthewarlock.com/auth/*` and `https://walmart-gc.dotsthewarlock.com/api/*`
-* Legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only
-* Workers KV
-
-Do not introduce or recommend:
-
-* Database
-* Firebase
-* Cloud Functions
-* Apps Script sync
-* Node backend
-* New hosting
+- **Single Executable Block**: Provide GPT terminal instructions for Agy tasks as a single copy/paste terminal block (that writes the prompt, runs Agy in the foreground, captures local logs, and prints compact verification) rather than split across separate run and check steps.
+- **Chromebook-Safe Terminal Output**: Avoid flooding the console. Print changed-file lists, `git status --short`, `git diff --stat`, build tails, and `tail -n 80` of logs instead of full recursive diffs.
+- **Background Processes**: Do not background Agy or use `setsid` runs.
+- **Log Management**: Write raw, verbose logs locally to `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) for backup and debugging; keep stdout output clean and summarized.
 
 ---
 
-## OAuth Architecture
-
-Authentication is Worker-managed Google OAuth.
-
-Frontend must never store:
-
-* Access tokens
-* Refresh tokens
-* Session IDs
-* OAuth secrets
-* Google API credentials
-
-Session model:
-
-* HttpOnly cookie
-* Secure
-* SameSite=Lax
-* Host-only
-
-Frontend auth state comes from:
-
-```text
-/api/status
-```
-
-Logout endpoint:
-
-```text
-/api/logout
-```
-
-OAuth scope:
-
-```text
-https://www.googleapis.com/auth/drive.file
-```
-
-Do not broaden scope.
-
-Worker API calls must use same-origin `/api/*` paths with:
-
-```js
-credentials: "include"
-```
-
----
-
-## OAuth Deployment Rules
-
-Use only:
-
-```text
-https://walmart-gc.dotsthewarlock.com
-```
-
-for production and development testing.
-
-No localhost OAuth. No alternate development origin.
-
-Google Cloud settings:
-
-```text
-Authorized JavaScript origin:
-https://walmart-gc.dotsthewarlock.com
-
-Authorized redirect URI:
-https://walmart-gc.dotsthewarlock.com/auth/callback
-```
-
-Cloudflare must route these paths to the Worker while GitHub Pages serves static files at the root:
-
-```text
-walmart-gc.dotsthewarlock.com/auth/*
-walmart-gc.dotsthewarlock.com/api/*
-```
-
-Worker callback must return to:
-
-```text
-https://walmart-gc.dotsthewarlock.com/?auth=connected
-```
-
-Never document or recommend:
-
-* `/Walmart-GC/`
-* `session_id` query parameters
-* localhost OAuth
-* alternate OAuth origins
-
----
-
-## Google Sheet Model
-
-Spreadsheet:
-
-```text
-Walmart-GC Data
-```
-
-Tabs:
-
-```text
-Cards
-_META
-```
-
-Approved schema and preferred order:
-
-```text
-cardNumber
-pin
-startingBalance
-currentBalance
-merchant
-merchantInferred
-dateAdded
-dateUpdated
-dateUsed
-used
-notes
-```
-
-Do not change schema.
-
-Merchant model:
-
-* `merchant` is explicit user-entered/user-selected override only.
-* `merchantInferred` is system-derived from `cardNumber`; for valid Walmart Canada cards, it is `walmart-ca`.
-* `effectiveMerchant = merchant || merchantInferred` is runtime-only.
-* Do not store `effectiveMerchant`.
-* Do not infer or default blank `merchant` values to `walmart-ca`.
-
-Worker owns sheet discovery, creation, initialization, metadata, and Google API access.
-
-Barcode payload is derived only and must not be stored:
-
-```text
-79936686504000 + cardNumber
-```
-
----
-
-## Sync Model to Preserve
-
-Worker-backed sync only.
-
-Completed-action sync only:
-
-* Balance save
-* Used state change
-* Notes save
-* Merchant change
-* New card save
-* Accepted CSV import
-
-Do not sync every keystroke.
-
-Conflict model:
-
-```text
-Sheet-level optimistic concurrency via _META.sheetVersion
-```
-
-Rules:
-
-* No silent overwrite
-* No automatic merge
-* User chooses recovery
-* CSV backup before destructive recovery
-
----
-
-## OAuth/Session/Sync Success Criteria
-
-OAuth/session/sync hardening is successful when:
-
-* Connect Google starts OAuth
-* Consent requests only `drive.file`
-* Callback succeeds
-* Worker sets session cookie
-* `/api/status` reports connected
-* Refresh preserves login
-* Browser restart preserves login while session is valid
-* Logout clears session
-* Reconnect works
-* Ensure Sheet works
-* Load from Google Sheets works
-* Save/sync works
-* Offline behavior remains usable
-* CSV backup/recovery remains available
-
----
-
-## Documentation Authority
-
-Before recommending architecture, schema, sync, onboarding, or implementation changes, review only the current files needed for the task:
-
-1. `docs/ACTIVE_CONTEXT.md` for compact current context
-2. `AGENTS.md` for mandatory guardrails
-3. `docs/ARCHITECTURE.md` for current architecture details
-4. `docs/archive/AI_HANDOFF.md` or `docs/archive/ROADMAP.md` only when the task needs handoff/roadmap context
-
-Historical Apps Script, Phase 6, AI handoff, and roadmap docs live under `docs/archive/` and are not current source of truth. Read archived docs only for exact old error strings, regression comparison, explicit historical requests, or migration/history tasks.
-
----
-
-## Roles
-
-ChatGPT is the product architect.
-
-ChatGPT creates:
-
-* Product logic
-* Specifications
-* Architecture guidance
-* Data model guidance
-* Dev AI / Agy briefs
-* Acceptance criteria
-* Review feedback
-
-Antigravity (Agy) is the developer agent. The Agy-first guarded Terminal/Agy Low/Medium workflow replaces the retired Codex automation.
-
-Agy writes code, edits repository files, runs checks, reviews diffs, and prepares GitHub changes.
-
----
-
-## MVP Scope
-
-Required:
-
-* Gift card list view
-* Gift card detail view
-* Barcode rendering
-* PIN display
-* Remaining balance tracking
-* Used flag tracking
-* Google Sheet synchronization
-* Mobile-friendly interface
-* Desktop-friendly interface
-* Offline usability
-* CSV backup/recovery
-
----
-
-## Non-Goals
-
-Do not prioritize:
-
-* User accounts managed by Walmart-GC
-* Real-time collaboration workflows
-* Live multi-client synchronization
-* Presence indicators
-* Activity history
-* Collaboration tooling beyond Google Sheet sharing
-* Shared databases
-* Subscription systems
-* Complex analytics
-* Receipt scanning
-* Camera barcode scanning
-* Automated balance checks
-* Native mobile apps
-
-Shared Google Sheets are allowed when Google Sheets grants access. Walmart-GC operates against a Google Sheet but does not manage users, roles, or permissions; Google Sheets remains responsible for sharing and access control.
-
----
-
-## Development Rules
-
-* Keep changes small and PR-focused.
-* Inspect current repository files before suggesting implementation changes.
-* Explain current architecture before recommending modifications.
-* Prefer the smallest safe change that achieves the goal.
-* Flag security, deployment, OAuth, session, schema, migration, sync, or user-data risks before implementation.
-* Prioritize maintainability and simplicity.
-* Prioritize mobile usability.
-* Review all generated changes before merge or before enabling GitHub auto-merge.
-* Do not change app behavior, Worker behavior, schema, OAuth scope, or sync behavior unless explicitly requested.
+## Roles and Responsibilities
+
+- **Planner / Reviewer (GPT)**:
+  - Owns product logic, architectural guidance, data model specifications, and dev AI briefs.
+  - Reviews implementation plans, diffs, and provides acceptance reviews.
+- **Developer / Executor (Agy CLI)**:
+  - Local repo-aware implementer and verifier.
+  - Writes code, edits files, runs checks, reviews diffs, and prepares local handoffs.
 
 ---
 
 ## Minor vs Major Change Framework
 
-### Minor Changes
+### Minor Changes (Safe to execute without upfront confirmation)
+- Documentation updates, CSS/UI polish, layout improvements, small bug fixes, or refactoring with no behavior changes.
 
-Minor changes may proceed without additional approval.
-
-Examples:
-
-* Documentation updates
-* CSS/UI polish
-* Layout improvements
-* Small bug fixes
-* Small UX enhancements
-* Refactoring without behavior changes
-
-### Major Changes
-
-Major changes require discussion and confirmation first.
-
-Examples:
-
-* Data model changes
-* Google Sheet schema changes
-* Worker API changes
-* Sync behavior changes
-* Authentication/security changes
-* Connection architecture changes
-* Conflict handling changes
-* Large UI restructuring
-* New major features
-* Framework/build tool introduction
-* Hosting changes
-* Anything affecting user data
-
-When uncertain, treat as Major.
+### Major Changes (Require discussion and explicit human authorization)
+- Data model or Google Sheet schema changes, Worker API/status endpoint changes, sync/conflict logic edits, authentication/cookie security changes, major UI restructurings, framework/build tool updates, or anything affecting user-session state.
+- **If uncertain, always treat as Major.**
 
 ---
 
-## Review Outcome Taxonomy
+## Out-of-Sync Recovery Policy
 
-For review-mode responses, use one of these outcomes:
-
-* `merge` — safe to merge as-is.
-* `fix first` — potentially mergeable after specific blocking fixes.
-* `reject` — not safe or not aligned with project direction.
-
-Before recommending `merge`, flag schema, OAuth/session, sync, deployment, and user-data safety risks.
+If external git operations or terminal commands change the workspace state after the latest handoff:
+1. Re-run local verification commands to check stability.
+2. Update the local handoff file [~/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md).
+3. Execute `~/Project/bin/agy-handoff` to sync the state to GitHub Issue #200 before recommending further steps.
 
 ---
 
-## GitHub and PR Workflow (Phase A/B Split)
+## Verification & Validation Rules
 
-All Agy operations follow the Chromebook / Agy Stability Rule (Phase A / Phase B split):
-- **Phase A (Agy/Model Execution)**: Agy edits files and performs local verification. Agy must NOT commit, push, or create/merge PRs. It writes its handoff to `~/Project/AI_HANDOFF.md` and runs `~/Project/bin/agy-handoff`.
-- **Phase B (Human/Terminal Execution)**: Committing, pushing, PR creation, and merging are manually performed by the human operator using terminal commands or the GitHub web UI. Agy does not automate these steps.
-
-GitHub Actions validation remains valuable for checking correctness on the remote repository. Squash auto-merge is optional and must be explicitly configured or initiated by the human operator, rather than being an automated default.
-
----
-
-## App-Shell Debug Version Convention
-
-- Under the React/Vite/Tailwind architecture, dynamic fingerprint versioning is deprecated. Static asset cache-busting is handled automatically by Vite's standard bundle hash compile output.
-- Worker runtime changes bump `WORKER_VERSION` in `worker/src/index.js`.
-- Docs-only changes bump nothing.
+- **Strict Prohibitions**: Do NOT install Playwright, browser screenshot tooling, new npm packages, alternative CSS frameworks, or external build dependencies unless explicitly approved.
+- **Mandatory Verification Checks**:
+  - `git diff --check` (Spacing, carriage-returns, and merge-conflict markers).
+  - `npm run build` (Ensures 100% stable static React compilation).
+  - `node --check <file>` (Syntax checks for javascript files).
+  - Targeted `grep` to verify no out-of-scope files or legacy terms were touched.
 
 ---
 
-## Verification Rules
+## Documentation Index
 
-Do NOT install:
+Refer to these authoritative documents for all development cycles:
 
-* Playwright
-* Browser screenshot tooling
-* npm packages
-* Frameworks
-* Build tools
-* External dependencies
-
-unless explicitly approved.
-
-Preferred verification methods:
-
-* Stale-reference search and review for docs-only changes
-* `node --check` when code is touched
-* `git diff --check`
-* Conflict-marker scan
-* HTML parse validation when HTML is touched
-* Static DOM/hook checks when UI hooks are touched
-* Local HTTP server + curl smoke test when useful
-* Manual verification notes
-
-Browser verification is optional.
-
----
-
-## Preferred Design Principles
-
-* Mobile-first
-* Fast loading
-* Minimal dependencies
-* Clear balance visibility
-* Efficient in-store barcode access
-* Simple synchronization workflow
-* Spreadsheet-friendly data model
-* Low operational cost
-* Easy self-hosting via GitHub Pages
-* Durable Worker-managed OAuth session
-* Offline usability and CSV backup/recovery
-
----
-
-## Current Roadmap Status
-
-Completed/historical:
-
-* Phase 1 – Static app foundation
-* Phase 2 – Checkout workflow improvements
-* Phase 3 – Used flag model and settings
-* Phase 4 – Mobile navigation workflow
-* Phase 5B – Data panel and checkout refinements
-* Phase 6 – Google Sheet schema and Apps Script API design for historical MVP
-* Phase 7 – Apps Script sync implementation for historical MVP
-* Phase 8 – MVP cleanup and hardening
-* Phase 9 / `phase-9-oauth` – OAuth transition work
-* Phase 10 / Phase 10E – Worker-backed OAuth/sync hardening before Phase 11
-* Apps Script MVP – historical reference only
-
-Current:
-
-* `main` – Current architecture with Worker-managed OAuth/session and Google Sheets access/sync hardening
-
-Historical/archival/protected:
-
-* `phase-11` – Historical branch for OAuth/session durability and Google Sheets access/sync hardening
-
-Upcoming:
-
-* Post-MVP enhancements only after OAuth/session flow is fully functional and durable on `main`
-
----
-
-## Shadcn / M3 Refactoring Summary (Setup Phase)
-Refer to [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md) for full style customization and design token guardrails.
-* Do not migrate Cards or Checkout views during setup.
-* Do not introduce React Context or state architecture changes; preserve the existing state flow.
-* Shadcn/ui is an implementation tool. The M3-inspired visual theme remains the source of truth.
+- [Active Context](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md) — Compact current development focus and "Start Here" context.
+- [Architecture](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) — Canonical system design, data flows, APIs, and spreadsheet schemas.
+- [Material 3 Design Decisions](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) — Absolute UI/UX design authority, visual compliance tokens, and component layout guidelines.
+- [Roadmap](file:///home/godfreymiu/Walmart-GC/docs/ROADMAP.md) — Canonical 4-lane roadmap (approved, near-term, future, and unapproved strategic intent).
+- [Decisions Log](file:///home/godfreymiu/Walmart-GC/docs/DECISIONS_LOG.md) — Durable record of past architectural and design decisions.
+- [QA Test Checklist](file:///home/godfreymiu/Walmart-GC/docs/QA_TEST_CHECKLIST.md) — Verification checklists and troubleshooting guides.
+- [Deployment Guide](file:///home/godfreymiu/Walmart-GC/docs/DEPLOYMENT_GUIDE.md) — Detailed build and Cloudflare Worker deployment steps.
+- [Google Sheet Setup](file:///home/godfreymiu/Walmart-GC/docs/GOOGLE_SHEET_SETUP.md) — Google Sheet configuration and metadata setup.
+- [Maintenance Log](file:///home/godfreymiu/Walmart-GC/docs/MAINTENANCE_LOG.md) — Active tracking for non-blocking cleanup and hygiene items.
+- [Documentation Archive](file:///home/godfreymiu/Walmart-GC/docs/archive/README.md) — Archived legacy audits and historical reference documents.

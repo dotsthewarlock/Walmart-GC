@@ -1,25 +1,21 @@
-# Walmart-GC
+# GC Wallet (Walmart-GC)
 
-Mobile-first Walmart gift card manager.
+Mobile-first, merchant-aware gift-card wallet (starting with Walmart optimization).
 
-Walmart-GC is a static web application that helps users manage large numbers of Walmart gift cards with barcode access, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, offline usability, and Worker-backed Google Sheets sync.
+**GC Wallet** (under repository and deployment identifier `Walmart-GC`) is an offline-first static web application that helps users manage large numbers of gift cards with passive inline checkout barcodes, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, and Google Sheets sync via serverless Worker.
 
 ## Current Status
 
-`main` is the active/base branch. `phase-11` is historical/archival/protected and must not be used as the active base.
-
-OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture, not an active phase branch.
-
-Core application functionality is considered satisfactory unless it directly blocks OAuth, session management, Google Sheets access, or sync. Phase 9, Phase 10, Phase 10E, `phase-11`, and the Apps Script MVP are historical context only.
+`main` is the active live deployment branch. Core application OAuth/session durability, Google Sheets access, and Material 3 design systems are fully functional.
 
 ## Features
 
-- View Walmart gift cards on desktop or mobile.
-- Display Walmart Canada checkout barcodes for in-store checkout.
-- Display PINs.
-- Track remaining balances and used state.
-- Synchronize completed actions with an automatically located or created `Walmart-GC Data` spreadsheet through Google OAuth, Drive file access, and the Google Sheets API.
-- Continue using local browser data when offline or disconnected.
+- View gift cards on desktop or mobile widths with clean, touch-friendly Material 3 layouts.
+- Display passive, inline checkout barcodes for in-store checkout (optimized for Walmart/Walmart Canada).
+- Display PINs securely.
+- Track remaining balances ("Available balance") and card counts ("Visible cards").
+- Synchronize completed actions with an automatically located or created `Walmart-GC Data` spreadsheet through Google OAuth and the Google Sheets API.
+- Offline-first: continue using local browser data when offline or disconnected.
 - Export/import CSV backups.
 
 ## Architecture
@@ -103,6 +99,7 @@ Production OAuth testing is cloud-only. Do not use localhost OAuth or alternate 
 Start with the [Active Context](docs/ACTIVE_CONTEXT.md) for the compact, first-read current context. Archived docs are historical references only and are not current setup guidance.
 
 - [Active Context](docs/ACTIVE_CONTEXT.md) — Compact current-state summary (read this first).
+- [Project Roadmap](docs/ROADMAP.md) — Canonical 4-lane roadmap (approved, near-term, future, and boundaries).
 - [Material 3 Design Decisions](docs/M3_DESIGN_DECISIONS.md) — Durable repository documentation for locked design decisions and the strict Material 3 overhaul.
 - [Architecture](docs/ARCHITECTURE.md) — Main system architecture and data models.
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) — Frontend build and Worker deployment instructions.
