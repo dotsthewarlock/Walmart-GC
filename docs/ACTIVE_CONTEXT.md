@@ -35,13 +35,31 @@ Walmart-GC Web App (Static React 19 + Vite)
 - **No Extra Dependencies**: Do not introduce databases, Firebase, Apps Script sync (Apps Script is retired), or extra NPM packages.
 - **Scope Limit**: Never request scopes beyond `drive.file`.
 
-## Active Developer Workflow
-1. **Agy-First Guarded Batch Workflow**: The automated Codex PR lanes are retired. All verification, formatting checks, and commits are done locally via standard commands.
-2. **Model Usage**: Use `Gemini 3.5 Flash (Medium)` for coding/refactoring, and `Gemini 3.5 Flash (Low)` for mechanical/Git tasks. Pro models must not be used.
-3. **Validation Commands**:
-   - `git diff --check` & Conflict-marker scan
-   - `npm run build` to verify the frontend compile
-   - `node --check worker/src/index.js` for Worker syntax
+## Active Developer Workflow (Three-Tier Environment)
+
+The development environment operates on three dedicated tiers (T1, T2, T3):
+
+- **T1 = Terminal Exact Truth (State & Integrity Authority)**
+  - Use for: `git status`, `git diff --stat`, `git diff --check`, `npm run build`, targeted greps.
+  - Controls final `git commit`, `git push`, PRs, and merges.
+- **T2 = Local Runtime (Environment)**
+  - Frontend: Vite dev server running at `http://127.0.0.1:5174`.
+  - Cloudflare Worker: Wrangler dev running at `http://localhost:8787`.
+  - Both can run in one terminal in the background with a cleanup trap:
+    ```bash
+    trap 'kill $(jobs -p)' EXIT
+    (npm run dev & npx wrangler dev worker/src/index.js --port 8787 & wait)
+    ```
+- **T3 = Agy CLI Persistent Interactive (AI Workspace)**
+  - Repo-aware implementer, verifier, and report writer.
+  - **Preferred Mode**: Interactive persistent sessions (allows rich terminal interaction/state maintenance). Do not use `agy --print` unless explicitly requested.
+
+### Model Usage & Validation Guidelines
+- Use `Gemini 3.5 Flash (Medium)` for coding/refactoring, and `Gemini 3.5 Flash (Low)` for mechanical/Git tasks. Do not use Pro models.
+- **Validation Commands**:
+  - `git diff --check` & Conflict-marker scan
+  - `npm run build` to verify the frontend compile
+  - `node --check worker/src/index.js` for Worker syntax
 
 ## Documentation Index
 - [Architecture](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) — Main system architecture and data models.
@@ -55,30 +73,40 @@ Walmart-GC Web App (Static React 19 + Vite)
 
 ## Execution and Handoff Policy
 
-### Chromebook / Agy stability rule
+### Phase A/B Stability (Commit Guard)
+- **Phase A**: Edit, verify, and write handoff to `~/Project/AI_HANDOFF.md`, then run the update helper `~/Project/bin/agy-handoff` to sync to GitHub Issue #200. Do not commit or push.
+- **Phase B**: No Agy/model execution, no broad edits. Verify branch, changed-file allowlist, protected files, and `git diff --check`. Commit/push only after manual review.
+- **Rule**: Do not commit, push, or open a PR in the same Agy batch unless explicitly approved by the user.
 
-For any Agy/model-assisted task or broad repo cleanup, use two phases:
+### Agy Autonomous Batches & Stop Triggers
+- **Prompts**: User passes compact prompts ordered strictly by document/context authority.
+- **Batch Execution**: Agy executes approved guarded batches without requiring unnecessary microsteps.
+- **Stop Triggers**: Agy must pause and report to the user immediately upon encountering:
+  - Verification failures.
+  - Scope creep or protected behavior risks (e.g., modifying OAuth, sync, schema, package files, Vite/Tailwind configs).
+  - Unclear instructions or direct document/guideline conflicts.
+  - Visibly incorrect or broken UI/UX during visual/screenshot QA.
 
-- Phase A: edit, verify, and write handoff to `~/Project/AI_HANDOFF.md`, then run the update helper `~/Project/bin/agy-handoff` to sync to GitHub Issue #200 "AI Handoff"; do not commit or push.
-- Phase B: no Agy/model execution and no broad edits; verify branch, changed-file allowlist, protected files, and `git diff --check`, then commit/push only if checks pass.
+### Low-Verbosity Agy Response Format
+When terminating a run or presenting final progress, Agy must strictly use the following low-verbosity format:
+```text
+Changed
+Not changed
+Verification
+Risks
+Next
+```
 
-Never combine Agy/model execution with `git commit` or `git push` in the same batch. Keep visible Terminal output compact.
-
-### Durable AI Handoff Workflow
-
-For Terminal/Agy work, use a durable, token-efficient handoff model:
-
-- **AI Handoff local file**: `~/Project/AI_HANDOFF.md`
-- **AI Handoff GitHub issue**: Issue #200 "AI Handoff"
-- **Update helper**: `~/Project/bin/agy-handoff`
-- **Execution rule**: Every Agy run/call must end by writing `~/Project/AI_HANDOFF.md` and running `~/Project/bin/agy-handoff`.
+### Durable Handoff Workflow
+- **Handoff Target**: `~/Project/AI_HANDOFF.md` synced to GitHub Issue #200 via `~/Project/bin/agy-handoff`.
+- **Execution rule**: Every Agy session must end by writing `~/Project/AI_HANDOFF.md` and executing `~/Project/bin/agy-handoff`.
+- **Durable Decisions**: All durable decisions and system rules belong exclusively in repo docs under `docs/`. Issue #200, `AI_HANDOFF.md`, chats, and logs are temporary run-state/evidence only.
 - **Single Executable Block Default**: GPT terminal instructions for Agy tasks should normally be provided as a single copy/paste terminal block (that writes the prompt, runs Agy, captures logs, and prints compact verification/log tail) rather than split across separate run and paste-back/check-output blocks. GPT should rely on Issue #200 for follow-up review instead of asking the user to paste output back. Paste-back instructions should only be used if sync fails, Issue #200 is stale/unavailable, or local-only failure details are needed. This is a practical default, not an absolute rule.
-- **Initialization**: For Walmart-GC operational work, GPT must review GitHub Issue #200 "AI Handoff" (the live temporary handoff state between Agy/CLI, GPT, and GitHub) before responding with next-step advice, prompts, commit/merge guidance, audit conclusions, or workflow recommendations.
-- **Out-of-Sync Recovery**: If non-Agy terminal or GitHub actions materially change state after the latest handoff, update `~/Project/AI_HANDOFF.md` and sync Issue #200 before asking GPT for more next-step guidance.
-- **Log management**: Raw logs stay local in `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) and are used only for backup/debug/diagnostics.
+- **Initialization**: GPT must review GitHub Issue #200 before recommending actions or next steps.
+- **Out-of-Sync Recovery**: If state changes externally, update `~/Project/AI_HANDOFF.md` and sync Issue #200 before resuming advice.
+- **Log Management**: Raw logs stay local in `~/Project/*.log` (e.g., `~/Project/durable-ai-handoff-docs.log`) and are used only for backup/debug/diagnostics.
 - **Durability & Cleanup Policy**:
   - After each task, reassess whether the run created a durable decision and advise the user when durable repo docs should be updated.
-  - Issue #200 is live run-state only, not durable design authority. Durable decisions must be captured in repo docs (not Issue #200, AI_HANDOFF.md, chat history, or local logs).
   - Recovered/stale docs must be removed, archived, or explicitly promoted to active docs.
   - Routine cleanup follows workflow changes, recovered files, stale references, phase/milestone closures, or repeated AI confusion. Do not run after every tiny code change.
   - Prefer `docs/MAINTENANCE_LOG.md` for dated durable summaries and `docs/ACTIVE_CONTEXT.md` for current operating state/short-lived context.
