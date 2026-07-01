@@ -95,18 +95,15 @@ function App() {
   const [newBalanceValue, setNewBalanceValue] = useState("");
   const [amountUsedValue, setAmountUsedValue] = useState("");
   const [balanceError, setBalanceError] = useState("");
-  const [openedFromBarcodeFocus, setOpenedFromBarcodeFocus] = useState(false);
 
   const handleCancelBalanceEdit = () => {
     setIsEditingBalance(false);
-    setOpenedFromBarcodeFocus(false);
   };
 
   // Notes Editor Form State
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [newNotesValue, setNewNotesValue] = useState("");
 
-  const [isBarcodeFocusOpen, setIsBarcodeFocusOpen] = useState(false);
   const [wakeLock, setWakeLock] = useState(null);
 
   // Raw CSV Editor Modal and backup states
@@ -247,23 +244,6 @@ function App() {
     };
   }, [settings.themeMode]);
 
-  // Handle escape key listener for barcode focus overlay
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !isEditingBalance) {
-        setIsBarcodeFocusOpen(false);
-      }
-    };
-    
-    if (isBarcodeFocusOpen) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isBarcodeFocusOpen, isEditingBalance]);
-
   // Handle escape key listener for balance modal
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -279,13 +259,13 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isEditingBalance, openedFromBarcodeFocus]);
+  }, [isEditingBalance]);
 
-  // Handle screen wake lock for focused barcode scanning
+  // Handle screen wake lock passively for Checkout scanning
   useEffect(() => {
     let activeLock = null;
     async function requestLock() {
-      if ("wakeLock" in navigator && isBarcodeFocusOpen) {
+      if ("wakeLock" in navigator && activePanel === 'detail') {
         try {
           activeLock = await navigator.wakeLock.request("screen");
           setWakeLock(activeLock);
@@ -295,7 +275,7 @@ function App() {
       }
     }
     
-    if (isBarcodeFocusOpen) {
+    if (activePanel === 'detail') {
       requestLock();
     } else {
       if (wakeLock) {
@@ -309,7 +289,7 @@ function App() {
         activeLock.release().catch(() => {});
       }
     };
-  }, [isBarcodeFocusOpen]);
+  }, [activePanel]);
 
   // Refresh Worker Session Status
   const refreshWorkerSessionStatus = async (options = {}) => {
@@ -538,7 +518,7 @@ function App() {
 
   // Touch Swiping for Page Navigation (Cards <-> Checkout)
   const handleMainTouchStart = (event) => {
-    if (isBarcodeFocusOpen || isRawDataModalOpen || isEditingBalance || isEditingNotes) {
+    if (isRawDataModalOpen || isEditingBalance || isEditingNotes) {
       mainTouchStart.current = null;
       return;
     }
@@ -651,10 +631,6 @@ function App() {
     setCards(updatedCards);
     saveCards(updatedCards);
     setIsEditingBalance(false);
-    if (openedFromBarcodeFocus) {
-      setIsBarcodeFocusOpen(false);
-    }
-    setOpenedFromBarcodeFocus(false);
   };
 
   const selectedCard = cards[selectedCardIndex];
@@ -1804,19 +1780,8 @@ function App() {
                     const barcodeData = payload ? getCode128BarcodeBars(payload, { quietZone: 0 }) : null;
                     
                     return (
-                      <div className={`transition-all duration-300 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left ${
-                        isBarcodeFocusOpen
-                          ? 'relative z-50 bg-white border-2 border-m3-primary shadow-2xl scale-[1.02]'
-                          : 'bg-m3-surface-container border border-m3-outline-variant hover:border-m3-primary'
-                      }`}>
-                        <button
-                          id="barcode-open"
-                          onClick={() => setIsBarcodeFocusOpen(!isBarcodeFocusOpen)}
-                          className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                          title={isBarcodeFocusOpen ? "Close barcode focus mode" : "Open focused barcode view"}
-                          aria-label={isBarcodeFocusOpen ? "Close barcode focus mode" : "Open focused barcode view"}
-                          type="button"
-                        >
+                      <div className="rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left bg-m3-surface-container border border-m3-outline-variant">
+                        <div className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl text-left">
                           <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
                             <span id="detail-barcode-status" className="text-sm font-bold text-m3-on-surface-variant">
                               {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
@@ -1827,14 +1792,8 @@ function App() {
                           </div>
 
                           {barcodeData ? (
-                             <div className={`transition-all duration-300 pt-2 ${
-                               isBarcodeFocusOpen ? 'w-[calc(100%+3rem)] mx-[-1.5rem]' : 'w-full'
-                             }`}>
-                               <div className={`transition-all duration-300 bg-white flex items-center justify-center ${
-                                 isBarcodeFocusOpen
-                                   ? 'w-full h-32 sm:h-48'
-                                   : 'w-full rounded-2xl p-3 border border-m3-outline-variant/50 shadow-inner h-20'
-                               }`}>
+                             <div className="w-full pt-2">
+                               <div className="bg-white flex items-center justify-center w-full h-32 sm:h-48 rounded-2xl p-3 border border-m3-outline-variant/50 shadow-inner">
                                  <svg
                                    viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                    preserveAspectRatio="none"
@@ -1859,7 +1818,7 @@ function App() {
                               </span>
                             </div>
                           )}
-                        </button>
+                        </div>
 
                         <div className="flex flex-wrap justify-between items-center gap-2 w-full border-t border-m3-outline-variant pt-2 text-xs font-bold text-m3-on-surface-variant">
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1900,11 +1859,10 @@ function App() {
                   })()}
 
                   {/* Update and Mark used side-by-side */}
-                  <div className={`grid grid-cols-2 gap-4 items-center transition-all duration-300 ${isBarcodeFocusOpen ? 'relative z-50' : ''}`}>
+                  <div className="grid grid-cols-2 gap-4 items-center">
                     <button
                       id="open-balance-modal"
                       onClick={() => {
-                        setOpenedFromBarcodeFocus(false);
                         handleOpenBalanceEdit(selectedCard.currentBalance);
                       }}
                       className="w-full bg-m3-secondary-container hover:bg-m3-secondary-container/85 text-m3-on-secondary-container text-xs font-bold py-4 rounded-full border border-m3-outline-variant/30 transition-all active:scale-95 shadow-none cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
@@ -2008,14 +1966,7 @@ function App() {
         </div>
       </div>
 
-      {/* Spotlight Scrim Overlay */}
-      {isBarcodeFocusOpen && (
-        <div
-          id="spotlight-scrim"
-          className="fixed inset-0 bg-m3-on-surface/10 z-45 transition-opacity duration-300 cursor-pointer animate-fade-in"
-          onClick={() => setIsBarcodeFocusOpen(false)}
-        />
-      )}
+
 
       {/* Update Balance Modal */}
       {isEditingBalance && selectedCard && (
