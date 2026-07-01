@@ -28,5 +28,8 @@ Current source of truth starts with:
 - `docs/archive/MVP.md` — Legacy MVP scope definition.
 - `docs/archive/MANUAL_TEST_PLAN.md` — Pre-consolidation manual test plan (now in `docs/QA_TEST_CHECKLIST.md`).
 - `docs/archive/TROUBLESHOOTING.md` — Pre-consolidation troubleshooting guidance (now in `docs/QA_TEST_CHECKLIST.md`).
+- `docs/archive/phase-11-ai-handoff.md` — Historical Phase 11 AI Handoff document.
+- `docs/archive/agent-auto-pr-lane-handoff.md` — Historical agent automated PR lane handoff.
+- `docs/archive/reports/M3_FULL_AUDIT_CLEANUP_REPORT_2026-06-30.md` — Historical June 30, 2026 visual and design compliance audit report.
 
 Apps Script and Phase 6 materials in this archive describe retired or historical work. Apps Script is not the active sync path.
