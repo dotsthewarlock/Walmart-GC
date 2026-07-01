@@ -5,6 +5,7 @@ export const defaultSettings = {
   hideUsedCards: true,
   hideZeroBalanceCards: false,
   sortMode: "balance-asc",
+  themeMode: "system",
 };
 
 const allowedSortModes = [
@@ -35,6 +36,9 @@ export function normalizeStoredSettings(settings) {
     sortMode: allowedSortModes.includes(settings.sortMode)
       ? settings.sortMode
       : defaultSettings.sortMode,
+    themeMode: ["light", "dark", "system"].includes(settings.themeMode)
+      ? settings.themeMode
+      : defaultSettings.themeMode,
   };
 }
 
