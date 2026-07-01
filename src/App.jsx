@@ -107,6 +107,7 @@ function App() {
   const [wakeLock, setWakeLock] = useState(null);
 
   // Raw CSV Editor Modal and backup states
+  const SHOW_RAW_CSV_EDITOR = false;
   const [isRawDataModalOpen, setIsRawDataModalOpen] = useState(false);
   const [rawDataText, setRawDataText] = useState("");
   const [isRawDataLocked, setIsRawDataLocked] = useState(true);
@@ -1114,7 +1115,7 @@ function App() {
   return (
     <>
       {/* Header Region */}
-      <header className="bg-m3-primary text-m3-on-primary border-b border-m3-outline-variant/60 py-4 md:py-6 px-6 sm:px-8">
+      <header className="bg-m3-primary text-m3-on-primary border-b border-m3-outline-variant/60 py-3 md:py-4 px-6 sm:px-8">
         <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-black tracking-tight text-m3-on-primary">
@@ -1138,7 +1139,7 @@ function App() {
               className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-on-primary focus-visible:ring-offset-2 ${
                 activePanel === 'settings'
                   ? 'bg-m3-on-primary text-m3-primary border-m3-on-primary'
-                  : 'border-m3-on-primary/30 bg-m3-primary hover:bg-m3-on-primary/10 text-m3-on-primary'
+                  : 'bg-m3-primary-container text-m3-on-primary-container border-m3-on-primary-container/20 opacity-50 hover:opacity-100'
               }`}
               title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
               aria-label="Open settings"
@@ -1212,13 +1213,13 @@ function App() {
       </nav>
 
       <div 
-        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative"
+        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pt-4 md:pt-6 pb-24 md:pb-12 antialiased font-sans relative"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
         <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
           {activePanel === 'list' ? (
-            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6">
+            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
               
               {/* Wallet Diagnostics / Balances Summary (Metric Strip) */}
               <section className="bg-m3-surface-container border border-m3-outline-variant rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
@@ -1234,50 +1235,58 @@ function App() {
 
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">
-                <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Cards</h3>
+                <div className="flex justify-between items-center px-1 gap-2 w-full min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 shrink">
+                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider shrink-0">Cards</h3>
                     {(() => {
                       const summary = getAppSyncSummaryState();
-                      let syncLabel = summary.label;
-                      if (syncLabel === "Local only") {
-                        syncLabel = "Local only · Connect";
-                      } else if (syncLabel === "Checking sync") {
+                      let syncLabel = "";
+                      if (summary.key === 'connected') {
+                        syncLabel = "Sync on";
+                      } else if (summary.key === 'checking') {
                         syncLabel = "Syncing…";
-                      } else if (syncLabel === "Sync conflict" || syncLabel === "Sync unavailable") {
-                        syncLabel = "Sync issue";
+                      } else if (summary.key === 'local-only') {
+                        syncLabel = "Local";
+                      } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
+                        syncLabel = "Issue";
+                      } else {
+                        syncLabel = "Local";
                       }
 
                       return (
                         <div
                           id="checkout-feedback"
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold transition-all border ${
-                            summary.key === 'connected' ? 'bg-m3-success-container text-m3-on-success-container border-m3-on-success-container/20' :
-                            ['unsynced', 'checking'].includes(summary.key) ? 'bg-m3-warning-container text-m3-on-warning-container border-m3-on-warning-container/20' :
-                            ['conflict', 'unavailable'].includes(summary.key) ? 'bg-m3-error-container text-m3-error border-m3-error/20' :
-                            'bg-m3-surface-container text-m3-on-surface border-m3-outline-variant'
-                          }`}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-m3-on-surface-variant min-w-0"
                           role="status"
                           aria-live="polite"
                           data-sync-summary={summary.key}
                         >
-                          {syncLabel}
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            summary.key === 'connected' ? 'bg-[#0f5132] dark:bg-[#a3cfbb]' :
+                            summary.key === 'checking' ? 'bg-amber-500 animate-pulse' :
+                            ['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key) ? 'bg-[#ba1a1a] dark:bg-[#ffb4ab]' :
+                            'bg-m3-outline'
+                          }`} />
+                          <span className="truncate">{syncLabel}</span>
                         </div>
                       );
                     })()}
                   </div>
+
                   <select
                     value={settings.sortMode}
                     onChange={handleSortChange}
-                    className="text-xs font-bold border border-m3-outline rounded-xl p-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer"
+                    aria-label="Sort gift cards"
+                    title="Sort gift cards"
+                    className="text-xs font-bold border border-m3-outline rounded-xl p-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer shrink-0 max-w-[125px] sm:max-w-none min-h-[44px] flex items-center justify-center"
                   >
-                    <option value="balance-asc">Balance: Low to High</option>
-                    <option value="balance-desc">Balance: High to Low</option>
-                    <option value="date-added-asc">Date Added: Oldest First</option>
-                    <option value="date-added-desc">Date Added: Newest First</option>
-                    <option value="date-updated-asc">Date Updated: Oldest First</option>
-                    <option value="date-updated-desc">Date Updated: Newest First</option>
-                    <option value="card-number">Card Number</option>
+                    <option value="balance-asc">Balance ↑</option>
+                    <option value="balance-desc">Balance ↓</option>
+                    <option value="date-added-asc">Added ↑</option>
+                    <option value="date-added-desc">Added ↓</option>
+                    <option value="date-updated-asc">Updated ↑</option>
+                    <option value="date-updated-desc">Updated ↓</option>
+                    <option value="card-number">Card #</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
@@ -1375,7 +1384,7 @@ function App() {
                                 Used
                               </span>
                             )}
-                            <span className="text-sm font-bold font-mono">
+                            <span className="text-sm font-bold tabular-nums">
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
@@ -1465,10 +1474,10 @@ function App() {
 
               {/* Google Sync Connection Panel */}
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Synchronization</h3>
-                    <p className="text-xs text-m3-on-surface-variant mt-1 font-medium">
+                <div className="flex flex-col gap-3.5 w-full">
+                  <div className="flex flex-col">
+                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
+                    <p className="text-xs text-m3-on-surface-variant mt-1.5 font-medium leading-relaxed">
                       {oauthState.status === googleOAuthStatuses.connected 
                         ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}` 
                         : oauthState.message
@@ -1480,7 +1489,7 @@ function App() {
                     <button 
                       id="disconnect-google"
                       onClick={handleDisconnectGoogle}
-                      className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold px-4 py-3.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                      className="w-full sm:w-auto self-start bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                       type="button"
                     >
                       Disconnect
@@ -1489,16 +1498,16 @@ function App() {
                     <button 
                       id="connect-google"
                       onClick={handleConnectGoogle}
-                      className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold px-4 py-3.5 rounded-xl transition-all active:scale-95 shadow-md shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                      className="w-full sm:w-auto self-start bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                       type="button"
                     >
-                      Connect Google
+                      Connect Google account
                     </button>
                   )}
                 </div>
 
                 {oauthState.status === googleOAuthStatuses.connected && (
-                  <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-m3-outline-variant/30">
+                  <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-m3-outline-variant/30 w-full">
                     <p id="direct-sheet-status" className="text-xs font-semibold text-m3-on-surface-variant">
                       {directSheetsState.message}
                     </p>
@@ -1507,7 +1516,7 @@ function App() {
                       <button
                         id="ensure-sheet"
                         onClick={handleEnsureSheet}
-                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                         type="button"
                       >
                         Fix Google Sheet
@@ -1518,7 +1527,7 @@ function App() {
                           href={directSheetsState.spreadsheetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                          className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                         >
                           Open Sheet
                         </a>
@@ -1526,7 +1535,7 @@ function App() {
                       <button
                         id="load-from-sheets"
                         onClick={handleLoadCardsFromSheet}
-                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                         type="button"
                       >
                         Import from Google
@@ -1538,7 +1547,7 @@ function App() {
                             handleSaveCardsToSheet();
                           }
                         }}
-                        className={`w-full text-center flex items-center justify-center bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${!directSheetsState.spreadsheetUrl ? "sm:col-span-2" : ""}`}
+                        className={`w-full text-center flex items-center justify-center bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px] ${!directSheetsState.spreadsheetUrl ? "sm:col-span-2" : ""}`}
                         type="button"
                       >
                         Export to Google
@@ -1561,7 +1570,7 @@ function App() {
                             <div className="flex flex-wrap gap-2 mt-2">
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1569,7 +1578,7 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                                 type="button"
                               >
                                 Replace local data from Sheet
@@ -1577,7 +1586,7 @@ function App() {
                               <button
                                 onClick={useCurrentSessionToOverwriteDirectSheets}
                                 disabled={disableSheetsActions}
-                                className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2"
+                                className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2 min-h-[44px]"
                                 type="button"
                               >
                                 Overwrite sheet with this session
@@ -1598,7 +1607,7 @@ function App() {
                               <button
                                 onClick={retrySyncCurrentSession}
                                 disabled={disableSheetsActions}
-                                className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                                className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                                 type="button"
                               >
                                 Try sync again
@@ -1606,14 +1615,14 @@ function App() {
                               <button
                                 onClick={handleLoadCardsFromSheet}
                                 disabled={disableSheetsActions}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                                 type="button"
                               >
                                 Replace local data from Sheet
                               </button>
                               <button
                                 onClick={downloadSessionCsvBackup}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                                 type="button"
                               >
                                 Download backup CSV
@@ -1658,7 +1667,7 @@ function App() {
                             document.getElementById('csv-file-input').click();
                           }
                         }}
-                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                         type="button"
                         title="Import CSV backup"
                       >
@@ -1667,7 +1676,7 @@ function App() {
                       <button 
                         id="export-csv" 
                         onClick={handleExportCsv}
-                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                         type="button"
                         title="Export CSV backup"
                       >
@@ -1675,20 +1684,22 @@ function App() {
                       </button>
                     </div>
 
-                    <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex justify-between items-center gap-3">
-                      <div>
-                        <h4 className="text-xs font-bold text-m3-on-surface uppercase">Raw CSV Editor</h4>
-                        <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
+                    {SHOW_RAW_CSV_EDITOR && (
+                      <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex justify-between items-center gap-3">
+                        <div>
+                          <h4 className="text-xs font-bold text-m3-on-surface uppercase">Raw CSV Editor</h4>
+                          <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
+                        </div>
+                        <button
+                          id="open-raw-data-modal"
+                          onClick={handleOpenRawEditor}
+                          className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-bold px-4 py-3.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                          type="button"
+                        >
+                          Open Editor
+                        </button>
                       </div>
-                      <button 
-                        id="open-raw-data-modal" 
-                        onClick={handleOpenRawEditor}
-                        className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-bold px-4 py-3.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                        type="button"
-                      >
-                        Open Editor
-                      </button>
-                    </div>
+                    )}
                   </div>
                 </details>
               </section>
@@ -1705,32 +1716,44 @@ function App() {
                       <h4 className="text-xs font-bold text-m3-on-surface uppercase">System Status</h4>
                       <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
                         <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                          <span>Connection State</span>
+                          <span>Google Account</span>
                           <span className="font-mono text-[10px] text-m3-on-surface font-bold">
                             {oauthState.status === googleOAuthStatuses.connected ? "Connected" : "Disconnected"}
                           </span>
                         </li>
                         <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                           <span>Sync Status</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">{syncState.status}</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                            {(() => {
+                              const summary = getAppSyncSummaryState();
+                              if (summary.key === 'connected') return "Sync on";
+                              if (summary.key === 'checking') return "Syncing…";
+                              if (summary.key === 'local-only') return "Local only";
+                              return "Issue";
+                            })()}
+                          </span>
+                        </li>
+                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                          <span>Pending Changes</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                            {Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) ? "Yes" : "No"}
+                          </span>
+                        </li>
+                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                          <span>Last Sync</span>
+                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                            {directSheetsState.lastSuccessfulSyncAt || "No sync yet"}
+                          </span>
                         </li>
                         <li className="flex justify-between">
-                          <span>Sheets Configured</span>
+                          <span>Network State</span>
                           <span className="font-mono text-[10px] text-m3-on-surface font-bold">
-                            {directSheetsState.spreadsheetId ? "Yes" : "No"}
+                            {navigator.onLine !== false ? "Online" : "Offline"}
                           </span>
                         </li>
                       </ul>
                       <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
                         {syncState.message || directSheetsState.message}
-                      </div>
-                    </div>
-
-                    <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex flex-col gap-1.5">
-                      <h4 className="text-xs font-bold text-m3-on-surface uppercase">Recent Update</h4>
-                      <div className="text-xs text-m3-on-surface-variant font-medium flex flex-col gap-0.5">
-                        <span className="font-semibold text-m3-on-surface">M3 cleanup applied</span>
-                        <span className="text-[10px] text-m3-on-surface-variant">Cards, Checkout, Settings polish</span>
                       </div>
                     </div>
                   </div>
@@ -1747,7 +1770,7 @@ function App() {
             </main>
           ) : (
             /* Checkout Detail Panel Layout */
-            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6">
+            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
               {selectedCard ? (
                 <div id="card-detail" className="w-full flex flex-col gap-6">
                   
@@ -1780,7 +1803,7 @@ function App() {
                     const barcodeData = payload ? getCode128BarcodeBars(payload, { quietZone: 0 }) : null;
                     
                     return (
-                      <div className="rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left bg-m3-surface-container border border-m3-outline-variant">
+                      <div className="rounded-3xl p-3.5 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left bg-m3-surface-container-low border border-m3-outline-variant">
                         <div className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl text-left">
                           <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
                             <span id="detail-barcode-status" className="text-sm font-bold text-m3-on-surface-variant">
@@ -1793,7 +1816,7 @@ function App() {
 
                           {barcodeData ? (
                              <div className="w-full pt-2">
-                               <div className="bg-white flex items-center justify-center w-full h-32 sm:h-48 rounded-2xl p-3 border border-m3-outline-variant/50 shadow-inner">
+                               <div className="bg-white flex items-center justify-center w-full h-32 sm:h-48 rounded-2xl p-2 border border-m3-outline-variant/50 shadow-inner">
                                  <svg
                                    viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                    preserveAspectRatio="none"
