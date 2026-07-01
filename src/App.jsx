@@ -1411,7 +1411,7 @@ function App() {
               </section>
                       </main>
           ) : activePanel === 'settings' ? (
-            <main className="p-8 flex flex-col gap-6">
+            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6">
               
               {/* Local Settings / Filtering Controls */}
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
@@ -1771,7 +1771,7 @@ function App() {
             </main>
           ) : (
             /* Checkout Detail Panel Layout */
-            <main className="p-8 flex flex-col gap-6">
+            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6">
               {selectedCard ? (
                 <div id="card-detail" className="w-full flex flex-col gap-6">
                   
