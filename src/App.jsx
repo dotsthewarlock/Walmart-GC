@@ -24,6 +24,18 @@ function maskCardNumber(cardNumber) {
   return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
 }
 
+function maskEmail(email) {
+  if (!email || !email.includes("@")) return email;
+  const [local, domain] = email.split("@");
+  if (local.length >= 5) {
+    return `${local.slice(0, 2)}…${local.slice(-2)}@${domain}`;
+  }
+  if (local.length === 4) {
+    return `${local.slice(0, 1)}…${local.slice(-1)}@${domain}`;
+  }
+  return `${local}@${domain}`;
+}
+
 function getCardCode(card) {
   return String(card?.cardNumber ?? "").replace(/\D/g, "");
 }
@@ -71,6 +83,89 @@ async function writeClipboardText(text) {
   } finally {
     textarea.remove();
   }
+}
+
+function ActionIcon({ name }) {
+  if (name === 'wrench') {
+    return (
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+      </svg>
+    );
+  }
+  if (name === 'external') {
+    return (
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    );
+  }
+  if (name === 'download') {
+    return (
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+    );
+  }
+  if (name === 'upload') {
+    return (
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+      </svg>
+    );
+  }
+  return null;
+}
+
+function ActionButton({ id, onClick, icon, label, className = "", href, target, rel, disabled, variant = "tonal" }) {
+  // Variants mapping:
+  // - primary: M3 Filled Button (high emphasis)
+  // - tonal: M3 Filled Tonal Button (medium emphasis)
+  // - outlined: M3 Outlined Button (low-medium emphasis)
+  let variantClass = "";
+  if (variant === "primary") {
+    variantClass = "bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary border border-transparent shadow-sm";
+  } else if (variant === "outlined") {
+    variantClass = "bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant hover:text-m3-on-surface border border-m3-outline-variant";
+  } else {
+    // tonal (default)
+    variantClass = "bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 shadow-none";
+  }
+
+  const baseClass = `w-full text-center flex items-center justify-center text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px] gap-2 select-none disabled:opacity-50 disabled:cursor-not-allowed ${variantClass}`;
+
+  const content = (
+    <>
+      {icon && <ActionIcon name={icon} />}
+      <span>{label}</span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        id={id}
+        href={href}
+        target={target}
+        rel={rel}
+        className={`${baseClass} ${className}`}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      id={id}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClass} ${className}`}
+      type="button"
+    >
+      {content}
+    </button>
+  );
 }
 
 function App() {
@@ -202,6 +297,41 @@ function App() {
       help: "Connect in backup and sync",
     };
   };
+
+  const [isGoogleSyncOpen, setIsGoogleSyncOpen] = useState(false);
+  const [hasInitializedSettingsSyncOpen, setHasInitializedSettingsSyncOpen] = useState(false);
+  const prevOauthStatus = useRef(oauthState.status);
+  const prevSyncError = useRef(false);
+
+  // Reset the settings initialization flag when leaving the Settings panel
+  useEffect(() => {
+    if (activePanel !== 'settings') {
+      setHasInitializedSettingsSyncOpen(false);
+    }
+  }, [activePanel]);
+
+  // Set the default expanded state on entering Settings, when connection status transitions to connected, or when a new error occurs
+  useEffect(() => {
+    if (activePanel === 'settings') {
+      const summary = getAppSyncSummaryState();
+      const hasSyncError = ['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key);
+      const isSyncing = summary.key === 'checking';
+      const isConnected = oauthState.status === googleOAuthStatuses.connected;
+      const justConnected = prevOauthStatus.current !== googleOAuthStatuses.connected && isConnected;
+      const errorJustOccurred = !prevSyncError.current && hasSyncError;
+
+      if (!hasInitializedSettingsSyncOpen || justConnected || errorJustOccurred) {
+        if (isConnected && !hasSyncError && !isSyncing) {
+          setIsGoogleSyncOpen(false);
+        } else {
+          setIsGoogleSyncOpen(true);
+        }
+        setHasInitializedSettingsSyncOpen(true);
+      }
+      prevSyncError.current = hasSyncError;
+    }
+    prevOauthStatus.current = oauthState.status;
+  }, [activePanel, oauthState.status, hasInitializedSettingsSyncOpen, syncState.status, directSheetsState.status]);
 
   useEffect(() => {
     return () => {
@@ -1121,9 +1251,6 @@ function App() {
             <h1 className="text-xl md:text-2xl font-black tracking-tight text-m3-on-primary">
               Gift Card Manager
             </h1>
-            <p className="text-[10px] md:text-xs text-m3-on-primary/80 font-semibold tracking-wide uppercase mt-0.5">
-              Private gift card wallet
-            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -1151,6 +1278,68 @@ function App() {
         </div>
       </header>
 
+      {/* Persistent Merchant Balance Strip */}
+      {(activePanel === 'list' || activePanel === 'detail') && (() => {
+        const summary = getAppSyncSummaryState();
+        let syncLabel = "";
+        if (summary.key === 'connected') {
+          syncLabel = "Google sync on";
+        } else if (summary.key === 'checking') {
+          syncLabel = "Syncing…";
+        } else if (summary.key === 'local-only') {
+          syncLabel = "Local only · Connect";
+        } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
+          syncLabel = "Sync issue";
+        } else {
+          syncLabel = "Local only · Connect";
+        }
+
+        const isInteractive = ['local-only', 'conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key);
+        const dotClass = `w-1.5 h-1.5 rounded-full shrink-0 ${
+          summary.key === 'connected' ? 'bg-[#0f5132] dark:bg-[#a3cfbb]' :
+          summary.key === 'checking' ? 'bg-amber-500 animate-pulse' :
+          ['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key) ? 'bg-[#ba1a1a] dark:bg-[#ffb4ab]' :
+          'bg-m3-outline'
+        }`;
+
+        return (
+          <div
+            className="w-full bg-m3-surface-container border-b border-m3-outline-variant/30 h-10 grid grid-cols-3 items-center px-6 select-none"
+            role="status"
+            aria-live="polite"
+            aria-label={`Available Walmart balance: $${activeBalance.toFixed(2)}. Sync status: ${syncLabel}.`}
+          >
+            <span className="text-[15px] font-semibold text-m3-on-surface text-left">Walmart</span>
+
+            <div className="flex justify-center min-w-0">
+              {isInteractive ? (
+                <button
+                  id="checkout-feedback-btn"
+                  onClick={handleConnectGoogle}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-surface-container-low transition-colors duration-150 rounded-full px-2.5 py-0.5 border border-m3-outline-variant/30 min-w-0 cursor-pointer"
+                  data-sync-summary={summary.key}
+                  title="Connect Google Sync"
+                >
+                  <span className={dotClass} />
+                  <span className="truncate">{syncLabel}</span>
+                </button>
+              ) : (
+                <div
+                  id="checkout-feedback"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-m3-on-surface-variant rounded-full px-2.5 py-0.5 border border-m3-outline-variant/30 min-w-0"
+                  data-sync-summary={summary.key}
+                >
+                  <span className={dotClass} />
+                  <span className="truncate">{syncLabel}</span>
+                </div>
+              )}
+            </div>
+
+            <span className="text-[15px] font-semibold text-m3-on-surface text-right">${activeBalance.toFixed(2)}</span>
+          </div>
+        );
+      })()}
+
       {/* Navigation bar: mobile bottom fixed, desktop below header (static flow) */}
       <nav
         className="fixed bottom-0 left-0 right-0 h-20 z-40 md:static flex border-t border-m3-outline-variant/30 bg-m3-surface-container w-full"
@@ -1165,7 +1354,7 @@ function App() {
             }}
             className="flex-1 flex flex-col items-center justify-center h-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
           >
-            <div className={`flex items-center justify-center w-16 h-8 rounded-full transition-all ${
+            <div className={`flex items-center justify-center w-14 h-7 rounded-xl transition-all ${
               activePanel === 'list'
                 ? 'bg-m3-primary-container text-m3-on-primary-container border border-m3-primary/20 shadow-sm'
                 : 'text-m3-on-surface-variant hover:bg-m3-surface-container-low'
@@ -1194,7 +1383,7 @@ function App() {
             disabled={visibleIndexes.length === 0}
             className="flex-1 flex flex-col items-center justify-center h-full disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
           >
-            <div className={`flex items-center justify-center w-16 h-8 rounded-full transition-all ${
+            <div className={`flex items-center justify-center w-14 h-7 rounded-xl transition-all ${
               activePanel === 'detail'
                 ? 'bg-m3-primary-container text-m3-on-primary-container border border-m3-primary/20 shadow-sm'
                 : 'text-m3-on-surface-variant hover:bg-m3-surface-container-low'
@@ -1213,7 +1402,7 @@ function App() {
       </nav>
 
       <div 
-        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pt-4 md:pt-6 pb-24 md:pb-12 antialiased font-sans relative"
+        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pb-24 md:pb-12 antialiased font-sans relative"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
@@ -1221,77 +1410,12 @@ function App() {
           {activePanel === 'list' ? (
             <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
               
-              {/* Wallet Diagnostics / Balances Summary (Metric Strip) */}
-              <section className="bg-m3-surface-container border border-m3-outline-variant rounded-2xl p-4 sm:p-6 grid grid-cols-2 gap-4 items-center">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Available balance</span>
-                  <span className="text-2xl sm:text-3xl font-bold text-m3-on-surface">${activeBalance.toFixed(2)}</span>
-                </div>
-                <div className="flex flex-col gap-1 text-right">
-                  <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Visible cards</span>
-                  <span className="text-xl sm:text-2xl font-bold text-m3-on-surface">{activeCount}</span>
-                </div>
-              </section>
-
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">
-                <div className="flex justify-between items-center px-1 gap-2 w-full min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0 shrink">
-                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider shrink-0">Cards</h3>
-                    {(() => {
-                      const summary = getAppSyncSummaryState();
-                      let syncLabel = "";
-                      if (summary.key === 'connected') {
-                        syncLabel = "Sync on";
-                      } else if (summary.key === 'checking') {
-                        syncLabel = "Syncing…";
-                      } else if (summary.key === 'local-only') {
-                        syncLabel = "Local";
-                      } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
-                        syncLabel = "Issue";
-                      } else {
-                        syncLabel = "Local";
-                      }
 
-                      return (
-                        <div
-                          id="checkout-feedback"
-                          className="inline-flex items-center gap-1 text-xs font-bold text-m3-on-surface-variant min-w-0"
-                          role="status"
-                          aria-live="polite"
-                          data-sync-summary={summary.key}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            summary.key === 'connected' ? 'bg-[#0f5132] dark:bg-[#a3cfbb]' :
-                            summary.key === 'checking' ? 'bg-amber-500 animate-pulse' :
-                            ['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key) ? 'bg-[#ba1a1a] dark:bg-[#ffb4ab]' :
-                            'bg-m3-outline'
-                          }`} />
-                          <span className="truncate">{syncLabel}</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <select
-                    value={settings.sortMode}
-                    onChange={handleSortChange}
-                    aria-label="Sort gift cards"
-                    title="Sort gift cards"
-                    className="text-xs font-bold border border-m3-outline rounded-xl p-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer shrink-0 max-w-[125px] sm:max-w-none min-h-[44px] flex items-center justify-center"
-                  >
-                    <option value="balance-asc">Balance ↑</option>
-                    <option value="balance-desc">Balance ↓</option>
-                    <option value="date-added-asc">Added ↑</option>
-                    <option value="date-added-desc">Added ↓</option>
-                    <option value="date-updated-asc">Updated ↑</option>
-                    <option value="date-updated-desc">Updated ↓</option>
-                    <option value="card-number">Card #</option>
-                  </select>
-                </div>
                 <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
                   {cards.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-2xl flex flex-col items-center gap-4">
+                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-xl flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
                         <h4 className="text-sm font-bold text-m3-on-surface">No gift cards yet</h4>
                         <p className="text-xs text-m3-on-surface-variant leading-relaxed">
@@ -1320,7 +1444,7 @@ function App() {
                       </div>
                     </div>
                   ) : visibleIndexes.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-2xl flex flex-col items-center gap-4">
+                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-xl flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
                         <span className="text-sm font-bold text-m3-on-surface">All registered cards are filtered out</span>
                         <p className="text-xs text-m3-on-surface-variant leading-relaxed">
@@ -1364,27 +1488,27 @@ function App() {
                               setActivePanel('detail');
                             }
                           }}
-                          className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all gap-4 cursor-pointer min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
+                          className={`flex items-center justify-between py-2 px-4 rounded-xl border transition-all gap-4 cursor-pointer h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary ${
                             isSelected
-                              ? 'border-m3-outline bg-m3-primary-container text-m3-on-primary-container'
+                              ? 'border-m3-outline-variant/30 bg-m3-surface-container-high text-m3-on-surface'
                               : card.used
-                                ? 'border-m3-outline-variant bg-m3-surface-container-low text-m3-on-surface-variant hover:bg-m3-surface-container hover:border-m3-outline'
-                                : 'border-m3-outline-variant bg-m3-surface-container-lowest text-m3-on-surface hover:bg-m3-surface-container-low hover:border-m3-primary'
+                                ? 'border-m3-outline-variant/10 bg-m3-surface-container-low/40 text-m3-on-surface-variant hover:bg-m3-surface-container hover:border-m3-outline-variant/20'
+                                : 'border-m3-outline-variant/15 bg-m3-surface-container-lowest text-m3-on-surface hover:bg-m3-surface-container-low hover:border-m3-outline-variant/30'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className={`font-mono text-sm font-bold ${card.used ? 'line-through decoration-m3-on-surface-variant' : ''}`}>
+                            <span className={`text-sm font-medium ${card.used ? 'line-through decoration-m3-on-surface-variant/60' : ''}`}>
                               {maskCardNumber(card.cardNumber)}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-3">
                             {card.used && (
-                              <span className="text-[10px] font-bold bg-m3-surface-container-low text-m3-on-surface-variant px-2 py-0.5 rounded uppercase border border-m3-outline-variant">
+                              <span className="text-[9px] font-medium bg-m3-surface-container-low text-m3-on-surface-variant px-1.5 py-0.5 rounded border border-m3-outline-variant/20 uppercase tracking-wider">
                                 Used
                               </span>
                             )}
-                            <span className="text-sm font-bold tabular-nums">
+                            <span className="text-sm font-medium tabular-nums">
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
@@ -1394,108 +1518,306 @@ function App() {
                   )}
                 </div>
               </section>
-                      </main>
-          ) : activePanel === 'settings' ? (
-            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6">
-              
-              {/* Local Settings / Filtering Controls */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Preferences</h3>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
-                    <span>Appearance</span>
-                    <select
-                      value={settings.themeMode || "system"}
-                      onChange={handleThemeModeChange}
-                      className="text-xs font-bold border border-m3-outline rounded-xl p-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer"
-                    >
-                      <option value="system">System (Auto)</option>
-                      <option value="light">Light Mode</option>
-                      <option value="dark">Dark Mode</option>
-                    </select>
-                  </label>
+            </main>
+           ) : activePanel === 'settings' ? (
+             <main className="p-3 pb-28 md:pb-16 flex flex-col gap-3 animate-panel-enter">
+               
+               {/* Local Settings / Filtering Controls */}
+               <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2.5">
+                 <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Preferences</h3>
+                 
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                     <span>Appearance</span>
+                     <select
+                       value={settings.themeMode || "system"}
+                       onChange={handleThemeModeChange}
+                       className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer"
+                     >
+                       <option value="system">System (Auto)</option>
+                       <option value="light">Light Mode</option>
+                       <option value="dark">Dark Mode</option>
+                     </select>
+                   </label>
 
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
-                    <span>Hide Used Cards</span>
-                    <div className="relative w-[52px] h-[32px] shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={settings.hideUsedCards}
-                        onChange={() => handleToggleSetting('hideUsedCards')}
-                        className="sr-only peer"
-                      />
-                      <div className="w-full h-full bg-m3-outline-variant/30 border-2 border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-m3-on-primary peer-checked:left-[4px]"></div>
-                    </div>
-                  </label>
+                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                     <span>Sort Order</span>
+                     <select
+                       value={settings.sortMode}
+                       onChange={handleSortChange}
+                       aria-label="Sort gift cards"
+                       title="Sort gift cards"
+                       className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer max-w-[125px] sm:max-w-none"
+                     >
+                       <option value="balance-asc">Balance ↑</option>
+                       <option value="balance-desc">Balance ↓</option>
+                       <option value="date-added-asc">Added ↑</option>
+                       <option value="date-added-desc">Added ↓</option>
+                       <option value="date-updated-asc">Updated ↑</option>
+                       <option value="date-updated-desc">Updated ↓</option>
+                       <option value="card-number">Card #</option>
+                     </select>
+                   </label>
 
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
-                    <span>Hide $0 Cards</span>
-                    <div className="relative w-[52px] h-[32px] shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={settings.hideZeroBalanceCards}
-                        onChange={() => handleToggleSetting('hideZeroBalanceCards')}
-                        className="sr-only peer"
-                      />
-                      <div className="w-full h-full bg-m3-outline-variant/30 border-2 border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-m3-on-primary peer-checked:left-[4px]"></div>
-                    </div>
-                  </label>
+                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                     <span>Hide Used Cards</span>
+                     <div className="relative w-[44px] h-[26px] shrink-0">
+                       <input
+                         type="checkbox"
+                         checked={settings.hideUsedCards}
+                         onChange={() => handleToggleSetting('hideUsedCards')}
+                         className="sr-only peer"
+                       />
+                       <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                       <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                     </div>
+                   </label>
 
-                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
-                    <span>Auto-Advance</span>
-                    <div className="relative w-[52px] h-[32px] shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={settings.advanceOnMarkUsed}
-                        onChange={() => handleToggleSetting('advanceOnMarkUsed')}
-                        className="sr-only peer"
-                      />
-                      <div className="w-full h-full bg-m3-outline-variant/30 border-2 border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-[6px] w-[16px] h-[16px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[16px] peer-checked:w-[24px] peer-checked:h-[24px] peer-checked:bg-m3-on-primary peer-checked:left-[4px]"></div>
-                    </div>
-                  </label>
+                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                     <span>Hide $0 Cards</span>
+                     <div className="relative w-[44px] h-[26px] shrink-0">
+                       <input
+                         type="checkbox"
+                         checked={settings.hideZeroBalanceCards}
+                         onChange={() => handleToggleSetting('hideZeroBalanceCards')}
+                         className="sr-only peer"
+                       />
+                       <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                       <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                     </div>
+                   </label>
 
-                  {zeroBalanceCount > 0 && (
-                    <button
-                      id="mark-zero-used"
-                      onClick={handleMarkZeroBalanceUsed}
-                      className="w-full sm:col-span-2 text-xs font-bold bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 rounded-xl p-3.5 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                      type="button"
-                    >
-                      <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
-                      <span className="bg-m3-surface-container-low text-m3-on-surface px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
-                    </button>
-                  )}
-                </div>
-              </section>
+                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                     <span>Auto-Advance</span>
+                     <div className="relative w-[44px] h-[26px] shrink-0">
+                       <input
+                         type="checkbox"
+                         checked={settings.advanceOnMarkUsed}
+                         onChange={() => handleToggleSetting('advanceOnMarkUsed')}
+                         className="sr-only peer"
+                       />
+                       <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                       <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                     </div>
+                   </label>
+
+                   {zeroBalanceCount > 0 && (
+                     <button
+                       id="mark-zero-used"
+                       onClick={handleMarkZeroBalanceUsed}
+                       className="w-full sm:col-span-2 text-xs font-bold bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 rounded-xl p-3.5 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
+                       type="button"
+                     >
+                       <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
+                       <span className="bg-m3-surface-container-low text-m3-on-surface px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
+                     </button>
+                   )}
+                 </div>
+               </section>
 
               {/* Google Sync Connection Panel */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex flex-col gap-3.5 w-full">
-                  <div className="flex flex-col">
-                    <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
-                    <p className="text-xs text-m3-on-surface-variant mt-1.5 font-medium leading-relaxed">
-                      {oauthState.status === googleOAuthStatuses.connected 
-                        ? `Connected as ${oauthState.connectedName || oauthState.connectedEmail}` 
-                        : oauthState.message
-                      }
-                    </p>
-                  </div>
-                  
-                  {oauthState.status === googleOAuthStatuses.connected ? (
-                    <button 
-                      id="disconnect-google"
-                      onClick={handleDisconnectGoogle}
-                      className="w-full sm:w-auto self-start bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                      type="button"
-                    >
-                      Disconnect
-                    </button>
-                  ) : (
-                    <button 
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-4 flex flex-col gap-3">
+                {oauthState.status === googleOAuthStatuses.connected ? (
+                  <details
+                    className="group"
+                    open={isGoogleSyncOpen}
+                    onToggle={(e) => setIsGoogleSyncOpen(e.target.open)}
+                  >
+                    <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl p-1">
+                      <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const summary = getAppSyncSummaryState();
+                          let syncLabel = "";
+                          if (summary.key === 'connected') {
+                            syncLabel = "Google sync on";
+                          } else if (summary.key === 'checking') {
+                            syncLabel = "Syncing…";
+                          } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
+                            syncLabel = "Sync issue";
+                          } else {
+                            syncLabel = "Local only · Connect";
+                          }
+                          return (
+                            <span className="text-xs font-medium text-m3-on-surface-variant">
+                              {syncLabel}
+                            </span>
+                          );
+                        })()}
+                        <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform ml-2 shrink-0">▼</span>
+                      </div>
+                    </summary>
+                    <div className="flex flex-col gap-3 mt-3 pt-3 border-t border-m3-outline-variant/20 w-full">
+                      {/* Connected email address */}
+                      {oauthState.connectedEmail && (
+                        <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed">
+                          Connected: {maskEmail(oauthState.connectedEmail)}
+                        </p>
+                      )}
+
+                      {/* Disconnect Action */}
+                      <button
+                        id="disconnect-google"
+                        onClick={handleDisconnectGoogle}
+                        className="w-full sm:w-auto self-start bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                        type="button"
+                      >
+                        Disconnect
+                      </button>
+
+                      <div className="flex flex-col gap-3 mt-1 pt-3 border-t border-m3-outline-variant/20 w-full">
+                        <p id="direct-sheet-status" className="text-xs font-semibold text-m3-on-surface-variant">
+                          {directSheetsState.message}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3 w-full">
+                          <ActionButton
+                            id="ensure-sheet"
+                            onClick={handleEnsureSheet}
+                            icon="wrench"
+                            label="Fix Sheet"
+                          />
+                          {directSheetsState.spreadsheetUrl && (
+                            <ActionButton
+                              id="open-direct-sheet"
+                              href={directSheetsState.spreadsheetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              icon="external"
+                              label="Open Sheet"
+                            />
+                          )}
+                          <ActionButton
+                            id="load-from-sheets"
+                            onClick={handleLoadCardsFromSheet}
+                            icon="download"
+                            label="Import Sheet"
+                          />
+                          <ActionButton
+                            id="save-to-sheets"
+                            onClick={() => {
+                              if (window.confirm("Warning: Exporting to Google will replace all gift card rows in your Google Sheet with your current local browser session. Do you want to proceed?")) {
+                                handleSaveCardsToSheet();
+                              }
+                            }}
+                            icon="upload"
+                            label="Export Sheet"
+                            className={!directSheetsState.spreadsheetUrl ? "col-span-2" : ""}
+                          />
+                        </div>
+
+                        {/* Conflict / Unsynced Recovery Panel */}
+                        {(() => {
+                          const unavailableMessage = getRecoveryUnavailableMessage();
+                          const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
+                          const disableSheetsActions = Boolean(isBusy || unavailableMessage);
+
+                          if (syncState.status === syncStatuses.conflict) {
+                            return (
+                              <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-xl text-xs mt-2">
+                                <h4 className="font-bold text-m3-error text-sm">Conflict recovery</h4>
+                                <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
+                                <p className="font-semibold text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+                                {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  <button
+                                    onClick={downloadSessionCsvBackup}
+                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                                    type="button"
+                                  >
+                                    Download backup CSV
+                                  </button>
+                                  <button
+                                    onClick={handleLoadCardsFromSheet}
+                                    disabled={disableSheetsActions}
+                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                                    type="button"
+                                  >
+                                    Replace local data from Sheet
+                                  </button>
+                                  <button
+                                    onClick={useCurrentSessionToOverwriteDirectSheets}
+                                    disabled={disableSheetsActions}
+                                    className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2 min-h-[44px]"
+                                    type="button"
+                                  >
+                                    Overwrite sheet with this session
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (syncState.status === syncStatuses.unsynced) {
+                            return (
+                              <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-warning-container text-m3-on-warning-container border border-m3-outline-variant/30 rounded-xl text-xs mt-2">
+                                <h4 className="font-bold text-m3-on-warning-container text-sm">Unsynced recovery</h4>
+                                <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
+                                <p>Replace local data from Sheet overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
+                                {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  <button
+                                    onClick={retrySyncCurrentSession}
+                                    disabled={disableSheetsActions}
+                                    className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                                    type="button"
+                                  >
+                                    Try sync again
+                                  </button>
+                                  <button
+                                    onClick={handleLoadCardsFromSheet}
+                                    disabled={disableSheetsActions}
+                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                                    type="button"
+                                  >
+                                    Replace local data from Sheet
+                                  </button>
+                                  <button
+                                    onClick={downloadSessionCsvBackup}
+                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                                    type="button"
+                                  >
+                                    Download backup CSV
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+                  </details>
+                ) : (
+                  <div className="flex flex-col gap-3.5 w-full">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
+                        {(() => {
+                          const summary = getAppSyncSummaryState();
+                          let syncLabel = "";
+                          if (summary.key === 'checking') {
+                            syncLabel = "Syncing…";
+                          } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
+                            syncLabel = "Sync issue";
+                          } else {
+                            syncLabel = "Local only · Connect";
+                          }
+                          return (
+                            <span className="text-xs font-medium text-m3-on-surface-variant">
+                              {syncLabel}
+                            </span>
+                          );
+                        })()}
+                      </div>
+
+                      <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed mt-1">
+                        {oauthState.message}
+                      </p>
+                    </div>
+
+                    <button
                       id="connect-google"
                       onClick={handleConnectGoogle}
                       className="w-full sm:w-auto self-start bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
@@ -1503,137 +1825,6 @@ function App() {
                     >
                       Connect Google account
                     </button>
-                  )}
-                </div>
-
-                {oauthState.status === googleOAuthStatuses.connected && (
-                  <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-m3-outline-variant/30 w-full">
-                    <p id="direct-sheet-status" className="text-xs font-semibold text-m3-on-surface-variant">
-                      {directSheetsState.message}
-                    </p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                      <button
-                        id="ensure-sheet"
-                        onClick={handleEnsureSheet}
-                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                        type="button"
-                      >
-                        Fix Google Sheet
-                      </button>
-                      {directSheetsState.spreadsheetUrl && (
-                        <a
-                          id="open-direct-sheet"
-                          href={directSheetsState.spreadsheetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                        >
-                          Open Sheet
-                        </a>
-                      )}
-                      <button
-                        id="load-from-sheets"
-                        onClick={handleLoadCardsFromSheet}
-                        className="w-full text-center flex items-center justify-center bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3.5 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                        type="button"
-                      >
-                        Import from Google
-                      </button>
-                      <button
-                        id="save-to-sheets"
-                        onClick={() => {
-                          if (window.confirm("Warning: Exporting to Google will replace all gift card rows in your Google Sheet with your current local browser session. Do you want to proceed?")) {
-                            handleSaveCardsToSheet();
-                          }
-                        }}
-                        className={`w-full text-center flex items-center justify-center bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px] ${!directSheetsState.spreadsheetUrl ? "sm:col-span-2" : ""}`}
-                        type="button"
-                      >
-                        Export to Google
-                      </button>
-                    </div>
-
-                    {/* Conflict / Unsynced Recovery Panel */}
-                    {(() => {
-                      const unavailableMessage = getRecoveryUnavailableMessage();
-                      const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
-                      const disableSheetsActions = Boolean(isBusy || unavailableMessage);
-
-                      if (syncState.status === syncStatuses.conflict) {
-                        return (
-                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-2xl text-xs mt-2">
-                            <h4 className="font-bold text-m3-error text-sm">Conflict recovery</h4>
-                            <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
-                            <p className="font-semibold text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
-                            {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <button
-                                onClick={downloadSessionCsvBackup}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                type="button"
-                              >
-                                Download backup CSV
-                              </button>
-                              <button
-                                onClick={handleLoadCardsFromSheet}
-                                disabled={disableSheetsActions}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                type="button"
-                              >
-                                Replace local data from Sheet
-                              </button>
-                              <button
-                                onClick={useCurrentSessionToOverwriteDirectSheets}
-                                disabled={disableSheetsActions}
-                                className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2 min-h-[44px]"
-                                type="button"
-                              >
-                                Overwrite sheet with this session
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (syncState.status === syncStatuses.unsynced) {
-                        return (
-                          <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-warning-container text-m3-on-warning-container border border-m3-outline-variant/30 rounded-2xl text-xs mt-2">
-                            <h4 className="font-bold text-m3-on-warning-container text-sm">Unsynced recovery</h4>
-                            <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
-                            <p>Replace local data from Sheet overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
-                            {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <button
-                                onClick={retrySyncCurrentSession}
-                                disabled={disableSheetsActions}
-                                className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                type="button"
-                              >
-                                Try sync again
-                              </button>
-                              <button
-                                onClick={handleLoadCardsFromSheet}
-                                disabled={disableSheetsActions}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                type="button"
-                              >
-                                Replace local data from Sheet
-                              </button>
-                              <button
-                                onClick={downloadSessionCsvBackup}
-                                className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                type="button"
-                              >
-                                Download backup CSV
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return null;
-                    })()}
                   </div>
                 )}
 
@@ -1645,13 +1836,13 @@ function App() {
               </section>
 
               {/* Data Panel / Backup Controls */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-4 flex flex-col gap-3">
                 <details className="group">
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
                     <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
                     <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-m3-outline-variant/30">
+                  <div className="flex flex-col gap-3 mt-3 pt-3 border-t border-m3-outline-variant/20">
                     <div className="flex gap-3">
                       <input 
                         id="csv-file-input" 
@@ -1660,32 +1851,28 @@ function App() {
                         onChange={handleImportCsvFile} 
                         className="hidden" 
                       />
-                      <button 
-                        id="import-csv" 
+                      <ActionButton
+                        id="import-csv"
                         onClick={() => {
                           if (window.confirm("Warning: Importing a CSV will load cards into the editor, which can overwrite or modify your current local session. Do you want to proceed?")) {
                             document.getElementById('csv-file-input').click();
                           }
                         }}
-                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                        type="button"
-                        title="Import CSV backup"
-                      >
-                        ↓ Import CSV
-                      </button>
-                      <button 
-                        id="export-csv" 
+                        icon="download"
+                        label="Import CSV"
+                        className="flex-1"
+                      />
+                      <ActionButton
+                        id="export-csv"
                         onClick={handleExportCsv}
-                        className="flex-1 bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                        type="button"
-                        title="Export CSV backup"
-                      >
-                        ↑ Export CSV
-                      </button>
+                        icon="upload"
+                        label="Export CSV"
+                        className="flex-1"
+                      />
                     </div>
 
                     {SHOW_RAW_CSV_EDITOR && (
-                      <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex justify-between items-center gap-3">
+                      <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-3 flex justify-between items-center gap-3">
                         <div>
                           <h4 className="text-xs font-bold text-m3-on-surface uppercase">Raw CSV Editor</h4>
                           <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
@@ -1693,7 +1880,7 @@ function App() {
                         <button
                           id="open-raw-data-modal"
                           onClick={handleOpenRawEditor}
-                          className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-bold px-4 py-3.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                          className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-bold px-4 py-2.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
                           type="button"
                         >
                           Open Editor
@@ -1705,25 +1892,25 @@ function App() {
               </section>
 
               {/* Troubleshooting (Unified Container) */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
+              <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-4 flex flex-col gap-3">
                 <details className="group">
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
                     <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
                     <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-m3-outline-variant/30">
-                    <div className="border border-m3-outline-variant/30 bg-m3-surface-container rounded-2xl p-4 flex flex-col gap-2">
+                  <div className="flex flex-col gap-3 mt-3 pt-3 border-t border-m3-outline-variant/20">
+                    <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-3 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-m3-on-surface uppercase">System Status</h4>
                       <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
                         <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                           <span>Google Account</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                          <span className="text-[10px] text-m3-on-surface font-bold">
                             {oauthState.status === googleOAuthStatuses.connected ? "Connected" : "Disconnected"}
                           </span>
                         </li>
                         <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                           <span>Sync Status</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                          <span className="text-[10px] text-m3-on-surface font-bold">
                             {(() => {
                               const summary = getAppSyncSummaryState();
                               if (summary.key === 'connected') return "Sync on";
@@ -1735,19 +1922,19 @@ function App() {
                         </li>
                         <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                           <span>Pending Changes</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                          <span className="text-[10px] text-m3-on-surface font-bold">
                             {Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) ? "Yes" : "No"}
                           </span>
                         </li>
                         <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                           <span>Last Sync</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                          <span className="text-[10px] text-m3-on-surface font-bold">
                             {directSheetsState.lastSuccessfulSyncAt || "No sync yet"}
                           </span>
                         </li>
                         <li className="flex justify-between">
                           <span>Network State</span>
-                          <span className="font-mono text-[10px] text-m3-on-surface font-bold">
+                          <span className="text-[10px] text-m3-on-surface font-bold">
                             {navigator.onLine !== false ? "Online" : "Offline"}
                           </span>
                         </li>
@@ -1760,12 +1947,12 @@ function App() {
                 </details>
               </section>
 
-              <button
+              <ActionButton
+                id="settings-back"
                 onClick={() => setActivePanel(previousPrimaryPanel)}
-                className="w-full bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-6 rounded-full border border-m3-outline-variant/30 transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-              >
-                Back
-              </button>
+                label="Back"
+                variant="outlined"
+              />
 
             </main>
           ) : (
@@ -1803,8 +1990,8 @@ function App() {
                     const barcodeData = payload ? getCode128BarcodeBars(payload, { quietZone: 0 }) : null;
                     
                     return (
-                      <div className="rounded-3xl p-3.5 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left bg-m3-surface-container-low border border-m3-outline-variant">
-                        <div className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl text-left">
+                      <div className="rounded-xl p-3.5 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left bg-m3-surface-container-low border border-m3-outline-variant">
+                        <div className="flex w-full flex-col items-center justify-center gap-3 rounded-xl text-left">
                           <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
                             <span id="detail-barcode-status" className="text-sm font-bold text-m3-on-surface-variant">
                               {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
@@ -1816,7 +2003,7 @@ function App() {
 
                           {barcodeData ? (
                              <div className="w-full pt-2">
-                               <div className="bg-white flex items-center justify-center w-full h-32 sm:h-48 rounded-2xl p-2 border border-m3-outline-variant/50 shadow-inner">
+                               <div className="bg-white flex items-center justify-center w-full h-32 sm:h-48 rounded-xl p-2 border border-m3-outline-variant/50 shadow-inner">
                                  <svg
                                    viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
                                    preserveAspectRatio="none"
@@ -1832,7 +2019,7 @@ function App() {
                                </div>
                              </div>
                           ) : (
-                            <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-2xl p-4 w-full text-center">
+                            <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-xl p-4 w-full text-center">
                               <span className="text-sm text-m3-error font-bold">
                                 {getBarcodeFallbackMessage(selectedCard)}
                               </span>
@@ -1855,7 +2042,7 @@ function App() {
                                 }
                                 setRevealNumber(!revealNumber);
                               }}
-                              className="font-mono cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
+                              className="tabular-nums cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
                               title="Copy code and PIN"
                               aria-label="Copy code and PIN"
                               type="button"
@@ -1869,7 +2056,7 @@ function App() {
                           <button
                             id="detail-barcode-pin"
                             onClick={(e) => handleCopyCodePin(e, selectedCard)}
-                            className="font-mono cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
+                            className="tabular-nums cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
                             title="Copy code and PIN"
                             aria-label="Copy code and PIN"
                             type="button"
@@ -1883,28 +2070,21 @@ function App() {
 
                   {/* Update and Mark used side-by-side */}
                   <div className="grid grid-cols-2 gap-4 items-center">
-                    <button
+                    <ActionButton
                       id="open-balance-modal"
                       onClick={() => {
                         handleOpenBalanceEdit(selectedCard.currentBalance);
                       }}
-                      className="w-full bg-m3-secondary-container hover:bg-m3-secondary-container/85 text-m3-on-secondary-container text-xs font-bold py-4 rounded-full border border-m3-outline-variant/30 transition-all active:scale-95 shadow-none cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                    >
-                      Update Balance
-                    </button>
+                      label="Update Balance"
+                      variant="tonal"
+                    />
 
-                    <button
+                    <ActionButton
                       id="mark-used"
                       onClick={() => handleToggleUsed(selectedCardIndex)}
-                      className={`w-full font-bold py-4 rounded-full transition-all shadow-none text-xs active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
-                        selectedCard.used
-                          ? 'bg-m3-surface-container-low hover:bg-m3-surface-container text-m3-on-surface-variant border border-m3-outline-variant'
-                          : 'bg-m3-primary hover:bg-m3-primary/95 text-m3-on-primary'
-                      }`}
-                      type="button"
-                    >
-                      {selectedCard.used ? "Mark Active" : "Mark Used"}
-                    </button>
+                      label={selectedCard.used ? "Mark Active" : "Mark Used"}
+                      variant={selectedCard.used ? "outlined" : "primary"}
+                    />
                   </div>
 
                   {/* Add note row */}
@@ -1971,12 +2151,12 @@ function App() {
                   </div>
 
                   {/* Back Button */}
-                  <button
+                  <ActionButton
+                    id="checkout-back"
                     onClick={() => setActivePanel('list')}
-                    className="w-full bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant hover:text-m3-on-surface font-semibold py-3.5 px-6 rounded-full border border-m3-outline-variant transition-all text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                  >
-                    Back
-                  </button>
+                    label="Back"
+                    variant="outlined"
+                  />
 
                 </div>
               ) : (
@@ -2105,7 +2285,7 @@ function App() {
               </label>
               <textarea
                 id="raw-data-input"
-                className="w-full font-mono text-xs border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none bg-m3-surface-container disabled:bg-m3-surface-container-low text-m3-on-surface disabled:text-m3-on-surface-variant/75 leading-relaxed transition-all duration-200"
+                className="w-full text-xs border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none bg-m3-surface-container disabled:bg-m3-surface-container-low text-m3-on-surface disabled:text-m3-on-surface-variant/75 leading-relaxed transition-all duration-200"
                 spellCheck="false"
                 rows="8"
                 placeholder="Paste or import card data here..."
