@@ -6,6 +6,7 @@ export const defaultSettings = {
   hideZeroBalanceCards: false,
   sortMode: "balance-asc",
   themeMode: "system",
+  checkoutDark: true,
 };
 
 const allowedSortModes = [
@@ -39,6 +40,9 @@ export function normalizeStoredSettings(settings) {
     themeMode: ["light", "dark", "system"].includes(settings.themeMode)
       ? settings.themeMode
       : defaultSettings.themeMode,
+    checkoutDark: typeof settings.checkoutDark === "boolean"
+      ? settings.checkoutDark
+      : defaultSettings.checkoutDark,
   };
 }
 

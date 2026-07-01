@@ -117,7 +117,7 @@ function ActionIcon({ name }) {
   return null;
 }
 
-function ActionButton({ id, onClick, icon, label, className = "", href, target, rel, disabled, variant = "tonal" }) {
+function ActionButton({ id, onClick, icon, label, className = "", href, target, rel, disabled, variant = "tonal", compact }) {
   // Variants mapping:
   // - primary: M3 Filled Button (high emphasis)
   // - tonal: M3 Filled Tonal Button (medium emphasis)
@@ -132,7 +132,11 @@ function ActionButton({ id, onClick, icon, label, className = "", href, target, 
     variantClass = "bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 shadow-none";
   }
 
-  const baseClass = `w-full text-center flex items-center justify-center text-xs font-bold py-3.5 px-4 rounded-xl transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px] gap-2 select-none disabled:opacity-50 disabled:cursor-not-allowed ${variantClass}`;
+  const paddingClass = compact
+    ? "py-2 px-3 rounded-lg min-h-[38px] font-medium"
+    : "py-3.5 px-4 rounded-xl font-bold min-h-[44px]";
+
+  const baseClass = `w-full text-center flex items-center justify-center text-xs transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 gap-2 select-none disabled:opacity-50 disabled:cursor-not-allowed ${paddingClass} ${variantClass}`;
 
   const content = (
     <>
@@ -178,6 +182,7 @@ function App() {
     hideZeroBalanceCards: false,
     sortMode: "balance-asc",
     themeMode: "system",
+    checkoutDark: true,
   });
   const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
@@ -346,7 +351,9 @@ function App() {
     const applyTheme = () => {
       const mode = settings.themeMode || "system";
       let isDark = false;
-      if (mode === "dark") {
+      if (activePanel === 'detail' && settings.checkoutDark) {
+        isDark = true;
+      } else if (mode === "dark") {
         isDark = true;
       } else if (mode === "light") {
         isDark = false;
@@ -373,7 +380,7 @@ function App() {
     return () => {
       mediaQuery.removeEventListener("change", handleChange);
     };
-  }, [settings.themeMode]);
+  }, [settings.themeMode, settings.checkoutDark, activePanel]);
 
   // Handle escape key listener for balance modal
   useEffect(() => {
@@ -1520,441 +1527,466 @@ function App() {
               </section>
             </main>
            ) : activePanel === 'settings' ? (
-             <main className="p-3 pb-28 md:pb-16 flex flex-col gap-3 animate-panel-enter">
-               
-               {/* Local Settings / Filtering Controls */}
-               <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2.5">
-                 <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Preferences</h3>
-                 
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                     <span>Appearance</span>
-                     <select
-                       value={settings.themeMode || "system"}
-                       onChange={handleThemeModeChange}
-                       className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer"
-                     >
-                       <option value="system">System (Auto)</option>
-                       <option value="light">Light Mode</option>
-                       <option value="dark">Dark Mode</option>
-                     </select>
-                   </label>
+              <main className="p-3 pb-28 md:pb-16 flex flex-col gap-3 animate-panel-enter">
 
-                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                     <span>Sort Order</span>
-                     <select
-                       value={settings.sortMode}
-                       onChange={handleSortChange}
-                       aria-label="Sort gift cards"
-                       title="Sort gift cards"
-                       className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer max-w-[125px] sm:max-w-none"
-                     >
-                       <option value="balance-asc">Balance ↑</option>
-                       <option value="balance-desc">Balance ↓</option>
-                       <option value="date-added-asc">Added ↑</option>
-                       <option value="date-added-desc">Added ↓</option>
-                       <option value="date-updated-asc">Updated ↑</option>
-                       <option value="date-updated-desc">Updated ↓</option>
-                       <option value="card-number">Card #</option>
-                     </select>
-                   </label>
+                {/* Local Settings / Filtering Controls */}
+                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                  <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider px-2 py-1">Preferences</h3>
 
-                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                     <span>Hide Used Cards</span>
-                     <div className="relative w-[44px] h-[26px] shrink-0">
-                       <input
-                         type="checkbox"
-                         checked={settings.hideUsedCards}
-                         onChange={() => handleToggleSetting('hideUsedCards')}
-                         className="sr-only peer"
-                       />
-                       <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                       <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                     </div>
-                   </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Sort Order</span>
+                      <select
+                        value={settings.sortMode}
+                        onChange={handleSortChange}
+                        aria-label="Sort gift cards"
+                        title="Sort gift cards"
+                        className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer text-center [text-align-last:center] max-w-[160px] sm:max-w-none"
+                      >
+                        <option value="balance-asc">Lowest balance first</option>
+                        <option value="balance-desc">Highest balance first</option>
+                        <option value="date-updated-desc">Recently updated first</option>
+                        <option value="date-added-asc">Sheet order</option>
+                        <option value="date-added-desc">Date added ↓</option>
+                        <option value="date-updated-asc">Date updated ↑</option>
+                        <option value="card-number">Card #</option>
+                      </select>
+                    </label>
 
-                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                     <span>Hide $0 Cards</span>
-                     <div className="relative w-[44px] h-[26px] shrink-0">
-                       <input
-                         type="checkbox"
-                         checked={settings.hideZeroBalanceCards}
-                         onChange={() => handleToggleSetting('hideZeroBalanceCards')}
-                         className="sr-only peer"
-                       />
-                       <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                       <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                     </div>
-                   </label>
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Appearance</span>
+                      <select
+                        value={settings.themeMode || "system"}
+                        onChange={handleThemeModeChange}
+                        className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer text-center [text-align-last:center]"
+                      >
+                        <option value="system">System (Auto)</option>
+                        <option value="light">Light Mode</option>
+                        <option value="dark">Dark Mode</option>
+                      </select>
+                    </label>
 
-                   <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                     <span>Auto-Advance</span>
-                     <div className="relative w-[44px] h-[26px] shrink-0">
-                       <input
-                         type="checkbox"
-                         checked={settings.advanceOnMarkUsed}
-                         onChange={() => handleToggleSetting('advanceOnMarkUsed')}
-                         className="sr-only peer"
-                       />
-                       <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                       <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                     </div>
-                   </label>
-
-                   {zeroBalanceCount > 0 && (
-                     <button
-                       id="mark-zero-used"
-                       onClick={handleMarkZeroBalanceUsed}
-                       className="w-full sm:col-span-2 text-xs font-bold bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 rounded-xl p-3.5 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                       type="button"
-                     >
-                       <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
-                       <span className="bg-m3-surface-container-low text-m3-on-surface px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
-                     </button>
-                   )}
-                 </div>
-               </section>
-
-              {/* Google Sync Connection Panel */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-4 flex flex-col gap-3">
-                {oauthState.status === googleOAuthStatuses.connected ? (
-                  <details
-                    className="group"
-                    open={isGoogleSyncOpen}
-                    onToggle={(e) => setIsGoogleSyncOpen(e.target.open)}
-                  >
-                    <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl p-1">
-                      <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const summary = getAppSyncSummaryState();
-                          let syncLabel = "";
-                          if (summary.key === 'connected') {
-                            syncLabel = "Google sync on";
-                          } else if (summary.key === 'checking') {
-                            syncLabel = "Syncing…";
-                          } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
-                            syncLabel = "Sync issue";
-                          } else {
-                            syncLabel = "Local only · Connect";
-                          }
-                          return (
-                            <span className="text-xs font-medium text-m3-on-surface-variant">
-                              {syncLabel}
-                            </span>
-                          );
-                        })()}
-                        <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform ml-2 shrink-0">▼</span>
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <div className="flex flex-col text-left">
+                        <span>Checkout auto-dark</span>
+                        <span className="text-[10px] text-m3-on-surface-variant font-normal">Overrides Appearance on Checkout</span>
                       </div>
-                    </summary>
-                    <div className="flex flex-col gap-3 mt-3 pt-3 border-t border-m3-outline-variant/20 w-full">
-                      {/* Connected email address */}
-                      {oauthState.connectedEmail && (
-                        <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed">
-                          Connected: {maskEmail(oauthState.connectedEmail)}
-                        </p>
-                      )}
+                      <div className="relative w-[44px] h-[26px] shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.checkoutDark}
+                          onChange={() => handleToggleSetting('checkoutDark')}
+                          className="sr-only peer"
+                        />
+                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                      </div>
+                    </label>
 
-                      {/* Disconnect Action */}
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Hide Used Cards</span>
+                      <div className="relative w-[44px] h-[26px] shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.hideUsedCards}
+                          onChange={() => handleToggleSetting('hideUsedCards')}
+                          className="sr-only peer"
+                        />
+                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Hide $0 Cards</span>
+                      <div className="relative w-[44px] h-[26px] shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.hideZeroBalanceCards}
+                          onChange={() => handleToggleSetting('hideZeroBalanceCards')}
+                          className="sr-only peer"
+                        />
+                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Auto-Advance</span>
+                      <div className="relative w-[44px] h-[26px] shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.advanceOnMarkUsed}
+                          onChange={() => handleToggleSetting('advanceOnMarkUsed')}
+                          className="sr-only peer"
+                        />
+                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
+                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
+                      </div>
+                    </label>
+
+                    {zeroBalanceCount > 0 && (
                       <button
-                        id="disconnect-google"
-                        onClick={handleDisconnectGoogle}
-                        className="w-full sm:w-auto self-start bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-bold py-3 px-4 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
+                        id="mark-zero-used"
+                        onClick={handleMarkZeroBalanceUsed}
+                        className="w-full sm:col-span-2 text-xs font-medium bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 rounded-lg py-2 px-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
                         type="button"
                       >
-                        Disconnect
+                        <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
+                        <span className="bg-m3-surface-container-low text-m3-on-surface px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
                       </button>
+                    )}
+                  </div>
+                </section>
 
-                      <div className="flex flex-col gap-3 mt-1 pt-3 border-t border-m3-outline-variant/20 w-full">
-                        <p id="direct-sheet-status" className="text-xs font-semibold text-m3-on-surface-variant">
-                          {directSheetsState.message}
-                        </p>
+                {/* Google Sync Connection Panel */}
+                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                  {oauthState.status === googleOAuthStatuses.connected ? (
+                    <details
+                      className="group"
+                      open={isGoogleSyncOpen}
+                      onToggle={(e) => setIsGoogleSyncOpen(e.target.open)}
+                    >
+                      <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
+                        <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const summary = getAppSyncSummaryState();
+                            let syncLabel = "";
+                            if (summary.key === 'connected') {
+                              syncLabel = "Google sync on";
+                            } else if (summary.key === 'checking') {
+                              syncLabel = "Syncing…";
+                            } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
+                              syncLabel = "Sync issue";
+                            } else {
+                              syncLabel = "Local only · Connect";
+                            }
+                            return (
+                              <span className="text-xs font-medium text-m3-on-surface-variant">
+                                {syncLabel}
+                              </span>
+                            );
+                          })()}
+                          <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform ml-2 shrink-0">▼</span>
+                        </div>
+                      </summary>
+                      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-m3-outline-variant/20 w-full">
+                        {/* Connected email address */}
+                        {oauthState.connectedEmail && (
+                          <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed px-2">
+                            Connected: {maskEmail(oauthState.connectedEmail)}
+                          </p>
+                        )}
 
-                        <div className="grid grid-cols-2 gap-3 w-full">
-                          <ActionButton
-                            id="ensure-sheet"
-                            onClick={handleEnsureSheet}
-                            icon="wrench"
-                            label="Fix Sheet"
-                          />
-                          {directSheetsState.spreadsheetUrl && (
-                            <ActionButton
-                              id="open-direct-sheet"
-                              href={directSheetsState.spreadsheetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              icon="external"
-                              label="Open Sheet"
-                            />
-                          )}
-                          <ActionButton
-                            id="load-from-sheets"
-                            onClick={handleLoadCardsFromSheet}
-                            icon="download"
-                            label="Import Sheet"
-                          />
-                          <ActionButton
-                            id="save-to-sheets"
-                            onClick={() => {
-                              if (window.confirm("Warning: Exporting to Google will replace all gift card rows in your Google Sheet with your current local browser session. Do you want to proceed?")) {
-                                handleSaveCardsToSheet();
-                              }
-                            }}
-                            icon="upload"
-                            label="Export Sheet"
-                            className={!directSheetsState.spreadsheetUrl ? "col-span-2" : ""}
-                          />
+                        {/* Disconnect Action */}
+                        <div className="px-2">
+                          <button
+                            id="disconnect-google"
+                            onClick={handleDisconnectGoogle}
+                            className="w-full sm:w-auto self-start bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-medium py-2 px-3.5 rounded-lg border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
+                            type="button"
+                          >
+                            Disconnect
+                          </button>
                         </div>
 
-                        {/* Conflict / Unsynced Recovery Panel */}
-                        {(() => {
-                          const unavailableMessage = getRecoveryUnavailableMessage();
-                          const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
-                          const disableSheetsActions = Boolean(isBusy || unavailableMessage);
+                        <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-m3-outline-variant/20 w-full">
+                          <p id="direct-sheet-status" className="text-xs font-medium text-m3-on-surface-variant px-2">
+                            {directSheetsState.message}
+                          </p>
 
-                          if (syncState.status === syncStatuses.conflict) {
-                            return (
-                              <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-xl text-xs mt-2">
-                                <h4 className="font-bold text-m3-error text-sm">Conflict recovery</h4>
-                                <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
-                                <p className="font-semibold text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
-                                {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  <button
-                                    onClick={downloadSessionCsvBackup}
-                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                    type="button"
-                                  >
-                                    Download backup CSV
-                                  </button>
-                                  <button
-                                    onClick={handleLoadCardsFromSheet}
-                                    disabled={disableSheetsActions}
-                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                    type="button"
-                                  >
-                                    Replace local data from Sheet
-                                  </button>
-                                  <button
-                                    onClick={useCurrentSessionToOverwriteDirectSheets}
-                                    disabled={disableSheetsActions}
-                                    className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2 min-h-[44px]"
-                                    type="button"
-                                  >
-                                    Overwrite sheet with this session
-                                  </button>
+                          <div className="grid grid-cols-2 gap-2 w-full px-2 pb-1">
+                            <ActionButton
+                              id="ensure-sheet"
+                              onClick={handleEnsureSheet}
+                              icon="wrench"
+                              label="Fix Sheet"
+                              compact
+                            />
+                            {directSheetsState.spreadsheetUrl && (
+                              <ActionButton
+                                id="open-direct-sheet"
+                                href={directSheetsState.spreadsheetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                icon="external"
+                                label="Open Sheet"
+                                compact
+                              />
+                            )}
+                            <ActionButton
+                              id="load-from-sheets"
+                              onClick={handleLoadCardsFromSheet}
+                              icon="download"
+                              label="Import Sheet"
+                              compact
+                            />
+                            <ActionButton
+                              id="save-to-sheets"
+                              onClick={() => {
+                                if (window.confirm("Warning: Exporting to Google will replace all gift card rows in your Google Sheet with your current local browser session. Do you want to proceed?")) {
+                                  handleSaveCardsToSheet();
+                                }
+                              }}
+                              icon="upload"
+                              label="Export Sheet"
+                              className={!directSheetsState.spreadsheetUrl ? "col-span-2" : ""}
+                              compact
+                            />
+                          </div>
+
+                          {/* Conflict / Unsynced Recovery Panel */}
+                          {(() => {
+                            const unavailableMessage = getRecoveryUnavailableMessage();
+                            const isBusy = [directSheetsStatuses.checking, directSheetsStatuses.syncing].includes(directSheetsState.status);
+                            const disableSheetsActions = Boolean(isBusy || unavailableMessage);
+
+                            if (syncState.status === syncStatuses.conflict) {
+                              return (
+                                <div id="sync-recovery-actions" className="flex flex-col gap-2 p-2.5 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-lg text-xs mt-1.5 mx-2">
+                                  <h4 className="font-medium text-m3-error text-xs">Conflict recovery</h4>
+                                  <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
+                                  <p className="font-medium text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+                                  {unavailableMessage && <p className="font-medium text-m3-error mt-1">{unavailableMessage}</p>}
+                                  <div className="flex flex-wrap gap-2 mt-1.5">
+                                    <button
+                                      onClick={downloadSessionCsvBackup}
+                                      className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-medium py-1.5 px-3 rounded-lg border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px] text-xs"
+                                      type="button"
+                                    >
+                                      Download backup CSV
+                                    </button>
+                                    <button
+                                      onClick={handleLoadCardsFromSheet}
+                                      disabled={disableSheetsActions}
+                                      className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-medium py-1.5 px-3 rounded-lg border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px] text-xs"
+                                      type="button"
+                                    >
+                                      Replace local data from Sheet
+                                    </button>
+                                    <button
+                                      onClick={useCurrentSessionToOverwriteDirectSheets}
+                                      disabled={disableSheetsActions}
+                                      className="bg-m3-error hover:bg-m3-error/90 text-m3-on-primary font-medium py-1.5 px-3 rounded-lg shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2 min-h-[38px] text-xs"
+                                      type="button"
+                                    >
+                                      Overwrite sheet with this session
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          }
+                              );
+                            }
 
-                          if (syncState.status === syncStatuses.unsynced) {
-                            return (
-                              <div id="sync-recovery-actions" className="flex flex-col gap-3 p-4 bg-m3-warning-container text-m3-on-warning-container border border-m3-outline-variant/30 rounded-xl text-xs mt-2">
-                                <h4 className="font-bold text-m3-on-warning-container text-sm">Unsynced recovery</h4>
-                                <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
-                                <p>Replace local data from Sheet overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
-                                {unavailableMessage && <p className="font-bold text-m3-error mt-1">{unavailableMessage}</p>}
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  <button
-                                    onClick={retrySyncCurrentSession}
-                                    disabled={disableSheetsActions}
-                                    className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-2.5 px-3.5 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                    type="button"
-                                  >
-                                    Try sync again
-                                  </button>
-                                  <button
-                                    onClick={handleLoadCardsFromSheet}
-                                    disabled={disableSheetsActions}
-                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                    type="button"
-                                  >
-                                    Replace local data from Sheet
-                                  </button>
-                                  <button
-                                    onClick={downloadSessionCsvBackup}
-                                    className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-bold py-2.5 px-3.5 rounded-xl border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                                    type="button"
-                                  >
-                                    Download backup CSV
-                                  </button>
+                            if (syncState.status === syncStatuses.unsynced) {
+                              return (
+                                <div id="sync-recovery-actions" className="flex flex-col gap-2 p-2.5 bg-m3-warning-container text-m3-on-warning-container border border-m3-outline-variant/30 rounded-lg text-xs mt-1.5 mx-2">
+                                  <h4 className="font-medium text-m3-on-warning-container text-xs">Unsynced recovery</h4>
+                                  <p>Local changes are saved in this browser, but they have not been confirmed in Sheets yet. You can keep using the app offline and choose when to retry or reload.</p>
+                                  <p>Replace local data from Sheet overwrites this browser session with the Sheet only after you press the button. Download a backup CSV first if you want a copy of the current session.</p>
+                                  {unavailableMessage && <p className="font-medium text-m3-error mt-1">{unavailableMessage}</p>}
+                                  <div className="flex flex-wrap gap-2 mt-1.5">
+                                    <button
+                                      onClick={retrySyncCurrentSession}
+                                      disabled={disableSheetsActions}
+                                      className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-medium py-1.5 px-3 rounded-lg shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px] text-xs"
+                                      type="button"
+                                    >
+                                      Try sync again
+                                    </button>
+                                    <button
+                                      onClick={handleLoadCardsFromSheet}
+                                      disabled={disableSheetsActions}
+                                      className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-medium py-1.5 px-3 rounded-lg border border-m3-outline-variant/30 shadow-sm disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px] text-xs"
+                                      type="button"
+                                    >
+                                      Replace local data from Sheet
+                                    </button>
+                                    <button
+                                      onClick={downloadSessionCsvBackup}
+                                      className="bg-m3-surface-container-lowest hover:bg-m3-surface-container text-m3-on-surface font-medium py-1.5 px-3 rounded-lg border border-m3-outline-variant/30 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px] text-xs"
+                                      type="button"
+                                    >
+                                      Download backup CSV
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          }
+                              );
+                            }
 
-                          return null;
-                        })()}
+                            return null;
+                          })()}
+                        </div>
+                      </div>
+                    </details>
+                  ) : (
+                    <div className="flex flex-col gap-2 w-full px-2 py-1">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
+                          {(() => {
+                            const summary = getAppSyncSummaryState();
+                            let syncLabel = "";
+                            if (summary.key === 'checking') {
+                              syncLabel = "Syncing…";
+                            } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
+                              syncLabel = "Sync issue";
+                            } else {
+                              syncLabel = "Local only · Connect";
+                            }
+                            return (
+                              <span className="text-xs font-medium text-m3-on-surface-variant">
+                                {syncLabel}
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed mt-0.5">
+                          {oauthState.message}
+                        </p>
+                      </div>
+
+                      <button
+                        id="connect-google"
+                        onClick={handleConnectGoogle}
+                        className="w-full sm:w-auto self-start bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-medium py-2 px-3.5 rounded-lg transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
+                        type="button"
+                      >
+                        Connect Google account
+                      </button>
+                    </div>
+                  )}
+
+                  {oauthState.lastErrorMessage && (
+                    <p id="google-oauth-status" className="text-xs font-medium text-m3-error border-t border-m3-outline-variant/20 pt-2 mt-1 px-2">
+                      {oauthState.lastErrorMessage}
+                    </p>
+                  )}
+                </section>
+
+                {/* Data Panel / Backup Controls */}
+                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                  <details className="group">
+                    <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
+                      <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
+                      <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-m3-outline-variant/20 px-2 pb-1">
+                      <div className="flex gap-2">
+                        <input
+                          id="csv-file-input"
+                          type="file"
+                          accept=".csv,text/csv"
+                          onChange={handleImportCsvFile}
+                          className="hidden"
+                        />
+                        <ActionButton
+                          id="import-csv"
+                          onClick={() => {
+                            if (window.confirm("Warning: Importing a CSV will load cards into the editor, which can overwrite or modify your current local session. Do you want to proceed?")) {
+                              document.getElementById('csv-file-input').click();
+                            }
+                          }}
+                          icon="download"
+                          label="Import CSV"
+                          className="flex-1"
+                          compact
+                        />
+                        <ActionButton
+                          id="export-csv"
+                          onClick={handleExportCsv}
+                          icon="upload"
+                          label="Export CSV"
+                          className="flex-1"
+                          compact
+                        />
+                      </div>
+
+                      {SHOW_RAW_CSV_EDITOR && (
+                        <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-2.5 flex justify-between items-center gap-2.5">
+                          <div>
+                            <h4 className="text-xs font-medium text-m3-on-surface uppercase">Raw CSV Editor</h4>
+                            <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
+                          </div>
+                          <button
+                            id="open-raw-data-modal"
+                            onClick={handleOpenRawEditor}
+                            className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-medium px-3 py-2 rounded-lg border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
+                            type="button"
+                          >
+                            Open Editor
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                </section>
+
+                {/* Troubleshooting (Unified Container) */}
+                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                  <details className="group">
+                    <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
+                      <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
+                      <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-m3-outline-variant/20 px-2 pb-1">
+                      <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-2.5 flex flex-col gap-2">
+                        <h4 className="text-xs font-medium text-m3-on-surface uppercase mb-0.5">System Status</h4>
+                        <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
+                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                            <span>Google Account</span>
+                            <span className="text-[10px] text-m3-on-surface font-medium">
+                              {oauthState.status === googleOAuthStatuses.connected ? "Connected" : "Disconnected"}
+                            </span>
+                          </li>
+                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                            <span>Sync Status</span>
+                            <span className="text-[10px] text-m3-on-surface font-medium">
+                              {(() => {
+                                const summary = getAppSyncSummaryState();
+                                if (summary.key === 'connected') return "Sync on";
+                                if (summary.key === 'checking') return "Syncing…";
+                                if (summary.key === 'local-only') return "Local only";
+                                return "Issue";
+                              })()}
+                            </span>
+                          </li>
+                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                            <span>Pending Changes</span>
+                            <span className="text-[10px] text-m3-on-surface font-medium">
+                              {Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) ? "Yes" : "No"}
+                            </span>
+                          </li>
+                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
+                            <span>Last Sync</span>
+                            <span className="text-[10px] text-m3-on-surface font-medium">
+                              {directSheetsState.lastSuccessfulSyncAt || "No sync yet"}
+                            </span>
+                          </li>
+                          <li className="flex justify-between">
+                            <span>Network State</span>
+                            <span className="text-[10px] text-m3-on-surface font-medium">
+                              {navigator.onLine !== false ? "Online" : "Offline"}
+                            </span>
+                          </li>
+                        </ul>
+                        <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
+                          {syncState.message || directSheetsState.message}
+                        </div>
                       </div>
                     </div>
                   </details>
-                ) : (
-                  <div className="flex flex-col gap-3.5 w-full">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google Sync</h3>
-                        {(() => {
-                          const summary = getAppSyncSummaryState();
-                          let syncLabel = "";
-                          if (summary.key === 'checking') {
-                            syncLabel = "Syncing…";
-                          } else if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key)) {
-                            syncLabel = "Sync issue";
-                          } else {
-                            syncLabel = "Local only · Connect";
-                          }
-                          return (
-                            <span className="text-xs font-medium text-m3-on-surface-variant">
-                              {syncLabel}
-                            </span>
-                          );
-                        })()}
-                      </div>
+                </section>
 
-                      <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed mt-1">
-                        {oauthState.message}
-                      </p>
-                    </div>
-
-                    <button
-                      id="connect-google"
-                      onClick={handleConnectGoogle}
-                      className="w-full sm:w-auto self-start bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                      type="button"
-                    >
-                      Connect Google account
-                    </button>
-                  </div>
-                )}
-
-                {oauthState.lastErrorMessage && (
-                  <p id="google-oauth-status" className="text-xs font-bold text-m3-error border-t border-m3-outline-variant/20 pt-2 mt-1">
-                    {oauthState.lastErrorMessage}
-                  </p>
-                )}
-              </section>
-
-              {/* Data Panel / Backup Controls */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-4 flex flex-col gap-3">
-                <details className="group">
-                  <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
-                    <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
-                    <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div className="flex flex-col gap-3 mt-3 pt-3 border-t border-m3-outline-variant/20">
-                    <div className="flex gap-3">
-                      <input 
-                        id="csv-file-input" 
-                        type="file" 
-                        accept=".csv,text/csv" 
-                        onChange={handleImportCsvFile} 
-                        className="hidden" 
-                      />
-                      <ActionButton
-                        id="import-csv"
-                        onClick={() => {
-                          if (window.confirm("Warning: Importing a CSV will load cards into the editor, which can overwrite or modify your current local session. Do you want to proceed?")) {
-                            document.getElementById('csv-file-input').click();
-                          }
-                        }}
-                        icon="download"
-                        label="Import CSV"
-                        className="flex-1"
-                      />
-                      <ActionButton
-                        id="export-csv"
-                        onClick={handleExportCsv}
-                        icon="upload"
-                        label="Export CSV"
-                        className="flex-1"
-                      />
-                    </div>
-
-                    {SHOW_RAW_CSV_EDITOR && (
-                      <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-3 flex justify-between items-center gap-3">
-                        <div>
-                          <h4 className="text-xs font-bold text-m3-on-surface uppercase">Raw CSV Editor</h4>
-                          <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
-                        </div>
-                        <button
-                          id="open-raw-data-modal"
-                          onClick={handleOpenRawEditor}
-                          className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-bold px-4 py-2.5 rounded-xl border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[44px]"
-                          type="button"
-                        >
-                          Open Editor
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              </section>
-
-              {/* Troubleshooting (Unified Container) */}
-              <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-4 flex flex-col gap-3">
-                <details className="group">
-                  <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
-                    <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
-                    <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div className="flex flex-col gap-3 mt-3 pt-3 border-t border-m3-outline-variant/20">
-                    <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-3 flex flex-col gap-2">
-                      <h4 className="text-xs font-bold text-m3-on-surface uppercase">System Status</h4>
-                      <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
-                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                          <span>Google Account</span>
-                          <span className="text-[10px] text-m3-on-surface font-bold">
-                            {oauthState.status === googleOAuthStatuses.connected ? "Connected" : "Disconnected"}
-                          </span>
-                        </li>
-                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                          <span>Sync Status</span>
-                          <span className="text-[10px] text-m3-on-surface font-bold">
-                            {(() => {
-                              const summary = getAppSyncSummaryState();
-                              if (summary.key === 'connected') return "Sync on";
-                              if (summary.key === 'checking') return "Syncing…";
-                              if (summary.key === 'local-only') return "Local only";
-                              return "Issue";
-                            })()}
-                          </span>
-                        </li>
-                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                          <span>Pending Changes</span>
-                          <span className="text-[10px] text-m3-on-surface font-bold">
-                            {Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) ? "Yes" : "No"}
-                          </span>
-                        </li>
-                        <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                          <span>Last Sync</span>
-                          <span className="text-[10px] text-m3-on-surface font-bold">
-                            {directSheetsState.lastSuccessfulSyncAt || "No sync yet"}
-                          </span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>Network State</span>
-                          <span className="text-[10px] text-m3-on-surface font-bold">
-                            {navigator.onLine !== false ? "Online" : "Offline"}
-                          </span>
-                        </li>
-                      </ul>
-                      <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
-                        {syncState.message || directSheetsState.message}
-                      </div>
-                    </div>
-                  </div>
-                </details>
-              </section>
-
-              <ActionButton
-                id="settings-back"
-                onClick={() => setActivePanel(previousPrimaryPanel)}
-                label="Back"
-                variant="outlined"
-              />
-
-            </main>
+                <ActionButton
+                  id="settings-back"
+                  onClick={() => setActivePanel(previousPrimaryPanel)}
+                  label="Back"
+                  variant="outlined"
+                  compact
+                />
+              </main>
           ) : (
             /* Checkout Detail Panel Layout */
             <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
