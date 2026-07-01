@@ -54,6 +54,7 @@ This document serves as the durable repository documentation for locked design d
 * **No Outer Panels**: Avoid large desktop-style white backgrounds/panels wrapping the page on mobile viewports. No large outer panel on mobile.
 * **Surface Hierarchy**: Page background (slate-100 or default surface) acts as the base canvas. The metrics strip, toolbar controls, and individual card rows serve as the elevated surfaces.
 * **Desktop Centering**: Maintain a readable centered layout with bounded maximum width (`max-w-[60rem]`) on desktop views.
+* **Primary Viewport (412 x 923)**: Implementation is strictly mobile-first. The primary mobile QA viewport is browser CSS viewport **412 x 923**. Designs must be verified against this exact viewport before desktop polish is considered complete. Avoid desktop-first spacing, padding, or panels that squeeze or degrade this viewport. Screenshot QA at 412 x 923 overrides optimistic implementation claims.
 
 ### 3. Bottom Navigation and Header Visual Identity
 * **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill. Standard destinations are flat, stable, and thumb-accessible: **Cards** (index/ledger) and **Checkout** (scanner panel). Settings is accessed via an IconButton in the top-right of the Header.
