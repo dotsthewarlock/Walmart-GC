@@ -82,6 +82,7 @@ function App() {
     hideUsedCards: true,
     hideZeroBalanceCards: false,
     sortMode: "balance-asc",
+    themeMode: "system",
   });
   const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
@@ -211,6 +212,40 @@ function App() {
       }
     };
   }, []);
+
+  // Handle theme mode changes dynamically
+  useEffect(() => {
+    const applyTheme = () => {
+      const mode = settings.themeMode || "system";
+      let isDark = false;
+      if (mode === "dark") {
+        isDark = true;
+      } else if (mode === "light") {
+        isDark = false;
+      } else {
+        isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    };
+
+    applyTheme();
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      if (settings.themeMode === "system" || !settings.themeMode) {
+        applyTheme();
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, [settings.themeMode]);
 
   // Handle escape key listener for barcode focus overlay
   useEffect(() => {
@@ -416,6 +451,15 @@ function App() {
     const nextSettings = {
       ...settings,
       sortMode: e.target.value,
+    };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+  };
+
+  const handleThemeModeChange = (e) => {
+    const nextSettings = {
+      ...settings,
+      themeMode: e.target.value,
     };
     setSettings(nextSettings);
     saveSettings(nextSettings);
@@ -1365,6 +1409,19 @@ function App() {
                 <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Preferences</h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
+                    <span>Appearance</span>
+                    <select
+                      value={settings.themeMode || "system"}
+                      onChange={handleThemeModeChange}
+                      className="text-xs font-bold border border-m3-outline rounded-xl p-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer"
+                    >
+                      <option value="system">System (Auto)</option>
+                      <option value="light">Light Mode</option>
+                      <option value="dark">Dark Mode</option>
+                    </select>
+                  </label>
+
                   <label className="flex items-center justify-between gap-3 text-sm font-semibold text-m3-on-surface cursor-pointer min-h-[48px] py-2 px-3 hover:bg-m3-surface-container rounded-xl transition-colors">
                     <span>Hide Used Cards</span>
                     <div className="relative w-[52px] h-[32px] shrink-0">
@@ -1595,7 +1652,7 @@ function App() {
 
               {/* Data Panel / Backup Controls */}
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                <details className="group" open>
+                <details className="group">
                   <summary className="list-none flex justify-between items-center cursor-pointer select-none">
                     <span className="text-xs font-bold text-m3-outline uppercase tracking-wider">Backup & CSV Controls</span>
                     <span className="text-m3-outline group-open:rotate-180 transition-transform">▼</span>
@@ -1761,24 +1818,28 @@ function App() {
                           </div>
 
                           {barcodeData ? (
-                            <div className="flex flex-col items-center gap-2 w-[calc(100%+3rem)] mx-[-1.5rem] pt-2">
-                              <div className={`w-full bg-white transition-all duration-300 ${
-                                isBarcodeFocusOpen ? 'h-32 sm:h-48' : 'h-16'
-                              }`}>
-                                <svg
-                                  viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
-                                  preserveAspectRatio="none"
-                                  role="img"
-                                  aria-label="Code 128 checkout barcode"
-                                  className="w-full h-full"
-                                >
-                                  <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                                  {barcodeData.rects.map((r, i) => (
-                                    <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                                  ))}
-                                </svg>
-                              </div>
-                            </div>
+                             <div className={`transition-all duration-300 pt-2 ${
+                               isBarcodeFocusOpen ? 'w-[calc(100%+3rem)] mx-[-1.5rem]' : 'w-full'
+                             }`}>
+                               <div className={`transition-all duration-300 bg-white flex items-center justify-center ${
+                                 isBarcodeFocusOpen
+                                   ? 'w-full h-32 sm:h-48'
+                                   : 'w-full rounded-2xl p-3 border border-m3-outline-variant/50 shadow-inner h-20'
+                               }`}>
+                                 <svg
+                                   viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
+                                   preserveAspectRatio="none"
+                                   role="img"
+                                   aria-label="Code 128 checkout barcode"
+                                   className="w-full h-full"
+                                 >
+                                   <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
+                                   {barcodeData.rects.map((r, i) => (
+                                     <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
+                                   ))}
+                                 </svg>
+                               </div>
+                             </div>
                           ) : (
                             <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-2xl p-4 w-full text-center">
                               <span className="text-sm text-m3-error font-bold">
