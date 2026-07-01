@@ -67,6 +67,17 @@ Ensure testing is conducted on the official custom domain. Localhost OAuth or al
 - [ ] **CSV Import (Offline)**: Valid CSV can be imported and stored locally while disconnected.
 - [ ] **Queue on Reconnect**: Offline changes are preserved and sync to Google Sheets when connection is restored.
 
+### 7. User Interface & M3 Compliance
+- [ ] **M3 Bottom Navigation**: Verify the phone-first Navigation Bar renders with exactly two active destinations: **Cards** and **Checkout**, with proper active indicator pills and flat, thumb-accessible layout. Verify **Settings** is accessed only via the IconButton in the top-right of the header.
+- [ ] **Cards Metrics**: Ensure the metrics strip displays precisely `Available balance` and `Visible cards` (no "Total Wallet Assets", "Card Counts", or fractional /21 indicators).
+- [ ] **M3 Cards Rows**: Verify rows maintain compact stable heights of 48-56px, right-aligned tabular (mono) amount fonts, and subtle tonal selection fill. Confirm no visual jumping occurs on card selection or scrolling.
+- [ ] **Checkout Scanner Viewport**: Ensure the barcode is passive, inline, and clearly legible without modal scrims, spotlight rings, or backdrop blurs.
+- [ ] **Screen Wake Lock**: Verify wake lock acts strictly as a passive checkout screen helper, requesting lock only while the Checkout tab is active and releasing when navigating away.
+- [ ] **Camera Access Restriction**: Ensure camera permission is *only* requested when the user clicks the explicit barcode add-card button; verify absolutely no camera requests on application load, list pages, checkout views, or passive nav.
+- [ ] **Settings Accordions**: Check that settings categories are cleanly organized into collapsible Accordion cards: **Google Sync**, **Preferences**, **Backup & CSV Actions** (hidden unless in admin/dev mode), **Troubleshooting**, and **Account**.
+- [ ] **Privacy/Account Exposure**: Verify Google emails, names, or profile avatars are displayed *only* under Settings -> Account, and are strictly absent from primary Cards and Checkout views.
+- [ ] **Technical Noise Prevention**: Ensure git branch, commit hash, device fingerprint, and internal diagnostics are hidden from normal viewports and remain collapsed under the Troubleshooting section.
+
 ---
 
 ## Part 2: Troubleshooting Guide
