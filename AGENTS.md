@@ -8,9 +8,9 @@ For current system state, architecture, design authority, and data schemas, foll
 
 ## AI Start Here / Fast Path
 
-1. **First Read**: Always read [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md) at the start of any conversation to understand the current work state.
-2. **Design Authority**: Use [M3_DESIGN_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) as the absolute source of truth for UI, navigation, typography, and visual compliance.
-3. **Architecture Authority**: Use [ARCHITECTURE.md](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) as the sole source of truth for data flow, APIs, session cookies, synchronization, and schemas.
+1. **First Read**: Always read [ACTIVE_CONTEXT.md](ACTIVE_CONTEXT.md) at the start of any conversation to understand the current work state.
+2. **Design Authority**: Use [M3_DESIGN_DECISIONS.md](M3_DESIGN_DECISIONS.md) as the absolute source of truth for UI, navigation, typography, and visual compliance.
+3. **Architecture Authority**: Use [ARCHITECTURE.md](ARCHITECTURE.md) as the sole source of truth for data flow, APIs, session cookies, synchronization, and schemas.
 4. **Task Scope Rules**:
    - Keep changes small and PR-focused.
    - Inspect current repository files before proposing implementation.
@@ -90,13 +90,13 @@ If external git operations or terminal commands change the workspace state after
 
 Refer to these authoritative documents for all development cycles:
 
-- [Active Context](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md) — Compact current development focus and "Start Here" context.
-- [Architecture](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) — Canonical system design, data flows, APIs, and spreadsheet schemas.
-- [Material 3 Design Decisions](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) — Absolute UI/UX design authority, visual compliance tokens, and component layout guidelines.
-- [Roadmap](file:///home/godfreymiu/Walmart-GC/docs/ROADMAP.md) — Canonical 4-lane roadmap (approved, near-term, future, and unapproved strategic intent).
-- [Decisions Log](file:///home/godfreymiu/Walmart-GC/docs/DECISIONS_LOG.md) — Durable record of past architectural and design decisions.
-- [QA Test Checklist](file:///home/godfreymiu/Walmart-GC/docs/QA_TEST_CHECKLIST.md) — Verification checklists and troubleshooting guides.
-- [Deployment Guide](file:///home/godfreymiu/Walmart-GC/docs/DEPLOYMENT_GUIDE.md) — Detailed build and Cloudflare Worker deployment steps.
-- [Google Sheet Setup](file:///home/godfreymiu/Walmart-GC/docs/GOOGLE_SHEET_SETUP.md) — Google Sheet configuration and metadata setup.
-- [Maintenance Log](file:///home/godfreymiu/Walmart-GC/docs/MAINTENANCE_LOG.md) — Active tracking for non-blocking cleanup and hygiene items.
-- [Documentation Archive](file:///home/godfreymiu/Walmart-GC/docs/archive/README.md) — Archived legacy audits and historical reference documents.
+- [Active Context](ACTIVE_CONTEXT.md) — Compact current development focus and "Start Here" context.
+- [Architecture](ARCHITECTURE.md) — Canonical system design, data flows, APIs, and spreadsheet schemas.
+- [Material 3 Design Decisions](M3_DESIGN_DECISIONS.md) — Absolute UI/UX design authority, visual compliance tokens, and component layout guidelines.
+- [Roadmap](ROADMAP.md) — Canonical 4-lane roadmap (approved, near-term, future, and unapproved strategic intent).
+- [Decisions Log](DECISIONS_LOG.md) — Durable record of past architectural and design decisions.
+- [QA Test Checklist](QA_TEST_CHECKLIST.md) — Verification checklists and troubleshooting guides.
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) — Detailed build and Cloudflare Worker deployment steps.
+- [Google Sheet Setup](GOOGLE_SHEET_SETUP.md) — Google Sheet configuration and metadata setup.
+- [Maintenance Log](MAINTENANCE_LOG.md) — Active tracking for non-blocking cleanup and hygiene items.
+- [Documentation Archive](archive/README.md) — Archived legacy audits and historical reference documents.

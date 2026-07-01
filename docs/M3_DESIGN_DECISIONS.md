@@ -13,7 +13,7 @@ This document serves as the durable repository documentation for locked design d
    - **GPT** acts as the visual/design reviewer and decision framer.
    - **Agy CLI** acts as the local repo-aware implementer/verifier.
 2. **Design Source of Truth**:
-   - Agents must use [M3_DESIGN_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) and [M3_Core_Guidelines.md](file:///home/godfreymiu/Walmart-GC/docs/reference/M3_Core_Guidelines.md) as the absolute source of truth for UI decisions.
+   - Agents must use [M3_DESIGN_DECISIONS.md](M3_DESIGN_DECISIONS.md) and [M3_Core_Guidelines.md](reference/M3_Core_Guidelines.md) as the absolute source of truth for UI decisions.
    - Current production UI styles are not the source of truth when they conflict with locked M3 decisions.
 3. **Behavioral Integrity**:
    - Preserve application behavior and data logic unless a task explicitly authorizes behavior changes.
@@ -25,14 +25,14 @@ This document serves as the durable repository documentation for locked design d
 
 ## M3 Reference Source
 
-* **Guidelines Reference**: [M3_Core_Guidelines.md](file:///home/godfreymiu/Walmart-GC/docs/reference/M3_Core_Guidelines.md) is the local Material 3 reference for agents.
-* **Instruction**: Agents must read [M3_Core_Guidelines.md](file:///home/godfreymiu/Walmart-GC/docs/reference/M3_Core_Guidelines.md) before conducting any M3-sensitive implementation.
+* **Guidelines Reference**: [M3_Core_Guidelines.md](reference/M3_Core_Guidelines.md) is the local Material 3 reference for agents.
+* **Instruction**: Agents must read [M3_Core_Guidelines.md](reference/M3_Core_Guidelines.md) before conducting any M3-sensitive implementation.
 
 ---
 
 ## Design Governance & Scope
 
-1. **Strategic Roadmap**: Refer to the 4 strategic roadmap lanes in [ROADMAP.md](file:///home/godfreymiu/Walmart-GC/docs/ROADMAP.md) for future vision and unapproved boundaries.
+1. **Strategic Roadmap**: Refer to the 4 strategic roadmap lanes in [ROADMAP.md](ROADMAP.md) for future vision and unapproved boundaries.
 2. **Current Development Scope**: Active UI work focuses on **PR 3: Focus Mode Removal Implementation** (refactoring `src/App.jsx` to completely remove Focus Mode states and transition the checkout screen to passive inline barcode rendering).
 3. **Approved Tailwind Config Exception**:
    - `tailwind.config.js` may map the existing `m3` color family to CSS custom properties referencing strict semantic M3 tokens.

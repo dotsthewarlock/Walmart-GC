@@ -7,11 +7,11 @@ Read this document first for all current GC Wallet (Walmart-GC) tasks. This is t
 ## AI Start Here / Fast Path
 
 If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
-1. **Operating Rules**: Read [AGENTS.md](file:///home/godfreymiu/Walmart-GC/AGENTS.md) in the root to understand execution rules, the Chromebook/Agy stability rule (Phase A/B Split), and validation requirements.
+1. **Operating Rules**: Read [AGENTS.md](../AGENTS.md) in the root to understand execution rules, the Chromebook/Agy stability rule (Phase A/B Split), and validation requirements.
 2. **Current Goal**: Focus *strictly* on the active PR scope. Do not exceed authorized changes.
-3. **Architecture & Schema**: Review [ARCHITECTURE.md](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md) for data schemas, sync APIs, and session cookies.
-4. **Design Authority**: Review [M3_DESIGN_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md) for Material 3 UI component layouts, typography, and visual rules.
-5. **Future Plans**: Consult [ROADMAP.md](file:///home/godfreymiu/Walmart-GC/docs/ROADMAP.md) for planned features and boundaries. Do not write code or create TODOs for Lane 3/4 items.
+3. **Architecture & Schema**: Review [ARCHITECTURE.md](ARCHITECTURE.md) for data schemas, sync APIs, and session cookies.
+4. **Design Authority**: Review [M3_DESIGN_DECISIONS.md](M3_DESIGN_DECISIONS.md) for Material 3 UI component layouts, typography, and visual rules.
+5. **Future Plans**: Consult [ROADMAP.md](ROADMAP.md) for planned features and boundaries. Do not write code or create TODOs for Lane 3/4 items.
 
 ---
 
@@ -42,7 +42,7 @@ GC Wallet uses a static frontend backed by a serverless Cloudflare Worker proxy 
 - **Backend Worker**: Handles Google OAuth 2.0 flow and acts as a CORS-safe proxy to Google Sheets / Google Drive APIs.
 - **Data Synchronization**: Gift cards are stored in standard browser `localStorage` and synchronized with a private user-owned spreadsheet named `Walmart-GC Data`. No central databases or developer-owned card aggregation exists.
 
-*For full details on data models, cookie specifications, and API routes, see [ARCHITECTURE.md](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md).*
+*For full details on data models, cookie specifications, and API routes, see [ARCHITECTURE.md](ARCHITECTURE.md).*
 
 ---
 
@@ -64,7 +64,7 @@ GC Wallet uses a static frontend backed by a serverless Cloudflare Worker proxy 
     trap 'kill $(jobs -p)' EXIT
     (npm run dev & npx wrangler dev worker/src/index.js --port 8787 & wait)
     ```
-- **T3 = AI Workspace (Agy CLI / GPT)**: Automated development, checking, and documentation updates following operating rules in [AGENTS.md](file:///home/godfreymiu/Walmart-GC/AGENTS.md).
+- **T3 = AI Workspace (Agy CLI / GPT)**: Automated development, checking, and documentation updates following operating rules in [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -72,14 +72,14 @@ GC Wallet uses a static frontend backed by a serverless Cloudflare Worker proxy 
 
 Refer to these durable repository documents for specific domain details:
 
-- **AI operating rules & workflow guidelines**: [AGENTS.md](file:///home/godfreymiu/Walmart-GC/AGENTS.md) (Root)
-- **Current state & start-here overview**: [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md)
-- **Durable roadmap & future intent**: [ROADMAP.md](file:///home/godfreymiu/Walmart-GC/docs/ROADMAP.md)
-- **System architecture, APIs, and data models**: [ARCHITECTURE.md](file:///home/godfreymiu/Walmart-GC/docs/ARCHITECTURE.md)
-- **UI/UX design authority & M3 compliance**: [M3_DESIGN_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/M3_DESIGN_DECISIONS.md)
-- **Historical decisions log**: [DECISIONS_LOG.md](file:///home/godfreymiu/Walmart-GC/docs/DECISIONS_LOG.md)
-- **Manual QA checklists & troubleshooting**: [QA_TEST_CHECKLIST.md](file:///home/godfreymiu/Walmart-GC/docs/QA_TEST_CHECKLIST.md)
-- **Build & deployment steps**: [DEPLOYMENT_GUIDE.md](file:///home/godfreymiu/Walmart-GC/docs/DEPLOYMENT_GUIDE.md)
-- **Google Sheet setup instructions**: [GOOGLE_SHEET_SETUP.md](file:///home/godfreymiu/Walmart-GC/docs/GOOGLE_SHEET_SETUP.md)
-- **Non-blocking hygiene & cleanup tracking**: [MAINTENANCE_LOG.md](file:///home/godfreymiu/Walmart-GC/docs/MAINTENANCE_LOG.md)
-- **Historical context & pre-React archive**: [Documentation Archive README](file:///home/godfreymiu/Walmart-GC/docs/archive/README.md)
+- **AI operating rules & workflow guidelines**: [AGENTS.md](../AGENTS.md) (Root)
+- **Current state & start-here overview**: [ACTIVE_CONTEXT.md](ACTIVE_CONTEXT.md)
+- **Durable roadmap & future intent**: [ROADMAP.md](ROADMAP.md)
+- **System architecture, APIs, and data models**: [ARCHITECTURE.md](ARCHITECTURE.md)
+- **UI/UX design authority & M3 compliance**: [M3_DESIGN_DECISIONS.md](M3_DESIGN_DECISIONS.md)
+- **Historical decisions log**: [DECISIONS_LOG.md](DECISIONS_LOG.md)
+- **Manual QA checklists & troubleshooting**: [QA_TEST_CHECKLIST.md](QA_TEST_CHECKLIST.md)
+- **Build & deployment steps**: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+- **Google Sheet setup instructions**: [GOOGLE_SHEET_SETUP.md](GOOGLE_SHEET_SETUP.md)
+- **Non-blocking hygiene & cleanup tracking**: [MAINTENANCE_LOG.md](MAINTENANCE_LOG.md)
+- **Historical context & pre-React archive**: [Documentation Archive README](archive/README.md)
