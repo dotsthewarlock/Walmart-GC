@@ -33,7 +33,7 @@ This document serves as the durable repository documentation for locked design d
 ## Design Governance & Scope
 
 1. **Strategic Roadmap**: Refer to the 4 strategic roadmap lanes in [ROADMAP.md](ROADMAP.md) for future vision and unapproved boundaries.
-2. **Current Development Scope**: Active UI work focuses on **PR 3: Focus Mode Removal Implementation** (refactoring `src/App.jsx` to completely remove Focus Mode states and transition the checkout screen to passive inline barcode rendering).
+2. **Current Development Scope**: Recent UI work completed **PR 3: Focus Mode Removal Implementation** (refactoring `src/App.jsx` to completely remove Focus Mode states and transition the checkout screen to passive inline barcode rendering).
 3. **Approved Tailwind Config Exception**:
    - `tailwind.config.js` may map the existing `m3` color family to CSS custom properties referencing strict semantic M3 tokens.
    - This exception does not authorize new dependencies, broad Tailwind config changes, package/build config changes, or design-system expansion.

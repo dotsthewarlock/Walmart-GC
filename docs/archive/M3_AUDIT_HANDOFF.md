@@ -81,16 +81,16 @@ Refine input fields and settings checkbox controls in `src/App.jsx` to adhere to
 ---
 
 ## 12. Files to Touch
-* [src/App.jsx](file:///home/godfreymiu/Walmart-GC/src/App.jsx)
-* [src/index.css](file:///home/godfreymiu/Walmart-GC/src/index.css)
+* [src/App.jsx](`src/App.jsx`)
+* [src/index.css](`src/index.css`)
 
 ---
 
 ## 13. Files NOT to Touch
-* [tailwind.config.js](file:///home/godfreymiu/Walmart-GC/tailwind.config.js)
-* [vite.config.js](file:///home/godfreymiu/Walmart-GC/vite.config.js)
-* [package.json](file:///home/godfreymiu/Walmart-GC/package.json)
-* [worker/src/index.js](file:///home/godfreymiu/Walmart-GC/worker/src/index.js)
+* [tailwind.config.js](`tailwind.config.js`)
+* [vite.config.js](`vite.config.js`)
+* [package.json](`package.json`)
+* [worker/src/index.js](`worker/src/index.js`)
 
 ---
 
