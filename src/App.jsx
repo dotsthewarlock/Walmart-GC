@@ -1159,7 +1159,7 @@ function App() {
                   setActivePanel('settings');
                 }
               }}
-              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
+              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-on-primary focus-visible:ring-offset-2 ${
                 activePanel === 'settings'
                   ? 'bg-m3-on-primary text-m3-primary border-m3-on-primary'
                   : 'border-m3-on-primary/30 bg-m3-primary hover:bg-m3-on-primary/10 text-m3-on-primary'
@@ -1236,7 +1236,7 @@ function App() {
       </nav>
 
       <div 
-        className="bg-m3-surface flex flex-col items-center px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative"
+        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pt-6 pb-24 md:pb-12 antialiased font-sans relative"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
@@ -1383,8 +1383,8 @@ function App() {
                             isSelected
                               ? 'border-m3-outline bg-m3-primary-container text-m3-on-primary-container'
                               : card.used
-                                ? 'border-m3-outline-variant bg-m3-surface-container-low text-m3-on-surface-variant hover:border-m3-outline'
-                                : 'border-m3-outline-variant bg-m3-surface-container-lowest text-m3-on-surface hover:border-m3-primary'
+                                ? 'border-m3-outline-variant bg-m3-surface-container-low text-m3-on-surface-variant hover:bg-m3-surface-container hover:border-m3-outline'
+                                : 'border-m3-outline-variant bg-m3-surface-container-lowest text-m3-on-surface hover:bg-m3-surface-container-low hover:border-m3-primary'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1662,7 +1662,7 @@ function App() {
               {/* Data Panel / Backup Controls */}
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group">
-                  <summary className="list-none flex justify-between items-center cursor-pointer select-none">
+                  <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
                     <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
                     <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                   </summary>
@@ -1720,7 +1720,7 @@ function App() {
               {/* Troubleshooting (Unified Container) */}
               <section className="bg-m3-surface-container-low border border-m3-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
                 <details className="group">
-                  <summary className="list-none flex justify-between items-center cursor-pointer select-none">
+                  <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
                     <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
                     <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                   </summary>
@@ -1781,7 +1781,7 @@ function App() {
                       id="prev-card"
                       onClick={handlePrevCard}
                       disabled={visiblePosition <= 0}
-                      className="text-xs font-bold text-m3-primary hover:text-m3-primary/80 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none flex items-center gap-1"
+                      className="text-xs font-bold text-m3-primary hover:text-m3-primary/80 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-md px-1 flex items-center gap-1"
                     >
                       ← Prev
                     </button>
@@ -1792,7 +1792,7 @@ function App() {
                       id="next-card"
                       onClick={handleNextCard}
                       disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-bold text-m3-primary hover:text-m3-primary/80 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none flex items-center gap-1"
+                      className="text-xs font-bold text-m3-primary hover:text-m3-primary/80 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-md px-1 flex items-center gap-1"
                     >
                       Next →
                     </button>
