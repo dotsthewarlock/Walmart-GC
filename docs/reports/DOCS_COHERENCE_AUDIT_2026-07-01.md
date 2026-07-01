@@ -65,8 +65,8 @@ The following documentation files contain stale information that conflicts with 
 
 | File Path | Location / Line | Conflict Details | Recommended Action |
 | :--- | :--- | :--- | :--- |
-| [AGENTS.md](AGENTS.md) | `L91-92` | States that React/Vite is a "production-candidate target" and "tomorrow's planned work." This is obsolete; the React/Vite build on `main` is verified live. | Update to confirm that React 19 + Vite + Tailwind CSS is the active live deployment. |
-| [AGENTS.md](AGENTS.md) | `L52` | References `phase-11` hardening context. | Update to reflect current steady-state maintenance on `main` and `features/fix-2026-07-01`. |
+| [AGENTS.md](`AGENTS.md`) | `L91-92` | States that React/Vite is a "production-candidate target" and "tomorrow's planned work." This is obsolete; the React/Vite build on `main` is verified live. | Update to confirm that React 19 + Vite + Tailwind CSS is the active live deployment. |
+| [AGENTS.md](`AGENTS.md`) | `L52` | References `phase-11` hardening context. | Update to reflect current steady-state maintenance on `main` and `features/fix-2026-07-01`. |
 | [docs/archive/AI_HANDOFF.md](docs/archive/AI_HANDOFF.md) | `L1-247` | Describes old Phase 11 OAuth worker setups and states that the frontend has "no framework and no build system." | Rename to avoid collision and keep purely as archive. |
 | [docs/archive/ANTIGRAVITY_HANDOFF.md](docs/archive/ANTIGRAVITY_HANDOFF.md) | `L1-51` | Asks developers to work on `agy-v1` and use `phase-12` as behavioral source. | Retain as is under `archive/` but ensure no active instructions link to it. |
 
