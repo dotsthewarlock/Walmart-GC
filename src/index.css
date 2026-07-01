@@ -71,10 +71,6 @@ body {
   font-family: 'Google Sans Flex', 'Google Sans', Arial, Helvetica, sans-serif;
 }
 
-.font-mono {
-  font-family: 'Google Sans Code', monospace;
-}
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
