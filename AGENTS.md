@@ -87,8 +87,8 @@ Walmart-GC Web App
 
 Frontend:
 
-* GitHub Pages serves legacy `phase-12` / root with legacy build_type as the active public deploy.
-* React 19 + Vite + Tailwind (`main` is the production-candidate target; tomorrow's planned work is the deployment switch to React/Vite. Do not claim React/Vite is live until verified after the switch).
+* GitHub Pages serves the React 19 + Vite + Tailwind CSS static app built from the `main` branch.
+* React 19 + Vite + Tailwind is the active live deployment, fully verified and serving production traffic.
 * Production and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 
 Backend:
