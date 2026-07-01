@@ -1,14 +1,26 @@
-# Active Context
+# Active Context (GC Wallet)
 
-Read this document first for all current Walmart-GC tasks. It is the primary, compact source of truth for the codebase, active architecture, and developer workflows.
+Read this document first for all current GC Wallet (Walmart-GC) tasks. It is the primary, compact source of truth for the codebase, active architecture, and developer workflows.
+
+## Product & Architectural Vision
+- **Target Identity**: **GC Wallet** (user-facing product name).
+- **Repository/Deployment Identifier**: `Walmart-GC` (remains active until infra migration).
+- **Merchant Model**: **Walmart-first, merchant-aware gift-card wallet**. Walmart remains the default optimized profile, but the database, schema, and UI are built to support customizable local merchant profiles and custom fallbacks.
+- **What it IS NOT**: GC Wallet is not a SaaS platform, developer-owned card database, receipt tracker, shopping app, loyalty optimizer, payment app, general finance tracker, or barcode/fraud-enablement tool.
+- **Privacy Policy**: Strictly offline-first and local-first. Card numbers, PINs, and balances are cached in standard, unencrypted client-side browser storage (localStorage) and synced directly to the user's private Google Sheet. There is no central database or third-party card aggregation.
+- **Durable Roadmap Lanes**:
+  1. *Approved/Durable*: Removal of Focus Mode, passive inline barcode scanning, passive wake locks.
+  2. *Near-Term*: Stale documentation and branch pruning, multi-merchant local profile schema helpers.
+  3. *Future Beta*: Camera-based add-card barcode scanner, merchant-dependent balance check assistant, schema vNext definitions, optional dedicated phone app / progressive web app (PWA) native wrappers.
+  4. *Not Approved*: CAPTCHA-bypassing scrapers, automated balance checks requiring raw credentials, central database storage.
 
 ## Current Basics
 - **Repository**: `dotsthewarlock/Walmart-GC`
-- **Active Branch**: `main` (React 19 + Vite + Tailwind CSS)
+- **Active Branch**: `features/core-product-design-report` (development on React 19 + Vite + Tailwind CSS)
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
-- **Verification Status**: The React 19 + Vite + Tailwind CSS build on `main` is successfully switched and verified live via GitHub Actions deployment.
-- **Rollback Path**: Revert GitHub Pages source selection back to serving from branch `phase-12` / `/` root (using backup branch `backup/phase-12-before-react-vite-2026-06-24` and tag `prod-phase-12-pre-react-vite-2026-06-24`).
+- **Verification Status**: React 19 + Vite + Tailwind CSS build on `main` is live and verified.
+- **Rollback Path**: Revert GitHub Pages source selection back to serving from branch `phase-12` / `/` root.
 
 ## Active Architecture
 ```text
@@ -20,7 +32,7 @@ Cloudflare Worker (walmart-gc-oauth)
         ↕
 Google Drive / Sheets API
         ↕
-Walmart-GC Web App (Static React 19 + Vite)
+GC Wallet (Static React 19 + Vite Web App)
 ```
 - **Routing**: Cloudflare routes same-origin `https://walmart-gc.dotsthewarlock.com/auth/*` and `/api/*` to the Worker. GitHub Pages serves static files from the custom domain root.
 - **Google OAuth**: Worker-managed Google OAuth using HttpOnly, Secure, SameSite=Lax, host-only session cookies. The authorization scope is strictly `https://www.googleapis.com/auth/drive.file`.

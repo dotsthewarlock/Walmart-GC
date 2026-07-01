@@ -78,12 +78,12 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 
 ---
 
-## Locked M3 Decisions
+### Locked M3 Decisions
 
 ### 1. Cards Metrics: Strict M3 Labeled Pair
 * **Metric Labels**: Use compact semantic labels: `Available balance` and `Visible cards` (low-emphasis, small font).
 * **Metric Values**: Placed directly below or paired next to their respective labels clearly (e.g. `$247.24` and `17`).
-* **Anti-Clutter Guardrail**: Do **NOT** restore legacy dashboard clutter labels (e.g. `Total Wallet Assets`, `Card Counts`, `displayed / registered`, or `17 / 21 on Cards`).
+* **Anti-Clutter Guardrail**: Avoid legacy dashboard jargon. Do **NOT** restore labels like `Total Wallet Assets`, `Card Counts`, `displayed / registered`, or a `17 / 21` denominator.
 
 ### 2. Mobile Surface Model: Strict M3 Mobile-First
 * **No Outer Panels**: Avoid large desktop-style white backgrounds/panels wrapping the page on mobile viewports. No large outer panel on mobile.
@@ -91,9 +91,9 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
 * **Desktop Centering**: Maintain a readable centered layout with bounded maximum width (`max-w-[60rem]`) on desktop views.
 
 ### 3. Bottom Navigation and Header Visual Identity
-* **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill for distinct visual recognition. Destinations use equal spacing, vertical layout with icon on top of the text label, and a smaller rounded-full active indicator pill (`w-16 h-8`). Inline SVG icons are used to represent Card list and Checkout destinations without extra dependencies.
+* **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill. Standard destinations are flat, stable, and thumb-accessible: **Cards** (index/ledger) and **Checkout** (scanner panel). Settings is accessed via an IconButton in the top-right of the Header.
 * **Top Header Visual Identity**: Header carries the primary container fill (`bg-m3-primary-container` and `text-m3-on-primary-container`) with custom properties referencing a production-inspired Walmart blue seed (#0071dc) to restore color identity while satisfying strict M3 semantic color roles.
-* **Current Scope**: Authorized under Phase 2A for full alignment with M3 spacing and layout.
+* **Product Identity**: Target user-facing product branding is **GC Wallet**, while retaining `Walmart-GC` as the repository and deployment identifier.
 
 ### 4. Cards Rows: Strict M3 List-Item Model
 * **Dimensions**: Strict 48px to 56px touch targets.
@@ -109,25 +109,31 @@ The next consolidated visual pass (Phase 2A) is authorized to change these compo
   - `Sync issue`
 * **Account Info**: Do **NOT** show full Google emails, usernames, or account handles on the primary list screen. Defer detailed credential profiles/full account details strictly to Settings.
 
-### 6. Checkout Scanner
-* **Modal Scrim**: Strict non-modal M3 scrim layout. The backdrop uses the default light surface background (`bg-m3-surface`) with no darkened scrim overlay (`bg-m3-on-surface/40`) or backdrop blurring (`backdrop-blur-sm`).
-* **Scanner Overlay Overhaul**: Styled with `bg-m3-surface-container-lowest` base card background, M3-rounded borders (`rounded-3xl`), and no darkened scrim. Crucial checkout actions (Update Balance and Mark Used) are styled as high-contrast buttons, and notes display with reduced visual emphasis (borderless details block) to stay clearly secondary.
-* **Desktop Code/PIN Copy**: On desktop/fine-pointer checkout views, clicking the displayed card code or PIN display copies a single `CODE/PIN` clipboard value using the full digits-only card code and trimmed PIN. Barcode payload and generation remain unchanged, and mobile/touch scanning behavior remains the primary unchanged workflow.
+### 6. Checkout Scanner: Passive & Inline
+* **No Focus Mode**: Remove "Focus Mode," "scanner focus mode," "scanner mode," barcode modal, and separate fullscreen barcode state.
+* **Passive Inline Layout**: The barcode container resides passively and inline directly inside the Checkout screen. It is scan-ready, high-contrast, and large enough for mobile/register scanners, resting in a stable surface-container (`bg-m3-surface-container`) and opening high-contrast scan-safe surfaces (`bg-white`) within its borders.
+* **No Scrim Overlay**: Remove the artificial darkened scrim overlay (`bg-m3-on-surface/40`), spotlight scrim, and backdrop blurs on the checkout viewport.
+* **Screen Wake Lock**: Allowed strictly as a passive, best-effort browser convenience that activates only while the Checkout tab is active and releases when navigating away.
+* **Desktop Code/PIN Copy**: On desktop/fine-pointer checkout views, clicking the displayed card code or PIN display copies a single `CODE/PIN` clipboard value using the full digits-only card code and trimmed PIN. Barcode payload and generation remain unchanged.
 
-### 7. Settings Hierarchy
-* **Restructuring**: Redesign of preferences, syncing options, and backup configurations to match a strict M3 hierarchy.
+### 7. Settings Hierarchy & Containers
+* **Organization**: Preferences are grouped into clean, collapsible M3 Accordion container cards to prevent visual overload:
+  - **Google Sync**: Session state controls and sheet binding actions.
+  - **Preferences**: Display options, visual themes, and local defaults.
+  - **Backup & CSV Actions**: Manual CSV import and export buttons (hidden from standard run-states).
+  - **Troubleshooting**: Diagnostics console and connection verification.
+  - **Account**: Active Google session credentials and privacy scopes.
 
-### 8. Diagnostics
-* **Troubleshooting Pane**: Cleanup and grouping of app-level runtime diagnostics logs into a collapsed Troubleshooting container.
+### 8. Diagnostics & Privacy Protection
+* **Diagnostics Pane**: Technical logs, sheet connection bindings, and diagnostic indicators are collapsed by default under the Troubleshooting section.
+* **Zero Visual Noise**: Do not expose internal development git tracking (e.g., branch names, commit hashes), device fingerprints, or runtime file mismatches in normal Settings viewports.
+* **Google Privacy Guardrail**: Google email addresses, names, and profile avatars must not leak into primary Cards or Checkout screens.
 
 ### 9. Typography: Strict M3 Type-Role System
 * Use strict type rhythm, weight, contrast, and family settings (Outfit for sans-serif text, Google Sans Code/mono for tabular values/numbers).
 
-### 10. Visual M3 Compliance Cleanup
-* **Diagnostics/Technical Details**: Grouped diagnostics and logs under a collapsed `Troubleshooting` card pane. Removed versioning, fingerprints, and local device environment rows.
-* **Checkout Overlay Overhaul**: Styled with `--md-sys-color-surface` base background, M3-rounded borders, and no darkened scrim. Removed brightness advice, Reveal/Hide label noise, and optimized button structure with high contrast update/mark states.
-* **Google Privacy Guardrail**: Avoid displaying the Google account email or personal identifiers in main list, settings status, or checkout screens to maintain strict privacy compliance.
-* **Low-Friction Tokens**: Swapped remaining raw colors (`slate`, `rose`, `amber`, `white`, `black` labels/cards/borders/toggles) for semantic `--md-sys-color-*` variables mapping standard light/dark modes.
+### 10. Camera Permission Guardrail
+* **Explicit Trigger Only**: Camera access is authorized only for explicit, user-initiated add-card barcode scanning. No camera permissions can be requested on application load, list pages, checkout views, or during passive navigation transitions. Standard fallback to manual entry must remain clean and functional.
 
 ---
 

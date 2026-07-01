@@ -1,8 +1,8 @@
-# Architecture
+# Architecture (GC Wallet)
 
 ## Overview
 
-Walmart-GC uses a React 19 + Vite + Tailwind CSS frontend environment plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
+**GC Wallet** (deployed and tracked under repository identifier `Walmart-GC`) uses a React 19 + Vite + Tailwind CSS frontend environment plus a Cloudflare Worker backend architecture. It avoids databases, Firebase, Cloud Functions, Apps Script sync, Node backends, VPS hosting, and app-managed user accounts.
 
 `main` is the active live branch. The application is built and deployed to GitHub Pages via GitHub Actions from `main` (React 19 + Vite + Tailwind CSS). The legacy `phase-12` branch remains preserved as the archival baseline. Core product behavior should not be redesigned unless it directly blocks OAuth, session management, Google Sheets access, or sync.
 
@@ -30,7 +30,7 @@ Cloudflare Worker
         ↕
 Google Drive API / Google Sheets API
         ↕
-Walmart-GC Web App
+GC Wallet (Static React 19 + Vite Web App)
 ```
 
 Deployment URLs:
@@ -51,7 +51,7 @@ Local browser storage and CSV backup/recovery remain available when offline or d
 
 ## Components
 
-### Walmart-GC Web App
+### GC Wallet Web App
 
 The static frontend provides:
 
