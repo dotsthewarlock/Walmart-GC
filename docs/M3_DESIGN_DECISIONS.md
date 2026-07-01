@@ -45,10 +45,11 @@ This document serves as the durable repository documentation for locked design d
 
 ### Locked M3 Decisions
 
-### 1. Cards Metrics: Strict M3 Labeled Pair
-* **Metric Labels**: Use compact semantic labels: `Available balance` and `Visible cards` (low-emphasis, small font).
-* **Metric Values**: Placed directly below or paired next to their respective labels clearly (e.g. `$247.24` and `17`).
-* **Anti-Clutter Guardrail**: Avoid legacy dashboard jargon. Do **NOT** restore labels like `Total Wallet Assets`, `Card Counts`, `displayed / registered`, or a `17 / 21` denominator.
+### 1. Persistent Merchant Balance Strip
+* **Branding and Placement**: Branding header text is strictly `Gift Card Manager`. A persistent merchant balance strip resides directly under the branding header.
+* **Persistence and Content**: The balance strip persists across the Cards and Checkout screens (above checkout content) showing the merchant name left (`Walmart`) and the total available balance right (e.g., `$123.45` formatted with tabular numbers). No visible helper/explainer text is shown.
+* **Accessibility**: Preserve accessibility semantics/ARIA, e.g. screen-reader meaning like `Available Walmart balance: $123.45`.
+* **Anti-Clutter Guardrail**: Remove the old top summary metric card. Avoid legacy dashboard jargon like `Total Wallet Assets`, `Card Counts`, `displayed / registered` denominator, or `Vault Inventory`.
 
 ### 2. Mobile Surface Model: Strict M3 Mobile-First
 * **No Outer Panels**: Avoid large desktop-style white backgrounds/panels wrapping the page on mobile viewports. No large outer panel on mobile.
