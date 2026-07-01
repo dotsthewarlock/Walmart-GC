@@ -1366,11 +1366,20 @@ function App() {
                       return (
                         <div
                           key={card.cardNumber}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSelectedCardIndex(cardIndex);
                             setActivePanel('detail');
                           }}
-                          className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all gap-4 cursor-pointer min-h-[48px] ${
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedCardIndex(cardIndex);
+                              setActivePanel('detail');
+                            }
+                          }}
+                          className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all gap-4 cursor-pointer min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 ${
                             isSelected
                               ? 'border-m3-outline bg-m3-primary-container text-m3-on-primary-container'
                               : card.used
