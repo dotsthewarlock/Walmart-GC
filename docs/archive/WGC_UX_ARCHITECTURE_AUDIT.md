@@ -23,7 +23,7 @@ I will write a short handoff log in `/home/godfreymiu/Project/AI_HANDOFF.md` to 
 I will run a quick verification command to check the git status and ensure no implementation code was modified.
 I have completed the UX architecture audit of the Walmart-GC application. The findings have been written to the following locations:
 
-1. [docs/WGC_UX_ARCHITECTURE_AUDIT.md](file:///home/godfreymiu/Walmart-GC/docs/WGC_UX_ARCHITECTURE_AUDIT.md)
+1. [docs/WGC_UX_ARCHITECTURE_AUDIT.md](docs/WGC_UX_ARCHITECTURE_AUDIT.md)
 2. [/home/godfreymiu/Project/WGC_UX_ARCHITECTURE_AUDIT.md](file:///home/godfreymiu/Project/WGC_UX_ARCHITECTURE_AUDIT.md)
 
 Additionally, I created the required Chromebook-safety handoff file at [/home/godfreymiu/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md).

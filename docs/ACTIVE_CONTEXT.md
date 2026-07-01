@@ -30,7 +30,7 @@ If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
 Our active development sequence is organized into highly structured Pull Request (PR) phases:
 - **PR 1: Core Decisions Promotion** (Completed): Approved decisions (GC Wallet brand, passive inline barcode, no Focus Mode, privacy guardrails) successfully promoted into durable repository documentation.
 - **PR 2: AI-First Documentation Cleanup** (Current): Consolidating files, removing duplication, establishing clear document ownership, and maximizing AI-context token efficiency.
-- **PR 3: Focus Mode Removal Implementation** (Upcoming): Refactoring `src/App.jsx` to completely remove Focus Mode state, event listeners, and scrim overlays, transitioning Checkout to the passive inline barcode display.
+- **PR 3: Focus Mode Removal Implementation** (Completed): Refactoring `src/App.jsx` to completely remove Focus Mode state, event listeners, and scrim overlays, transitioning Checkout to the passive inline barcode display.
 - **PR 4: Near-Term Enhancements**: Developing approved foundations such as local branch pruning and multi-merchant schema helpers.
 
 ---

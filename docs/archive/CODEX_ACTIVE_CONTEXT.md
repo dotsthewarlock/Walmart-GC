@@ -1,7 +1,7 @@
 # Codex Active Context (Agy Active Context)
 
 > [!NOTE]
-> This filename is kept for legacy compatibility, but the file remains active. For the compact, primary current-state summary, please refer to [ACTIVE_CONTEXT.md](file:///home/godfreymiu/Walmart-GC/docs/ACTIVE_CONTEXT.md).
+> This filename is kept for legacy compatibility, but the file remains active. For the compact, primary current-state summary, please refer to [ACTIVE_CONTEXT.md](docs/ACTIVE_CONTEXT.md).
 
 Read this first for current Walmart-GC tasks. It is the compact source of truth for future Agy work. Note that the retired automated Codex workflow is historical, and the current active workflow is the Agy CLI plus Terminal guarded batch workflow. Preferred source-of-truth chain: `docs/ACTIVE_CONTEXT.md` -> `docs/CODEX_ACTIVE_CONTEXT.md` -> `AGENTS.md` -> `docs/ARCHITECTURE.md` -> task-specific docs -> `docs/archive/` only when history or regression evidence requires it.
 
@@ -15,7 +15,7 @@ Read this first for current Walmart-GC tasks. It is the compact source of truth 
 - Live app and development/testing URL: `https://walmart-gc.dotsthewarlock.com`
 - OAuth/session durability and Google Sheets access/sync hardening are part of the current `main` architecture.
 - React 19 + Vite + Tailwind CSS frontend environment (merged on `main`).
-- UX Decisions Log: [docs/REACT_UX_DECISIONS.md](file:///home/godfreymiu/Walmart-GC/docs/REACT_UX_DECISIONS.md)
+- UX Decisions Log: [docs/REACT_UX_DECISIONS.md](docs/REACT_UX_DECISIONS.md)
 - Do not redesign core product behavior unless it directly blocks OAuth, session, Google Sheets access, or sync.
 
 ## Active Architecture

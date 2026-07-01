@@ -24,7 +24,7 @@ No new theme config files were added (styling is done using existing Tailwind cl
 * **Control Targets**: Vertical padding increased to `py-3.5` on smaller action buttons to guarantee touch target heights.
 
 ## Docs Updated
-* [docs/DECISIONS_LOG.md](file:///home/godfreymiu/Walmart-GC/docs/DECISIONS_LOG.md): Added sections tracking *5. Material 3 Audit Polish* and *6. Material 3 Surface and Navigation Polish*.
+* [docs/DECISIONS_LOG.md](docs/DECISIONS_LOG.md): Added sections tracking *5. Material 3 Audit Polish* and *6. Material 3 Surface and Navigation Polish*.
 
 ## Build / Verification Status
 * **Verification**: Builds successfully via `npm run build` and runs syntax validation via `node --check`. Checked locally with HTTP/curl smoke test.
