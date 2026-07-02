@@ -76,10 +76,11 @@ GC Wallet uses a static frontend backed by a serverless Cloudflare Worker proxy 
 
 Issue #200 is the active run-state handoff ledger for GPT/Codex/T1 coordination. It is not durable product, design, or implementation authority.
 
-- Codex/T1 updates #200 after meaningful runs with timestamp, branch, PR status, checks, QA, risks, next step, and do-not-do guardrails.
+- Codex/T1 updates #200 by writing a compact handoff to `/tmp/handoff.md` or stdin and posting a new Issue #200 comment via `~/Project/bin/issue-handoff`.
 - GPT reviews the latest #200 handoff before next-step implementation guidance only when GitHub connector use is explicitly allowed.
 - If connector use is not allowed, the latest #200 handoff should be pasted into GPT.
 - Default reading window: newest timestamped `Active Handoff` comment. If ambiguous, compare the latest 3; older comments are historical unless debugging prior branch, PR, or CI history.
+- `~/Project/AI_HANDOFF.md` is legacy compatibility only, not current state or authority.
 - Durable decisions belong in repo docs, not in #200 or chat logs.
 - Durable authority remains, in order: `origin/main` code, `docs/ACTIVE_CONTEXT.md`, `docs/M3_DESIGN_DECISIONS.md`, `docs/reference/M3_Core_Guidelines.md`.
 
