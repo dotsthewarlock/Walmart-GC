@@ -77,7 +77,7 @@ Record of key decisions, architecture designs, user UX choices, and AI-made deci
 ### 10. Design & Navigation Authority (2026-07-01)
 * **Context**: Establishing Material 3 as the sole visual design authority and structuring settings.
 * **Decision**:
-  - Affirm Material 3 (M3) as the absolute design authority; shadcn is an implementation convenience only.
+  - Affirm Material 3 (M3) as the absolute design authority; project-owned strict-M3 React/Tailwind primitives are the visible UI path, and shadcn has been removed as a project component-system dependency.
   - Overhaul navigation to use a phone-first M3 Navigation Bar with stable, flat, thumb-accessible top-level destinations: **Cards** (index/ledger) and **Checkout** (scanner panel).
   - Lock metrics to strict M3 labeled pairs: `Available balance` and `Visible cards`. Do not restore stale dashboard terms like "Total Wallet Assets", "Card Counts", "displayed/registered", or "Vault Inventory".
   - Standardize row layouts using the M3 list-item model: compact, stable 48px to 56px height, right-aligned tabular (mono) balance values, and a tonal primary-container selected fill.
