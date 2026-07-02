@@ -6,8 +6,11 @@ import { cardsToCsv, parseRawCardData } from './lib/csv';
 import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
 import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
+import { Card } from './components/primitives/Card';
+import { Dialog } from './components/primitives/Dialog';
 import { SelectField } from './components/primitives/SelectField';
 import { Switch } from './components/primitives/Switch';
+import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { Settings2, X } from 'lucide-react';
@@ -1416,7 +1419,7 @@ function App() {
 
                 <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
                   {cards.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-xl flex flex-col items-center gap-4">
+                    <Surface as="div" variant="dashed" className="md:col-span-2 text-center py-10 px-6 flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
                         <h4 className="text-sm font-bold text-m3-on-surface">No gift cards yet</h4>
                         <p className="text-xs text-m3-on-surface-variant leading-relaxed">
@@ -1443,9 +1446,9 @@ function App() {
                           ↓ Import CSV
                         </button>
                       </div>
-                    </div>
+                    </Surface>
                   ) : visibleIndexes.length === 0 ? (
-                    <div className="md:col-span-2 text-center py-10 px-6 bg-m3-surface-container-low border border-dashed border-m3-outline-variant rounded-xl flex flex-col items-center gap-4">
+                    <Surface as="div" variant="dashed" className="md:col-span-2 text-center py-10 px-6 flex flex-col items-center gap-4">
                       <div className="flex flex-col gap-1.5 max-w-sm">
                         <span className="text-sm font-bold text-m3-on-surface">All registered cards are filtered out</span>
                         <p className="text-xs text-m3-on-surface-variant leading-relaxed">
@@ -1470,7 +1473,7 @@ function App() {
                           Go to Settings
                         </Button>
                       </div>
-                    </div>
+                    </Surface>
                   ) : (
                     visibleIndexes.map((cardIndex) => {
                       const card = cards[cardIndex];
@@ -1530,7 +1533,7 @@ function App() {
               <main className="p-3 pb-28 md:pb-16 flex flex-col gap-3 animate-panel-enter">
 
                 {/* Local Settings / Filtering Controls */}
-                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                <Card as="section" className="p-3 flex flex-col gap-2">
                   <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider px-2 py-1">Preferences</h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1601,10 +1604,10 @@ function App() {
                       </button>
                     )}
                   </div>
-                </section>
+                </Card>
 
                 {/* Google Sync Connection Panel */}
-                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                <Card as="section" className="p-3 flex flex-col gap-2">
                   {oauthState.status === googleOAuthStatuses.connected ? (
                     <details
                       className="group"
@@ -1833,10 +1836,10 @@ function App() {
                       {oauthState.lastErrorMessage}
                     </p>
                   )}
-                </section>
+                </Card>
 
                 {/* Data Panel / Backup Controls */}
-                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                <Card as="section" className="p-3 flex flex-col gap-2">
                   <details className="group">
                     <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
                       <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
@@ -1892,17 +1895,17 @@ function App() {
                       )}
                     </div>
                   </details>
-                </section>
+                </Card>
 
                 {/* Troubleshooting (Unified Container) */}
-                <section className="bg-m3-surface-container-low border border-m3-outline-variant/20 rounded-xl p-3 flex flex-col gap-2">
+                <Card as="section" className="p-3 flex flex-col gap-2">
                   <details className="group">
                     <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
                       <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
                       <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
                     </summary>
                     <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-m3-outline-variant/20 px-2 pb-1">
-                      <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-2.5 flex flex-col gap-2">
+                      <Card variant="container" className="p-2.5 flex flex-col gap-2">
                         <h4 className="text-xs font-medium text-m3-on-surface uppercase mb-0.5">System Status</h4>
                         <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
                           <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
@@ -1956,10 +1959,10 @@ function App() {
                         <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
                           {syncState.message || directSheetsState.message}
                         </div>
-                      </div>
+                      </Card>
                     </div>
                   </details>
-                </section>
+                </Card>
 
                 <ActionButton
                   id="settings-back"
@@ -2174,9 +2177,9 @@ function App() {
 
                 </div>
               ) : (
-                <div className="text-center py-12 text-m3-on-surface-variant font-semibold bg-m3-surface-container border border-dashed border-m3-outline-variant rounded-3xl w-full">
+                <Surface variant="dashed" shape="xl" className="text-center py-12 text-m3-on-surface-variant font-semibold w-full">
                   No card selected. Select a card from the inventory list first.
-                </div>
+                </Surface>
               )}
             </main>
           )}
@@ -2187,16 +2190,11 @@ function App() {
 
       {/* Update Balance Modal */}
       {isEditingBalance && selectedCard && (
-        <div
+        <Dialog
           id="balance-modal"
-          className="fixed inset-0 bg-m3-on-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="max-w-sm w-full p-6 rounded-3xl"
+          titleId="balance-modal-title"
         >
-          <div
-            className="bg-m3-surface rounded-3xl max-w-sm w-full p-6 flex flex-col gap-4 shadow-2xl relative border border-m3-outline-variant/30"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="balance-modal-title"
-          >
             {/* Close Button */}
             <IconButton
               onClick={handleCancelBalanceEdit}
@@ -2274,22 +2272,16 @@ function App() {
                 Save
               </Button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Raw CSV Editor Modal */}
       {isRawDataModalOpen && (
-        <div 
-          id="raw-data-modal" 
-          className="fixed inset-0 bg-m3-on-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <Dialog
+          id="raw-data-modal"
+          className="max-w-lg w-full p-6 rounded-3xl"
+          titleId="raw-data-modal-title"
         >
-          <div 
-            className="bg-m3-surface rounded-3xl max-w-lg w-full p-6 flex flex-col gap-4 shadow-2xl relative border border-m3-outline-variant/30"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="raw-data-modal-title"
-          >
             <h2 id="raw-data-modal-title" className="text-lg font-bold text-m3-on-surface border-b border-m3-outline-variant/20 pb-2">
               Raw CSV editor
             </h2>
@@ -2311,7 +2303,7 @@ function App() {
             </div>
 
             {/* Validation warnings card details */}
-            <div className="border border-m3-outline-variant/30 bg-m3-surface-container-low rounded-xl p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
+            <Card className="p-4 flex flex-col gap-2 max-h-36 overflow-y-auto">
               <h4 className="text-xs font-bold text-m3-on-surface uppercase">Validation details</h4>
               <div id="data-validation-warnings" className="text-xs font-semibold text-m3-on-surface-variant leading-relaxed" role="status">
                 <p>{validationSummary}</p>
@@ -2323,7 +2315,7 @@ function App() {
                   </ul>
                 )}
               </div>
-            </div>
+            </Card>
 
             {/* Actions panel */}
             <div className="flex flex-col gap-3 border-t border-m3-outline-variant/20 pt-4 mt-2">
@@ -2375,8 +2367,7 @@ function App() {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* M3 Snackbar Toast */}
