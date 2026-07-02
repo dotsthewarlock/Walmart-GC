@@ -28,6 +28,16 @@ This document serves as the durable repository documentation for locked design d
 * **Guidelines Reference**: [M3_Core_Guidelines.md](reference/M3_Core_Guidelines.md) is the local Material 3 reference for agents.
 * **Instruction**: Agents must read [M3_Core_Guidelines.md](reference/M3_Core_Guidelines.md) before conducting any M3-sensitive implementation.
 
+## Design Authority and Terminology
+
+Walmart-GC uses strict Material Design 3 as the visible UI authority. Current repo naming, class clusters, and component names are implementation evidence only and must not become design authority by inertia.
+
+Future UI work should start from industry-standard M3 semantics, then map those decisions into project-owned React/Tailwind primitives. High-repeat primitives should standardize over time, including buttons, icon buttons, headers, surfaces/cards, containers, list rows, chips/status indicators, navigation, checkout controls, and text fields.
+
+Standardization should cover variants, sizes and density, layout ownership, hover/focus/pressed/active/disabled states, touch targets, spacing, shape, hierarchy, and accessibility. Use stable semantic component APIs so future PWA, Android, and iOS portability can inherit the same structure without repeating raw Tailwind strings or repo-local terminology.
+
+shadcn has been removed as a project component-system dependency and should not be reintroduced as a visual design-system layer. Any utility or accessibility primitive must be justified by active need and must not override strict M3 design authority.
+
 ---
 
 ## Design Governance & Scope

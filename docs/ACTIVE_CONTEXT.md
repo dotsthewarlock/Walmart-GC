@@ -22,6 +22,7 @@ If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
 - **Verification Status**: React 19 + Vite + Tailwind CSS build on `main` is successfully deployed and verified live via GitHub Actions.
+- **Current Design Direction**: strict-M3, project-owned React/Tailwind primitives. Use M3 and industry-standard terminology as design authority; treat current repo names, class clusters, and component names as implementation evidence only. shadcn has been removed and should not be reintroduced as a visual design-system layer.
 
 ---
 
