@@ -8,6 +8,8 @@ import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
 import { Card } from './components/primitives/Card';
 import { Dialog } from './components/primitives/Dialog';
+import { ListItem } from './components/primitives/ListItem';
+import { NavigationBar, NavigationBarItem } from './components/primitives/NavigationBar';
 import { SelectField } from './components/primitives/SelectField';
 import { Switch } from './components/primitives/Switch';
 import { Surface } from './components/primitives/Surface';
@@ -1345,36 +1347,25 @@ function App() {
       })()}
 
       {/* Navigation bar: mobile bottom fixed, desktop below header (static flow) */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 h-20 z-40 md:static flex border-t border-m3-outline-variant/30 bg-m3-surface-container w-full"
-        aria-label="App sections"
-      >
+      <NavigationBar aria-label="App sections">
         <div className="max-w-[60rem] mx-auto w-full flex h-full">
-          <button
+          <NavigationBarItem
             id="nav-list"
             onClick={() => {
               setActivePanel('list');
               setPreviousPrimaryPanel('list');
             }}
-            className="flex-1 flex flex-col items-center justify-center h-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-          >
-            <div className={`flex items-center justify-center w-14 h-7 rounded-xl transition-all ${
-              activePanel === 'list'
-                ? 'bg-m3-primary-container text-m3-on-primary-container border border-m3-primary/20 shadow-sm'
-                : 'text-m3-on-surface-variant hover:bg-m3-surface-container-low'
-            }`}>
+            selected={activePanel === 'list'}
+            label="Cards"
+            icon={
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <rect x="2" y="5" width="20" height="14" rx="2" />
                 <line x1="2" y1="10" x2="22" y2="10" />
               </svg>
-            </div>
-            <span className={`text-[11px] font-bold mt-1 tracking-wide transition-all ${
-              activePanel === 'list' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'
-            }`}>
-              Cards
-            </span>
-          </button>
-          <button
+            }
+          >
+          </NavigationBarItem>
+          <NavigationBarItem
             id="nav-detail"
             onClick={() => {
               const nextIndex = ensureVisibleSelection();
@@ -1385,25 +1376,17 @@ function App() {
               }
             }}
             disabled={visibleIndexes.length === 0}
-            className="flex-1 flex flex-col items-center justify-center h-full disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-          >
-            <div className={`flex items-center justify-center w-14 h-7 rounded-xl transition-all ${
-              activePanel === 'detail'
-                ? 'bg-m3-primary-container text-m3-on-primary-container border border-m3-primary/20 shadow-sm'
-                : 'text-m3-on-surface-variant hover:bg-m3-surface-container-low'
-            }`}>
+            selected={activePanel === 'detail'}
+            label="Checkout"
+            icon={
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 5v14M9 5v14M13 5v14M17 5v14M20 5v14" />
               </svg>
-            </div>
-            <span className={`text-[11px] font-bold mt-1 tracking-wide transition-all ${
-              activePanel === 'detail' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'
-            }`}>
-              Checkout
-            </span>
-          </button>
+            }
+          >
+          </NavigationBarItem>
         </div>
-      </nav>
+      </NavigationBar>
 
       <div 
         className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pb-24 md:pb-12 antialiased font-sans relative"
@@ -1479,28 +1462,14 @@ function App() {
                       const card = cards[cardIndex];
                       const isSelected = selectedCardIndex === cardIndex;
                       return (
-                        <div
+                        <ListItem
                           key={card.cardNumber}
-                          role="button"
-                          tabIndex={0}
+                          selected={isSelected}
+                          used={card.used}
                           onClick={() => {
                             setSelectedCardIndex(cardIndex);
                             setActivePanel('detail');
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              setSelectedCardIndex(cardIndex);
-                              setActivePanel('detail');
-                            }
-                          }}
-                          className={`flex items-center justify-between py-2 px-4 rounded-xl border transition-all gap-4 cursor-pointer h-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary ${
-                            isSelected
-                              ? 'border-m3-outline-variant/30 bg-m3-surface-container-high text-m3-on-surface'
-                              : card.used
-                                ? 'border-m3-outline-variant/10 bg-m3-surface-container-low/40 text-m3-on-surface-variant hover:bg-m3-surface-container hover:border-m3-outline-variant/20'
-                                : 'border-m3-outline-variant/15 bg-m3-surface-container-lowest text-m3-on-surface hover:bg-m3-surface-container-low hover:border-m3-outline-variant/30'
-                          }`}
                         >
                           <div className="flex items-center gap-2">
                             <span className={`text-sm font-medium ${card.used ? 'line-through decoration-m3-on-surface-variant/60' : ''}`}>
@@ -1522,7 +1491,7 @@ function App() {
                               ${card.currentBalance.toFixed(2)}
                             </span>
                           </div>
-                        </div>
+                        </ListItem>
                       );
                     })
                   )}
