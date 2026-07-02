@@ -7,7 +7,7 @@ Scope: Walmart-GC GPT to agy handoff prompts
 Use these templates when GPT hands off bounded repo work to agy CLI. Agy does not have ChatGPT context, so each prompt must be self-contained.
 
 ## Instructions Formatting Default
-GPT instructions for executing these prompts should normally be provided as a single copy/paste terminal block. This block should write the prompt text to `/tmp/prompt.txt`, run agy redirecting to a local task log, and run verification command(s), relying on Issue #200 for follow-up review. Avoid asking the user to paste back output unless the sync fails, Issue #200 is stale, or local failure details are needed. This remains a practical default rather than an absolute rule.
+GPT instructions for executing these prompts should normally be provided as a single copy/paste terminal block. This block should write the prompt text to `/tmp/prompt.txt`, write the compact handoff to `/tmp/handoff.md` or stdin, post a new Issue #200 comment with `~/Project/bin/issue-handoff`, and run verification command(s). Avoid asking the user to paste back output unless the comment post fails, Issue #200 is stale, or local failure details are needed. This remains a practical default rather than an absolute rule.
 
 ## Milestone implementation batch
 
@@ -39,7 +39,7 @@ Verification:
 - git status --short
 
 Handoff:
-Write a concise summary to ~/Project/AI_HANDOFF.md, then run ~/Project/bin/agy-handoff. State files changed, docs updated, build/diff/status results, grep results if relevant, screenshot QA notes if relevant, and unresolved risks.
+Write a concise summary to `/tmp/handoff.md` or pipe it to `~/Project/bin/issue-handoff`. State files changed, docs updated, build/diff/status results, grep results if relevant, screenshot QA notes if relevant, and unresolved risks.
 
 Stop/reassess if:
 - brittle offsets or viewport hacks are needed
@@ -77,7 +77,7 @@ Verification:
 - git status --short
 
 Handoff:
-Write a concise summary to ~/Project/AI_HANDOFF.md, then run ~/Project/bin/agy-handoff. State docs changed, durable decisions captured, diff-check result, git status, and unresolved risks.
+Write a concise summary to `/tmp/handoff.md` or pipe it to `~/Project/bin/issue-handoff`. State docs changed, durable decisions captured, diff-check result, git status, and unresolved risks.
 ```
 
 ## Verification-only pass
@@ -139,5 +139,5 @@ Verification:
 - git status --short
 
 Handoff:
-Write a concise summary to ~/Project/AI_HANDOFF.md, then run ~/Project/bin/agy-handoff. State files changed, visual changes made, build/diff/status results, remaining QA risks, and whether docs need updating.
+Write a concise summary to `/tmp/handoff.md` or pipe it to `~/Project/bin/issue-handoff`. State files changed, visual changes made, build/diff/status results, remaining QA risks, and whether docs need updating.
 ```

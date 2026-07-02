@@ -27,10 +27,10 @@ To ensure workspace integrity and prevent terminal crashes or git corruptions on
 
 ### Phase A: Edit & Verify (Codex / Model Execution)
 - AI agents edit files and perform local verification inside the workspace.
-- **Scope**: Codex CLI / interactive is the preferred implementer/verifier. It may perform scoped sync, branch creation, edits, checks, commits, feature-branch pushes, PR creation, and Issue #200 updates when explicitly prompted and when the branch scope is clear.
+- **Scope**: Codex CLI / interactive is the preferred implementer/verifier. It may perform scoped sync, branch creation, edits, checks, commits, feature-branch pushes, PR creation, and Issue #200 comment updates when explicitly prompted and when the branch scope is clear.
 - **Hard Stop**: Agents must NOT merge PRs, push `main`, start/stop T2, or touch worker/sync/storage/package/config files unless the task explicitly scopes them.
 - **Stop Point**: Codex stops after creating a scoped branch, local verification, commit, push, and PR handoff; humans remain the merge and QA gate.
-- **Handoff**: Agents must terminate their turn by writing the final run status to [~/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md) and running the update helper `~/Project/bin/agy-handoff` to sync with GitHub Issue #200.
+- **Handoff**: Agents must terminate their turn by writing the final run status to `/tmp/handoff.md` or piping stdin into `~/Project/bin/issue-handoff` to post a new Issue #200 comment. `~/Project/bin/agy-handoff` remains only as a compatibility shim.
 
 ### Phase B: Review & Merge (Human Execution)
 - The human operator reviews the git diff, statuses, and build success locally.
@@ -75,8 +75,8 @@ To ensure workspace integrity and prevent terminal crashes or git corruptions on
 
 If external git operations or terminal commands change the workspace state after the latest handoff:
 1. Re-run local verification commands to check stability.
-2. Update the local handoff file [~/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md).
-3. Execute `~/Project/bin/agy-handoff` to sync the state to GitHub Issue #200 before recommending further steps.
+2. Write the compact run-state to `/tmp/handoff.md` or pipe it directly into `~/Project/bin/issue-handoff`.
+3. Post a new Issue #200 comment before recommending further steps.
 
 ---
 
