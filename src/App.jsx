@@ -5,6 +5,8 @@ import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData } from './lib/csv';
 import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
 import { Button } from './components/primitives/Button';
+import { IconButton } from './components/primitives/IconButton';
+import { Settings2, X } from 'lucide-react';
 
 function isCardsHeaderError(message) {
   return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
@@ -1234,7 +1236,7 @@ function App() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <Button
+            <IconButton
               id="open-settings"
               onClick={() => {
                 if (activePanel === 'settings') {
@@ -1244,9 +1246,9 @@ function App() {
                   setActivePanel('settings');
                 }
               }}
-              variant={activePanel === 'settings' ? 'elevated' : 'tonal'}
-              density="compact"
-              className={`w-10 h-10 md:w-11 md:h-11 text-lg md:text-xl ${
+              variant={activePanel === 'settings' ? 'tonal' : 'standard'}
+              size="compact"
+              className={`md:text-xl ${
                 activePanel === 'settings'
                   ? 'bg-m3-on-primary text-m3-primary border-m3-on-primary'
                   : 'bg-m3-primary-container text-m3-on-primary-container border-m3-on-primary-container/20 opacity-50 hover:opacity-100'
@@ -1255,8 +1257,8 @@ function App() {
               aria-label="Open settings"
               aria-expanded={activePanel === 'settings'}
             >
-              ⚙️
-            </Button>
+              <Settings2 className="size-5" aria-hidden="true" />
+            </IconButton>
           </div>
         </div>
       </header>
@@ -2196,15 +2198,15 @@ function App() {
             aria-labelledby="balance-modal-title"
           >
             {/* Close Button */}
-            <Button
+            <IconButton
               onClick={handleCancelBalanceEdit}
-              variant="text"
-              density="compact"
-              className="absolute top-2 right-2 w-12 h-12 text-lg"
+              variant="standard"
+              size="standard"
+              className="absolute top-2 right-2"
               aria-label="Close update balance modal"
             >
-              ✕
-            </Button>
+              <X className="size-5" aria-hidden="true" />
+            </IconButton>
 
             <h2 id="balance-modal-title" className="text-lg font-bold text-m3-on-surface border-b border-m3-outline-variant/20 pb-2">
               Update Balance
