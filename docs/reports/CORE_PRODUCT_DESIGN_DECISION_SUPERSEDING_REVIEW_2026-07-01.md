@@ -5,6 +5,9 @@
 **Active Branch:** `features/core-product-design-report`  
 **Status:** Review Draft (Superseding Proposal)  
 
+> [!NOTE]
+> Historical shadcn references in this report are superseded by commit `889397a`, which removed shadcn from the active project. They are retained here as design-history evidence only; current UI guidance is the project-owned strict-M3 React/Tailwind path documented in `docs/M3_DESIGN_DECISIONS.md`.
+
 ---
 
 ## 1. Executive Summary
@@ -26,7 +29,7 @@ All core product and design decisions are reopened for review in this document. 
 7. **Fine-Pointer Copy on Click:** Optimize desktop checkout by copying a single unified `CODE/PIN` clipboard string when clicking displayed digits, while keeping touch-first elements primary on mobile.
 8. **Bounded Non-Cycling Swipe Navigation:** Prevent card selection navigation from wrapping around at list boundaries, preserving predictable layout limits.
 9. **Discretionary Troubleshooting Container:** Group all technical logs, sheet bindings, and same-origin worker connection states inside a single, collapsed M3 Troubleshooting card.
-10. **Custom Localized Shadcn Primitives:** Override stock shadcn default styles in `src/components/ui/` to enforce rounded-3xl corners, standard M3 tonal color surfaces, and 48px+ touch targets.
+10. **Custom Localized Shadcn Primitives:** Override stock shadcn default styles in `src/components/ui/` to enforce rounded-3xl corners, standard M3 tonal color surfaces, and 48px+ touch targets. *Historical note: superseded by commit `889397a`.*
 
 ### Top 10 Stale / Conflicting Assumptions to Clean Up
 1. *Walmart-Only Boundary:* Prior docs assume the app only works with Walmart; card-level schema and barcode logic should generalize.

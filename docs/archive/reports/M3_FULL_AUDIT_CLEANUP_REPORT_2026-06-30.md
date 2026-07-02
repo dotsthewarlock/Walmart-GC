@@ -1,5 +1,8 @@
 # M3 full audit and cleanup recommendations report
 
+> [!NOTE]
+> Historical shadcn references in this audit predate commit `889397a`, which removed shadcn from the active project. Keep the findings as historical evidence only; current UI guidance is documented in `docs/M3_DESIGN_DECISIONS.md` and the project-owned strict-M3 React/Tailwind implementation.
+
 ## 1. Executive summary
 The `dotsthewarlock/Walmart-GC` React 19 + Vite + Tailwind CSS refactor is in an exceptionally strong state. Core layout patterns, mobile-first design choices, and locked interface decisions (such as the removal of dashboard clutter and full-screen modals) align remarkably well with a modern, responsive user experience. The Vite-backed build compile is incredibly fast and yields lightweight production assets (266 kB Javascript and 44 kB CSS) with zero compilation errors.
 

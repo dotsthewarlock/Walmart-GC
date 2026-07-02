@@ -2,6 +2,8 @@
 
 Archived docs are retained for historical reference only. They are not the current implementation source of truth and should not be read for normal tasks.
 
+Historical shadcn references in archived reports are superseded by commit `889397a`, which removed shadcn from the active project. Current UI guidance lives in `docs/M3_DESIGN_DECISIONS.md` and project-owned strict-M3 React/Tailwind primitives.
+
 Use archived docs only when:
 
 - an exact live error string points to an old path,
