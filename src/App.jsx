@@ -6,6 +6,10 @@ import { cardsToCsv, parseRawCardData } from './lib/csv';
 import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
 import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
+import { SelectField } from './components/primitives/SelectField';
+import { Switch } from './components/primitives/Switch';
+import { TextArea } from './components/primitives/TextArea';
+import { TextField } from './components/primitives/TextField';
 import { Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
 
@@ -1532,7 +1536,7 @@ function App() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Sort Order</span>
-                      <select
+                      <SelectField
                         value={settings.sortMode}
                         onChange={handleSortChange}
                         aria-label="Sort gift cards"
@@ -1546,12 +1550,12 @@ function App() {
                         <option value="date-added-desc">Date added ↓</option>
                         <option value="date-updated-asc">Date updated ↑</option>
                         <option value="card-number">Card #</option>
-                      </select>
+                      </SelectField>
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Appearance</span>
-                      <select
+                      <SelectField
                         value={settings.themeMode || "system"}
                         onChange={handleThemeModeChange}
                         className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer text-center [text-align-last:center]"
@@ -1559,7 +1563,7 @@ function App() {
                         <option value="system">System (Auto)</option>
                         <option value="light">Light Mode</option>
                         <option value="dark">Dark Mode</option>
-                      </select>
+                      </SelectField>
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
@@ -1567,58 +1571,22 @@ function App() {
                         <span>Checkout auto-dark</span>
                         <span className="text-[10px] text-m3-on-surface-variant font-normal">Overrides Appearance on Checkout</span>
                       </div>
-                      <div className="relative w-[44px] h-[26px] shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.checkoutDark}
-                          onChange={() => handleToggleSetting('checkoutDark')}
-                          className="sr-only peer"
-                        />
-                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                      </div>
+                      <Switch checked={settings.checkoutDark} onChange={() => handleToggleSetting('checkoutDark')} />
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Hide Used Cards</span>
-                      <div className="relative w-[44px] h-[26px] shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.hideUsedCards}
-                          onChange={() => handleToggleSetting('hideUsedCards')}
-                          className="sr-only peer"
-                        />
-                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                      </div>
+                      <Switch checked={settings.hideUsedCards} onChange={() => handleToggleSetting('hideUsedCards')} />
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Hide $0 Cards</span>
-                      <div className="relative w-[44px] h-[26px] shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.hideZeroBalanceCards}
-                          onChange={() => handleToggleSetting('hideZeroBalanceCards')}
-                          className="sr-only peer"
-                        />
-                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                      </div>
+                      <Switch checked={settings.hideZeroBalanceCards} onChange={() => handleToggleSetting('hideZeroBalanceCards')} />
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Auto-Advance</span>
-                      <div className="relative w-[44px] h-[26px] shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.advanceOnMarkUsed}
-                          onChange={() => handleToggleSetting('advanceOnMarkUsed')}
-                          className="sr-only peer"
-                        />
-                        <div className="w-full h-full bg-m3-outline-variant/30 border border-m3-outline rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-m3-primary peer-focus-visible:ring-offset-2 peer-checked:bg-m3-primary peer-checked:border-m3-primary"></div>
-                        <div className="absolute top-1/2 -translate-y-1/2 left-[4px] w-[14px] h-[14px] bg-m3-outline rounded-full transition-all duration-200 peer-checked:translate-x-[18px] peer-checked:w-[20px] peer-checked:h-[20px] peer-checked:bg-m3-on-primary peer-checked:left-[3px]"></div>
-                      </div>
+                      <Switch checked={settings.advanceOnMarkUsed} onChange={() => handleToggleSetting('advanceOnMarkUsed')} />
                     </label>
 
                     {zeroBalanceCount > 0 && (
@@ -2153,7 +2121,7 @@ function App() {
                     
                     {isEditingNotes ? (
                       <div className="flex flex-col gap-2 mt-1">
-                        <textarea
+                        <TextArea
                           value={newNotesValue}
                           onChange={e => setNewNotesValue(e.target.value)}
                           className="w-full text-sm bg-m3-surface border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none transition-all duration-200 min-h-[80px]"
@@ -2254,7 +2222,7 @@ function App() {
                 <label htmlFor="amount-used-input" className="text-xs font-bold text-m3-outline uppercase tracking-wider">
                   Amount Used
                 </label>
-                <input
+                <TextField
                   id="amount-used-input"
                   type="number"
                   step="0.01"
@@ -2270,7 +2238,7 @@ function App() {
                 <label htmlFor="balance-input" className="text-xs font-bold text-m3-outline uppercase tracking-wider">
                   Remaining Balance
                 </label>
-                <input
+                <TextField
                   id="balance-input"
                   type="number"
                   step="0.01"
@@ -2330,7 +2298,7 @@ function App() {
               <label htmlFor="raw-data-input" className="text-xs font-bold text-m3-outline uppercase">
                 Raw CSV card data
               </label>
-              <textarea
+              <TextArea
                 id="raw-data-input"
                 className="w-full text-xs border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none bg-m3-surface-container disabled:bg-m3-surface-container-low text-m3-on-surface disabled:text-m3-on-surface-variant/75 leading-relaxed transition-all duration-200"
                 spellCheck="false"
