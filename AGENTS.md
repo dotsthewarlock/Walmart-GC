@@ -17,6 +17,7 @@ For current system state, architecture, design authority, and data schemas, foll
    - Prefer the smallest safe change that achieves the goal.
    - Flag security, deployment, OAuth, session, schema, migration, sync, or user-data risks before implementation.
 5. **Workflow Preference**: Prefer Codex CLI / Codex interactive for bounded repo implementation and verification. Use T1 for lightweight exact commands, quick checks, emergency recovery, or user-requested terminal truth. Use interactive Agy only when GPT strongly recommends it or the user explicitly asks.
+6. **Low-Friction Style**: Primary priority is low safe user friction. Batch commands where safe, use internally sliced tasks, include self-checks, and avoid microsteps or drip-fed commands. GPT should prefer one complete scoped Codex prompt per task or phase.
 
 ---
 
@@ -28,6 +29,7 @@ To ensure workspace integrity and prevent terminal crashes or git corruptions on
 - AI agents edit files and perform local verification inside the workspace.
 - **Scope**: Codex CLI / interactive is the preferred implementer/verifier. It may perform scoped sync, branch creation, edits, checks, commits, feature-branch pushes, PR creation, and Issue #200 updates when explicitly prompted and when the branch scope is clear.
 - **Hard Stop**: Agents must NOT merge PRs, push `main`, start/stop T2, or touch worker/sync/storage/package/config files unless the task explicitly scopes them.
+- **Stop Point**: Codex stops after creating a scoped branch, local verification, commit, push, and PR handoff; humans remain the merge and QA gate.
 - **Handoff**: Agents must terminate their turn by writing the final run status to [~/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md) and running the update helper `~/Project/bin/agy-handoff` to sync with GitHub Issue #200.
 
 ### Phase B: Review & Merge (Human Execution)
