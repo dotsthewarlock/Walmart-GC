@@ -19,6 +19,7 @@ Default local command shape:
 - Provide instructions as a single copy/paste terminal block: write the full prompt to `/tmp/prompt.txt`, write the compact handoff to `/tmp/handoff.md` or stdin, post the comment with `~/Project/bin/issue-handoff`, and run compact verification (e.g. `npm run build`, `git diff --check`, `git status --short`).
 - Avoid splitting instructions into separate run + paste-back/check-output blocks. Rely on the newest Issue #200 comment for follow-up review.
 - Ask the user to paste terminal output back only if the comment post fails, Issue #200 is stale/unavailable, or local-only failure details are needed. Keep this as a practical default, not an absolute rule.
+- Cleanup is explicit only: use `issue-handoff --dry-run-cleanup` to inspect the keep set, then `--cleanup` only when archive/minimize is intended.
 - Do not background agy or use setsid.
 
 Required verification:
@@ -43,6 +44,7 @@ Durable AI Handoff Workflow:
 - Every run/call must end by writing the final handoff to `/tmp/handoff.md` or stdin and posting a new Issue #200 comment with `~/Project/bin/issue-handoff`.
 - `~/Project/bin/agy-handoff` remains a compatibility shim only; it warns and delegates to `issue-handoff`.
 - If non-terminal or GitHub actions materially change state after the latest handoff, post a new Issue #200 comment before asking GPT for more next-step guidance.
+- Issue #200 comment cleanup is explicit only, with the newest handoff current and the latest 3 as the ambiguity window.
 - Raw logs stay local in `~/Project/*.log` and are only for backup/debug/diagnostics.
 - **Durability & Cleanup**:
   - After each task, reassess whether the run created a durable decision and advise the user when durable repo docs should be updated.
