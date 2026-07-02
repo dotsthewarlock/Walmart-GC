@@ -4,6 +4,7 @@ import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData } from './lib/csv';
 import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
+import { Button } from './components/primitives/Button';
 
 function isCardsHeaderError(message) {
   return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
@@ -118,57 +119,30 @@ function ActionIcon({ name }) {
 }
 
 function ActionButton({ id, onClick, icon, label, className = "", href, target, rel, disabled, variant = "tonal", compact }) {
-  // Variants mapping:
-  // - primary: M3 Filled Button (high emphasis)
-  // - tonal: M3 Filled Tonal Button (medium emphasis)
-  // - outlined: M3 Outlined Button (low-medium emphasis)
-  let variantClass = "";
-  if (variant === "primary") {
-    variantClass = "bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary border border-transparent shadow-sm";
-  } else if (variant === "outlined") {
-    variantClass = "bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant hover:text-m3-on-surface border border-m3-outline-variant";
-  } else {
-    // tonal (default)
-    variantClass = "bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 shadow-none";
-  }
-
-  const paddingClass = compact
-    ? "py-2 px-3 rounded-lg min-h-[38px] font-medium"
-    : "py-3.5 px-4 rounded-xl font-bold min-h-[44px]";
-
-  const baseClass = `w-full text-center flex items-center justify-center text-xs transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 gap-2 select-none disabled:opacity-50 disabled:cursor-not-allowed ${paddingClass} ${variantClass}`;
-
   const content = (
     <>
       {icon && <ActionIcon name={icon} />}
       <span>{label}</span>
     </>
   );
-
-  if (href) {
-    return (
-      <a
-        id={id}
-        href={href}
-        target={target}
-        rel={rel}
-        className={`${baseClass} ${className}`}
-      >
-        {content}
-      </a>
-    );
-  }
+  const mappedVariant = variant === "primary" ? "filled" : variant === "outlined" ? "outlined" : "tonal";
+  const density = compact ? "compact" : "standard";
 
   return (
-    <button
+    <Button
       id={id}
       onClick={onClick}
       disabled={disabled}
-      className={`${baseClass} ${className}`}
+      href={href}
+      target={target}
+      rel={rel}
+      variant={mappedVariant}
+      density={density}
+      className={`w-full justify-center ${className}`}
       type="button"
     >
       {content}
-    </button>
+    </Button>
   );
 }
 
@@ -1260,7 +1234,7 @@ function App() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <Button
               id="open-settings"
               onClick={() => {
                 if (activePanel === 'settings') {
@@ -1270,7 +1244,9 @@ function App() {
                   setActivePanel('settings');
                 }
               }}
-              className={`w-10 h-10 md:w-11 md:h-11 border rounded-full flex items-center justify-center text-lg md:text-xl transition-all active:scale-95 shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-on-primary focus-visible:ring-offset-2 ${
+              variant={activePanel === 'settings' ? 'elevated' : 'tonal'}
+              density="compact"
+              className={`w-10 h-10 md:w-11 md:h-11 text-lg md:text-xl ${
                 activePanel === 'settings'
                   ? 'bg-m3-on-primary text-m3-primary border-m3-on-primary'
                   : 'bg-m3-primary-container text-m3-on-primary-container border-m3-on-primary-container/20 opacity-50 hover:opacity-100'
@@ -1280,7 +1256,7 @@ function App() {
               aria-expanded={activePanel === 'settings'}
             >
               ⚙️
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -1459,20 +1435,22 @@ function App() {
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center mt-1">
-                        <button
+                        <Button
                           onClick={handleResetFilters}
-                          className="flex-1 bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-full transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary"
-                          type="button"
+                          variant="filled"
+                          density="standard"
+                          className="flex-1"
                         >
                           Reset Filters
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => setActivePanel('settings')}
-                          className="flex-1 bg-m3-surface hover:bg-m3-surface-container text-m3-on-surface text-xs font-bold py-3 px-4 rounded-full border border-m3-outline transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary"
-                          type="button"
+                          variant="outlined"
+                          density="standard"
+                          className="flex-1"
                         >
                           Go to Settings
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -1681,14 +1659,15 @@ function App() {
 
                         {/* Disconnect Action */}
                         <div className="px-2">
-                          <button
+                          <Button
                             id="disconnect-google"
                             onClick={handleDisconnectGoogle}
-                            className="w-full sm:w-auto self-start bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant text-xs font-medium py-2 px-3.5 rounded-lg border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
-                            type="button"
+                            variant="elevated"
+                            density="compact"
+                            className="w-full sm:w-auto self-start text-xs"
                           >
                             Disconnect
-                          </button>
+                          </Button>
                         </div>
 
                         <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-m3-outline-variant/20 w-full">
@@ -1909,14 +1888,15 @@ function App() {
                             <h4 className="text-xs font-medium text-m3-on-surface uppercase">Raw CSV Editor</h4>
                             <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
                           </div>
-                          <button
+                          <Button
                             id="open-raw-data-modal"
                             onClick={handleOpenRawEditor}
-                            className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-primary text-xs font-medium px-3 py-2 rounded-lg border border-m3-outline-variant/30 transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
-                            type="button"
+                            variant="elevated"
+                            density="compact"
+                            className="text-m3-primary shrink-0"
                           >
                             Open Editor
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -2124,16 +2104,16 @@ function App() {
                     <div className="flex justify-between items-center border-b border-m3-outline-variant/20 pb-1">
                       <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Notes</span>
                       {!isEditingNotes && (
-                        <button
+                        <Button
                           onClick={() => {
                             setNewNotesValue(selectedCard.notes || "");
                             setIsEditingNotes(true);
                           }}
-                          className="text-xs font-bold text-m3-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1 rounded-sm"
-                          type="button"
+                          variant="text"
+                          density="compact"
                         >
                           {selectedCard.notes ? "Edit" : "Add Note"}
-                        </button>
+                        </Button>
                       )}
                     </div>
                     
@@ -2146,7 +2126,7 @@ function App() {
                           placeholder="Add card notes..."
                         />
                         <div className="flex gap-2 justify-end">
-                          <button
+                          <Button
                             onClick={() => {
                               const updatedCards = cards.map((c, idx) => {
                                 if (idx === selectedCardIndex) {
@@ -2161,18 +2141,18 @@ function App() {
                               saveCards(updatedCards);
                               setIsEditingNotes(false);
                             }}
-                            className="bg-m3-primary hover:bg-m3-primary/95 text-m3-on-primary font-bold px-4 py-2.5 rounded-full text-xs transition-all shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                            type="button"
+                            variant="filled"
+                            density="compact"
                           >
                             Save Notes
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => setIsEditingNotes(false)}
-                            className="bg-m3-surface-container-low hover:bg-m3-surface-container text-m3-on-surface-variant border border-m3-outline-variant font-bold px-4 py-2.5 rounded-full text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                            type="button"
+                            variant="outlined"
+                            density="compact"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -2216,14 +2196,15 @@ function App() {
             aria-labelledby="balance-modal-title"
           >
             {/* Close Button */}
-            <button
+            <Button
               onClick={handleCancelBalanceEdit}
-              className="absolute top-2 right-2 text-m3-outline hover:text-m3-on-surface hover:bg-m3-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 font-bold text-lg cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-              type="button"
+              variant="text"
+              density="compact"
+              className="absolute top-2 right-2 w-12 h-12 text-lg"
               aria-label="Close update balance modal"
             >
               ✕
-            </button>
+            </Button>
 
             <h2 id="balance-modal-title" className="text-lg font-bold text-m3-on-surface border-b border-m3-outline-variant/20 pb-2">
               Update Balance
@@ -2274,22 +2255,22 @@ function App() {
             </div>
 
             <div className="flex gap-2 justify-end border-t border-m3-outline-variant/20 pt-4 mt-2">
-              <button
+              <Button
                 id="cancel-balance-update"
                 onClick={handleCancelBalanceEdit}
-                className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface-variant font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                type="button"
+                variant="outlined"
+                density="standard"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 id="save-balance-update"
                 onClick={handleSaveBalance}
-                className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                type="button"
+                variant="filled"
+                density="standard"
               >
                 Save
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -2345,51 +2326,51 @@ function App() {
             {/* Actions panel */}
             <div className="flex flex-col gap-3 border-t border-m3-outline-variant/20 pt-4 mt-2">
               <div className="flex gap-2">
-                <button 
+                <Button
                   id="toggle-data-lock" 
                   onClick={() => setIsRawDataLocked(!isRawDataLocked)}
-                  className="bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface font-bold py-3.5 px-4 rounded-xl text-xs transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                  type="button" 
+                  variant="elevated"
+                  density="compact"
                   title={isRawDataLocked ? "Raw CSV editor locked" : "Raw CSV editor unlocked"}
                 >
                   {isRawDataLocked ? "Unlock 🔓" : "Lock 🔒"}
-                </button>
+                </Button>
                 
-                <button 
+                <Button
                   id="refresh-card-data" 
                   onClick={handleRefreshRawEditor}
-                  className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-on-surface-variant font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                  type="button"
+                  variant="outlined"
+                  density="compact"
                 >
                   Refresh
-                </button>
-                <button 
+                </Button>
+                <Button
                   id="update-card-data" 
                   onClick={handleUpdateRawEditor}
-                  className="bg-m3-surface-container-lowest hover:bg-m3-surface-container-low text-m3-on-surface-variant font-bold py-3.5 px-4 rounded-xl text-xs border border-m3-outline-variant/30 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                  type="button"
+                  variant="outlined"
+                  density="compact"
                 >
                   Update
-                </button>
+                </Button>
               </div>
 
               <div className="flex gap-2 justify-end">
-                <button 
+                <Button
                   id="cancel-raw-data-update" 
                   onClick={() => setIsRawDataModalOpen(false)}
-                  className="bg-m3-surface-container-high hover:bg-m3-surface-container-highest text-m3-on-surface-variant font-bold py-3 px-5 rounded-full text-xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                  type="button"
+                  variant="elevated"
+                  density="standard"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button
                   id="done-raw-data-update" 
                   onClick={handleDoneRawEditor}
-                  className="bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary font-bold py-3 px-6 rounded-full text-xs transition-all active:scale-95 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                  type="button"
+                  variant="filled"
+                  density="standard"
                 >
                   Done
-                </button>
+                </Button>
               </div>
             </div>
           </div>
