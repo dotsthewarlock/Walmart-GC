@@ -31,6 +31,7 @@ To ensure workspace integrity and prevent terminal crashes or git corruptions on
 - **Hard Stop**: Agents must NOT merge PRs, push `main`, start/stop T2, or touch worker/sync/storage/package/config files unless the task explicitly scopes them.
 - **Stop Point**: Codex stops after creating a scoped branch, local verification, commit, push, and PR handoff; humans remain the merge and QA gate.
 - **Handoff**: Agents must terminate their turn by writing the final run status to `/tmp/handoff.md` or piping stdin into `~/Project/bin/issue-handoff` to post a new Issue #200 comment. `~/Project/bin/agy-handoff` remains only as a compatibility shim.
+- **Cleanup**: Comment pruning is explicit only. Use `~/Project/bin/issue-handoff --dry-run-cleanup` to inspect the keep set and `--cleanup` only when intentional.
 
 ### Phase B: Review & Merge (Human Execution)
 - The human operator reviews the git diff, statuses, and build success locally.
@@ -76,7 +77,7 @@ To ensure workspace integrity and prevent terminal crashes or git corruptions on
 If external git operations or terminal commands change the workspace state after the latest handoff:
 1. Re-run local verification commands to check stability.
 2. Write the compact run-state to `/tmp/handoff.md` or pipe it directly into `~/Project/bin/issue-handoff`.
-3. Post a new Issue #200 comment before recommending further steps.
+3. Post a new Issue #200 comment before recommending further steps. If cleanup is needed, do it explicitly with `issue-handoff --cleanup` after posting or verifying an archive summary.
 
 ---
 

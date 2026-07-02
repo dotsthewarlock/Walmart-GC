@@ -81,6 +81,7 @@ Issue #200 is the active run-state handoff ledger for GPT/Codex/T1 coordination.
 - If connector use is not allowed, the latest #200 handoff should be pasted into GPT.
 - Default reading window: newest timestamped `Active Handoff` comment. If ambiguous, compare the latest 3; older comments are historical unless debugging prior branch, PR, or CI history.
 - `~/Project/AI_HANDOFF.md` is legacy compatibility only, not current state or authority.
+- Comment cleanup is explicit only. Use `issue-handoff --dry-run-cleanup` first, then `--cleanup` only when intentionally archiving older stale handoffs.
 - Durable decisions belong in repo docs, not in #200 or chat logs.
 - Durable authority remains, in order: `origin/main` code, `docs/ACTIVE_CONTEXT.md`, `docs/M3_DESIGN_DECISIONS.md`, `docs/reference/M3_Core_Guidelines.md`.
 
