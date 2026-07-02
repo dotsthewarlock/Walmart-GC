@@ -12,6 +12,8 @@ If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
 3. **Architecture & Schema**: Review [ARCHITECTURE.md](ARCHITECTURE.md) for data schemas, sync APIs, and session cookies.
 4. **Design Authority**: Review [M3_DESIGN_DECISIONS.md](M3_DESIGN_DECISIONS.md) for Material 3 UI component layouts, typography, and visual rules.
 5. **Future Plans**: Consult [ROADMAP.md](ROADMAP.md) for planned features and boundaries. Do not write code or create TODOs for Lane 3/4 items.
+6. **Workflow Preference**: Prefer Codex CLI / Codex interactive for bounded repo implementation and verification work. Use T1 for lightweight exact commands, quick checks, emergency recovery, or user-requested terminal truth. Use Agy interactive only when GPT strongly recommends it or the user explicitly asks.
+7. **Low-Friction Style**: Primary priority is low safe user friction. Batch commands where safe, use internally sliced tasks, include self-checks, and avoid microsteps or drip-fed commands. GPT should prefer one complete scoped Codex prompt per task or phase.
 
 ---
 
@@ -66,7 +68,7 @@ GC Wallet uses a static frontend backed by a serverless Cloudflare Worker proxy 
     trap 'kill $(jobs -p)' EXIT
     (npm run dev & npx wrangler dev worker/src/index.js --port 8787 & wait)
     ```
-- **T3 = AI Workspace (Agy CLI / GPT)**: Automated development, checking, and documentation updates following operating rules in [AGENTS.md](../AGENTS.md).
+- **T3 = AI Workspace (Codex CLI / interactive, Agy exception path)**: Scoped repo implementation, checking, documentation updates, and handoff work. Prefer Codex for normal bounded tasks; use Agy only when explicitly requested or when GPT recommends it.
 
 ---
 
@@ -77,6 +79,8 @@ Issue #200 is the active run-state handoff ledger for GPT/Codex/T1 coordination.
 - Codex/T1 updates #200 after meaningful runs with timestamp, branch, PR status, checks, QA, risks, next step, and do-not-do guardrails.
 - GPT reviews the latest #200 handoff before next-step implementation guidance only when GitHub connector use is explicitly allowed.
 - If connector use is not allowed, the latest #200 handoff should be pasted into GPT.
+- Default reading window: newest timestamped `Active Handoff` comment. If ambiguous, compare the latest 3; older comments are historical unless debugging prior branch, PR, or CI history.
+- Durable decisions belong in repo docs, not in #200 or chat logs.
 - Durable authority remains, in order: `origin/main` code, `docs/ACTIVE_CONTEXT.md`, `docs/M3_DESIGN_DECISIONS.md`, `docs/reference/M3_Core_Guidelines.md`.
 
 ---

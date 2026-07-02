@@ -16,6 +16,8 @@ For current system state, architecture, design authority, and data schemas, foll
    - Inspect current repository files before proposing implementation.
    - Prefer the smallest safe change that achieves the goal.
    - Flag security, deployment, OAuth, session, schema, migration, sync, or user-data risks before implementation.
+5. **Workflow Preference**: Prefer Codex CLI / Codex interactive for bounded repo implementation and verification. Use T1 for lightweight exact commands, quick checks, emergency recovery, or user-requested terminal truth. Use interactive Agy only when GPT strongly recommends it or the user explicitly asks.
+6. **Low-Friction Style**: Primary priority is low safe user friction. Batch commands where safe, use internally sliced tasks, include self-checks, and avoid microsteps or drip-fed commands. GPT should prefer one complete scoped Codex prompt per task or phase.
 
 ---
 
@@ -23,15 +25,17 @@ For current system state, architecture, design authority, and data schemas, foll
 
 To ensure workspace integrity and prevent terminal crashes or git corruptions on Chromebook-based environments, all agent tasks must split work into two separate phases:
 
-### Phase A: Edit & Verify (Model/Agy Execution)
+### Phase A: Edit & Verify (Codex / Model Execution)
 - AI agents edit files and perform local verification inside the workspace.
-- **Hard Stop**: Agents must NOT perform `git commit`, `git push`, or open/merge PRs.
+- **Scope**: Codex CLI / interactive is the preferred implementer/verifier. It may perform scoped sync, branch creation, edits, checks, commits, feature-branch pushes, PR creation, and Issue #200 updates when explicitly prompted and when the branch scope is clear.
+- **Hard Stop**: Agents must NOT merge PRs, push `main`, start/stop T2, or touch worker/sync/storage/package/config files unless the task explicitly scopes them.
+- **Stop Point**: Codex stops after creating a scoped branch, local verification, commit, push, and PR handoff; humans remain the merge and QA gate.
 - **Handoff**: Agents must terminate their turn by writing the final run status to [~/Project/AI_HANDOFF.md](file:///home/godfreymiu/Project/AI_HANDOFF.md) and running the update helper `~/Project/bin/agy-handoff` to sync with GitHub Issue #200.
 
-### Phase B: Commit & Deploy (Human/Terminal Execution)
+### Phase B: Review & Merge (Human Execution)
 - The human operator reviews the git diff, statuses, and build success locally.
-- Committing, pushing, PR creation, and merging are manually performed by the human operator using terminal commands or the GitHub web UI.
-- No AI model or Agy automation is run during Phase B.
+- Humans remain the final gate for risky scope approval, merge approval, UI/runtime QA, and protected-branch changes.
+- Codex may prepare feature branches and PRs, but humans handle final merge decisions.
 
 ---
 
@@ -49,9 +53,10 @@ To ensure workspace integrity and prevent terminal crashes or git corruptions on
 - **Planner / Reviewer (GPT)**:
   - Owns product logic, architectural guidance, data model specifications, and dev AI briefs.
   - Reviews implementation plans, diffs, and provides acceptance reviews.
-- **Developer / Executor (Agy CLI)**:
+- **Developer / Executor (Codex CLI / interactive; Agy exception path)**:
   - Local repo-aware implementer and verifier.
-  - Writes code, edits files, runs checks, reviews diffs, and prepares local handoffs.
+  - Writes code, edits files, runs checks, reviews diffs, prepares local handoffs, and can publish scoped feature branches / PRs when explicitly prompted.
+  - Agy is an exception path for cases where GPT explicitly recommends it or the user asks for it.
 
 ---
 
