@@ -93,6 +93,16 @@ Record of key decisions, architecture designs, user UX choices, and AI-made deci
     3. *Future Beta*: Camera-based add-card barcode scanning, merchant-dependent gift-card balance-check assist (best-effort, manual fallback, no broad credential capture, no CAPTCHA/scraping), merchant profile architecture, schema vNext planning, optional dedicated phone-app/PWA/native-wrapper.
     4. *Not Approved*: CAPTCHA-bypassing scrapers, automated balance checks requiring raw credentials, central database storage.
 
+### 12. Strict M3 Terminology and Semantic Primitive Standardization (2026-07-02)
+* **Context**: Preventing repo-local naming, repeated raw Tailwind strings, or temporary implementation patterns from becoming de facto design authority.
+* **Decision**:
+  - Treat strict Material Design 3 and industry-standard M3 terminology as the design authority for visible UI.
+  - Treat current repo class clusters, component names, and other implementation details as evidence only, not source of truth.
+  - Standardize high-repeat project-owned primitives over time, including buttons, icon buttons, headers, surfaces/cards, containers, list rows, chips/status indicators, navigation, checkout controls, and text fields.
+  - Define primitive APIs to cover variants, sizes and density, layout ownership, hover/focus/pressed/active/disabled states, touch targets, spacing, shape, hierarchy, and accessibility.
+  - Support future PWA, Android, and iOS portability through stable semantic component APIs rather than repeated raw Tailwind strings or repo-local terminology.
+  - Keep this as an audit-first, primitive-by-primitive guarded effort; do not use it to authorize broad redesigns or a native platform rewrite.
+
 ---
 
 ## Manual QA Verification Passes
