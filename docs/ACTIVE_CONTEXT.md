@@ -17,7 +17,7 @@ If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
 
 ## Current Basics
 - **Repository**: `dotsthewarlock/Walmart-GC`
-- **Active Branch**: `docs/ai-docs-cleanup` (PR 2: Documentation cleanup / AI-first structure optimization)
+- **Active Branch**: `main` (strict-M3 primitive milestone merged and audited; no active implementation branch)
 - **Base Branch**: `main` (React 19 + Vite + Tailwind CSS production candidate)
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
@@ -32,7 +32,8 @@ Our active development sequence is organized into highly structured Pull Request
 - **PR 1: Core Decisions Promotion** (Completed): Approved decisions (GC Wallet brand, passive inline barcode, no Focus Mode, privacy guardrails) successfully promoted into durable repository documentation.
 - **PR 2: AI-First Documentation Cleanup** (Completed): Consolidating files, removing duplication, establishing clear document ownership, and maximizing AI-context token efficiency.
 - **PR 3: Focus Mode Removal Implementation** (Completed): Refactoring `src/App.jsx` to completely remove Focus Mode state, event listeners, and scrim overlays, transitioning Checkout to the passive inline barcode display.
-- **PR 4: Near-Term Enhancements**: Next approved lane is production/source verification, smoke QA, and M3 polish for Cards/Settings. Schema, merchant-profile, camera-scan, balance-check, and infra rename work remain approval-gated.
+- **PR 4: Strict-M3 Primitive Migration** (Completed): Button, IconButton, Chip / StatusChip, form, containment, and list / navigation primitives are merged and audited on `main`.
+- **PR 5: Near-Term Enhancements**: Next approved lane is production/source verification, smoke QA, and M3 polish for Cards/Settings. Schema, merchant-profile, camera-scan, balance-check, and infra rename work remain approval-gated.
 
 ---
 
@@ -66,6 +67,17 @@ GC Wallet uses a static frontend backed by a serverless Cloudflare Worker proxy 
     (npm run dev & npx wrangler dev worker/src/index.js --port 8787 & wait)
     ```
 - **T3 = AI Workspace (Agy CLI / GPT)**: Automated development, checking, and documentation updates following operating rules in [AGENTS.md](../AGENTS.md).
+
+---
+
+## Run-State Handoff Ledger
+
+Issue #200 is the active run-state handoff ledger for GPT/Codex/T1 coordination. It is not durable product, design, or implementation authority.
+
+- Codex/T1 updates #200 after meaningful runs with timestamp, branch, PR status, checks, QA, risks, next step, and do-not-do guardrails.
+- GPT reviews the latest #200 handoff before next-step implementation guidance only when GitHub connector use is explicitly allowed.
+- If connector use is not allowed, the latest #200 handoff should be pasted into GPT.
+- Durable authority remains, in order: `origin/main` code, `docs/ACTIVE_CONTEXT.md`, `docs/M3_DESIGN_DECISIONS.md`, `docs/reference/M3_Core_Guidelines.md`.
 
 ---
 
