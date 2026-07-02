@@ -7,6 +7,7 @@ import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuse
 import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
 import { Settings2, X } from 'lucide-react';
+import { Chip, StatusChip } from './components/primitives/Chip';
 
 function isCardsHeaderError(message) {
   return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
@@ -53,6 +54,19 @@ function isDesktopCopyTarget() {
   return typeof window !== "undefined"
     && typeof window.matchMedia === "function"
     && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function getSyncChipStatus(summaryKey) {
+  if (summaryKey === 'connected') {
+    return 'success';
+  }
+  if (summaryKey === 'checking') {
+    return 'warning';
+  }
+  if (['conflict', 'unavailable', 'unsynced', 'error'].includes(summaryKey)) {
+    return 'danger';
+  }
+  return 'neutral';
 }
 
 async function writeClipboardText(text) {
@@ -1280,12 +1294,6 @@ function App() {
         }
 
         const isInteractive = ['local-only', 'conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key);
-        const dotClass = `w-1.5 h-1.5 rounded-full shrink-0 ${
-          summary.key === 'connected' ? 'bg-[#0f5132] dark:bg-[#a3cfbb]' :
-          summary.key === 'checking' ? 'bg-amber-500 animate-pulse' :
-          ['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key) ? 'bg-[#ba1a1a] dark:bg-[#ffb4ab]' :
-          'bg-m3-outline'
-        }`;
 
         return (
           <div
@@ -1298,25 +1306,29 @@ function App() {
 
             <div className="flex justify-center min-w-0">
               {isInteractive ? (
-                <button
+                <StatusChip
                   id="checkout-feedback-btn"
                   onClick={handleConnectGoogle}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-surface-container-low transition-colors duration-150 rounded-full px-2.5 py-0.5 border border-m3-outline-variant/30 min-w-0 cursor-pointer"
+                  size="compact"
+                  status={getSyncChipStatus(summary.key)}
+                  indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
+                  className="max-w-full min-w-0 cursor-pointer"
                   data-sync-summary={summary.key}
                   title="Connect Google Sync"
                 >
-                  <span className={dotClass} />
-                  <span className="truncate">{syncLabel}</span>
-                </button>
+                  {syncLabel}
+                </StatusChip>
               ) : (
-                <div
+                <StatusChip
                   id="checkout-feedback"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-m3-on-surface-variant rounded-full px-2.5 py-0.5 border border-m3-outline-variant/30 min-w-0"
+                  size="compact"
+                  status={getSyncChipStatus(summary.key)}
+                  indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
+                  className="max-w-full min-w-0"
                   data-sync-summary={summary.key}
                 >
-                  <span className={dotClass} />
-                  <span className="truncate">{syncLabel}</span>
-                </div>
+                  {syncLabel}
+                </StatusChip>
               )}
             </div>
 
@@ -1491,9 +1503,13 @@ function App() {
 
                           <div className="flex items-center gap-3">
                             {card.used && (
-                              <span className="text-[9px] font-medium bg-m3-surface-container-low text-m3-on-surface-variant px-1.5 py-0.5 rounded border border-m3-outline-variant/20 uppercase tracking-wider">
+                              <Chip
+                                variant="outlined"
+                                size="compact"
+                                className="uppercase tracking-wider"
+                              >
                                 Used
-                              </span>
+                              </Chip>
                             )}
                             <span className="text-sm font-medium tabular-nums">
                               ${card.currentBalance.toFixed(2)}
@@ -1643,9 +1659,14 @@ function App() {
                               syncLabel = "Local only · Connect";
                             }
                             return (
-                              <span className="text-xs font-medium text-m3-on-surface-variant">
+                              <StatusChip
+                                size="compact"
+                                status={getSyncChipStatus(summary.key)}
+                                indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
+                                className="max-w-full min-w-0"
+                              >
                                 {syncLabel}
-                              </span>
+                              </StatusChip>
                             );
                           })()}
                           <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform ml-2 shrink-0">▼</span>
@@ -1924,15 +1945,26 @@ function App() {
                           </li>
                           <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                             <span>Sync Status</span>
-                            <span className="text-[10px] text-m3-on-surface font-medium">
-                              {(() => {
-                                const summary = getAppSyncSummaryState();
-                                if (summary.key === 'connected') return "Sync on";
-                                if (summary.key === 'checking') return "Syncing…";
-                                if (summary.key === 'local-only') return "Local only";
-                                return "Issue";
-                              })()}
-                            </span>
+                            {(() => {
+                              const summary = getAppSyncSummaryState();
+                              const syncStatusLabel = summary.key === 'connected'
+                                ? "Sync on"
+                                : summary.key === 'checking'
+                                  ? "Syncing…"
+                                  : summary.key === 'local-only'
+                                    ? "Local only"
+                                    : "Issue";
+                              return (
+                                <StatusChip
+                                  size="compact"
+                                  status={getSyncChipStatus(summary.key)}
+                                  indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
+                                  className="max-w-full min-w-0"
+                                >
+                                  {syncStatusLabel}
+                                </StatusChip>
+                              );
+                            })()}
                           </li>
                           <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                             <span>Pending Changes</span>
