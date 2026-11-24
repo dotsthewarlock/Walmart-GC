@@ -119,7 +119,7 @@ Tabs:
 - `Cards`: the approved card data schema.
 - `_META`: sheet metadata, including the optimistic `sheetVersion` value used for conflict detection.
 
-Approved `Cards` schema (header-name based; preferred creation/CSV order only):
+Required `Cards` fields (header-name based, in preferred creation order):
 
 ```text
 cardNumber
@@ -135,7 +135,15 @@ used
 notes
 ```
 
-Merchant model: `merchant` stores only the explicit user-entered/user-selected override and must not be inferred/defaulted to `walmart-ca` when blank; `merchantInferred` stores the app/Worker-derived merchant from `cardNumber` and is `walmart-ca` for valid Walmart Canada cards; runtime-only `effectiveMerchant = merchant || merchantInferred` must not be stored. Old Sheets missing only `merchantInferred` can be additively migrated by header name.
+Merchant model: `merchant` stores only the explicit user-entered/user-selected override and must not be inferred/defaulted to `walmart-ca` when blank; `merchantInferred` stores the app/Worker-derived merchant from `cardNumber` and is `walmart-ca` for valid Walmart Canada cards; runtime-only `effectiveMerchant = merchant || merchantInferred` must not be stored. Historical 10-column Sheets that omit only `merchantInferred` remain readable. The Worker derives it on load and appends its header on the next valid inventory save. Existing headers keep their positions.
+
+V0.1 adds two optional fields. `lastBalanceChecked` is a valid UTC calendar date in `YYYY-MM-DD` form. `pendingReconciliation` can be absent or Boolean `false`. V0.1 rejects `true`. Empty Sheet and CSV cells become absent fields in card JSON. Existing rows receive no backfill, and historical dates do not supply `lastBalanceChecked`.
+
+Bookmarklet protocol v1 returns `ref`, `balanceCAD`, and a full ISO UTC `checkedAt`. V0.1 provides storage for the calendar day only. Transfer parsing, the request ledger, the review UI, precise same-day ordering, and replay protection belong to V0.2.
+
+Sheets accept 11, 12, or 13 headers with either optional column in any position. Reads leave data untouched. On a compatible, version-checked save, the Worker appends each missing optional header whose field has a value in the saved inventory. An explicit `false` counts as a value. Unknown or duplicate headers, interior blank names, and occupied append targets block the save. Blank-looking formulas also occupy an append target.
+
+CSV exports use all 13 headers with empty cells for absent metadata. Historical 8-, 10-, and 11-column CSVs still import with their headers or in their historical headerless order. The 12- and 13-column formats require header names. A restore that would replace or remove existing balance-check metadata asks for confirmation and advises a CSV backup. Invalid rows and unsupported metadata block the entire import or Sheet load.
 
 Barcode payload is derived only and must not be stored:
 
@@ -167,6 +175,11 @@ Conflict model:
 - No automatic merge.
 - User chooses recovery.
 - CSV backup before destructive recovery.
+- A save checks the client capability, stored metadata, append targets and current version before changing the Sheet. One Sheets batch writes any new headers, the inventory and the new `sheetVersion`. A load checks the version on either side of the card read. These checks use the existing optimistic model. Manual edits that do not update `_META` and concurrent requests that both pass the version check can still race.
+- The `schemaCapability` marker is `optional-card-metadata-v1`. The Worker advertises it in status, ensure, load and save responses. Saves include the marker. Once the Sheet has either optional header, legacy writes are rejected, including explicit overwrite requests and empty inventories. Before extension, the legacy `cards` payload still works. The updated frontend sends populated metadata in `cardsWithMetadata` without a `cards` array, which the baseline Worker rejects before calling Sheets.
+- Ordinary saves that would drop a populated optional field for a card number return a conflict. This includes explicit `false`, removed cards, and an empty inventory. The existing overwrite recovery prompts the user to back up the Sheet and confirm removal, then sends `acknowledgeMetadataRemoval: true` with the current version. Capability and version checks still apply.
+- Fix Sheet initializes a missing structure and fills missing `_META` entries in place. A new browser must load an existing populated Sheet to establish its sync version with a V0.1 Worker. Fix Sheet does not rebase a previously versioned inventory over remote changes. Explicit overwrite recovery uses the known remote version and remains subject to the same capability and version checks.
+- Deploy the updated Worker before enabling metadata persistence in the client. A Worker rollback can still serve unextended Sheets. The baseline Worker rejects extended headers, and the updated client blocks metadata-bearing saves to it. An older frontend can drop optional values from browser storage during local edits. Preserve a 13-column CSV backup and use a compatible frontend before editing that data.
 
 ## Design Principles
 

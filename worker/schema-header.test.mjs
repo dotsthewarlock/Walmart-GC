@@ -1,80 +1,53 @@
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { workerTestInternals } from "./src/index.js";
 
-const { CARD_HEADERS, normalizeEffectiveMerchant, validateCardHeaders } = workerTestInternals;
+const { CARD_HEADERS, inferMerchantFromCardNumber, validateCardHeaders } = workerTestInternals;
+const legacyHeaders = [
+  "cardNumber", "pin", "startingBalance", "currentBalance", "merchant",
+  "dateAdded", "dateUpdated", "dateUsed", "used", "notes",
+];
+const requiredHeaders = [
+  ...legacyHeaders.slice(0, 5), "merchantInferred", ...legacyHeaders.slice(5),
+];
 
-function assertValid(headers, expectedIndexes) {
-  const headerMap = validateCardHeaders(headers);
-  Object.entries(expectedIndexes).forEach(([header, index]) => {
-    assert.equal(headerMap.get(header), index, `${header} index`);
-  });
-}
+test("the eleven required headers keep their existing names and order", () => {
+  assert.deepEqual(CARD_HEADERS, requiredHeaders);
+});
 
-function assertHeaderError(headers, expectedMessageParts) {
-  assert.throws(
-    () => validateCardHeaders(headers),
-    (error) => {
+test("Sheets accept reordered exact 10/11/12/13-column schemas", () => {
+  for (const headers of [
+    legacyHeaders,
+    requiredHeaders,
+    [...requiredHeaders, "lastBalanceChecked"],
+    [...requiredHeaders, "pendingReconciliation"],
+    [...requiredHeaders, "lastBalanceChecked", "pendingReconciliation"],
+  ]) {
+    const reversed = [...headers].reverse();
+    assert.deepEqual([...validateCardHeaders([...reversed, "", ""])], reversed.map((header, index) => [header, index]));
+  }
+});
+
+test("ambiguous and unknown Sheet headers are rejected with recovery details", () => {
+  for (const [headers, message] of [
+    [[...requiredHeaders, "notes"], /Duplicate Cards header/],
+    [[...requiredHeaders, "lastBalanceChecked", "lastBalanceChecked"], /Duplicate Cards header/],
+    [[...requiredHeaders, "surprise"], /Unsupported Cards header/],
+    [[...requiredHeaders.slice(0, 5), "", ...requiredHeaders.slice(5)], /blank or ambiguous/],
+    [[], /blank or ambiguous/],
+    [requiredHeaders.filter((header) => header !== "pin"), /Missing required Cards header\(s\): pin/],
+    [[...legacyHeaders, "lastBalanceChecked"], /Missing required Cards header\(s\): merchantInferred/],
+  ]) {
+    assert.throws(() => validateCardHeaders(headers), (error) => {
       assert.equal(error.status, 409);
-      expectedMessageParts.forEach((part) => assert.match(error.body.error, part));
+      assert.match(error.body.error, message);
+      assert.match(error.body.error, /CSV backup/);
       return true;
-    },
-  );
-}
+    });
+  }
+});
 
-assert.deepEqual(CARD_HEADERS, [
-  "cardNumber",
-  "pin",
-  "startingBalance",
-  "currentBalance",
-  "merchant",
-  "dateAdded",
-  "dateUpdated",
-  "dateUsed",
-  "used",
-  "notes",
-]);
-
-assertValid(CARD_HEADERS, { cardNumber: 0, merchant: 4, notes: 9 });
-assertValid([
-  "cardNumber",
-  "pin",
-  "merchant",
-  "startingBalance",
-  "currentBalance",
-  "dateAdded",
-  "dateUpdated",
-  "dateUsed",
-  "used",
-  "notes",
-], { cardNumber: 0, merchant: 2, currentBalance: 4 });
-assertValid([
-  "notes",
-  "used",
-  "dateUsed",
-  "dateUpdated",
-  "dateAdded",
-  "merchant",
-  "currentBalance",
-  "startingBalance",
-  "pin",
-  "cardNumber",
-], { notes: 0, merchant: 5, cardNumber: 9 });
-assertValid(["extraColumn", ...CARD_HEADERS], { cardNumber: 1, notes: 10 });
-
-assertHeaderError(
-  CARD_HEADERS.filter((header) => header !== "currentBalance"),
-  [/Missing required Cards header\(s\): currentBalance\./, /Local data remains available/, /CSV backup/],
-);
-assertHeaderError(
-  ["cardNumber", ...CARD_HEADERS],
-  [/Duplicate required Cards header\(s\): cardNumber\./, /column order can be changed/],
-);
-assertHeaderError(
-  ["unexpected", "alsoUnexpected"],
-  [/Cards header row is blank or ambiguous/, /expected approved headers/, /CSV backup/],
-);
-
-assert.equal(normalizeEffectiveMerchant("", "6351234567890123"), "walmart-ca");
-assert.equal(normalizeEffectiveMerchant("custom-merchant", "6351234567890123"), "custom-merchant");
-
-console.log("schema-header tests passed");
+test("a historical Walmart card still derives its merchant", () => {
+  assert.equal(inferMerchantFromCardNumber("6300000000000001"), "walmart-ca");
+  assert.equal(inferMerchantFromCardNumber("unrecognized"), "");
+});

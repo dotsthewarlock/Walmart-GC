@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage, normalizeCard } from './lib/cards';
+import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage, normalizeCards } from './lib/cards';
 import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
-import { cardsToCsv, parseRawCardData } from './lib/csv';
-import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
+import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
+import { fetchWorkerJson, saveWorkerCards, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
 import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
 import { Card } from './components/primitives/Card';
@@ -175,6 +175,7 @@ function App() {
   const mainTouchStart = useRef(null);
   const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
+  const [localCardsError, setLocalCardsError] = useState("");
   const [settings, setSettings] = useState({
     advanceOnMarkUsed: true,
     hideUsedCards: true,
@@ -488,7 +489,13 @@ function App() {
 
   // Load cards, settings and check auth session on initialization
   useEffect(() => {
-    const loadedCards = loadCards();
+    let loadedCards;
+    try {
+      loadedCards = loadCards();
+    } catch (error) {
+      setLocalCardsError(error.message);
+      return;
+    }
     const loadedSettings = loadSettings();
     setCards(loadedCards);
     setSettings(loadedSettings);
@@ -774,13 +781,13 @@ function App() {
   const visiblePosition = visibleIndexes.indexOf(selectedCardIndex);
 
   // CSV Export Action
-  const handleExportCsv = () => {
+  const handleExportCsv = (filename = "walmart-gift-cards-export.csv") => {
     const csvContent = cardsToCsv(cards);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
     downloadLink.href = url;
-    downloadLink.download = "walmart-gift-cards-export.csv";
+    downloadLink.download = filename;
     document.body.append(downloadLink);
     downloadLink.click();
     downloadLink.remove();
@@ -809,27 +816,16 @@ function App() {
   };
 
   // Raw editor actions
-  const handleOpenRawEditor = () => {
-    // Show first 100 cards maximum as limit from phase-12
-    setRawDataText(cardsToCsv(cards, 100));
+  const handleRefreshRawEditor = () => {
+    setRawDataText(cardsToCsv(cards));
     setIsRawDataLocked(true);
-    setValidationSummary(`Refreshed ${Math.min(cards.length, 100)} of ${cards.length} cards into the editor.`);
-    setValidationWarnings(
-      cards.length > 100
-        ? ["Displaying first 100 cards only. Export CSV includes all cards."]
-        : []
-    );
-    setIsRawDataModalOpen(true);
+    setValidationSummary(`Refreshed ${cards.length} card(s) into the editor.`);
+    setValidationWarnings([]);
   };
 
-  const handleRefreshRawEditor = () => {
-    setRawDataText(cardsToCsv(cards, 100));
-    setValidationSummary(`Refreshed ${Math.min(cards.length, 100)} of ${cards.length} cards into the editor.`);
-    setValidationWarnings(
-      cards.length > 100
-        ? ["Displaying first 100 cards only. Export CSV includes all cards."]
-        : []
-    );
+  const handleOpenRawEditor = () => {
+    handleRefreshRawEditor();
+    setIsRawDataModalOpen(true);
   };
 
   const handleUpdateRawEditor = () => {
@@ -839,6 +835,17 @@ function App() {
       setValidationSummary(`Validation failed: ${warnings.length} warning(s) found.`);
       setValidationWarnings(warnings);
       return false;
+    }
+
+    if (wouldDiscardCardMetadata(cards, parsedCards)) {
+      const confirmed = window.confirm(
+        "This CSV will replace or remove saved balance-check metadata. Export a backup CSV of the current session before continuing. Apply the CSV anyway?",
+      );
+      if (!confirmed) return false;
+    } else if (parsedCards.length === 0 && cards.length > 0) {
+      if (!window.confirm("This CSV has no cards and will clear this browser session. Export a backup CSV before continuing. Apply the CSV anyway?")) {
+        return false;
+      }
     }
 
     setCards(parsedCards);
@@ -944,21 +951,21 @@ function App() {
 
   const useCurrentSessionToOverwriteDirectSheets = async () => {
     const backupRecommended = window.confirm(
-      "Overwrite sheet with this session will replace every card row in the configured Google sheet with this browser session. Download a backup CSV before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+      "Overwrite sheet with this session replaces all card rows and can permanently remove saved balance-check metadata. Back up the Google Sheet first. The browser session CSV only contains your local data. Continue to final confirmation?",
     );
     if (!backupRecommended) {
       return;
     }
 
     const confirmed = window.confirm(
-      "Final confirmation: overwrite the configured Google sheet with the current local session now? Walmart-GC will not automatically merge sheet changes.",
+      "Overwrite the Google Sheet with this browser session and remove any saved balance-check metadata missing from this session?",
     );
     if (!confirmed) {
       return;
     }
 
     await handleSaveCardsToSheet({
-      force: true,
+      acknowledgeMetadataRemoval: true,
       successMessage: `Overwrote Walmart-GC Data with ${cards.length} current-session card${cards.length === 1 ? "" : "s"}.`,
       startMessage: "Overwriting Walmart-GC Data with the current session...",
     });
@@ -1031,16 +1038,24 @@ function App() {
     try {
       const result = await fetchWorkerJson("/api/sheet/ensure", { method: "POST" });
       const now = new Date().toISOString();
+      const knownVersion = syncState.lastKnownSheetVersion || "";
+      const remoteVersion = String(result.sheetVersion || "");
+      // Setup can establish a baseline for an empty Sheet. An existing inventory
+      // needs a real load, and setup must never rebase a stale local inventory.
+      const requiresLoad = knownVersion ? knownVersion !== remoteVersion : result.hasCardRows === true;
+      const message = requiresLoad
+        ? "Load Walmart-GC Data before syncing to establish the current Sheet version."
+        : "Walmart-GC Data sheet structure initialized.";
       const updatedSheets = {
         spreadsheetId: result.sheetId,
         spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${result.sheetId}/edit`,
         spreadsheetName: String(result.sheetName || "Walmart-GC Data"),
-        status: directSheetsStatuses.ready,
+        status: requiresLoad && knownVersion ? directSheetsStatuses.conflict : directSheetsStatuses.ready,
         cardsSheetInitialized: "yes",
-        remoteSheetVersion: String(result.sheetVersion || ""),
-        lastSuccessfulSyncAt: now,
-        pendingUnsynced: false,
-        message: "Walmart-GC Data sheet structure initialized.",
+        remoteSheetVersion: remoteVersion,
+        lastSuccessfulSyncAt: requiresLoad ? directSheetsState.lastSuccessfulSyncAt : now,
+        pendingUnsynced: requiresLoad,
+        message,
         lastErrorMessage: "",
       };
       setDirectSheetsState(updatedSheets);
@@ -1048,10 +1063,10 @@ function App() {
 
       const updatedSync = {
         ...syncState,
-        status: syncStatuses.connected,
+        status: requiresLoad ? (knownVersion ? syncStatuses.conflict : syncStatuses.unsynced) : syncStatuses.connected,
         lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: String(result.sheetVersion || ""),
-        message: "Walmart-GC Data initialized. Completed actions will now sync.",
+        lastKnownSheetVersion: requiresLoad ? knownVersion : remoteVersion,
+        message,
         lastErrorMessage: "",
       };
       setSyncState(updatedSync);
@@ -1078,7 +1093,7 @@ function App() {
 
   // Fetch gift cards details from active Google Sheet
   const handleLoadCardsFromSheet = async () => {
-    if (!window.confirm("Are you sure you want to import cards from Google Sheets? This will completely replace your current local browser session with the spreadsheet data.")) {
+    if (!window.confirm("Importing from Google Sheets replaces your entire browser session, including balance-check metadata. Export a CSV backup before continuing. Import the Sheet now?")) {
       return;
     }
 
@@ -1092,8 +1107,10 @@ function App() {
     try {
       const result = await fetchWorkerJson("/api/cards/load");
       const now = new Date().toISOString();
-      const loaded = result.cards || [];
-      const normalized = loaded.map(normalizeCard).filter(Boolean);
+      const normalized = normalizeCards(result.cards);
+      if (!normalized) {
+        throw new Error("The Sheet returned invalid or unsupported card data. This browser session was preserved.");
+      }
       setCards(normalized);
       saveCards(normalized);
 
@@ -1161,15 +1178,11 @@ function App() {
     }));
 
     try {
-      const baseSheetVersion = options.force
+      const baseSheetVersion = options.acknowledgeMetadataRemoval
         ? String(directSheetsState.remoteSheetVersion || syncState.lastKnownSheetVersion || "")
         : String(syncState.lastKnownSheetVersion || "");
-      const result = await fetchWorkerJson("/api/cards/save", {
-        method: "POST",
-        body: JSON.stringify({
-          cards: cards,
-          baseSheetVersion,
-        }),
+      const result = await saveWorkerCards(cards, baseSheetVersion, {
+        acknowledgeMetadataRemoval: options.acknowledgeMetadataRemoval,
       });
 
       const now = new Date().toISOString();
@@ -1204,7 +1217,9 @@ function App() {
       const payload = error && typeof error === "object" ? error.payload : null;
       if (payload && payload.conflict) {
         const remoteVersion = String(payload.remoteSheetVersion || "");
-        const conflictMsg = "Conflict detected: the Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
+        const conflictMsg = payload.errorType === "cards_metadata_loss"
+          ? error.message
+          : "The Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
         
         setDirectSheetsState(prev => ({
           ...prev,
@@ -1247,6 +1262,10 @@ function App() {
       }));
     }
   };
+
+  if (localCardsError) {
+    return <p role="alert" className="p-4 text-m3-error">{localCardsError}</p>;
+  }
 
   return (
     <>
@@ -1667,7 +1686,7 @@ function App() {
                             <ActionButton
                               id="save-to-sheets"
                               onClick={() => {
-                                if (window.confirm("Warning: Exporting to Google will replace all gift card rows in your Google Sheet with your current local browser session. Do you want to proceed?")) {
+                                if (window.confirm("Exporting to Google replaces the card rows in the Sheet with your current browser session. Continue?")) {
                                   handleSaveCardsToSheet();
                                 }
                               }}
@@ -1688,8 +1707,8 @@ function App() {
                               return (
                                 <div id="sync-recovery-actions" className="flex flex-col gap-2 p-2.5 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-lg text-xs mt-1.5 mx-2">
                                   <h4 className="font-medium text-m3-error text-xs">Conflict recovery</h4>
-                                  <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
-                                  <p className="font-medium text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+                                  <p>Your current session is still saved locally. Choose how to resolve the conflict.</p>
+                                  <p className="font-medium text-m3-error">Back up the Google Sheet before overwriting it. Download a browser session CSV before replacing local data.</p>
                                   {unavailableMessage && <p className="font-medium text-m3-error mt-1">{unavailableMessage}</p>}
                                   <div className="flex flex-wrap gap-2 mt-1.5">
                                     <button
@@ -1837,7 +1856,7 @@ function App() {
                         />
                         <ActionButton
                           id="export-csv"
-                          onClick={handleExportCsv}
+                          onClick={() => handleExportCsv()}
                           icon="upload"
                           label="Export CSV"
                           className="flex-1"
