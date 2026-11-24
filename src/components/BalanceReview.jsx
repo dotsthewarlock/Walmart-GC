@@ -5,11 +5,35 @@ import { captureBalanceReviewStorage, persistBalanceReviewCards } from "../lib/c
 import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { TextField } from "./primitives/TextField";
+import { BalanceTransfer } from "./BalanceTransfer";
+import { checkerUrl } from "../lib/balanceTransfer";
 
-const checkerUrl = "https://www.walmart.ca/en/account/giftcards/balance";
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 
-export function BalanceReview({ cards, allowEmptyStorage, onSave, onExit, copyText, maskCardNumber }) {
+export function BalanceReview({ onExit, ...props }) {
+  const [mode, setMode] = useState("manual");
+  return (
+    <main className="min-h-screen bg-m3-surface text-m3-on-surface">
+      <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">
+        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <h1 className="text-lg font-semibold">Review balances</h1>
+          <Button variant="text" onClick={onExit}>Exit</Button>
+        </div>
+      </header>
+      <div role="group" aria-label="Review mode" className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2 px-4 pt-4 sm:px-6">
+        <Button variant={mode === "manual" ? "tonal" : "outlined"} aria-pressed={mode === "manual"}
+          onClick={() => setMode("manual")}>Manual</Button>
+        <Button variant={mode === "batch" ? "tonal" : "outlined"} aria-pressed={mode === "batch"}
+          onClick={() => setMode("batch")}>Batch</Button>
+      </div>
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
+        {mode === "manual" ? <ManualBalanceReview {...props} /> : <BalanceTransfer {...props} />}
+      </div>
+    </main>
+  );
+}
+
+function ManualBalanceReview({ cards, allowEmptyStorage, onSave, beforeManualSave, copyText, maskCardNumber }) {
   const [queue] = useState(() => createBalanceReviewQueue(cards));
   const [initialStorage] = useState(() => {
     if (queue.length === 0) return {};
@@ -74,6 +98,7 @@ export function BalanceReview({ cards, allowEmptyStorage, onSave, onExit, copyTe
       if (storage.current === undefined) {
         storage.current = captureBalanceReviewStorage(cards, { allowEmptyStorage });
       }
+      beforeManualSave();
       storage.current = persistBalanceReviewCards(updated, storage.current);
       expectedInventory.current = updated;
       onSave(updated);
@@ -100,14 +125,7 @@ export function BalanceReview({ cards, allowEmptyStorage, onSave, onExit, copyTe
   }
 
   return (
-    <main className="min-h-screen bg-m3-surface text-m3-on-surface">
-      <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">
-        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
-          <h1 className="text-lg font-semibold">Review balances</h1>
-          <Button variant="text" onClick={onExit}>Exit</Button>
-        </div>
-      </header>
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
+    <>
         {queue.length > 0 && (
           <div className="flex flex-col gap-2">
             <p id="review-progress" className="flex justify-between gap-2 text-sm text-m3-on-surface-variant">
@@ -200,7 +218,6 @@ export function BalanceReview({ cards, allowEmptyStorage, onSave, onExit, copyTe
             {saved ? "Saved on this device." : "Review saves on this device."} To save to Google Sheets, use Export Sheet in Settings.
           </p>
         )}
-      </div>
-    </main>
+    </>
   );
 }

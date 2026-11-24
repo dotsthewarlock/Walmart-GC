@@ -351,7 +351,7 @@ export function saveCards(cards) {
   }
 }
 
-function serializeReviewInventory(cards) {
+export function serializeReviewInventory(cards) {
   const normalized = normalizeCards(cards);
   if (!normalized || normalized.some((card) =>
     !Number.isFinite(card.startingBalance) || !Number.isFinite(card.currentBalance)
