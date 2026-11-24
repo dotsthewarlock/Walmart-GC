@@ -1,5 +1,6 @@
 export const storageKeys = {
   cards: "walmartGc.cards",
+  balanceTransfer: "walmartGc.balanceTransfer",
   settings: "walmartGc.settings",
   sync: "walmartGc.sync",
   oauth: "walmartGc.oauth",

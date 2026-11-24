@@ -19,7 +19,7 @@ If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
 
 ## Current Basics
 - **Repository**: `dotsthewarlock/Walmart-GC`
-- **Active Feature**: Guided Balance Review V0.2A on `feature/guided-balance-review`, based on the accepted V0.1 schema on `main`.
+- **Active Feature**: V0.2B Batch Balance Transfer on `feature/balance-transfer`, based on the deployed V0.2A manual review and V0.1 schema.
 - **Base Branch**: `main` (React 19 + Vite + Tailwind CSS production candidate)
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
@@ -35,7 +35,8 @@ Our active development sequence is organized into highly structured Pull Request
 - **PR 2: AI-First Documentation Cleanup** (Completed): Consolidating files, removing duplication, establishing clear document ownership, and maximizing AI-context token efficiency.
 - **PR 3: Focus Mode Removal Implementation** (Completed): Refactoring `src/App.jsx` to completely remove Focus Mode state, event listeners, and scrim overlays, transitioning Checkout to the passive inline barcode display.
 - **PR 4: Strict-M3 Primitive Migration** (Completed): Button, IconButton, Chip / StatusChip, form, containment, and list / navigation primitives are merged and audited on `main`.
-- **V0.2A: Guided Balance Review**: The approved manual-first task is available from Cards. Verified balances save on the device and use the existing explicit Google Sheets export. Bookmarklet integration, merchant automation, and additional schema work remain outside this milestone.
+- **V0.2A: Guided Balance Review** (deployed): The manual task is available from Cards and saves verified balances locally. Genuine merchant verification, local persistence, and the first metadata-bearing Sheet export remain production acceptance gates.
+- **V0.2B: Batch Balance Transfer** (independent review): Batch mode exchanges version 1 TSV with the existing bookmarklet. The browser previews and applies verified results locally. Export Sheet remains a separate action in Settings. Release acceptance includes real bookmarklet compatibility, lazy Sheet header extension with genuine observations, CSV compatibility, authenticated reload, and cross-device persistence with private backups.
 
 ---
 

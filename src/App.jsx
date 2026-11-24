@@ -16,6 +16,7 @@ import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { BalanceReview } from './components/BalanceReview';
+import { createTransferDiscardGuard, invalidateOnObservedContext, invalidateTransferBeforeMutation, readTransferLedger } from './lib/balanceTransferLedger';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
 
@@ -181,6 +182,10 @@ function App() {
   const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
+  const [transferMutationError, setTransferMutationError] = useState("");
+  const [discardTransferLedger] = useState(createTransferDiscardGuard);
+  const sheetMutation = useRef(false);
+  const transferWallet = useRef(null);
   const [settings, setSettings] = useState({
     advanceOnMarkUsed: true,
     hideUsedCards: true,
@@ -254,6 +259,30 @@ function App() {
     lastErrorMessage: "",
     pendingOperation: null,
   });
+
+  transferWallet.current = { cards, sheets: directSheetsState, sync: syncState };
+
+  function allowTransferMutation() {
+    try {
+      invalidateTransferBeforeMutation();
+      setTransferMutationError("");
+      return true;
+    } catch (error) {
+      setTransferMutationError(error.message);
+      return false;
+    }
+  }
+
+  function beginSheetMutation() {
+    if (sheetMutation.current || !allowTransferMutation()) return false;
+    sheetMutation.current = true;
+    return true;
+  }
+
+  function getTransferWallet() {
+    if (sheetMutation.current) throw new Error("Wait for the current Sheet operation to finish.");
+    return transferWallet.current;
+  }
 
   const getAppSyncSummaryState = () => {
     const isChecking = [googleOAuthStatuses.connecting, googleOAuthStatuses.restoring].includes(oauthState.status)
@@ -444,8 +473,22 @@ function App() {
       lastErrorMessage: "",
     }));
 
+    let startingLedger;
     try {
-      const status = await fetchWorkerJson("/api/status");
+      startingLedger = readTransferLedger();
+    } catch {
+      // Preserve the normal session check even when batch storage is unavailable.
+    }
+
+    try {
+      const status = await fetchWorkerJson("/api/status", { cache: "no-store" });
+      if (startingLedger != null) {
+        try {
+          invalidateOnObservedContext(startingLedger, status);
+        } catch (error) {
+          setTransferMutationError(error.message);
+        }
+      }
       if (status.authenticated) {
         setOauthState({
           status: googleOAuthStatuses.connected,
@@ -615,6 +658,7 @@ function App() {
       return card;
     });
     
+    if (!allowTransferMutation()) return;
     setCards(updatedCards);
     saveCards(updatedCards);
 
@@ -645,6 +689,7 @@ function App() {
       }
       return card;
     });
+    if (!allowTransferMutation()) return;
     setCards(updatedCards);
     saveCards(updatedCards);
   };
@@ -784,6 +829,7 @@ function App() {
       }
       return card;
     });
+    if (!allowTransferMutation()) return;
     setCards(updatedCards);
     saveCards(updatedCards);
     setIsEditingBalance(false);
@@ -860,6 +906,7 @@ function App() {
       }
     }
 
+    if (!allowTransferMutation()) return false;
     setCards(parsedCards);
     saveCards(parsedCards);
     
@@ -894,6 +941,7 @@ function App() {
       return;
     }
 
+    if (!allowTransferMutation()) return;
     setOauthState(prev => ({
       ...prev,
       status: googleOAuthStatuses.connecting,
@@ -908,6 +956,7 @@ function App() {
       return;
     }
 
+    if (!beginSheetMutation()) return;
     setOauthState(prev => ({
       ...prev,
       status: googleOAuthStatuses.connecting,
@@ -917,6 +966,7 @@ function App() {
 
     try {
       await fetchWorkerJson("/api/logout", { method: "POST" });
+      invalidateTransferBeforeMutation();
       const nextOauth = {
         status: googleOAuthStatuses.disconnected,
         connectedEmail: "",
@@ -934,6 +984,8 @@ function App() {
         message: "Connection unavailable. Local data remains available.",
         lastErrorMessage: error instanceof Error ? error.message : "Worker logout failed",
       }));
+    } finally {
+      sheetMutation.current = false;
     }
   };
 
@@ -1041,6 +1093,7 @@ function App() {
 
   // Ensure Walmart-GC Data sheet exists and initialize layout metadata structures
   const handleEnsureSheet = async () => {
+    if (!beginSheetMutation()) return;
     setDirectSheetsState(prev => ({
       ...prev,
       status: directSheetsStatuses.checking,
@@ -1070,6 +1123,7 @@ function App() {
         message,
         lastErrorMessage: "",
       };
+      invalidateTransferBeforeMutation();
       setDirectSheetsState(updatedSheets);
       localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
 
@@ -1100,6 +1154,8 @@ function App() {
         status: syncStatuses.unsynced,
         lastErrorMessage: msg,
       }));
+    } finally {
+      sheetMutation.current = false;
     }
   };
 
@@ -1109,6 +1165,7 @@ function App() {
       return;
     }
 
+    if (!beginSheetMutation()) return;
     setDirectSheetsState(prev => ({
       ...prev,
       status: directSheetsStatuses.checking,
@@ -1123,6 +1180,7 @@ function App() {
       if (!normalized) {
         throw new Error("The Sheet returned invalid or unsupported card data. This browser session was preserved.");
       }
+      invalidateTransferBeforeMutation();
       setCards(normalized);
       saveCards(normalized);
 
@@ -1177,11 +1235,14 @@ function App() {
         status: syncStatuses.unsynced,
         lastErrorMessage: msg,
       }));
+    } finally {
+      sheetMutation.current = false;
     }
   };
 
   // Push active gift card arrays to Google Sheet
   const handleSaveCardsToSheet = async (options = {}) => {
+    if (!beginSheetMutation()) return;
     setDirectSheetsState(prev => ({
       ...prev,
       status: directSheetsStatuses.syncing,
@@ -1211,6 +1272,7 @@ function App() {
         message: options.successMessage || `Synced ${cards.length} card(s) successfully.`,
         lastErrorMessage: "",
       };
+      invalidateTransferBeforeMutation();
       setDirectSheetsState(updatedSheets);
       localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
 
@@ -1272,6 +1334,8 @@ function App() {
         message: mappedMsg,
         lastErrorMessage: msg,
       }));
+    } finally {
+      sheetMutation.current = false;
     }
   };
 
@@ -1285,8 +1349,12 @@ function App() {
         cards={cards}
         allowEmptyStorage={cards === emptyStorageInventory.current}
         onSave={setCards}
+        beforeManualSave={invalidateTransferBeforeMutation}
+        discardTransferLedger={discardTransferLedger}
+        getTransferWallet={getTransferWallet}
         onExit={() => {
           restoreReviewFocus.current = true;
+          setTransferMutationError("");
           setBalanceReviewOpen(false);
         }}
         copyText={writeClipboardText}
@@ -1441,6 +1509,7 @@ function App() {
         onTouchEnd={handleMainTouchEnd}
       >
         <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
+          {transferMutationError && <p role="alert" className="px-4 pt-4 text-sm text-m3-error">{transferMutationError}</p>}
           {activePanel === 'list' ? (
             <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
               <Button id="review-balances" onClick={() => setBalanceReviewOpen(true)} disabled={!cardsLoaded.current} className="self-start">
@@ -2162,6 +2231,7 @@ function App() {
                                 }
                                 return c;
                               });
+                              if (!allowTransferMutation()) return;
                               setCards(updatedCards);
                               saveCards(updatedCards);
                               setIsEditingNotes(false);

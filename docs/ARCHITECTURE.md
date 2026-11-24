@@ -192,6 +192,25 @@ Conflict model:
 - Fix Sheet initializes a missing structure and fills missing `_META` entries in place. A new browser must load an existing populated Sheet to establish its sync version with a V0.1 Worker. Fix Sheet does not rebase a previously versioned inventory over remote changes. Explicit overwrite recovery uses the known remote version and remains subject to the same capability and version checks.
 - Deploy the updated Worker before enabling metadata persistence in the client. A Worker rollback can still serve unextended Sheets. The baseline Worker rejects extended headers, and the updated client blocks metadata-bearing saves to it. An older frontend can drop optional values from browser storage during local edits. Preserve a 13-column CSV backup and use a compatible frontend before editing that data.
 
+## Batch balance transfer
+
+Batch mode under Review balances works alongside offline Manual mode. It prepares a request for the existing Walmart Canada bookmarklet and imports results through the clipboard. The wallet opens the [official checker](https://www.walmart.ca/en/account/giftcards/balance) in a separate tab. The user controls merchant submissions and explicitly exports saved results to Google Sheets from Settings.
+
+### Clipboard protocol v1
+
+The first line of a request is `WMGC-REQUEST<TAB>1`, followed by `ref<TAB>cardNumber<TAB>pin`. Rows contain a cryptographically random lowercase UUID v4, 16 ASCII digits, and a four-digit ASCII PIN. Resume reconstructs pending rows from the current inventory with their original references.
+
+Results begin with `WMGC-RESULT<TAB>1`, followed by `ref<TAB>balanceCAD<TAB>checkedAt`. Rows contain the request UUID, a nonnegative CAD amount with exactly two fractional digits, and a UTC ISO timestamp in `Date.toISOString()` format. Literal tabs and LF or CRLF delimit the packet. The reader accepts an initial UTF-8 BOM and trailing empty lines. Headers and version are case-sensitive. Validation checks every row before preview. Identical duplicates collapse, while conflicting duplicates or malformed rows reject the packet. Unknown references cannot be applied.
+
+### Identity, continuity, and recovery
+
+- Batch requires a secure browser context with Web Crypto and Web Locks. Fresh same-origin `/api/status` responses must confirm authentication, the optional metadata capability, and the same nonempty Sheet ID and session-known version held in the wallet's established local sync context. Status does not read current remote `_META`.
+- The wallet stores one versioned ledger per origin in `walmartGc.balanceTransfer`. It records Sheet context, request references, exact card numbers, creation timestamps, non-PIN snapshots, applied values and times, and an interruption marker. A batch-salted SHA-256 fingerprint detects changes in the saved inventory across reloads and is cleared when no requests remain pending. The ledger contains no cleartext PINs, request packets, or OAuth credentials. The fingerprint is a continuity check and provides no protection against an attacker with local access.
+- Wallet edits and Sheet or connection actions invalidate pending requests before a conflicting mutation. Unchanged manual confirmations also invalidate them. An observable context switch or saved inventory change invalidates pending requests on the next Batch check. Invalidation failure blocks the conflicting action while the ledger needs recovery.
+- An observation must be at least as new as its request and no more than 60 seconds ahead of the browser clock. The wallet rejects an observation on or before a previous date-only UTC verification since the order cannot be established. Applied references retain exact times and amounts for identifying replays or rejecting conflicting replays.
+- Apply rechecks the preview, context, and saved state. It writes and verifies the exact proposed observations in the ledger, writes the complete inventory once, then finalizes the references. After an interrupted apply or ledger damage, displayed balances may be stale. Discard requires the displayed inventory to match valid persisted cards. If that check fails, recovery stays protected until a wallet reload and a successful check. The wallet never infers an interrupted outcome from a verification date.
+- Web Locks serialize cooperating Batch actions. Ledger and inventory writes use separate storage keys with comparison and readback checks. Older clients or external writes can bypass local invalidation, exact-value changes and reversals can go undetected, and browser or remote operations are not atomic across tabs or devices. The first production metadata-bearing export remains subject to normal Sheet version and schema checks.
+
 ## Design Principles
 
 - Mobile first.
