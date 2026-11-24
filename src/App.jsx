@@ -15,7 +15,8 @@ import { Switch } from './components/primitives/Switch';
 import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
-import { Settings2, X } from 'lucide-react';
+import { BalanceReview } from './components/BalanceReview';
+import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
 
 function isCardsHeaderError(message) {
@@ -172,6 +173,10 @@ function ActionButton({ id, onClick, icon, label, className = "", href, target, 
 }
 
 function App() {
+  const cardsLoaded = useRef(false);
+  const emptyStorageInventory = useRef(null);
+  const restoreReviewFocus = useRef(false);
+  const [balanceReviewOpen, setBalanceReviewOpen] = useState(false);
   const mainTouchStart = useRef(null);
   const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
@@ -491,12 +496,13 @@ function App() {
   useEffect(() => {
     let loadedCards;
     try {
-      loadedCards = loadCards();
+      loadedCards = loadCards({ onEmptyStorage: (inventory) => { emptyStorageInventory.current = inventory; } });
     } catch (error) {
       setLocalCardsError(error.message);
       return;
     }
     const loadedSettings = loadSettings();
+    cardsLoaded.current = true;
     setCards(loadedCards);
     setSettings(loadedSettings);
     
@@ -532,6 +538,12 @@ function App() {
     refreshWorkerSessionStatus({ authReturn });
   }, []);
 
+  useEffect(() => {
+    if (!balanceReviewOpen && restoreReviewFocus.current) {
+      restoreReviewFocus.current = false;
+      document.getElementById('review-balances')?.focus();
+    }
+  }, [balanceReviewOpen]);
 
 
   // Compute card summaries based on state
@@ -1267,6 +1279,22 @@ function App() {
     return <p role="alert" className="p-4 text-m3-error">{localCardsError}</p>;
   }
 
+  if (balanceReviewOpen) {
+    return (
+      <BalanceReview
+        cards={cards}
+        allowEmptyStorage={cards === emptyStorageInventory.current}
+        onSave={setCards}
+        onExit={() => {
+          restoreReviewFocus.current = true;
+          setBalanceReviewOpen(false);
+        }}
+        copyText={writeClipboardText}
+        maskCardNumber={maskCardNumber}
+      />
+    );
+  }
+
   return (
     <>
       {/* Header Region */}
@@ -1415,7 +1443,11 @@ function App() {
         <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
           {activePanel === 'list' ? (
             <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
-              
+              <Button id="review-balances" onClick={() => setBalanceReviewOpen(true)} disabled={!cardsLoaded.current} className="self-start">
+                <ClipboardCheck size={20} aria-hidden="true" />
+                Review balances
+              </Button>
+
               {/* Cards Inventory Ledger */}
               <section className="flex flex-col gap-3">
 
