@@ -19,7 +19,7 @@ If you are an AI agent (Agy, GPT, Codex, etc.) starting a task:
 
 ## Current Basics
 - **Repository**: `dotsthewarlock/Walmart-GC`
-- **Active Branch**: `main` (strict-M3 primitive milestone merged and audited; no active implementation branch)
+- **Active Feature**: Guided Balance Review V0.2A on `feature/guided-balance-review`, based on the accepted V0.1 schema on `main`.
 - **Base Branch**: `main` (React 19 + Vite + Tailwind CSS production candidate)
 - **Parity Reference**: `phase-12` (archival production baseline branch)
 - **Live URL**: `https://walmart-gc.dotsthewarlock.com`
@@ -35,7 +35,7 @@ Our active development sequence is organized into highly structured Pull Request
 - **PR 2: AI-First Documentation Cleanup** (Completed): Consolidating files, removing duplication, establishing clear document ownership, and maximizing AI-context token efficiency.
 - **PR 3: Focus Mode Removal Implementation** (Completed): Refactoring `src/App.jsx` to completely remove Focus Mode state, event listeners, and scrim overlays, transitioning Checkout to the passive inline barcode display.
 - **PR 4: Strict-M3 Primitive Migration** (Completed): Button, IconButton, Chip / StatusChip, form, containment, and list / navigation primitives are merged and audited on `main`.
-- **PR 5: Near-Term Enhancements**: Next approved lane is production/source verification, smoke QA, and M3 polish for Cards/Settings. Schema, merchant-profile, camera-scan, balance-check, and infra rename work remain approval-gated.
+- **V0.2A: Guided Balance Review**: The approved manual-first task is available from Cards. Verified balances save on the device and use the existing explicit Google Sheets export. Bookmarklet integration, merchant automation, and additional schema work remain outside this milestone.
 
 ---
 

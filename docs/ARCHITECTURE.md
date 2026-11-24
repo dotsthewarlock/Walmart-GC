@@ -59,6 +59,7 @@ The static frontend provides:
 - Card details.
 - Barcode display.
 - Balance, used-state, notes, and merchant edits.
+- Guided, manual balance review for Walmart Canada cards.
 - Worker-backed Google Sheet sync controls.
 - CSV backup and recovery.
 - Offline/local browser usability.
@@ -156,6 +157,16 @@ Barcode payload is derived only and must not be stored:
 The frontend loads, ensures, and saves Sheets data only through Worker endpoints. The Worker performs the server-side Drive and Sheets API calls using only `drive.file`, including `_META.sheetVersion` conflict checks.
 
 ## Sync Model
+
+### Guided balance review
+
+Cards opens a secondary review task with a session-only queue of eligible Walmart Canada cards, including used cards and cards with zero balances. The queue uses exact card numbers and starts with unverified cards. Previously verified cards follow in ascending verification-date order, with card number breaking ties. The Walmart Canada checker opens in a separate tab. The user copies credentials separately and enters the observed balance manually.
+
+An explicit confirmation records the observation's UTC day. Only an actual balance change updates `currentBalance` and `dateUpdated`. Used state, optional flags, and unrelated fields are preserved. A checked local save validates the entire inventory and compares the stored snapshot immediately before writing. It detects observable competing changes without providing atomic cross-tab locking. Failed writes leave the review on the current card and retain the entered value.
+
+Completed reviews persist on the device. The queue and unfinished inputs end when the task exits or the page reloads. Google Sheets updates still require the existing explicit export.
+
+### Google Sheets synchronization
 
 Worker-backed sync only. Completed actions sync after:
 
