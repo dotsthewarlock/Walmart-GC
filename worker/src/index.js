@@ -1,3 +1,8 @@
+import {
+  requiredCardHeaders as CARD_HEADERS, oldApprovedCsvHeaders as OLD_CARD_HEADERS,
+  optionalCardHeaders, csvHeaders as APPROVED_CARD_HEADERS, readOptionalCardMetadata, schemaCapability,
+} from "../../src/lib/csvSchema.js";
+
 const OAUTH_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -10,39 +15,15 @@ const GOOGLE_DRIVE_API = "https://www.googleapis.com/drive/v3";
 const GOOGLE_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_SPREADSHEET_MIME_TYPE = "application/vnd.google-apps.spreadsheet";
 const CARDS_TAB = "Cards";
+const CARDS_RANGE = `'${CARDS_TAB}'`;
 const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WORKER_VERSION = "2026-06-18.merchant-inferred-schema.1";
+const WORKER_VERSION = "balance-review-schema-v0.1";
 const SCHEMA_MODE = "header-name";
 const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
-const CARD_HEADERS = [
-  "cardNumber",
-  "pin",
-  "startingBalance",
-  "currentBalance",
-  "merchant",
-  "merchantInferred",
-  "dateAdded",
-  "dateUpdated",
-  "dateUsed",
-  "used",
-  "notes",
-];
-const OLD_CARD_HEADERS = [
-  "cardNumber",
-  "pin",
-  "startingBalance",
-  "currentBalance",
-  "merchant",
-  "dateAdded",
-  "dateUpdated",
-  "dateUsed",
-  "used",
-  "notes",
-];
 const DEFAULT_FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com";
 const DEFAULT_REDIRECT_URI = "https://walmart-gc.dotsthewarlock.com/auth/callback";
 const FRONTEND_CONNECTED_PATH = "/?auth=connected";
@@ -93,6 +74,7 @@ function routeHealthRequest(request) {
     service: "walmart-gc-oauth",
     workerVersion: WORKER_VERSION,
     schemaMode: SCHEMA_MODE,
+    schemaCapability,
   });
 }
 
@@ -280,61 +262,88 @@ async function handleSheetEnsure(request, env) {
     sheetName: sheet.sheetName,
     sheetVersion: sheet.sheetVersion,
     lastUpdated: sheet.lastUpdated,
+    schemaCapability,
+    hasCardRows: sheet.hasCardRows,
   });
 }
 
 async function handleCardsLoad(request, env) {
   const sessionContext = await requireSession(request, env);
   const token = await getGoogleAccessToken(env, sessionContext);
-  const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
-  await saveSession(env, sessionContext, sheet.sessionPatch);
-
-  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!1:1`);
-  const headerMap = validateCardHeaders(headerRows[0]);
-
-  const rows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:ZZ`);
-  const cards = cardsFromSheetRows(rows, headerMap);
+  const sheet = await getInitializedSpreadsheet(token, sessionContext.session);
+  const baseMeta = await readSheetMeta(token, sheet.sheetId);
+  if (!baseMeta.sheetVersion) throw sheetSetupRequired();
+  const [headerRow, ...rows] = await readSheetValues(token, sheet.sheetId, CARDS_RANGE);
+  const cards = cardsFromSheetRows(rows, validateCardHeaders(headerRow));
   const meta = await readSheetMeta(token, sheet.sheetId);
+  if (baseMeta.sheetVersion !== meta.sheetVersion) {
+    return jsonResponse({ ok: false, error: "The Sheet changed while loading. Load it again.", schemaCapability }, 409);
+  }
+  await saveSession(env, sessionContext, {
+    sheetId: sheet.sheetId,
+    sheetName: sheet.sheetName,
+    sheetVersion: meta.sheetVersion || "",
+  });
 
   return jsonResponse({
     ok: true,
     cards,
+    schemaCapability,
     sheetId: sheet.sheetId,
     sheetName: sheet.sheetName,
-    sheetVersion: meta.sheetVersion || sheet.sheetVersion,
-    lastUpdated: meta.lastUpdated || sheet.lastUpdated,
+    sheetVersion: meta.sheetVersion || "",
+    lastUpdated: meta.lastUpdated || "",
   });
 }
 
 async function handleCardsSave(request, env) {
   const sessionContext = await requireSession(request, env);
   const body = await request.json().catch(() => null);
-  if (!body || !Array.isArray(body.cards)) {
-    throw new HttpError(400, { ok: false, error: "Expected cards array." });
+  const compatible = body?.schemaCapability === schemaCapability;
+  const protectedInventory = body && Object.hasOwn(body, "cardsWithMetadata");
+  if (protectedInventory && !compatible) throw cardCapabilityError();
+  const inventory = protectedInventory ? body.cardsWithMetadata : body?.cards;
+  if (!Array.isArray(inventory) || (protectedInventory && Object.hasOwn(body, "cards"))) {
+    throw new HttpError(400, { ok: false, error: "Expected one cards array." });
   }
 
-  const cards = validateCards(body.cards);
+  const cards = validateCards(inventory);
+  const populatedHeaders = optionalCardHeaders.filter((header) =>
+    cards.some((card) => card[header] !== undefined)
+  );
+  if (populatedHeaders.length && !compatible) throw cardCapabilityError();
+
   const baseSheetVersion = String(body.baseSheetVersion || "").trim();
   const token = await getGoogleAccessToken(env, sessionContext);
-  const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
-  await saveSession(env, sessionContext, sheet.sessionPatch);
+  const sheet = await getInitializedSpreadsheet(token, sessionContext.session);
+  const [currentHeaderRow, ...currentRows] = await readSheetValues(token, sheet.sheetId, CARDS_RANGE);
+  const currentHeaders = validateCardHeaders(currentHeaderRow);
+  const extended = optionalCardHeaders.some((header) => currentHeaders.has(header));
+  if (extended && !compatible) throw cardCapabilityError();
+  if (extended) {
+    currentRows.forEach((row, index) => readSheetCardMetadata(row, currentHeaders, index));
+  }
 
-  const remoteMeta = await readSheetMeta(token, sheet.sheetId);
-  const remoteSheetVersion = String(remoteMeta.sheetVersion || sheet.sheetVersion || "").trim();
+  const headerRow = normalizeHeaderRow(currentHeaderRow).slice(0, currentHeaders.size);
+  const appendedHeaders = [];
+  if (!currentHeaders.has("merchantInferred")) appendedHeaders.push("merchantInferred");
+  appendedHeaders.push(...populatedHeaders.filter((header) => !currentHeaders.has(header)));
+
+  if (appendedHeaders.length) {
+    const targetCells = await readSheetValues(token, sheet.sheetId, CARDS_RANGE, "FORMULA");
+    checkAppendTargets(targetCells, headerRow.length, appendedHeaders.length);
+  }
+
+  // Compare the version after read-only validation and immediately before the batch.
+  const metaRows = await readSheetValues(token, sheet.sheetId, `${META_TAB}!A:B`);
+  const remoteSheetVersion = String(parseSheetMeta(metaRows).sheetVersion || "").trim();
   if (remoteSheetVersion !== baseSheetVersion) {
-    return jsonResponse({ ok: false, conflict: true, remoteSheetVersion }, 409);
+    return jsonResponse({ ok: false, conflict: true, remoteSheetVersion, schemaCapability }, 409);
   }
+  if (!remoteSheetVersion) throw sheetSetupRequired();
 
-  const headerRows = await readSheetValues(token, sheet.sheetId, `${CARDS_TAB}!1:1`);
-  const headerMap = validateCardHeaders(headerRows[0]);
-  const headerRow = normalizeHeaderRow(headerRows[0]);
-  const rows = cardsToSheetRows(cards, headerRow, headerMap);
-  const lastColumn = columnNumberToA1(headerRow.length);
-  await clearSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:${lastColumn}`);
-  if (cards.length > 0) {
-    await writeSheetValues(token, sheet.sheetId, `${CARDS_TAB}!A2:${lastColumn}${cards.length + 1}`, rows);
-  }
-  const nextMeta = await writeSheetMeta(token, sheet.sheetId, { sheetVersion: generateSheetVersion() });
+  const nextMeta = { sheetVersion: generateSheetVersion(), lastUpdated: new Date().toISOString() };
+  await writeCardsSnapshot(token, sheet, cards, headerRow, appendedHeaders, metaRows, nextMeta);
   await saveSession(env, sessionContext, {
     sheetId: sheet.sheetId,
     sheetName: sheet.sheetName,
@@ -343,10 +352,26 @@ async function handleCardsSave(request, env) {
 
   return jsonResponse({
     ok: true,
+    schemaCapability,
     sheetId: sheet.sheetId,
     sheetName: sheet.sheetName,
-    sheetVersion: nextMeta.sheetVersion,
-    lastUpdated: nextMeta.lastUpdated,
+    ...nextMeta,
+  });
+}
+
+function cardCapabilityError() {
+  return new HttpError(409, {
+    ok: false,
+    error: "This Sheet or save requires card metadata support. Reload an updated client before syncing. Export a CSV backup before destructive recovery.",
+    errorType: "cards_schema_capability",
+    schemaCapability,
+  });
+}
+
+function sheetSetupRequired() {
+  return new HttpError(409, {
+    ok: false,
+    error: "Use Fix Sheet to initialize Walmart-GC Data, then load it before syncing.",
   });
 }
 
@@ -355,7 +380,7 @@ async function handleStatus(request, env) {
   const sessionContext = await getOptionalSession(request, env);
   if (!sessionContext) {
     return jsonResponse(
-      { authenticated: false, workerVersion: WORKER_VERSION, schemaMode: SCHEMA_MODE },
+      { authenticated: false, workerVersion: WORKER_VERSION, schemaMode: SCHEMA_MODE, schemaCapability },
       200,
       sessionCookie ? { "Set-Cookie": buildSessionCookie("", 0) } : {},
     );
@@ -369,7 +394,7 @@ async function handleStatus(request, env) {
     }
     await env.SESSIONS.delete(sessionContext.key);
     return jsonResponse(
-      { authenticated: false, workerVersion: WORKER_VERSION, schemaMode: SCHEMA_MODE },
+      { authenticated: false, workerVersion: WORKER_VERSION, schemaMode: SCHEMA_MODE, schemaCapability },
       200,
       { "Set-Cookie": buildSessionCookie("", 0) },
     );
@@ -386,6 +411,7 @@ async function handleStatus(request, env) {
       scope: sessionContext.session.scope || OAUTH_SCOPE,
       workerVersion: WORKER_VERSION,
       schemaMode: SCHEMA_MODE,
+      schemaCapability,
     },
     200,
     { "Set-Cookie": buildSessionCookie(sessionContext.sessionId, SESSION_TTL_SECONDS) },
@@ -500,38 +526,42 @@ async function getGoogleAccessToken(env, context) {
   return payload.access_token;
 }
 
-async function ensureSpreadsheetAndSchema(accessToken, session) {
-  let file = null;
-  if (session.sheetId) {
-    file = await getDriveFile(accessToken, session.sheetId).catch(() => null);
-  }
-  if (!file) {
-    file = await findWalmartGcSpreadsheet(accessToken);
-  }
-  if (!file) {
-    file = await createWalmartGcSpreadsheet(accessToken);
-  }
-
-  const structure = await ensureSheetStructure(accessToken, file.id);
-  let meta = await readSheetMeta(accessToken, file.id);
-  const missingMeta = !meta.schemaVersion || !meta.sheetVersion || !meta.lastUpdated || !meta.appName;
-  if (missingMeta) {
-    meta = await writeSheetMeta(accessToken, file.id, {
-      schemaVersion: meta.schemaVersion || SCHEMA_VERSION,
-      sheetVersion: meta.sheetVersion || generateSheetVersion(),
-      lastUpdated: meta.lastUpdated,
-      appName: meta.appName || APP_NAME,
-    });
-  }
-
+async function getInitializedSpreadsheet(accessToken, session) {
+  const file = await findSessionSpreadsheet(accessToken, session);
+  if (!file) throw sheetSetupRequired();
+  const metadata = await getSpreadsheetMetadata(accessToken, file.id);
+  const cardsProperties = getSheetProperties(metadata, CARDS_TAB);
+  const metaProperties = getSheetProperties(metadata, META_TAB);
+  if (!cardsProperties || !metaProperties) throw sheetSetupRequired();
   return {
     sheetId: file.id,
-    sheetName: structure.spreadsheetName || file.name || DEFAULT_SHEET_NAME,
+    sheetName: metadata?.properties?.title || file.name || DEFAULT_SHEET_NAME,
+    cardsProperties,
+    metaProperties,
+  };
+}
+
+async function findSessionSpreadsheet(accessToken, session) {
+  const file = session.sheetId ? await getDriveFile(accessToken, session.sheetId).catch(() => null) : null;
+  return file || findWalmartGcSpreadsheet(accessToken);
+}
+
+async function ensureSpreadsheetAndSchema(accessToken, session) {
+  const file = await findSessionSpreadsheet(accessToken, session) || await createWalmartGcSpreadsheet(accessToken);
+
+  const { metadata, hasCardRows } = await ensureSheetStructure(accessToken, file.id);
+  const meta = await ensureSheetMeta(accessToken, file.id, getSheetProperties(metadata, META_TAB));
+  await deleteEmptyDefaultSheetIfSafe(accessToken, file.id, metadata);
+  const sheetName = metadata?.properties?.title || file.name || DEFAULT_SHEET_NAME;
+  return {
+    sheetId: file.id,
+    sheetName,
     sheetVersion: meta.sheetVersion || "",
     lastUpdated: meta.lastUpdated || "",
+    hasCardRows,
     sessionPatch: {
       sheetId: file.id,
-      sheetName: structure.spreadsheetName || file.name || DEFAULT_SHEET_NAME,
+      sheetName,
       sheetVersion: meta.sheetVersion || "",
     },
   };
@@ -601,7 +631,7 @@ async function createWalmartGcSpreadsheet(accessToken) {
 }
 
 async function getSpreadsheetMetadata(accessToken, spreadsheetId) {
-  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title,hidden)`, accessToken);
+  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title,hidden,gridProperties(rowCount,columnCount))`, accessToken);
 }
 
 function getSheetProperties(metadata, title) {
@@ -610,8 +640,24 @@ function getSheetProperties(metadata, title) {
 
 async function ensureSheetStructure(accessToken, spreadsheetId) {
   let metadata = await getSpreadsheetMetadata(accessToken, spreadsheetId);
-  let cardsProperties = getSheetProperties(metadata, CARDS_TAB);
-  let metaProperties = getSheetProperties(metadata, META_TAB);
+  const cardsProperties = getSheetProperties(metadata, CARDS_TAB);
+  const metaProperties = getSheetProperties(metadata, META_TAB);
+  const [headerRow] = cardsProperties
+    ? await readSheetValues(accessToken, spreadsheetId, `${CARDS_RANGE}!1:1`, "FORMULA")
+    : [];
+  const initializeCards = isSheetValuesEmpty([headerRow]);
+  let hasCardRows = false;
+  if (!initializeCards) {
+    const headers = validateCardHeaders(headerRow);
+    const [, ...cardRows] = await readSheetValues(accessToken, spreadsheetId, CARDS_RANGE);
+    cardRows.forEach((row, index) => readSheetCardMetadata(row, headers, index));
+    hasCardRows = cardRows.some((row) => !isSheetValuesEmpty([row.slice(0, headers.size)]));
+  } else if (cardsProperties) {
+    const cardsCells = await readSheetValues(accessToken, spreadsheetId, CARDS_RANGE, "FORMULA");
+    if (!isSheetValuesEmpty(cardsCells)) {
+      throw new HttpError(409, buildCardsHeaderError("Cards has data without a usable header row. Fix row 1 manually before syncing."));
+    }
+  }
   const requests = [];
 
   if (!cardsProperties) {
@@ -629,33 +675,20 @@ async function ensureSheetStructure(accessToken, spreadsheetId) {
       body: JSON.stringify({ requests }),
     });
     metadata = await getSpreadsheetMetadata(accessToken, spreadsheetId);
-    cardsProperties = getSheetProperties(metadata, CARDS_TAB);
-    metaProperties = getSheetProperties(metadata, META_TAB);
   }
 
-  const headerRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!1:1`);
-  if (!headerRows.length || headerRows[0].every((cell) => !String(cell || "").trim())) {
-    await writeSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A1:K1`, [CARD_HEADERS]);
-  } else {
-    await migrateCardsHeadersIfSafe(accessToken, spreadsheetId, headerRows[0]);
+  if (initializeCards) {
+    await writeSheetValues(accessToken, spreadsheetId, `${CARDS_RANGE}!A1:K1`, [CARD_HEADERS]);
   }
 
-  const metaHeaderRows = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B1`);
-  if (!metaHeaderRows.length || metaHeaderRows[0]?.[0] !== "key" || metaHeaderRows[0]?.[1] !== "value") {
-    await writeSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B1`, [["key", "value"]]);
-  }
-
-  await deleteEmptyDefaultSheetIfSafe(accessToken, spreadsheetId, metadata);
-
-  return {
-    spreadsheetName: String(metadata?.properties?.title || DEFAULT_SHEET_NAME),
-    cardsSheetId: cardsProperties?.sheetId,
-    metaSheetId: metaProperties?.sheetId,
-  };
+  return { metadata, hasCardRows };
 }
 
-async function readSheetValues(accessToken, spreadsheetId, range) {
-  const body = await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}?majorDimension=ROWS`, accessToken);
+async function readSheetValues(accessToken, spreadsheetId, range, valueRenderOption = "FORMATTED_VALUE") {
+  const body = await googleFetch(
+    `${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}?majorDimension=ROWS&valueRenderOption=${valueRenderOption}`,
+    accessToken,
+  );
   return Array.isArray(body.values) ? body.values : [];
 }
 
@@ -666,15 +699,11 @@ async function writeSheetValues(accessToken, spreadsheetId, range, values) {
   });
 }
 
-async function clearSheetValues(accessToken, spreadsheetId, range) {
-  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}:clear`, accessToken, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
+async function readSheetMeta(accessToken, spreadsheetId) {
+  return parseSheetMeta(await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`));
 }
 
-async function readSheetMeta(accessToken, spreadsheetId) {
-  const values = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`);
+function parseSheetMeta(values) {
   const meta = {};
   values.slice(1).forEach((row) => {
     const key = String(row?.[0] || "").trim();
@@ -685,158 +714,176 @@ async function readSheetMeta(accessToken, spreadsheetId) {
   return meta;
 }
 
-async function writeSheetMeta(accessToken, spreadsheetId, nextMeta = {}) {
-  const meta = {
-    schemaVersion: nextMeta.schemaVersion || SCHEMA_VERSION,
-    sheetVersion: nextMeta.sheetVersion || generateSheetVersion(),
-    lastUpdated: nextMeta.lastUpdated || new Date().toISOString(),
-    appName: nextMeta.appName || APP_NAME,
+async function ensureSheetMeta(accessToken, spreadsheetId, { sheetId, gridProperties }) {
+  const rows = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`, "FORMULA");
+  const [header] = rows;
+  const requests = [];
+  const writeRow = (rowIndex, values) => ({
+    updateCells: {
+      start: { sheetId, rowIndex, columnIndex: 0 },
+      rows: [sheetCellData(values)],
+      fields: "userEnteredValue",
+    },
+  });
+  if (isSheetValuesEmpty([header])) {
+    requests.push(writeRow(0, ["key", "value"]));
+  } else if (header[0] !== "key" || header[1] !== "value") {
+    throw new HttpError(409, { ok: false, error: "Fix the _META header to key,value before initializing the Sheet." });
+  }
+
+  const meta = parseSheetMeta(rows);
+  const defaults = {
+    schemaVersion: SCHEMA_VERSION,
+    sheetVersion: generateSheetVersion(),
+    lastUpdated: new Date().toISOString(),
+    appName: APP_NAME,
   };
-  const rows = [["key", "value"], ...Object.entries(meta)];
-  await clearSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`);
-  await writeSheetValues(accessToken, spreadsheetId, `${META_TAB}!A1:B${rows.length}`, rows);
+  let nextRow = Math.max(1, rows.length);
+  for (const [key, value] of Object.entries(defaults)) {
+    const indexes = findMetaRows(rows, key);
+    if (indexes.length > 1) throw sheetSetupRequired();
+    if (meta[key]) continue;
+    requests.push(writeRow(indexes[0] ?? nextRow++, [key, value]));
+    meta[key] = value;
+  }
+  if (requests.length) {
+    const availableRows = gridProperties?.rowCount;
+    if (Number.isInteger(availableRows) && nextRow > availableRows) {
+      requests.unshift({ appendDimension: { sheetId, dimension: "ROWS", length: nextRow - availableRows } });
+    }
+    await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}:batchUpdate`, accessToken, {
+      method: "POST",
+      body: JSON.stringify({ requests }),
+    });
+  }
   return meta;
 }
 
+function findMetaRows(rows, key) {
+  return rows.slice(1).flatMap((row, index) => String(row[0] ?? "").trim() === key ? [index + 1] : []);
+}
+
 function normalizeHeaderRow(row) {
-  return Array.isArray(row) ? row.map((header) => String(header || "").trim()) : [];
+  return Array.isArray(row) ? row.map((header) => String(header ?? "").trim()) : [];
 }
 
 function validateCardHeaders(row) {
   const headers = normalizeHeaderRow(row);
   const headerMap = new Map();
   const duplicates = new Set();
-  const nonBlankHeaders = headers.filter((header) => header);
+  const unsupported = new Set();
 
   headers.forEach((header, index) => {
-    if (!header || !CARD_HEADERS.includes(header)) {
-      return;
-    }
-    if (headerMap.has(header)) {
+    if (!header) return;
+    if (!APPROVED_CARD_HEADERS.includes(header)) {
+      unsupported.add(header);
+    } else if (headerMap.has(header)) {
       duplicates.add(header);
-      return;
+    } else {
+      headerMap.set(header, index);
     }
-    headerMap.set(header, index);
   });
 
-  const recognizedHeaders = Array.from(headerMap.keys());
-  const unsupportedHeaders = nonBlankHeaders.filter((header) => !CARD_HEADERS.includes(header));
-  const hasBlankHeaderGap = headers.slice(0, Math.max(nonBlankHeaders.length, CARD_HEADERS.length)).some((header) => !header);
-  const baseDetails = {
+  const details = {
     expectedHeaders: CARD_HEADERS,
-    recognizedHeaders,
+    recognizedHeaders: [...headerMap.keys()],
   };
-
-  if (duplicates.size > 0) {
-    const duplicateHeaders = Array.from(duplicates);
+  if (duplicates.size) {
     throw new HttpError(409, buildCardsHeaderError(
-      `Duplicate required Cards header(s): ${duplicateHeaders.join(", ")}. Keep each approved header exactly once; column order can be changed.`,
-      { ...baseDetails, duplicateHeaders },
+      `Duplicate Cards header(s): ${[...duplicates].join(", ")}. Keep each approved header exactly once; column order can be changed.`,
+      { ...details, duplicateHeaders: [...duplicates] },
     ));
   }
-
-  if (unsupportedHeaders.length > 0) {
+  if (unsupported.size) {
     throw new HttpError(409, buildCardsHeaderError(
-      `Unsupported Cards header(s): ${unsupportedHeaders.join(", ")}. Remove unsupported header(s) or rename them to approved headers; column order can be changed.`,
-      { ...baseDetails, unsupportedHeaders },
+      `Unsupported Cards header(s): ${[...unsupported].join(", ")}. Use approved header names.`,
+      { ...details, unsupportedHeaders: [...unsupported] },
     ));
   }
-
-  if (hasBlankHeaderGap) {
-    throw new HttpError(409, buildCardsHeaderError(
-      `Cards header row has blank or ambiguous header cells; expected approved headers: ${CARD_HEADERS.join(", ")}. Fix Cards row 1 manually before syncing.`,
-      baseDetails,
-    ));
+  if (!headerMap.size || headers.slice(0, headerMap.size).some((header) => !header)) {
+    throw new HttpError(409, buildCardsHeaderError("Cards header row is blank or ambiguous. Fix Cards row 1 manually before syncing.", details));
   }
 
-  if (nonBlankHeaders.length === 0 || headerMap.size === 0) {
-    throw new HttpError(409, buildCardsHeaderError(
-      `Cards header row is blank or ambiguous; expected approved headers: ${CARD_HEADERS.join(", ")}. Fix Cards row 1 manually or use a future safe repair flow.`,
-      baseDetails,
-    ));
+  if (headerMap.size === OLD_CARD_HEADERS.length && OLD_CARD_HEADERS.every((header) => headerMap.has(header))) {
+    return headerMap;
   }
-
   const missing = CARD_HEADERS.filter((header) => !headerMap.has(header));
-  if (missing.length > 0) {
+  if (missing.length) {
     throw new HttpError(409, buildCardsHeaderError(
       `Missing required Cards header(s): ${missing.join(", ")}. Add the missing header(s) to Cards row 1; column order can be changed.`,
-      { ...baseDetails, missingHeaders: missing },
+      { ...details, missingHeaders: missing },
     ));
   }
-
   return headerMap;
 }
 
-function buildHeaderMap(headers, approvedHeaders) {
-  const headerMap = new Map();
-  const duplicates = new Set();
-  headers.forEach((header, index) => {
-    if (!header || !approvedHeaders.includes(header)) {
-      return;
+function checkAppendTargets(rows, startColumn, count) {
+  const occupied = rows.some((row) => row.slice(startColumn, startColumn + count)
+    .some((cell) => cell !== "" && cell != null));
+  if (occupied) {
+    throw new HttpError(409, buildCardsHeaderError("Cannot append Cards headers because a target column already contains data. Back up and resolve the unlabelled cells before syncing."));
+  }
+}
+
+async function writeCardsSnapshot(accessToken, sheet, cards, headerRow, appendedHeaders, metaRows, nextMeta) {
+  const { cardsProperties, metaProperties } = sheet;
+  const cardsId = cardsProperties.sheetId;
+  const headers = [...headerRow, ...appendedHeaders];
+  const requests = [];
+
+  // A Sheet can have been trimmed to its current used dimensions.
+  for (const [dimension, needed, available] of [
+    ["ROWS", cards.length + 1, cardsProperties.gridProperties?.rowCount],
+    ["COLUMNS", headers.length, cardsProperties.gridProperties?.columnCount],
+  ]) {
+    if (Number.isInteger(available) && needed > available) {
+      requests.push({ appendDimension: { sheetId: cardsId, dimension, length: needed - available } });
     }
-    if (headerMap.has(header)) {
-      duplicates.add(header);
-      return;
-    }
-    headerMap.set(header, index);
+  }
+  if (appendedHeaders.length) {
+    requests.push({
+      updateCells: {
+        start: { sheetId: cardsId, rowIndex: 0, columnIndex: headerRow.length },
+        rows: [sheetCellData(appendedHeaders)],
+        fields: "userEnteredValue",
+      },
+    });
+  }
+  requests.push({
+    updateCells: {
+      // Within this range, Sheets clears values not covered by rows, including
+      // old trailing rows and an explicitly saved empty inventory.
+      range: { sheetId: cardsId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: headers.length },
+      rows: cards.map((card) => sheetCellData(headers.map((header) =>
+        header === "used" ? (card.used ? "TRUE" : "FALSE") : card[header]
+      ))),
+      fields: "userEnteredValue",
+    },
   });
-  return { headerMap, duplicates };
+  for (const [key, value] of Object.entries(nextMeta)) {
+    const matchingRows = findMetaRows(metaRows, key);
+    if (matchingRows.length !== 1) throw sheetSetupRequired();
+    requests.push({
+      updateCells: {
+        start: { sheetId: metaProperties.sheetId, rowIndex: matchingRows[0], columnIndex: 1 },
+        rows: [sheetCellData([value])],
+        fields: "userEnteredValue",
+      },
+    });
+  }
+  await googleFetch(`${GOOGLE_SHEETS_API}/${sheet.sheetId}:batchUpdate`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({ requests }),
+  });
 }
 
-function getOldSchemaMigrationMap(row) {
-  const headers = normalizeHeaderRow(row);
-  const nonBlankHeaders = headers.filter((header) => header);
-  const { headerMap, duplicates } = buildHeaderMap(headers, OLD_CARD_HEADERS);
-  const unsupportedHeaders = nonBlankHeaders.filter((header) => !OLD_CARD_HEADERS.includes(header) && header !== "merchantInferred");
-  const missing = OLD_CARD_HEADERS.filter((header) => !headerMap.has(header));
-  const hasBlankHeaderGap = headers.slice(0, Math.max(nonBlankHeaders.length, OLD_CARD_HEADERS.length)).some((header) => !header);
-
-  if (
-    duplicates.size > 0 ||
-    unsupportedHeaders.length > 0 ||
-    hasBlankHeaderGap ||
-    headerMap.has("merchantInferred") ||
-    missing.length > 0 ||
-    nonBlankHeaders.length !== OLD_CARD_HEADERS.length
-  ) {
-    return null;
-  }
-
-  return headerMap;
-}
-
-async function migrateCardsHeadersIfSafe(accessToken, spreadsheetId, headerRow) {
-  try {
-    return validateCardHeaders(headerRow);
-  } catch (error) {
-    const oldHeaderMap = getOldSchemaMigrationMap(headerRow);
-    if (!oldHeaderMap) {
-      throw error;
-    }
-
-    const existingRows = await readSheetValues(accessToken, spreadsheetId, `${CARDS_TAB}!A2:ZZ`);
-    const migratedRows = existingRows.map((row) => CARD_HEADERS.map((header) => {
-      if (header === "merchantInferred") {
-        return inferMerchantFromCardNumber(row[oldHeaderMap.get("cardNumber")]);
-      }
-      const oldIndex = oldHeaderMap.get(header);
-      if (oldIndex === undefined) {
-        return "";
-      }
-      if (header === "merchant") {
-        return normalizeMerchantValue(row[oldIndex]);
-      }
-      return String(row[oldIndex] ?? "");
-    }));
-
-    await writeSheetValues(
-      accessToken,
-      spreadsheetId,
-      `${CARDS_TAB}!A1:K${Math.max(migratedRows.length + 1, 1)}`,
-      [CARD_HEADERS, ...migratedRows],
-    );
-    return validateCardHeaders(CARD_HEADERS);
-  }
+function sheetCellData(values) {
+  return {
+    values: values.map((value) => {
+      if (value == null || value === "") return {};
+      return { userEnteredValue: typeof value === "boolean" ? { boolValue: value } : { stringValue: value } };
+    }),
+  };
 }
 
 function buildCardsHeaderError(detail, details = {}) {
@@ -845,23 +892,13 @@ function buildCardsHeaderError(detail, details = {}) {
     error: formatCardsHeaderError(detail),
     errorType: "cards_header_schema",
     schemaMode: SCHEMA_MODE,
+    schemaCapability,
     ...details,
   };
 }
 
 function formatCardsHeaderError(detail) {
   return `${detail} Local data remains available. Export/download a CSV backup before any destructive Sheet recovery. Required headers may be in any order but names must match exactly.`;
-}
-
-function columnNumberToA1(columnNumber) {
-  let number = Math.max(1, Number(columnNumber) || 1);
-  let label = "";
-  while (number > 0) {
-    const remainder = (number - 1) % 26;
-    label = String.fromCharCode(65 + remainder) + label;
-    number = Math.floor((number - 1) / 26);
-  }
-  return label;
 }
 
 function normalizePinValue(pin) {
@@ -923,7 +960,11 @@ function validateCards(cards) {
       throw new HttpError(400, { ok: false, error: `Duplicate cardNumber ${normalized.cardNumber}.` });
     }
     seen.add(normalized.cardNumber);
-    return normalized;
+    try {
+      return { ...normalized, ...readOptionalCardMetadata(card) };
+    } catch (error) {
+      throw new HttpError(400, { ok: false, error: `Card ${index + 1}: ${error.message}` });
+    }
   });
 }
 
@@ -931,7 +972,7 @@ function cardsFromSheetRows(rows, headerMap) {
   const cards = [];
   const seen = new Set();
   rows.forEach((row, index) => {
-    if (!Array.isArray(row) || row.every((cell) => !String(cell || "").trim())) {
+    if (isSheetValuesEmpty([row.slice(0, headerMap.size)])) {
       return;
     }
     const card = {};
@@ -960,21 +1001,18 @@ function cardsFromSheetRows(rows, headerMap) {
       throw new HttpError(409, { ok: false, error: `Cards row ${index + 2} duplicates cardNumber ${card.cardNumber}.` });
     }
     seen.add(card.cardNumber);
-    cards.push(card);
+    cards.push({ ...card, ...readSheetCardMetadata(row, headerMap, index) });
   });
   return cards;
 }
 
-function cardsToSheetRows(cards, headerRow, headerMap) {
-  return cards.map((card) => headerRow.map((header) => {
-    if (!headerMap.has(header)) {
-      return "";
-    }
-    if (header === "used") {
-      return card.used ? "TRUE" : "FALSE";
-    }
-    return card[header] ?? "";
-  }));
+function readSheetCardMetadata(row, headerMap, index) {
+  const metadata = Object.fromEntries(optionalCardHeaders.map((header) => [header, row[headerMap.get(header)]]));
+  try {
+    return readOptionalCardMetadata(metadata, { cellValues: true });
+  } catch (error) {
+    throw new HttpError(409, { ok: false, error: `Cards row ${index + 2}: ${error.message} The Sheet was left unchanged.` });
+  }
 }
 
 function isSheetValuesEmpty(values) {
@@ -991,8 +1029,8 @@ async function deleteEmptyDefaultSheetIfSafe(accessToken, spreadsheetId, metadat
     return false;
   }
 
-  const defaultValues = await readSheetValues(accessToken, spreadsheetId, `'${DEFAULT_TAB}'!A1:Z1000`).catch(() => null);
-  if (!isSheetValuesEmpty(defaultValues)) {
+  const defaultValues = await readSheetValues(accessToken, spreadsheetId, `'${DEFAULT_TAB}'`, "FORMULA").catch(() => null);
+  if (!defaultValues || !isSheetValuesEmpty(defaultValues)) {
     return false;
   }
 
@@ -1151,5 +1189,5 @@ function safeErrorMessage(error) {
 export const workerTestInternals = {
   CARD_HEADERS,
   validateCardHeaders,
-  normalizeMerchantValue,
+  inferMerchantFromCardNumber,
 };

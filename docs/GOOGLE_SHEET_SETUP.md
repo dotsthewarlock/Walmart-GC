@@ -69,13 +69,13 @@ used
 notes
 ```
 
-As a CSV header row, the preferred order is:
+The CSV export header is:
 
 ```csv
-cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes
+cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes,lastBalanceChecked,pendingReconciliation
 ```
 
-Do not rename, add, or remove schema fields during Phase 11.
+The last two fields are optional. The Worker adds a missing optional Sheet header when a save first supplies a value for that field. Blank cells are valid. Historical CSV restore formats remain supported. Use the current CSV export to back up optional values before a historical restore.
 
 ## Schema Rules
 
@@ -88,7 +88,9 @@ Do not rename, add, or remove schema fields during Phase 11.
 - `currentBalance` is the authoritative remaining balance.
 - `dateAdded`, `dateUpdated`, and `dateUsed` should use `YYYY-MM-DD` when populated.
 - `used` is independent of balance.
-- `notes` is optional free text.
+- `notes` is optional free text and may span multiple lines.
+- `lastBalanceChecked` is blank or a valid `YYYY-MM-DD` calendar date.
+- `pendingReconciliation` is blank or Boolean `false`. V0.1 rejects `true`.
 - Barcode payload is derived only and must not be stored: `79936686504000 + cardNumber`.
 
 ## Example Rows

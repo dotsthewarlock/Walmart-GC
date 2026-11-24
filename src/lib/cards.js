@@ -1,4 +1,5 @@
-import { storageKeys, loadJsonFromStorage, saveJsonToStorage } from "./storage.js";
+import { readOptionalCardMetadata } from "./csvSchema.js";
+import { storageKeys, saveJsonToStorage } from "./storage.js";
 
 const walmartCaMerchant = "walmart-ca";
 const walmartGiftCardNumberPattern = /^63\d{14}$/;
@@ -189,6 +190,13 @@ export function normalizeCard(card) {
     return null;
   }
 
+  let metadata;
+  try {
+    metadata = readOptionalCardMetadata(card);
+  } catch {
+    return null;
+  }
+
   const dateAdded = normalizeDateField(card.dateAdded, todayString());
 
   return {
@@ -203,6 +211,7 @@ export function normalizeCard(card) {
     dateUsed: normalizeDateField(card.dateUsed, ""),
     used: normalizeBooleanField(card.used),
     notes: String(card.notes ?? ""),
+    ...metadata,
   };
 }
 
@@ -298,9 +307,37 @@ export function calculateCardSummary(cards, settings) {
 }
 
 export function loadCards() {
-  const stored = loadJsonFromStorage(storageKeys.cards, null);
+  let raw;
+  try {
+    raw = localStorage.getItem(storageKeys.cards);
+  } catch {
+    // The app can still run in memory when browser storage is unavailable.
+    return [...bundledSampleGiftCards];
+  }
+  if (raw === null) return [...bundledSampleGiftCards];
+
+  const invalidStorageMessage = "The stored cards could not be loaded. The original browser data is preserved.";
+  let stored;
+  try {
+    stored = JSON.parse(raw);
+  } catch {
+    throw new Error(invalidStorageMessage);
+  }
+  if (Array.isArray(stored)) {
+    for (const [index, card] of stored.entries()) {
+      if (!isPlainObject(card)) continue;
+      try {
+        readOptionalCardMetadata(card);
+      } catch (error) {
+        throw new Error(`Stored card ${index + 1}: ${error.message} The original browser data is preserved.`);
+      }
+    }
+  }
   const normalized = normalizeCards(stored);
-  return normalized ?? [...bundledSampleGiftCards];
+  if (!normalized) {
+    throw new Error(invalidStorageMessage);
+  }
+  return normalized;
 }
 
 export function saveCards(cards) {

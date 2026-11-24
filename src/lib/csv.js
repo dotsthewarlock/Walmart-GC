@@ -1,5 +1,11 @@
-import { csvHeaders, oldApprovedCsvHeaders, legacyCsvHeaders } from "./csvSchema";
-import { isValidWalmartGiftCardNumber, normalizePinValue, normalizeMerchantValue, inferMerchantFromCardNumber, todayString, normalizeMoney } from "./cards";
+import {
+  csvHeaders, requiredCardHeaders, oldApprovedCsvHeaders, legacyCsvHeaders,
+  validateCsvHeaders, readOptionalCardMetadata,
+} from "./csvSchema.js";
+import {
+  isValidWalmartGiftCardNumber, normalizePinValue, normalizeMerchantValue,
+  inferMerchantFromCardNumber, todayString, normalizeMoney,
+} from "./cards.js";
 
 export function escapeCsvValue(value) {
   const text = String(value ?? "");
@@ -27,40 +33,73 @@ export function cardsToCsv(cards, limit = cards.length) {
   return [csvHeaders.join(","), ...cards.slice(0, limit).map(cardToCsvRow)].join("\n");
 }
 
-export function parseCsvLine(line) {
-  const values = [];
-  let current = "";
-  let inQuotes = false;
+// Parse complete records so quoted notes can contain commas, quotes and line breaks.
+function readCsvRecords(rawCsv) {
+  const source = rawCsv.replace(/^\uFEFF/, "");
+  const records = [];
+  let values = [];
+  let value = "";
+  let state = "unquoted";
+  let lineNumber = 1;
+  let recordLine = 1;
 
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    const nextCharacter = line[index + 1];
+  function finishField() {
+    values.push(value);
+    value = "";
+    state = "unquoted";
+  }
 
-    if (character === '"') {
-      if (inQuotes && nextCharacter === '"') {
-        current += '"';
-        index += 1;
+  function finishRecord() {
+    finishField();
+    if (values.length !== 1 || values[0].trim()) {
+      records.push({ values, lineNumber: recordLine });
+    }
+    values = [];
+  }
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const newline = character === "\n" || character === "\r";
+
+    if (state === "quoted") {
+      if (character === '"') {
+        if (source[index + 1] === '"') {
+          value += '"';
+          index += 1;
+        } else {
+          state = "closed";
+        }
       } else {
-        inQuotes = !inQuotes;
+        value += character;
+        if (newline) {
+          if (character === "\r" && source[index + 1] === "\n") {
+            value += "\n";
+            index += 1;
+          }
+          lineNumber += 1;
+        }
       }
-      continue;
+    } else if (character === ",") {
+      finishField();
+    } else if (newline) {
+      finishRecord();
+      if (character === "\r" && source[index + 1] === "\n") index += 1;
+      lineNumber += 1;
+      recordLine = lineNumber;
+    } else if (state === "closed") {
+      if (!/^[ \t]$/.test(character)) throw new Error(`Row ${recordLine}: unexpected text after a closing CSV quote.`);
+    } else if (character === '"') {
+      if (value.trim()) throw new Error(`Row ${recordLine}: unexpected CSV quote.`);
+      value = "";
+      state = "quoted";
+    } else {
+      value += character;
     }
-
-    if (character === "," && !inQuotes) {
-      values.push(current.trim());
-      current = "";
-      continue;
-    }
-
-    current += character;
   }
 
-  if (inQuotes) {
-    return null;
-  }
-
-  values.push(current.trim());
-  return values;
+  if (state === "quoted") throw new Error(`Row ${recordLine}: unclosed CSV quote.`);
+  finishRecord();
+  return records;
 }
 
 export function parseBooleanValue(value) {
@@ -75,178 +114,91 @@ export function parseBooleanValue(value) {
 }
 
 export function readCsvMoney(value) {
-  if (value.trim() === "") {
-    return null;
-  }
-  const parsedValue = Number.parseFloat(value.replace(/^\$/, ""));
-  return Number.isFinite(parsedValue) ? normalizeMoney(parsedValue) : NaN;
+  if (value.trim() === "") return null;
+  const amount = value.trim().replace(/^\$/, "");
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(amount)) return NaN;
+  const parsed = Number(amount);
+  return Number.isFinite(parsed) ? normalizeMoney(parsed) : NaN;
 }
 
-export function getCsvHeaderMap(headerValues) {
-  if (!Array.isArray(headerValues)) {
-    return null;
-  }
+const historicalHeaderlessSchemas = [legacyCsvHeaders, oldApprovedCsvHeaders, requiredCardHeaders];
 
-  const normalizedValues = headerValues.map((value) => value.trim());
-  const knownHeaders = new Set([...csvHeaders, ...oldApprovedCsvHeaders, ...legacyCsvHeaders]);
-  if (!normalizedValues.every((value) => knownHeaders.has(value))) {
-    return null;
-  }
-
-  const headerMap = new Map();
-  normalizedValues.forEach((value, index) => {
-    if (value) {
-      headerMap.set(value, index);
-    }
-  });
-
-  const hasApprovedHeaders = csvHeaders.every((header) => headerMap.has(header));
-  const hasOldApprovedHeaders = oldApprovedCsvHeaders.every((header) => headerMap.has(header));
-  const hasLegacyPrototypeHeaders = legacyCsvHeaders.every((header) => headerMap.has(header));
-  return hasApprovedHeaders || hasOldApprovedHeaders || hasLegacyPrototypeHeaders ? headerMap : null;
-}
-
-export function normalizeCsvRows(rawCsv) {
-  const rows = rawCsv
-    .split(/\r?\n/)
-    .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
-    .filter(({ line }) => line);
-
-  if (rows.length === 0) {
-    return { rows: [], headerMap: null };
-  }
-
-  const headerMap = getCsvHeaderMap(parseCsvLine(rows[0].line));
-  return headerMap ? { rows: rows.slice(1), headerMap } : { rows, headerMap: null };
+export function wouldDiscardCardMetadata(currentCards, replacementCards) {
+  const replacements = new Map(replacementCards.map((card) => [card.cardNumber, readOptionalCardMetadata(card)]));
+  return currentCards.some((card) => Object.entries(readOptionalCardMetadata(card)).some(([header, value]) =>
+    value !== replacements.get(card.cardNumber)?.[header]
+  ));
 }
 
 export function parseRawCardData(rawCsv) {
   const warnings = [];
   const parsedCards = [];
   const seenCardNumbers = new Set();
-  const { rows, headerMap } = normalizeCsvRows(rawCsv);
+  let rows;
+  try {
+    rows = readCsvRecords(rawCsv);
+  } catch (error) {
+    return { parsedCards: [], warnings: [error.message] };
+  }
+  if (!rows.length) return { parsedCards: [], warnings: ["CSV is empty. Include a recognized header row or card records."] };
+
+  const firstValues = rows[0].values.map((value) => value.trim());
+  let headers;
+  if (validateCsvHeaders(firstValues)) {
+    headers = firstValues;
+    rows.shift();
+  } else if (!isValidWalmartGiftCardNumber(firstValues[0]) && firstValues.some((value) => csvHeaders.includes(value))) {
+    return { parsedCards: [], warnings: ["CSV header row is malformed. Use a supported schema with unique, recognized header names."] };
+  }
+
   const fallbackToday = todayString();
-
-  rows.forEach(({ line, lineNumber }) => {
-    const displayRow = lineNumber;
-    const values = parseCsvLine(line);
-
-    if (!values || (!headerMap && ![csvHeaders.length, oldApprovedCsvHeaders.length, legacyCsvHeaders.length].includes(values.length))) {
-      warnings.push(`Row ${displayRow}: malformed row; expected ${csvHeaders.length} CSV fields.`);
-      return;
+  for (const { values, lineNumber } of rows) {
+    const schema = headers ?? historicalHeaderlessSchemas.find((fields) => fields.length === values.length);
+    if (!schema || values.length !== schema.length) {
+      warnings.push(`Row ${lineNumber}: malformed row; expected ${headers?.length ?? "8, 10, or 11"} CSV fields.`);
+      continue;
     }
+    const fields = Object.fromEntries(schema.map((header, index) => [header, values[index]]));
+    const read = (header) => (fields[header] ?? "").trim();
+    const cardNumber = read("cardNumber");
+    const pin = normalizePinValue(fields.pin);
+    const startingBalance = readCsvMoney(read("startingBalance"));
+    const currentBalance = readCsvMoney(read("currentBalance")) ?? startingBalance;
+    const used = read("used") ? parseBooleanValue(read("used")) : false;
+    const dateAddedRaw = read("dateAdded");
+    const dateUpdatedRaw = read("dateUpdated");
+    const dateUsedRaw = read("dateUsed");
+    const warningsBeforeRow = warnings.length;
 
-    const isLegacyPrototypeRow = !headerMap && values.length === legacyCsvHeaders.length;
-    const isOldApprovedRow = !headerMap && values.length === oldApprovedCsvHeaders.length;
-    const readHeaderValue = (header) => {
-      if (!headerMap || !headerMap.has(header)) {
-        return "";
-      }
-      return values[headerMap.get(header)] ?? "";
-    };
-    
-    const fallbackApprovedValues = [
-      values[0],
-      values[1],
-      values[4],
-      values[2],
-      values[3],
-      values[6],
-      values[7],
-      values[8],
-      values[9],
-      values[10] ?? "",
-    ];
-    
-    const [
-      cardNumber,
-      pin,
-      merchantRaw,
-      startingBalanceRaw,
-      currentBalanceRaw,
-      dateAddedRaw,
-      dateUpdatedRaw,
-      dateUsedRaw,
-      usedRaw,
-      notesRaw = "",
-    ] = headerMap
-      ? [
-        readHeaderValue("cardNumber"),
-        readHeaderValue("pin"),
-        readHeaderValue("merchant"),
-        readHeaderValue("startingBalance"),
-        readHeaderValue("currentBalance"),
-        readHeaderValue("dateAdded"),
-        readHeaderValue("dateUpdated"),
-        readHeaderValue("dateUsed"),
-        readHeaderValue("used"),
-        readHeaderValue("notes"),
-      ]
-      : isLegacyPrototypeRow
-        ? [values[0], values[1], "", ...values.slice(2), ""]
-        : isOldApprovedRow
-          ? [values[0], values[1], values[4], values[2], values[3], ...values.slice(5)]
-          : fallbackApprovedValues;
-          
-    let hasError = false;
-
-    if (!cardNumber) {
-      warnings.push(`Row ${displayRow}: missing card number.`);
-      hasError = true;
-    } else if (!isValidWalmartGiftCardNumber(cardNumber)) {
-      warnings.push(`Row ${displayRow}: Card number must start with 63 and be exactly 16 digits.`);
-      hasError = true;
+    if (!isValidWalmartGiftCardNumber(cardNumber)) {
+      warnings.push(`Row ${lineNumber}: Card number must start with 63 and be exactly 16 digits.`);
     } else if (seenCardNumbers.has(cardNumber)) {
-      warnings.push(`Row ${displayRow}: duplicate card number ${cardNumber}.`);
-      hasError = true;
+      warnings.push(`Row ${lineNumber}: duplicate card number.`);
     }
-
-    const normalizedPin = normalizePinValue(pin);
-    if (!normalizedPin) {
-      warnings.push(`Row ${displayRow}: missing PIN.`);
-      hasError = true;
-    } else if (normalizedPin.length < 4) {
-      warnings.push(`Row ${displayRow}: PIN must be at least 4 characters.`);
-      hasError = true;
-    }
-
-    const merchant = normalizeMerchantValue(merchantRaw);
-
-    const startingBalance = readCsvMoney(startingBalanceRaw);
-    if (startingBalance === null || Number.isNaN(startingBalance)) {
-      warnings.push(`Row ${displayRow}: invalid starting balance.`);
-      hasError = true;
-    }
-
-    const currentBalance = currentBalanceRaw === "" ? startingBalance : readCsvMoney(currentBalanceRaw);
-    if (Number.isNaN(currentBalance)) {
-      warnings.push(`Row ${displayRow}: invalid current balance.`);
-      hasError = true;
+    if (pin.length < 4) warnings.push(`Row ${lineNumber}: PIN must be at least 4 characters.`);
+    if (!Number.isFinite(startingBalance)) warnings.push(`Row ${lineNumber}: invalid starting balance.`);
+    if (Number.isNaN(currentBalance) && Number.isFinite(startingBalance)) {
+      warnings.push(`Row ${lineNumber}: invalid current balance.`);
     } else if (currentBalance < 0) {
-      warnings.push(`Row ${displayRow}: current balance cannot be below zero.`);
-      hasError = true;
+      warnings.push(`Row ${lineNumber}: current balance cannot be below zero.`);
     }
-
-    const used = usedRaw === "" ? false : parseBooleanValue(usedRaw);
-    if (used === null) {
-      warnings.push(`Row ${displayRow}: invalid used value.`);
-      hasError = true;
+    if (used === null) warnings.push(`Row ${lineNumber}: invalid used value.`);
+    let metadata;
+    try {
+      metadata = readOptionalCardMetadata(fields, { cellValues: true });
+    } catch (error) {
+      warnings.push(`Row ${lineNumber}: ${error.message}`);
     }
-
-    if (hasError) {
-      return;
-    }
+    if (warnings.length !== warningsBeforeRow) continue;
 
     seenCardNumbers.add(cardNumber);
-
     const dateAdded = dateAddedRaw || fallbackToday;
-    const dateUpdated = dateUpdatedRaw || dateAdded || fallbackToday;
-    const dateUsed = dateUsedRaw || (used ? dateUpdated || fallbackToday : "");
-
+    const dateUpdated = dateUpdatedRaw || dateAdded;
+    const dateUsed = dateUsedRaw || (used ? dateUpdated : "");
     parsedCards.push({
       cardNumber,
-      pin: normalizedPin,
-      merchant,
+      pin,
+      merchant: normalizeMerchantValue(fields.merchant),
       merchantInferred: inferMerchantFromCardNumber(cardNumber),
       startingBalance,
       currentBalance,
@@ -254,9 +206,10 @@ export function parseRawCardData(rawCsv) {
       dateUpdated,
       dateUsed,
       used,
-      notes: notesRaw,
+      notes: fields.notes ?? "",
+      ...metadata,
     });
-  });
+  }
 
-  return { parsedCards, warnings };
+  return { parsedCards: warnings.length ? [] : parsedCards, warnings };
 }

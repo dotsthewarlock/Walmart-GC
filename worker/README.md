@@ -144,13 +144,16 @@ used
 notes
 ```
 
-Sheets that still have the previous 10-column header row are safe additive
-migration candidates only when that old header set is present exactly once and
-contains no unsupported, duplicate, blank-gap, or ambiguous headers. The Worker
-adds `merchantInferred` immediately after `merchant`, preserves existing card
-row values by header name, keeps explicit `merchant` values intact, and derives
-`merchantInferred` from `cardNumber`. Malformed or ambiguous header rows must
-fail with schema diagnostics instead of being rewritten.
+The Worker reads exact historical 10-column Sheets by deriving
+`merchantInferred` from `cardNumber`. It appends that header on the next valid
+inventory save and preserves the existing header order.
+
+V0.1 also supports the optional `lastBalanceChecked` and `pendingReconciliation`
+columns. Their addition is triggered by the first save that needs a missing
+column. Date values must be valid `YYYY-MM-DD` and the flag can be blank or
+`false`. Loads do not migrate rows. Extended Sheets require the
+`optional-card-metadata-v1` capability for writes. See [Architecture](../docs/ARCHITECTURE.md)
+for the save contract, CSV compatibility and rollback limits.
 
 ## Deployment Verification
 

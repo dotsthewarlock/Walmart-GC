@@ -1,3 +1,5 @@
+import { readOptionalCardMetadata, schemaCapability } from "./csvSchema.js";
+
 export const googleOAuthStatuses = {
   disconnected: "disconnected",
   connecting: "connecting",
@@ -66,4 +68,28 @@ function formatWorkerApiErrorMessage(message, payload) {
     details.push(`Expected approved headers: ${payload.expectedHeaders.join(", ")}.`);
   }
   return [message, ...details].filter(Boolean).join(" ");
+}
+
+// Older Workers reject requests without the legacy cards array before touching
+// Sheets. The protected payload keeps metadata safe across a Worker rollback.
+export async function saveWorkerCards(cards, baseSheetVersion) {
+  const metadata = cards.map((card) => readOptionalCardMetadata(card));
+  const hasMetadata = metadata.some((fields) => Object.keys(fields).length > 0);
+  const inventory = hasMetadata ? { cardsWithMetadata: cards } : { cards };
+
+  try {
+    const result = await fetchWorkerJson("/api/cards/save", {
+      method: "POST",
+      body: JSON.stringify({ ...inventory, baseSheetVersion, schemaCapability }),
+    });
+    if (hasMetadata && result.schemaCapability !== schemaCapability) {
+      throw new Error("The Worker did not confirm card metadata support. Keep a CSV backup and check the Sheet before retrying.");
+    }
+    return result;
+  } catch (error) {
+    if (hasMetadata && error.status === 400 && error.payload?.error === "Expected cards array.") {
+      throw new Error("The connected Worker does not support card metadata. Update the Worker before syncing. Your local cards remain available for CSV backup.");
+    }
+    throw error;
+  }
 }
