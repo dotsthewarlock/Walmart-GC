@@ -23,9 +23,9 @@ const choices = [
   ...[5, 10, 20, 30].map((count) => [String(count), `Next oldest ${count} cards`]),
 ];
 
-function savedBatch() {
+function savedBatch(raw) {
   try {
-    return { ledger: decodeTransferLedger(readTransferLedger()) };
+    return { ledger: decodeTransferLedger(raw === undefined ? readTransferLedger() : raw) };
   } catch (error) {
     return { error: error.message };
   }
@@ -36,7 +36,7 @@ function formatNet(cents) {
   return `${cents < 0n ? "−" : cents > 0n ? "+" : ""}$${(absolute / 100n).toLocaleString("en-CA")}.${String(absolute % 100n).padStart(2, "0")}`;
 }
 
-export function BalanceTransfer({ cards, onSave, copyText, maskCardNumber, getTransferWallet }) {
+export function BalanceTransfer({ cards, onSave, copyText, maskCardNumber, getTransferWallet, discardTransferLedger }) {
   const [selection, setSelection] = useState("all");
   const [batch, setBatch] = useState(savedBatch);
   const [packet, setPacket] = useState("");
@@ -182,14 +182,14 @@ export function BalanceTransfer({ cards, onSave, copyText, maskCardNumber, getTr
   function discardBatch() {
     const raw = readTransferLedger();
     if (raw === null) return;
-    const current = savedBatch();
+    const current = savedBatch(raw);
     const recovery = current.error || current.ledger?.application;
     const outstanding = current.ledger?.requests.filter(({ state }) => state === "pending").length;
     const question = recovery
-      ? "Discard this batch and its request references? Check the card balances before creating a new batch."
+      ? "Discard this batch and its request references? The wallet will check that the displayed inventory matches the persisted inventory."
       : `Discard this batch${outstanding ? ` and its ${outstanding} outstanding requests` : ""}?`;
     if (!window.confirm(question)) return;
-    writeTransferLedger(raw, null);
+    discardTransferLedger(raw, () => getTransferWallet().cards);
     setPreview(null);
     setPacket("");
     setMessage("Batch discarded.");
@@ -248,7 +248,11 @@ export function BalanceTransfer({ cards, onSave, copyText, maskCardNumber, getTr
         {recovering ? (
           <>
             <p role="alert" className="text-sm text-m3-error">
-              {batch.error || "A previous apply was interrupted. Exit and check the card balances, then discard this batch to continue."}
+              {batch.error || "A previous apply was interrupted."}
+            </p>
+            <p className="text-sm text-m3-on-surface-variant">
+              Displayed balances may be stale. Discarding requires the displayed inventory to match the persisted inventory.
+              If the check fails, reload the wallet to load the persisted balances, then return to Batch.
             </p>
             <Button variant="outlined" disabled={busy} onClick={() => run(discardBatch)}>Discard batch</Button>
           </>

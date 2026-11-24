@@ -16,7 +16,7 @@ import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { BalanceReview } from './components/BalanceReview';
-import { invalidateOnObservedContext, invalidateTransferBeforeMutation, readTransferLedger } from './lib/balanceTransferLedger';
+import { createTransferDiscardGuard, invalidateOnObservedContext, invalidateTransferBeforeMutation, readTransferLedger } from './lib/balanceTransferLedger';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
 
@@ -183,6 +183,7 @@ function App() {
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
   const [transferMutationError, setTransferMutationError] = useState("");
+  const [discardTransferLedger] = useState(createTransferDiscardGuard);
   const sheetMutation = useRef(false);
   const transferWallet = useRef(null);
   const [settings, setSettings] = useState({
@@ -1349,6 +1350,7 @@ function App() {
         allowEmptyStorage={cards === emptyStorageInventory.current}
         onSave={setCards}
         beforeManualSave={invalidateTransferBeforeMutation}
+        discardTransferLedger={discardTransferLedger}
         getTransferWallet={getTransferWallet}
         onExit={() => {
           restoreReviewFocus.current = true;

@@ -3,11 +3,12 @@ import {
 } from "./balanceTransfer.js";
 import { parseVerifiedBalance } from "./balanceReview.js";
 import { isCalendarDate } from "./csvSchema.js";
-import { persistBalanceReviewCards, serializeReviewInventory } from "./cards.js";
+import { captureBalanceReviewStorage, persistBalanceReviewCards, serializeReviewInventory } from "./cards.js";
 import { storageKeys } from "./storage.js";
 
 const storageError = "Batch storage could not be verified. Check browser storage and reopen Batch to recover.";
-const recoveryError = "A batch application was interrupted. Check the balances in Cards, then discard the batch to continue.";
+const recoveryError = "A batch application was interrupted. Displayed balances may be stale. Open Batch to verify the saved inventory before discarding.";
+const reloadRecoveryError = "Recovery is still protected. Reload the wallet to load the persisted balances, then return to Batch and try discarding again.";
 const keysAre = (value, keys) => value && typeof value === "object" && !Array.isArray(value)
   && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 const text = (value) => typeof value === "string" && value.trim() !== "";
@@ -88,6 +89,30 @@ export function writeTransferLedger(expectedRaw, ledger) {
   }
   if (readTransferLedger() !== nextRaw) throw new Error(storageError);
   return nextRaw;
+}
+
+export function createTransferDiscardGuard() {
+  // Keep a failed check latched for this wallet load, including mode switches.
+  let reloadRequired = false;
+  return (raw, getCards) => {
+    let ledger;
+    try {
+      ledger = decodeTransferLedger(raw);
+    } catch {
+      // A damaged ledger cannot rule out an interrupted application.
+    }
+    if (ledger === undefined || ledger?.application) {
+      if (reloadRequired) throw new Error(reloadRecoveryError);
+      try {
+        const inventoryRaw = captureBalanceReviewStorage(getCards());
+        assertTransferUnchanged(raw, inventoryRaw);
+      } catch {
+        reloadRequired = true;
+        throw new Error(reloadRecoveryError);
+      }
+    }
+    writeTransferLedger(raw, null);
+  };
 }
 
 export function readLocalTransferContext() {
@@ -216,7 +241,7 @@ export function commitTransferApplication({ raw, inventoryRaw, candidate, prepar
     committedRaw = persistBalanceReviewCards(candidate, inventoryRaw);
     if (readStorage(storageKeys.cards) !== committedRaw) throw new Error(storageError);
   } catch {
-    return { saved: false, error: "The inventory write could not be confirmed. Check Cards, then discard the interrupted batch before retrying." };
+    return { saved: false, error: "The inventory write could not be confirmed. Displayed balances may be stale. Reload the wallet to view the persisted balances." };
   }
   try {
     assertTransferUnchanged(markerRaw, committedRaw);

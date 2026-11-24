@@ -6,7 +6,7 @@ import {
 } from "./balanceTransfer.js";
 import {
   assertTransferUnchanged, checkTransferContinuity, commitTransferApplication, createTransferLedger,
-  decodeTransferLedger, invalidateOnObservedContext, invalidateTransferBeforeMutation,
+  createTransferDiscardGuard, decodeTransferLedger, invalidateOnObservedContext, invalidateTransferBeforeMutation,
   prepareTransferApplication, readTransferLedger, writeTransferLedger,
 } from "./balanceTransferLedger.js";
 import { bundledSampleGiftCards, loadCards } from "./cards.js";
@@ -284,3 +284,71 @@ for (const interruptedAt of ["marker", "inventory", "inventory readback", "final
     assert.equal(loadCards()[0].currentBalance, interruptedAt === "finalize" ? 15 : 8);
   });
 }
+
+test("a successful inventory write with failed readback protects stale cards until wallet reload and verified discard", async (t) => {
+  const { fixture, cards, raw, ledger, inventoryRaw } = await stage(t);
+  const one = observation(ledger.requests[0], 15);
+  const { candidate } = previewTransferResults(ledger, cards, [one], now);
+  const prepared = await prepareTransferApplication(ledger, candidate, [one]);
+  const read = fixture.getItem;
+  let failedReadback = false;
+  fixture.getItem = (key) => {
+    if (key === storageKeys.cards && !failedReadback && fixture.writes.includes(storageKeys.cards)) {
+      failedReadback = true;
+      throw new Error("readback failed after the inventory write");
+    }
+    return read(key);
+  };
+
+  assert.equal(commitTransferApplication({ raw, inventoryRaw, candidate, prepared }).saved, false);
+  assert.equal(failedReadback, true);
+  assert.equal(cards[0].currentBalance, 8);
+  assert.equal(loadCards()[0].currentBalance, 15);
+  const marker = readTransferLedger();
+  const persisted = fixture.getItem(storageKeys.cards);
+  const discard = createTransferDiscardGuard();
+  assert.throws(() => discard(marker, () => cards), /Reload the wallet/);
+  assert.equal(readTransferLedger(), marker);
+  assert.throws(() => invalidateTransferBeforeMutation(), /interrupted/);
+  assert.throws(() => discard(marker, loadCards), /Reload the wallet/);
+
+  const reloadedCards = loadCards();
+  createTransferDiscardGuard()(marker, () => reloadedCards);
+  assert.equal(readTransferLedger(), null);
+  assert.doesNotThrow(invalidateTransferBeforeMutation);
+  assert.equal(fixture.getItem(storageKeys.cards), persisted);
+  assert.equal(fixture.writes.filter((key) => key === storageKeys.cards).length, 1);
+});
+
+test("damaged ledger recovery requires readable, valid persisted cards and rejects stale displays", async (t) => {
+  const { fixture, cards } = await stage(t);
+  const damaged = "{";
+  fixture.store.set(storageKeys.balanceTransfer, damaged);
+  const read = fixture.getItem;
+  fixture.getItem = (key) => {
+    if (key === storageKeys.cards) throw new Error("unreadable");
+    return read(key);
+  };
+  const discard = createTransferDiscardGuard();
+  assert.throws(() => discard(damaged, () => cards), /Reload the wallet/);
+  fixture.getItem = read;
+  assert.throws(() => discard(damaged, () => cards), /Reload the wallet/);
+  fixture.store.set(storageKeys.cards, "{");
+  assert.throws(() => createTransferDiscardGuard()(damaged, () => cards), /Reload the wallet/);
+  const changed = [{ ...cards[0], currentBalance: 17 }, cards[1]];
+  fixture.store.set(storageKeys.cards, JSON.stringify(changed));
+  assert.throws(() => createTransferDiscardGuard()(damaged, () => cards), /Reload the wallet/);
+  assert.equal(readTransferLedger(), damaged);
+  assert.throws(() => invalidateTransferBeforeMutation(), /damaged or unsupported/);
+
+  const reloadedCards = loadCards();
+  createTransferDiscardGuard()(damaged, () => reloadedCards);
+  assert.equal(readTransferLedger(), null);
+  assert.deepEqual(loadCards(), changed);
+});
+
+test("discarding a valid batch without an interrupted application leaves inventory checks unchanged", async (t) => {
+  const { raw } = await stage(t);
+  createTransferDiscardGuard()(raw, () => assert.fail("Normal discard should not read the inventory"));
+  assert.equal(readTransferLedger(), null);
+});
