@@ -358,25 +358,88 @@ test("stale force and empty saves cannot mutate a Sheet with an optional header,
   }
   assert.deepEqual(fixture.mutations, []);
   assert.deepEqual(fixture.cards[0], headers);
+  assert.equal((await save([])).status, 200);
 });
 
-test("force recovery still needs the latest version and a compatible empty save only clears approved cells", async (t) => {
+test("a compatible retry after an older client strips loaded metadata leaves the Sheet unchanged", async (t) => {
+  const headers = [...requiredCardHeaders, ...optionalCardHeaders].reverse();
+  const fixture = setupSheet(t, { headers, rows: [rowFor(headers, withMetadata)] });
+  const { cards, sheetVersion } = await (await route("/api/cards/load")).json();
+  assert.deepEqual(cards, [withMetadata]);
+  const olderClientCards = cards.map((loaded) =>
+    Object.fromEntries(requiredCardHeaders.map((field) => [field, loaded[field]]))
+  );
+  const retry = await save(olderClientCards, sheetVersion);
+  assert.equal(retry.status, 409);
+  const { conflict, errorType, remoteSheetVersion } = await retry.json();
+  assert.equal(conflict, true);
+  assert.equal(errorType, "cards_metadata_loss");
+  assert.equal(remoteSheetVersion, sheetVersion);
+  assert.deepEqual(fixture.mutations, []);
+  assert.deepEqual(fixture.cards[1], rowFor(headers, withMetadata));
+  assert.equal(fixture.meta[2][1], sheetVersion);
+  assert.equal((await save([{ ...cards[0], notes: "Updated notes" }], sheetVersion)).status, 200);
+});
+
+test("ordinary saves protect explicit false, deleted cards and empty inventory", async (t) => {
+  const headers = [...requiredCardHeaders, ...optionalCardHeaders];
+  const remoteCard = { ...card, pendingReconciliation: false };
+  const fixture = setupSheet(t, { headers, rows: [rowFor(headers, remoteCard)] });
+  for (const body of [
+    { cards: [card], force: true },
+    { cards: [{ ...card, cardNumber: "6300000000000002", pendingReconciliation: false }] },
+    { cards: [] },
+    { cards: [], acknowledgeMetadataRemoval: "true" },
+  ]) {
+    const blocked = await route("/api/cards/save", { ...body, baseSheetVersion: metaVersion, schemaCapability });
+    assert.equal(blocked.status, 409);
+    assert.equal((await blocked.json()).errorType, "cards_metadata_loss");
+  }
+  assert.deepEqual(fixture.mutations, []);
+  assert.deepEqual(fixture.cards[1], rowFor(headers, remoteCard));
+});
+
+test("acknowledged removal still requires a compatible client and the latest version", async (t) => {
   const headers = [...requiredCardHeaders, ...optionalCardHeaders];
   const fixture = setupSheet(t, {
     headers, rows: [rowFor(headers, withMetadata)], extraCell: { column: 14, value: "unrelated" },
   });
-  const stale = await route("/api/cards/save", {
-    cards: [], baseSheetVersion: "stale", schemaCapability, force: true,
+  const incompatible = await route("/api/cards/save", {
+    cards: [], baseSheetVersion: metaVersion, acknowledgeMetadataRemoval: true,
   });
-  assert.equal(stale.status, 409);
-  assert.deepEqual(await stale.json(), { ok: false, conflict: true, remoteSheetVersion: metaVersion, schemaCapability });
+  assert.equal(incompatible.status, 409);
+  assert.equal((await incompatible.json()).errorType, "cards_schema_capability");
+  for (const acknowledgeMetadataRemoval of [false, true]) {
+    const stale = await route("/api/cards/save", {
+      cards: [], baseSheetVersion: "stale", schemaCapability, acknowledgeMetadataRemoval,
+    });
+    assert.equal(stale.status, 409);
+    assert.deepEqual(await stale.json(), { ok: false, conflict: true, remoteSheetVersion: metaVersion, schemaCapability });
+  }
   assert.deepEqual(fixture.mutations, []);
-  const recovery = await save([]);
+  const recovery = await route("/api/cards/save", {
+    cards: [], baseSheetVersion: metaVersion, schemaCapability, acknowledgeMetadataRemoval: true,
+  });
   assert.equal(recovery.status, 200);
   assert.deepEqual(fixture.cards[0], headers);
   assert.deepEqual(fixture.cards[1].slice(0, headers.length), headers.map(() => ""));
   assert.equal(fixture.cards[1][14], "unrelated");
   assert.deepEqual((await (await route("/api/cards/load")).json()).cards, []);
+});
+
+test("explicit acknowledgement can clear an optional field while keeping the card", async (t) => {
+  const headers = [...requiredCardHeaders, ...optionalCardHeaders];
+  const fixture = setupSheet(t, { headers, rows: [rowFor(headers, withMetadata)] });
+  const retained = { ...card, pendingReconciliation: false };
+  const ordinary = await save([retained]);
+  assert.equal(ordinary.status, 409);
+  assert.equal((await ordinary.json()).errorType, "cards_metadata_loss");
+  assert.deepEqual(fixture.mutations, []);
+  const recovery = await route("/api/cards/save", {
+    cardsWithMetadata: [retained], baseSheetVersion: metaVersion, schemaCapability, acknowledgeMetadataRemoval: true,
+  });
+  assert.equal(recovery.status, 200);
+  assert.deepEqual(fixture.cards[1], rowFor(headers, retained));
 });
 
 test("unknown and malformed headers block mutation", async (t) => {
@@ -408,7 +471,9 @@ test("malformed or dormant persisted values prevent both load and replacement", 
       const load = await route("/api/cards/load");
       assert.equal(load.status, 409);
       assert.match((await load.json()).error, regex);
-      const overwrite = await save([]);
+      const overwrite = await route("/api/cards/save", {
+        cards: [], baseSheetVersion: metaVersion, schemaCapability, acknowledgeMetadataRemoval: true,
+      });
       assert.equal(overwrite.status, 409);
       assert.match((await overwrite.json()).error, regex);
       assert.deepEqual(fixture.mutations, []);

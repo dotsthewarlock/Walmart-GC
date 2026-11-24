@@ -320,8 +320,17 @@ async function handleCardsSave(request, env) {
   const currentHeaders = validateCardHeaders(currentHeaderRow);
   const extended = optionalCardHeaders.some((header) => currentHeaders.has(header));
   if (extended && !compatible) throw cardCapabilityError();
+  let removesMetadata = false;
   if (extended) {
-    currentRows.forEach((row, index) => readSheetCardMetadata(row, currentHeaders, index));
+    const savedCardsByNumber = new Map(cards.map((card) => [card.cardNumber, card]));
+    const cardNumberColumn = currentHeaders.get("cardNumber");
+    for (const [index, row] of currentRows.entries()) {
+      const metadata = readSheetCardMetadata(row, currentHeaders, index);
+      const replacement = savedCardsByNumber.get(String(row[cardNumberColumn] ?? "").trim());
+      if (Object.keys(metadata).some((field) => replacement?.[field] === undefined)) {
+        removesMetadata = true;
+      }
+    }
   }
 
   const headerRow = normalizeHeaderRow(currentHeaderRow).slice(0, currentHeaders.size);
@@ -341,6 +350,16 @@ async function handleCardsSave(request, env) {
     return jsonResponse({ ok: false, conflict: true, remoteSheetVersion, schemaCapability }, 409);
   }
   if (!remoteSheetVersion) throw sheetSetupRequired();
+  if (removesMetadata && body.acknowledgeMetadataRemoval !== true) {
+    return jsonResponse({
+      ok: false,
+      conflict: true,
+      errorType: "cards_metadata_loss",
+      error: "Sync stopped because this session would remove saved balance-check metadata. Load the Sheet to keep it, or back up the Sheet before choosing Overwrite sheet with this session.",
+      remoteSheetVersion,
+      schemaCapability,
+    }, 409);
+  }
 
   const nextMeta = { sheetVersion: generateSheetVersion(), lastUpdated: new Date().toISOString() };
   await writeCardsSnapshot(token, sheet, cards, headerRow, appendedHeaders, metaRows, nextMeta);

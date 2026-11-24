@@ -117,8 +117,8 @@ export function readCsvMoney(value) {
   if (value.trim() === "") return null;
   const amount = value.trim().replace(/^\$/, "");
   if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(amount)) return NaN;
-  const parsed = Number(amount);
-  return Number.isFinite(parsed) ? normalizeMoney(parsed) : NaN;
+  const rounded = normalizeMoney(Number(amount));
+  return Number.isFinite(rounded) ? rounded : NaN;
 }
 
 const historicalHeaderlessSchemas = [legacyCsvHeaders, oldApprovedCsvHeaders, requiredCardHeaders];

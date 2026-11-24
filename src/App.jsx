@@ -951,21 +951,21 @@ function App() {
 
   const useCurrentSessionToOverwriteDirectSheets = async () => {
     const backupRecommended = window.confirm(
-      "Overwrite sheet with this session will replace every card row in the configured Google sheet with this browser session. Download a backup CSV before continuing. Press OK only if you already downloaded a backup or intentionally choose to continue without one.",
+      "Overwrite sheet with this session replaces all card rows and can permanently remove saved balance-check metadata. Back up the Google Sheet first. The browser session CSV only contains your local data. Continue to final confirmation?",
     );
     if (!backupRecommended) {
       return;
     }
 
     const confirmed = window.confirm(
-      "Final confirmation: overwrite the configured Google sheet with the current local session now? Walmart-GC will not automatically merge sheet changes.",
+      "Overwrite the Google Sheet with this browser session and remove any saved balance-check metadata missing from this session?",
     );
     if (!confirmed) {
       return;
     }
 
     await handleSaveCardsToSheet({
-      force: true,
+      acknowledgeMetadataRemoval: true,
       successMessage: `Overwrote Walmart-GC Data with ${cards.length} current-session card${cards.length === 1 ? "" : "s"}.`,
       startMessage: "Overwriting Walmart-GC Data with the current session...",
     });
@@ -1178,10 +1178,12 @@ function App() {
     }));
 
     try {
-      const baseSheetVersion = options.force
+      const baseSheetVersion = options.acknowledgeMetadataRemoval
         ? String(directSheetsState.remoteSheetVersion || syncState.lastKnownSheetVersion || "")
         : String(syncState.lastKnownSheetVersion || "");
-      const result = await saveWorkerCards(cards, baseSheetVersion);
+      const result = await saveWorkerCards(cards, baseSheetVersion, {
+        acknowledgeMetadataRemoval: options.acknowledgeMetadataRemoval,
+      });
 
       const now = new Date().toISOString();
       const spreadsheetId = String(result.sheetId || directSheetsState.spreadsheetId || "").trim();
@@ -1215,7 +1217,9 @@ function App() {
       const payload = error && typeof error === "object" ? error.payload : null;
       if (payload && payload.conflict) {
         const remoteVersion = String(payload.remoteSheetVersion || "");
-        const conflictMsg = "Conflict detected: the Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
+        const conflictMsg = payload.errorType === "cards_metadata_loss"
+          ? error.message
+          : "The Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
         
         setDirectSheetsState(prev => ({
           ...prev,
@@ -1682,7 +1686,7 @@ function App() {
                             <ActionButton
                               id="save-to-sheets"
                               onClick={() => {
-                                if (window.confirm("Exporting to Google replaces all gift card rows and balance-check metadata in the Sheet with your current browser session. Continue?")) {
+                                if (window.confirm("Exporting to Google replaces the card rows in the Sheet with your current browser session. Continue?")) {
                                   handleSaveCardsToSheet();
                                 }
                               }}
@@ -1703,8 +1707,8 @@ function App() {
                               return (
                                 <div id="sync-recovery-actions" className="flex flex-col gap-2 p-2.5 bg-m3-error-container text-m3-on-surface border border-m3-error/20 rounded-lg text-xs mt-1.5 mx-2">
                                   <h4 className="font-medium text-m3-error text-xs">Conflict recovery</h4>
-                                  <p>Sheets changed since your last successful load or sync. Your current session is still saved locally, and Walmart-GC will not merge or overwrite anything automatically.</p>
-                                  <p className="font-medium text-m3-error">Warning: using the current session will replace every card row in Sheets. Download a CSV backup before any destructive recovery action.</p>
+                                  <p>Your current session is still saved locally. Choose how to resolve the conflict.</p>
+                                  <p className="font-medium text-m3-error">Back up the Google Sheet before overwriting it. Download a browser session CSV before replacing local data.</p>
                                   {unavailableMessage && <p className="font-medium text-m3-error mt-1">{unavailableMessage}</p>}
                                   <div className="flex flex-wrap gap-2 mt-1.5">
                                     <button

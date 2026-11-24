@@ -72,15 +72,17 @@ function formatWorkerApiErrorMessage(message, payload) {
 
 // Older Workers reject requests without the legacy cards array before touching
 // Sheets. The protected payload keeps metadata safe across a Worker rollback.
-export async function saveWorkerCards(cards, baseSheetVersion) {
+export async function saveWorkerCards(cards, baseSheetVersion, { acknowledgeMetadataRemoval = false } = {}) {
   const metadata = cards.map((card) => readOptionalCardMetadata(card));
   const hasMetadata = metadata.some((fields) => Object.keys(fields).length > 0);
   const inventory = hasMetadata ? { cardsWithMetadata: cards } : { cards };
+  const request = { ...inventory, baseSheetVersion, schemaCapability };
+  if (acknowledgeMetadataRemoval === true) request.acknowledgeMetadataRemoval = true;
 
   try {
     const result = await fetchWorkerJson("/api/cards/save", {
       method: "POST",
-      body: JSON.stringify({ ...inventory, baseSheetVersion, schemaCapability }),
+      body: JSON.stringify(request),
     });
     if (hasMetadata && result.schemaCapability !== schemaCapability) {
       throw new Error("The Worker did not confirm card metadata support. Keep a CSV backup and check the Sheet before retrying.");

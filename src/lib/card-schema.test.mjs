@@ -98,6 +98,20 @@ test("historical date fields keep legacy text handling independently of lastBala
   assert.equal(restored.parsedCards[0].dateAdded, "28/02/2024");
 });
 
+test("CSV balances must stay finite after rounding", () => {
+  const [header, row] = historicalFixtures[2];
+  for (const [amount, token, label] of [
+    ["1e307", "8", "starting"],
+    ["1e307", "4.25", "current"],
+    ["-1e307", "4.25", "current"],
+    ["1e309", "4.25", "current"],
+  ]) {
+    const result = parseRawCardData(header + "\n" + row.replace(`,${token},`, `,${amount},`));
+    assert.deepEqual(result.parsedCards, []);
+    assert.match(result.warnings.join("\n"), new RegExp(`invalid ${label} balance`));
+  }
+});
+
 test("historical restore detection includes an explicit false and empty inventories", () => {
   for (const [header, row] of historicalFixtures) {
     const restored = parseRawCardData(header + "\n" + row).parsedCards;
@@ -177,4 +191,20 @@ test("a metadata save requires the capability in its success response", async (t
   const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ ok: true, sheetVersion: "v2" }));
   await assert.rejects(saveWorkerCards([extended], "v1"), /did not confirm card metadata support/);
   assert.equal(fetch.mock.callCount(), 1);
+});
+
+test("only explicit boolean acknowledgement is sent with a save", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (_path, options) => {
+    requests.push(JSON.parse(options.body));
+    return Response.json({ ok: true, schemaCapability });
+  });
+  await saveWorkerCards([], "v1");
+  await saveWorkerCards([], "v1", { acknowledgeMetadataRemoval: "true" });
+  await saveWorkerCards([], "v1", { acknowledgeMetadataRemoval: true });
+  assert.deepEqual(requests, [
+    { cards: [], baseSheetVersion: "v1", schemaCapability },
+    { cards: [], baseSheetVersion: "v1", schemaCapability },
+    { cards: [], baseSheetVersion: "v1", schemaCapability, acknowledgeMetadataRemoval: true },
+  ]);
 });
