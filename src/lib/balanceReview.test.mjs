@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyBalanceObservation, createBalanceReviewQueue, parseVerifiedBalance } from "./balanceReview.js";
 import {
-  calculateVisibleCards, captureBalanceReviewStorage, loadCards, persistBalanceReviewCards,
+  bundledSampleGiftCards, calculateVisibleCards, captureBalanceReviewStorage, loadCards, persistBalanceReviewCards,
 } from "./cards.js";
 
 const first = {
@@ -118,6 +118,48 @@ function setupStorage(t, initial) {
   });
   return storage;
 }
+
+test("fresh startup keeps the bundled samples in Cards and offers none for review", (t) => {
+  const fixture = setupStorage(t, null);
+  const cards = loadCards();
+  assert.deepEqual(cards, bundledSampleGiftCards);
+  assert.deepEqual(createBalanceReviewQueue(cards), []);
+  assert.equal(fixture.raw, null);
+  assert.equal(fixture.writes, 0);
+});
+
+test("persisted samples remain ineligible after their notes and PINs change", (t) => {
+  const samples = bundledSampleGiftCards.map((card) => ({ ...card, notes: "", pin: "0001" }));
+  const initial = JSON.stringify(samples);
+  const fixture = setupStorage(t, initial);
+  const cards = loadCards();
+  assert.deepEqual(cards, samples);
+  assert.deepEqual(createBalanceReviewQueue(cards), []);
+  const [sample] = cards;
+  assert.throws(() => applyBalanceObservation(cards, observation(cards, sample, {
+    expected: { card: sample, snapshot: { ...sample } },
+  })), /changed during review/);
+  assert.equal(fixture.raw, initial);
+  assert.equal(fixture.writes, 0);
+});
+
+test("mixed inventory reviews a distinct card with the same last four and notes while preserving samples", (t) => {
+  const [sample] = bundledSampleGiftCards;
+  const eligible = {
+    ...first, cardNumber: first.cardNumber.slice(0, -4) + sample.cardNumber.slice(-4), notes: sample.notes,
+  };
+  setupStorage(t, JSON.stringify([eligible, ...bundledSampleGiftCards]));
+  const cards = loadCards();
+  const queue = createBalanceReviewQueue(cards);
+  assert.deepEqual(queue.map(({ card }) => card.cardNumber), [eligible.cardNumber]);
+  const updated = applyBalanceObservation(cards, observation(cards, eligible, {
+    expected: queue[0], observedBalance: "4.04",
+  }));
+  persistBalanceReviewCards(updated, captureBalanceReviewStorage(cards));
+  const reloaded = loadCards();
+  assert.equal(reloaded[0].currentBalance, 4.04);
+  assert.deepEqual(reloaded.slice(1), bundledSampleGiftCards);
+});
 
 test("checked save survives reload and refreshes the expected storage snapshot", (t) => {
   const fixture = setupStorage(t, JSON.stringify([first, second]));

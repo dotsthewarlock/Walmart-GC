@@ -1,5 +1,9 @@
-import { getEffectiveMerchant, isValidWalmartGiftCardNumber, normalizeMoney, normalizePinValue } from "./cards.js";
+import {
+  bundledSampleGiftCards, getEffectiveMerchant, isValidWalmartGiftCardNumber, normalizeMoney, normalizePinValue,
+} from "./cards.js";
 import { isCalendarDate } from "./csvSchema.js";
+
+const sampleCardNumbers = new Set(bundledSampleGiftCards.map(({ cardNumber }) => cardNumber));
 
 export function parseVerifiedBalance(value) {
   const text = typeof value === "number" || typeof value === "string" ? String(value).trim() : "";
@@ -40,6 +44,7 @@ function observationDate(timestamp) {
 
 function isEligible(card) {
   return typeof card?.cardNumber === "string" && card.cardNumber === card.cardNumber.trim()
+    && !sampleCardNumbers.has(card.cardNumber)
     && isValidWalmartGiftCardNumber(card.cardNumber) && normalizePinValue(card.pin).length >= 4
     && Number.isFinite(card.currentBalance)
     && getEffectiveMerchant(card) === "walmart-ca";
