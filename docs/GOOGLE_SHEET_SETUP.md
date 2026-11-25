@@ -1,133 +1,38 @@
-# Google Sheet Setup
+# Private wallet Sheet setup
 
-This guide describes the active Phase 11 Worker-backed Google Sheet flow.
+V0.3 is a release candidate, not a deployed update. Protocol/schema authority is
+[Architecture](ARCHITECTURE.md); infrastructure/release gates are in
+[QA](QA_TEST_CHECKLIST.md) and [Deployment](DEPLOYMENT_GUIDE.md).
 
-Normal users do **not** create a Google Cloud project, paste an OAuth Client ID, deploy Apps Script, create a spreadsheet manually, or paste a Sheet URL/ID. Walmart-GC uses the Worker-owned OAuth flow and the `drive.file` permission to manage one app-created/app-accessible spreadsheet.
+After release, use the existing custom-domain app and same-origin Worker OAuth.
+End users never paste OAuth credentials or create app-owned accounts. Consent is
+limited to drive.file. Actual principal/ownership behavior and coordinator
+bindings must be independently validated before production writes are enabled.
+Synthetic development acceptance uses mocked APIs, never localhost live OAuth.
 
-## Active URLs
+1. Open Settings and connect Google. The Worker verifies the stable principal.
+2. A unique app-accessible, privately owned `Walmart-GC Data` Sheet can be bound
+   automatically. Only matching owners are accepted; emails are not identity.
+3. If none exists, expand Connection and recovery → Create or initialize private
+   Sheet. If discovery is ambiguous, enter the exact app-accessible Sheet ID.
+4. Setup creates/initializes Cards and `_META` through protected coordination.
+   It preserves existing rows, headers, other tabs and metadata. Unknown schema
+   or occupied append targets block writes rather than overwriting them.
+5. Unbound/older offline inventory remains separate. Export a private CSV/recovery
+   backup, then explicitly recover it into the matching freshly verified account
+   if desired. Ambiguous credentials do not merge automatically.
+6. Completed actions synchronize automatically while open. Sync now checks pending
+   work/commit proof. It cannot bypass an uncertain write or account mismatch.
 
-Use only the cloud app for production, development, and testing:
+Required and optional headers, historical layouts and CSV formats are specified
+once in Architecture. V0.3 accepts pendingReconciliation absent/false/true and
+retains date-only verification metadata. Do not manually backfill optional cells.
 
-```text
-https://walmart-gc.dotsthewarlock.com
-```
+Before direct Card edits, pause shared maintenance and save a private backup.
+Keep managed `_META` protocol, commit and recovery fields intact. Resume accepts
+the observed contents and only explicitly confirmed deleted identities. Merely
+removing a row does not authorize deletion or stale-device resurrection. Uncertain
+balances require fresh merchant verification; conflicting credentials require
+explicit review. Neither matching amounts nor missing markers establish success.
 
-Active Worker routing:
-
-```text
-https://walmart-gc.dotsthewarlock.com/auth/*
-https://walmart-gc.dotsthewarlock.com/api/*
-```
-
-Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
-
-No localhost OAuth or alternate OAuth origin is supported.
-
-## Normal First-Run Flow
-
-1. Open Walmart-GC at `https://walmart-gc.dotsthewarlock.com`.
-2. Open the **Data** panel.
-3. Select **Connect Google**.
-4. Approve only Google Drive file access (`https://www.googleapis.com/auth/drive.file`).
-5. The Worker sets the HttpOnly session cookie and returns to `https://walmart-gc.dotsthewarlock.com/?auth=connected`.
-6. Frontend auth state comes from same-origin `/api/status`; frontend Worker API calls use same-origin `/api/*` paths with `credentials: "include"`.
-7. Select **Ensure Sheet** or **Load from Google Sheets**. The Worker searches Drive for an app-accessible spreadsheet named:
-
-   ```text
-   Walmart-GC Data
-   ```
-
-8. If the spreadsheet is not found, Walmart-GC creates it.
-9. The Worker initializes the required `Cards` tab and hidden `_META` metadata tab.
-10. Walmart-GC loads remote cards through the Worker when the user selects **Load from Google Sheets**.
-
-## Dedicated Spreadsheet
-
-Walmart-GC uses one dedicated spreadsheet by default:
-
-```text
-Walmart-GC Data
-```
-
-Use the **Open Sheet** button in the Data panel to view it in Google Sheets after connection.
-
-## Required Schema
-
-The `Cards` tab requires these header names. New or empty Sheets initialize with this preferred header order, but existing Sheets may keep these required headers in any order:
-
-```text
-cardNumber
-pin
-startingBalance
-currentBalance
-merchant
-merchantInferred
-dateAdded
-dateUpdated
-dateUsed
-used
-notes
-```
-
-The CSV export header is:
-
-```csv
-cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes,lastBalanceChecked,pendingReconciliation
-```
-
-The last two fields are optional. The Worker adds a missing optional Sheet header when a save first supplies a value for that field. Blank cells are valid. Historical CSV restore formats remain supported. Use the current CSV export to back up optional values before a historical restore.
-
-## Schema Rules
-
-- `cardNumber` is required, must be unique, must start with `63`, must be exactly 16 numeric digits, and is the record ID.
-- `pin` is required for practical checkout use.
-- `merchant` is explicit user-entered/user-selected override only. Do not infer or default blank `merchant` values to `walmart-ca`.
-- `merchantInferred` is system-derived from `cardNumber`; for valid Walmart Canada cards, it is `walmart-ca`.
-- `effectiveMerchant = merchant || merchantInferred` is runtime-only and must not be stored.
-- `startingBalance` is the historical starting value.
-- `currentBalance` is the authoritative remaining balance.
-- `dateAdded`, `dateUpdated`, and `dateUsed` should use `YYYY-MM-DD` when populated.
-- `used` is independent of balance.
-- `notes` is optional free text and may span multiple lines.
-- `lastBalanceChecked` is blank or a valid `YYYY-MM-DD` calendar date.
-- `pendingReconciliation` is blank or Boolean `false`. V0.1 rejects `true`.
-- Barcode payload is derived only and must not be stored: `79936686504000 + cardNumber`.
-
-## Example Rows
-
-```csv
-cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes
-6351234567890123,1234,50.00,50.00,,walmart-ca,2026-06-01,2026-06-01,,false,New card
-6352234567890123,5678,100.00,37.42,,walmart-ca,2026-06-02,2026-06-09,,false,Partial balance after grocery trip
-6353234567890123,9999,25.00,0.00,,walmart-ca,2026-06-03,2026-06-08,2026-06-08,true,Fully used
-```
-
-## Data Safety
-
-Walmart-GC does not silently erase local data, silently overwrite remote Sheet rows, or automatically merge conflicts.
-
-- If Google has cards and the browser also has local cards, Walmart-GC keeps local data until you explicitly choose **Load from Google Sheets** or **Sync Now**.
-- If Google is empty and the browser has local cards, Walmart-GC keeps local data and lets you explicitly sync it.
-- If the Sheet changes outside the current browser session, `_META.sheetVersion` conflict handling prevents silent overwrites.
-- CSV backup/recovery remains available even while Google is disconnected or offline.
-
-## Sync Model
-
-Worker-backed sync only. Completed actions sync after:
-
-- Balance save.
-- Used state change.
-- Notes save.
-- Merchant change.
-- New card save.
-- Accepted CSV import.
-
-Do not sync every keystroke.
-
-## Maintainer-Only OAuth Configuration
-
-OAuth client configuration is owned by the Cloudflare Worker deployment. End users should not see, paste, or manage OAuth client configuration, and the frontend must never store access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
-
-## Historical Note
-
-Apps Script setup was part of the historical MVP and is not part of the active Phase 11 sync architecture.
+No Apps Script, extra OAuth scope, central card database or public Sheet is needed.

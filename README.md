@@ -4,6 +4,12 @@ Mobile-first, merchant-aware gift-card wallet (starting with Walmart optimizatio
 
 **GC Wallet** (under repository and deployment identifier `Walmart-GC`) is an offline-first static web application that helps users manage large numbers of gift cards with passive inline checkout barcodes, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, and Google Sheets sync via serverless Worker.
 
+V0.3 automatic synchronization is a **release candidate on `feature/sync-foundation`
+(draft PR #231)**, not a deployed release. Accepted main remains
+`bbbc9334dd261b1a897b98a8012d9bb22fdf7e31`. See [Active Context](docs/ACTIVE_CONTEXT.md),
+[Architecture](docs/ARCHITECTURE.md) and [integrated QA](docs/QA_TEST_CHECKLIST.md)
+for current implementation and release prerequisites.
+
 ## Current Status
 
 `main` is the active live deployment branch. Core application OAuth/session durability, Google Sheets access, and Material 3 design systems are fully functional.
@@ -50,7 +56,7 @@ Workers KV
 Legacy Worker subdomain https://walmart-gc-oauth.dotsthewarlock.com may remain fallback/legacy only
 ```
 
-Walmart-GC does not require a database, Firebase, Cloud Functions, Apps Script sync, Node backend, new hosting, VPS, or app-managed user account system. The React 19 / Vite frontend on `main` is compiled to static files for deployment. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
+GC Wallet uses native IndexedDB locally and minimal noncredential Durable Object coordination. The private user-owned Sheet remains the sole cloud card inventory; no central card database or app-managed account platform is introduced. The React 19 / Vite frontend on `main` is compiled to static files for deployment. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
 
 
 ## Runtime Debugging Priority
@@ -112,4 +118,4 @@ Start with the [Active Context](docs/ACTIVE_CONTEXT.md) for the compact, first-r
 
 Walmart-GC operates against a Google Sheet. It does not manage users, roles, or permissions; Google Sheets controls sharing and access. Shared Sheets are allowed when the relevant users have Google Sheet access.
 
-The app is not designed for real-time collaboration workflows, live multi-client synchronization, presence indicators, activity history, or collaboration tooling. Sheet-level optimistic conflict detection prevents silent overwrites when the Sheet changes outside the current session.
+V0.3 supports conservative automatic synchronization across personal devices while the wallet is open. It does not add presence, collaboration tooling or activity history. Independent edits combine; balances and credential conflicts retain targeted recovery evidence. See the architecture authority for maintenance, uncertain-commit and rollback limits.

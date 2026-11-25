@@ -1,0 +1,174 @@
+import { bundledSampleGiftCards } from './cards.js';
+export const syncProtocol = 'gc-wallet-sync-v1';
+export const equal = (a,b) => canonical(a) === canonical(b);
+export function canonical(value) {
+  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
+  if(value&&typeof value==='object')return '{'+Object.keys(value).filter(k=>value[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';
+  return JSON.stringify(value);
+}
+export async function fingerprint(value) {
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical(value)));
+  return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+export const emptyEvidence = () => ({ cards:{}, tombstones:{} });
+export const snapshotContent = snapshot => ({ cards:snapshot.cards,evidence:snapshot.evidence??emptyEvidence() });
+const samples=new Set(bundledSampleGiftCards.map(c=>c.cardNumber));
+const mapCards=cards=>new Map(cards.map(c=>[c.cardNumber,c]));
+export const isMonetaryOperation=op=>['set-balance','manual-verification','batch-verification','unbound-recovery'].includes(op.kind)
+  || op.before?.currentBalance!==op.after?.currentBalance;
+
+const moneyOp=isMonetaryOperation;
+
+// Absence is never a delete operation. Only controlled maintenance creates tombstones.
+// A monetary operation's identity matters even when two resulting values match.
+export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvidence(),evidence=emptyEvidence(),now=new Date().toISOString()}) {
+  const result=mapCards(remote), old=mapCards(base), working=mapCards(local);
+  const next=structuredClone(evidence);next.cards??={};next.tombstones??={};
+  const conflict=(number,kind,values,ids=[])=>{
+    const entry=next.cards[number]??={money:0,conflicts:[]};entry.conflicts??=[];
+    const id=kind+':'+number+':'+ids.join(',');
+    if(!entry.conflicts.some(c=>c.id===id))entry.conflicts.push({id,kind,...values,operationIds:ids,at:now});
+    return entry;
+  };
+  for(const [number,workingCard] of working){
+    let card={...workingCard};
+    for(const op of operations.filter(o=>o.cardNumber===number)) {
+      for(const key of Object.keys(op.after??{}))if(!equal(op.before?.[key],op.after[key]))card[key]=op.after[key];
+      if(moneyOp(op)&&op.after)card.currentBalance=op.after.currentBalance;
+    }
+    if(samples.has(number))throw Error('Bundled samples cannot synchronize.');
+    const prior=old.get(number),saved=result.get(number),ops=operations.filter(o=>o.cardNumber===number);
+    const ids=ops.map(o=>o.id);
+    if(next.tombstones[number]){
+      if(ops.some(o=>o.kind==='resolve-conflict'&&o.choice==='restore'&&o.conflictId===next.tombstones[number].id)){
+        delete next.tombstones[number];result.set(number,{...card,pendingReconciliation:true});
+        for(const c of next.cards[number]?.conflicts??[])if(c.kind==='deleted-identity')c.resolution='restored';
+      }else {
+        for(const op of ops.filter(o=>o.kind==='resolve-conflict'&&o.choice==='remote')){const c=next.cards[number]?.conflicts?.find(c=>c.id===op.conflictId);if(c)c.resolution='remote';}
+        if(!ops.some(o=>o.kind==='resolve-conflict'&&o.choice==='remote'))conflict(number,'deleted-identity',{local:card,remote:saved??null},ids);
+      }
+      continue;
+    }
+    if(!saved){
+      const missingBase=prior??ops.find(o=>o.before)?.before;
+      if(missingBase){
+        card.pendingReconciliation=true;
+        const entry=conflict(number,'missing-remote',{local:card,base:missingBase,remote:null},ids);
+        entry.uncertainSince??=now;
+      }
+      // Preserve credentials even when direct edits removed a row without a tombstone.
+      result.set(number,card);
+      const financial=ops.filter(o=>['set-balance','manual-verification','batch-verification'].includes(o.kind));
+      if(financial.length||card.pendingReconciliation)next.cards[number]??={money:financial.length,moneyAt:now,conflicts:[],...(card.pendingReconciliation?{uncertainSince:now}:{})};
+      continue;
+    }
+    for(const op of ops.filter(o=>o.kind==='resolve-conflict')){
+      const target=next.cards[number]?.conflicts?.find(c=>c.id===op.conflictId);
+      if(target&&op.choice==='remote')target.resolution='remote';
+      if(target?.kind==='missing-remote'&&op.choice==='local'&&target.local?.pin===saved.pin)target.resolution='restored';
+      if(target?.kind==='credentials'&&op.choice==='local'&&target.local?.pin===saved.pin)target.resolution='equivalent-local';
+    }
+    if(card.pin!==saved.pin){
+      const entry=next.cards[number];
+      const resolution=ops.find(o=>{
+        const c=entry?.conflicts?.find(c=>c.id===o.conflictId&&!c.resolution);
+        return o.kind==='resolve-conflict'&&o.choice==='local'&&c?.kind==='credentials'&&c.remote?.pin===saved.pin&&c.local?.pin===card.pin;
+      });
+      if(resolution){result.set(number,{...saved,pin:card.pin});entry.conflicts.find(c=>c.id===resolution.conflictId).resolution='local';}
+      else conflict(number,'credentials',{local:card,remote:saved,base:prior??null},ids);
+      continue;
+    }
+    const merged={...saved};
+    const monetary=ops.filter(moneyOp),localMoney=monetary.length>0||!equal(card.currentBalance,prior?.currentBalance);
+    const localUncertainty=card.pendingReconciliation===true&&prior?.pendingReconciliation!==true;
+    const assign=(field,value)=>{if(value===undefined)delete merged[field];else merged[field]=value;};
+    for(const field of new Set([...Object.keys(card),...Object.keys(saved)])){
+      if(['cardNumber','pin','currentBalance','pendingReconciliation'].includes(field))continue;
+      if(localMoney&&['dateUpdated','lastBalanceChecked'].includes(field))continue;
+      const entry=next.cards[number];
+      const resolution=ops.find(o=>{
+        const c=entry?.conflicts?.find(c=>c.id===o.conflictId&&!c.resolution);
+        return o.kind==='resolve-conflict'&&o.choice==='local'&&c?.kind==='field:'+field&&equal(c.local,card[field]??null)
+          &&(equal(c.remote,saved[field]??null)||equal(c.local,saved[field]??null));
+      });
+      if(resolution){assign(field,card[field]);entry.conflicts.find(c=>c.id===resolution.conflictId).resolution='local';continue;}
+      // A later edit retains its own field baseline across an earlier ACK.
+      // Advancing the inventory baseline must not turn a competing edit into LWW.
+      const first=ops.find(o=>o.after&&!equal(o.before?.[field],o.after[field]));
+      const fieldBase=first?first.before?.[field]:prior?.[field];
+      if(equal(card[field],saved[field])||equal(card[field],fieldBase))continue;
+      if((prior||first?.before)&&equal(saved[field],fieldBase)&&!ops.some(o=>o.kind==='unbound-recovery'))assign(field,card[field]);
+      else if(!prior&&saved[field]===undefined)assign(field,card[field]);
+      else conflict(number,'field:'+field,{local:card[field]??null,remote:saved[field]??null,base:fieldBase??null},ids);
+    }
+    const entry=next.cards[number]??{money:0,conflicts:[]};
+    const verify=monetary.filter(o=>['manual-verification','batch-verification'].includes(o.kind)).at(-1);
+    const observedAt=verify?.observation?.checkedAt;
+    const observedValue=verify?.kind==='manual-verification'?verify.observation?.observedBalance:verify?.observation?.balance;
+    const applicable=typeof observedAt==='string'&&Number.isFinite(Date.parse(observedAt))&&new Date(observedAt).toISOString()===observedAt
+      &&typeof observedValue==='number'&&verify.after?.currentBalance===observedValue
+      &&verify.after?.lastBalanceChecked===observedAt.slice(0,10)&&verify.after?.pin===saved.pin
+      &&verify.before?.pin===saved.pin&&(verify.after?.merchant||verify.after?.merchantInferred)==='walmart-ca'
+      &&(saved.merchant||saved.merchantInferred)==='walmart-ca';
+    const fresh=applicable&&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(next.maintenanceAt||'1970-01-01'))
+      &&Date.parse(observedAt)<=Date.parse(now)+60_000;
+    const changedRemotely=ops.some(o=>o.requiresReconciliation===true)||next.maintenanceAt!==baseEvidence.maintenanceAt||ops.some(o=>o.kind==='unbound-recovery')||!prior||(entry.money??0)!==(baseEvidence.cards?.[number]?.money??0)
+      || (prior&&!equal(prior.currentBalance,saved.currentBalance));
+    // The first conflict must share the same entry as its uncertainty marker.
+    // Otherwise a new balance alternative could be replaced by the empty entry.
+    if(localMoney||localUncertainty)next.cards[number]=entry;
+    if(localMoney&&(changedRemotely||entry.uncertainSince||saved.pendingReconciliation)&&!fresh){
+      conflict(number,'balance',{local:card.currentBalance,remote:saved.currentBalance,base:prior?.currentBalance??null},ids);
+      entry.uncertainSince??=now;merged.pendingReconciliation=true;
+      assign('dateUpdated',saved.dateUpdated);assign('lastBalanceChecked',saved.lastBalanceChecked);
+    }else if(localMoney){
+      merged.currentBalance=card.currentBalance;merged.dateUpdated=card.dateUpdated;
+      if(card.lastBalanceChecked)merged.lastBalanceChecked=card.lastBalanceChecked;
+      if(monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
+      if(fresh){
+        if(saved.pendingReconciliation!==undefined||card.pendingReconciliation!==undefined||entry.uncertainSince)merged.pendingReconciliation=false;
+        delete entry.uncertainSince;
+        for(const c of entry.conflicts??[])if(c.kind==='balance'&&!c.resolution)c.resolution='verified:'+verify.id;
+      }
+    }
+    if(localUncertainty){merged.pendingReconciliation=true;entry.uncertainSince??=now;}
+    if(localMoney||localUncertainty)next.cards[number]=entry;
+    if(saved.pendingReconciliation&&!fresh)merged.pendingReconciliation=true;
+    if(entry.uncertainSince)merged.pendingReconciliation=true;
+    result.set(number,merged);
+  }
+  const cards=[...result.values()].sort((a,b)=>a.cardNumber.localeCompare(b.cardNumber));
+  // Google Sheets cells are bounded. Never discard evidence to fit a write.
+  if(new TextEncoder().encode(JSON.stringify(next)).length>38000)throw Error('Recovery evidence is full. Export a private backup; controlled operator recovery is required before further Sheet writes.');
+  return {cards,evidence:next};
+}
+
+// Replay semantic differences against the acknowledged inventory, never a stale
+// array replacement. Missing rows and omitted operations cannot delete records.
+export function materialize(base,operations) {
+  const cards=mapCards(structuredClone(base));
+  for(const op of operations){
+    if(!op.after)continue;
+    const current=cards.get(op.cardNumber)??structuredClone(op.before??op.after);
+    for(const key of new Set([...Object.keys(op.before??{}),...Object.keys(op.after)])){
+      if(!equal(op.before?.[key],op.after[key])){
+        if(op.after[key]===undefined)delete current[key];else current[key]=op.after[key];
+      }
+    }
+    if(moneyOp(op))current.currentBalance=op.after.currentBalance;
+    cards.set(op.cardNumber,current);
+  }
+  return [...cards.values()];
+}
+
+export function validateEvidence(evidence) {
+  const map=value=>value&&typeof value==='object'&&!Array.isArray(value);
+  if(!map(evidence)||!map(evidence.cards)||!map(evidence.tombstones))throw Error('Synchronization recovery evidence is damaged. Preserve a backup.');
+  for(const [number,entry] of Object.entries(evidence.cards)){
+    if(!/^63\d{14}$/.test(number)||!map(entry)||!Number.isSafeInteger(entry.money)||entry.money<0||!Array.isArray(entry.conflicts)
+      ||entry.conflicts.some(c=>!map(c)||typeof c.id!=='string'||typeof c.kind!=='string'))throw Error('Invalid per-card recovery evidence.');
+  }
+  for(const [number,tombstone] of Object.entries(evidence.tombstones))if(!/^63\d{14}$/.test(number)||!map(tombstone)||typeof tombstone.id!=='string')throw Error('Invalid deletion recovery evidence.');
+  if(new TextEncoder().encode(JSON.stringify(evidence)).length>38000)throw Error('Recovery evidence is full. Preserve a backup before more writes.');
+  return evidence;
+}

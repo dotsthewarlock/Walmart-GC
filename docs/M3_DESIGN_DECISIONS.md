@@ -80,10 +80,10 @@ shadcn has been removed as a project component-system dependency and should not 
 
 ### 5. Sync & Status Identity: Privacy-First Chip
 * **Status Pill**: Show privacy-safe, system-level labels styled as a compact inline M3 Assist Chip next to the section heading rather than a full-width block banner:
-  - `Google sync on`
-  - `Local only · Connect`
-  - `Syncing…`
-  - `Sync issue`
+  - `Synced` only after commit/content confirmation
+  - `Saved locally` / `Local inventory`
+  - `Checking sync…`
+  - `Review sync` with progressively disclosed recovery
 * **Account Info**: Do **NOT** show full Google emails, usernames, or account handles on the primary list screen. Defer detailed credential profiles/full account details strictly to Settings.
 
 ### 6. Checkout Scanner: Passive & Inline
@@ -95,11 +95,13 @@ shadcn has been removed as a project component-system dependency and should not 
 
 ### 7. Settings Hierarchy & Containers
 * **Organization**: Preferences are grouped into clean, collapsible M3 Accordion container cards to prevent visual overload:
-  - **Google Sync**: Session state controls and sheet binding actions.
+  - **Google connection**: Session controls and verified Sheet binding. Synchronization recovery stays progressively disclosed.
   - **Preferences**: Display options, visual themes, and local defaults.
-  - **Backup & CSV Actions**: Manual CSV import and export buttons (hidden from standard run-states).
+  - **Backup & CSV Actions**: Selected-compartment CSV backup and credential-warned recovery export remain available offline in private Settings.
   - **Troubleshooting**: Diagnostics console and connection verification.
   - **Account**: Active Google session credentials and privacy scopes.
+
+* **Uncertainty**: Checkout displays a concise provisional-balance warning and routes to existing balance review. Monetary uncertainty alone does not block checkout; used-card and credential protections remain. Do not show infrastructure jargon in the normal wallet flow.
 
 ### 8. Diagnostics & Privacy Protection
 * **Diagnostics Pane**: Technical logs, sheet connection bindings, and diagnostic indicators are collapsed by default under the Troubleshooting section.

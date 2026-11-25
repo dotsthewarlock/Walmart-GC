@@ -1,5 +1,21 @@
 # Deployment Guide
 
+> V0.3 activation is operator-authorized, subject to the gates below. Follow
+> [Architecture](ARCHITECTURE.md) and [QA prerequisites](QA_TEST_CHECKLIST.md)
+> before using the historical deployment steps below. The production config records
+> verified KV IDs/routes and a fail-closed activation pause. Required
+> coordination binding is `SHEET_COORDINATOR`, exported class `SheetCoordinator`,
+> with an independently approved `new_sqlite_classes` migration and confirmed
+> account entitlement/runtime compatibility. Verify principal/ownership behavior
+> under drive.file and secret/session binding names/presence without printing
+> values. No provisioning or production configuration changes were performed.
+> A coordinated Worker must precede the V0.3 frontend; old writable rollback is
+> unsafe. Use one integrated acceptance cycle, not historical phase gates.
+> Follow the [consolidated V0.3 activation/recovery plan](V0.3_RELEASE_READINESS.md)
+> for current rollout order and external prerequisites. Local workerd/SQLite checks
+> passed using mocked Google; production configuration and account checks remain.
+
+
 Walmart-GC is a static GitHub Pages app. The frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.
 
 ## Active Deployment Model
@@ -78,7 +94,12 @@ The Worker requires two KV bindings with exact binding names used by `worker/src
 - `SESSIONS` — durable server-side session records and refresh tokens.
 - `OAUTH_STATE` — short-lived OAuth state and PKCE verifier records.
 
-The repository's `worker/wrangler.toml` intentionally contains placeholder KV namespace IDs. Real Cloudflare KV namespace IDs should not be invented or exposed in documentation. Before deploying with Wrangler, replace the placeholders with the real namespace IDs for the target Cloudflare account, or configure equivalent bindings in the Cloudflare dashboard/deployment pipeline. A deployment that leaves `REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID` or `REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID` unchanged is not ready for production.
+The repository's `worker/wrangler.toml` records the operator-verified existing KV
+namespace IDs, account and routes. These are resource identifiers, not credentials.
+Do not substitute another environment's resources or discard migration history.
+Existing secrets stay in Cloudflare; Wrangler configuration must never include
+their values. Deploy initially with `SYNC_ACTIVATION_BLOCKED="true"`, verify Google
+identity/ownership under drive.file, and only then clear the activation pause.
 
 ## Worker Source of Truth
 

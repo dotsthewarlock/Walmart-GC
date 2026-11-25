@@ -1,0 +1,143 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>GC Wallet native IndexedDB checks</title>
+<style>body{font:16px system-ui;max-width:850px;margin:2rem auto;padding:1rem}button{padding:.75rem}pre{white-space:pre-wrap}</style>
+<h1>Native IndexedDB checks</h1>
+<p>Uses the production adapter with synthetic data and isolated databases. No OAuth, Worker or Sheet requests.</p>
+<button id="run">Run checks</button> <button id="reload" disabled>Reload and verify</button>
+<pre id="result" role="status"></pre>
+<script type="module">
+import { openInventory, profileOf, operationId, inventoryBytes, inventoryContext, assertInventoryContext, recoveryExport, savedCompartments, compartmentCards } from '../src/lib/inventory.js';
+import { createTransferLedger, prepareTransferApplication } from '../src/lib/balanceTransferLedger.js';
+import { selectTransferCards, previewTransferResults } from '../src/lib/balanceTransfer.js';
+
+const result = document.querySelector('#result');
+const log = text => { result.textContent += text + '\n'; };
+const equal = (a,b) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw Error('Values differ'); };
+const fails = async fn => { let failed=false;try { await fn(); } catch { failed=true; } if (!failed) throw Error('Expected rejection'); };
+const first = { cardNumber:'6300000000010042',pin:'0042',startingBalance:100,currentBalance:100,merchant:'',merchantInferred:'walmart-ca',dateAdded:'2024-01-01',dateUpdated:'2024-01-01',dateUsed:'',used:false,notes:'' };
+const second = { ...first,cardNumber:'6300000000020042' };
+const bytes = { 'walmartGc.cards':JSON.stringify([first,second]),'walmartGc.balanceTransfer':null,'walmartGc.directSheets':null,'walmartGc.sync':null };
+const storage = { getItem:key => bytes[key] };
+const checkpointKey = 'gc-sync-foundation-native-checkpoint';
+const op = (state,kind,details={}) => ({ id:operationId(),...inventoryContext(state),kind,...details });
+const patch = (state,number,notes) => op(state,'patch',{ action:'set-notes',cardNumber:number,version:profileOf(state).versions[number],patch:{notes} });
+let abortNextWrite = false;
+let completedWrite = false;
+
+// Real native transactions, with a fault injected after put() and before commit.
+const factory = {
+  open(name,version) {
+    const request=indexedDB.open(name,version), wrapper={};
+    request.onerror=()=>{wrapper.error=request.error;wrapper.onerror?.();};
+    request.onblocked=()=>wrapper.onblocked?.();
+    const database=()=>new Proxy(request.result,{
+      get(target,key) {
+        if(key==='transaction')return (...args)=>{
+          const tx=target.transaction(...args);
+          if(args[1]==='readwrite')tx.addEventListener('complete',()=>{completedWrite=true;});
+          return new Proxy(tx,{
+            get(transaction,property) {
+              if(property==='objectStore')return (...storeArgs)=>{
+                const store=transaction.objectStore(...storeArgs);
+                return new Proxy(store,{get(object,method){
+                  if(method==='put')return (...values)=>{
+                    const pending=object.put(...values);
+                    if(abortNextWrite){abortNextWrite=false;transaction.abort();}
+                    return pending;
+                  };
+                  const value=Reflect.get(object,method,object);
+                  return typeof value==='function'?value.bind(object):value;
+                }});
+              };
+              const value=Reflect.get(transaction,property,transaction);
+              return typeof value==='function'?value.bind(transaction):value;
+            },
+            set(target,key,value){return Reflect.set(target,key,value,target);},
+          });
+        };
+        const value=Reflect.get(target,key,target);
+        return typeof value==='function'?value.bind(target):value;
+      },
+      set(target,key,value){return Reflect.set(target,key,value,target);},
+    });
+    request.onupgradeneeded=()=>{wrapper.result=database();wrapper.onupgradeneeded?.();};
+    request.onsuccess=()=>{wrapper.result=database();wrapper.onsuccess?.();};
+    return wrapper;
+  },
+};
+
+document.querySelector('#run').onclick=async()=>{
+  document.querySelector('#run').disabled=true;result.textContent='';result.dataset.status='running';
+  let a,b;
+  try {
+    const name='gc-sync-foundation-native-'+operationId();
+    a=openInventory({indexedDB:factory,storage,name});
+    b=openInventory({indexedDB:factory,storage,name});
+    await Promise.all([a.initialize(),b.initialize()]);
+    let state=await a.read();
+    equal(state.migration.cards,bytes['walmartGc.cards']);equal(profileOf(state).pending.length,2);
+    if(!/^migration:[0-9a-f-]{36}:0$/.test(profileOf(state).pending[0].id))throw Error('Missing unique migration namespace');
+    equal(profileOf(state).context.principal,null);log('PASS migration retains exact source, pending operations and unbound context');
+    const initial=state;
+    completedWrite=false;
+    state=await a.commit(patch(state,first.cardNumber,'completed'));
+    equal(completedWrite,true);equal(profileOf(state).cards[0].notes,'completed');
+    log('PASS success follows native transaction completion');
+    abortNextWrite=true;
+    await fails(()=>a.commit(patch(state,first.cardNumber,'aborted')));
+    equal(await a.read(),state);log('PASS native abort after put preserves inventory, pending operations and revisions');
+    await fails(()=>a.commit(patch(initial,first.cardNumber,'stale')));
+    equal(await a.read(),state);log('PASS stale edit rejected without overwriting saved inventory');
+    await Promise.all([a.commit(patch(state,first.cardNumber,'connection A')),b.commit(patch(state,second.cardNumber,'connection B'))]);
+    state=await a.read();equal(profileOf(state).cards.map(c=>c.notes),['connection A','connection B']);
+    log('PASS two native connections preserve independent concurrent edits');
+    await a.close();
+    a=openInventory({indexedDB:factory,storage:{getItem(){throw Error('No reimport allowed');}},name});
+    equal(await a.initialize(),state);log('PASS close/reopen preserves the exact outbox without reimporting legacy data');
+    const imported=await a.commit(op(state,'csv-recovery',{revision:profileOf(state).revision,cards:[{...first,notes:'CSV'}]}));
+    equal(profileOf(imported).cards.length,2);log('PASS CSV recovery retains records absent from the file');
+    state=await a.commit(op(imported,'sheet-import',{revision:profileOf(imported).revision,cards:[first,second],sheetId:'synthetic-sheet',sheetVersion:'v1',
+      sync:{status:'connected',lastKnownSheetVersion:'v1'},sheets:{status:'ready',spreadsheetId:'synthetic-sheet',remoteSheetVersion:'v1'}}));
+    equal(state.profiles.unbound.pending.length,profileOf(imported).pending.length);
+    equal(profileOf(state).context.ownershipVerified,false);log('PASS Sheet compartment retains unbound inventory and never claims ownership');
+    const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:'v1'},selectTransferCards(profileOf(state).cards,'all').selected,inventoryBytes(state),new Date('2026-11-25T00:00:00.000Z'));
+    state=await a.commit(op(state,'set-batch',{revision:profileOf(state).revision,ledger}));
+    const observation={ref:ledger.requests[0].ref,balance:80,checkedAt:'2026-11-25T00:01:00.000Z'};
+    const now=Date.parse(observation.checkedAt);
+    const preview=previewTransferResults(profileOf(state).ledger,profileOf(state).cards,[observation],now);
+    const prepared=await prepareTransferApplication(profileOf(state).ledger,preview.candidate,preview.items);
+    const apply=op(state,'apply-batch',{revision:profileOf(state).revision,ledgerId:ledger.id,observations:[observation],items:preview.items,now,inventoryDigest:prepared.finalized.inventoryDigest});
+    abortNextWrite=true;await fails(()=>a.commit(apply));equal(await a.read(),state);
+    state=await a.commit(apply);equal(profileOf(state).cards[0].currentBalance,80);
+    equal(profileOf(state).ledger.requests.map(r=>r.state),['applied','pending']);
+    equal(await a.commit(apply),state);
+    equal(previewTransferResults(profileOf(state).ledger,profileOf(state).cards,[observation],now).counts.alreadyApplied,1);
+    log('PASS partial Batch apply, abort/retry and exact replay atomically preserve references and inventory');
+    const prior=state;
+    state=await b.commit(op(state,'select-compartment',{target:'unbound'}));
+    equal(compartmentCards(state,'unbound').length,2);
+    state=await b.commit(op(state,'select-compartment',{target:prior.active}));
+    await fails(()=>a.commit(patch(prior,first.cardNumber,'obsolete after switch back')));
+    await fails(async()=>assertInventoryContext(await a.read(),inventoryContext(prior)));
+    equal(profileOf(state).pending,profileOf(prior).pending);
+    equal(profileOf(state).ledger,profileOf(prior).ledger);
+    equal(savedCompartments(state).length,2);
+    equal(JSON.parse(recoveryExport(state)).wallet.migration.cards,bytes['walmartGc.cards']);
+    log('PASS offline selection preserves Batch/outbox; persistent generation rejects stale editor/response after switching back; recovery export retains originals');
+    sessionStorage.setItem(checkpointKey,JSON.stringify({name,expected:state}));
+    document.querySelector('#reload').disabled=false;
+    result.dataset.status='passed';log('PASS all native checks. Use Reload and verify for a page restart.');
+  }catch(error){result.dataset.status='failed';log('FAIL '+error.stack);}
+  finally{await a?.close();await b?.close();document.querySelector('#run').disabled=false;}
+};
+document.querySelector('#reload').onclick=()=>location.reload();
+try {
+  const checkpoint=JSON.parse(sessionStorage.getItem(checkpointKey)||'null');
+  if(checkpoint){
+    const store=openInventory({name:checkpoint.name,storage:{getItem(){throw Error('No reimport allowed');}}});
+    equal(await store.initialize(),checkpoint.expected);await store.close();
+    log('PASS page restart recovered exact inventory, pending operations and partial Batch references');
+  }
+}catch(error){result.dataset.status='failed';log('FAIL restart: '+error.message);}
+</script>

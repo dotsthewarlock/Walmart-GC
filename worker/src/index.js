@@ -1,3 +1,6 @@
+import { validateInventory } from '../../src/lib/inventory.js';
+import { syncProtocol, fingerprint, snapshotContent, emptyEvidence, validateEvidence, equal } from '../../src/lib/syncProtocol.js';
+import { coordinate } from './syncCoordinator.js';
 import {
   requiredCardHeaders as CARD_HEADERS, oldApprovedCsvHeaders as OLD_CARD_HEADERS,
   optionalCardHeaders, csvHeaders as APPROVED_CARD_HEADERS, readOptionalCardMetadata, schemaCapability,
@@ -20,7 +23,7 @@ const META_TAB = "_META";
 const DEFAULT_TAB = "Sheet1";
 const APP_NAME = "Walmart-GC";
 const SCHEMA_VERSION = "1";
-const WORKER_VERSION = "balance-review-schema-v0.1";
+const WORKER_VERSION = "automatic-sync-v0.3";
 const SCHEMA_MODE = "header-name";
 const WALMART_GIFT_CARD_NUMBER_PATTERN = /^63\d{14}$/;
 
@@ -91,6 +94,7 @@ async function routeAuthRequest(request, env, pathname) {
 }
 
 async function routeApiRequest(request, env, pathname) {
+  if(request.method==='POST'&&request.headers.get('Origin')&&request.headers.get('Origin')!==getFrontendOrigin(env))return jsonResponse({error:'Use the same-origin wallet API.'},403);
   if (request.method === "GET" && pathname === "/api/status") {
     return handleStatus(request, env);
   }
@@ -99,17 +103,15 @@ async function routeApiRequest(request, env, pathname) {
     return handleLogout(request, env);
   }
 
-  if (request.method === "POST" && pathname === "/api/sheet/ensure") {
-    return handleSheetEnsure(request, env);
+  if (request.method === "POST" && ["/api/sync", "/api/sheet/ensure", "/api/cards/save"].includes(pathname)) {
+    return handleProtectedSync(request, env, pathname);
   }
 
   if (request.method === "GET" && pathname === "/api/cards/load") {
-    return handleCardsLoad(request, env);
+    return handleProtectedSync(request, env, pathname);
   }
 
-  if (request.method === "POST" && pathname === "/api/cards/save") {
-    return handleCardsSave(request, env);
-  }
+
 
   return jsonResponse({ error: "not_found" }, 404);
 }
@@ -204,7 +206,10 @@ async function handleAuthCallback(request, env) {
   }
 
   const existingSession = await loadSessionByKey(env, storedState.existingSessionKey);
-  const refreshToken = tokenPayload.refresh_token || existingSession?.refreshToken || "";
+  if (!tokenPayload.access_token) return textResponse("OAuth returned no usable access token.", 400);
+  const user = await readGooglePrincipal(tokenPayload.access_token);
+  const sameAccount = existingSession?.principal === user.permissionId;
+  const refreshToken = tokenPayload.refresh_token || (sameAccount ? existingSession.refreshToken : "");
   if (!refreshToken) {
     return textResponse("OAuth did not return a refresh token. Revoke prior consent for this app, then connect again.", 400);
   }
@@ -218,10 +223,11 @@ async function handleAuthCallback(request, env) {
   const session = {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    email: existingSession?.email || "",
-    name: existingSession?.name || "",
-    sheetId: existingSession?.sheetId || "",
-    sheetName: existingSession?.sheetName || DEFAULT_SHEET_NAME,
+    principal: user.permissionId,
+    email: user.emailAddress || "",
+    name: user.displayName || "",
+    sheetId: sameAccount ? existingSession.sheetId || "" : "",
+    sheetName: sameAccount ? existingSession.sheetName || DEFAULT_SHEET_NAME : DEFAULT_SHEET_NAME,
     scope: OAUTH_SCOPE,
     accessToken: tokenPayload.access_token || "",
     refreshToken,
@@ -250,143 +256,6 @@ async function handleAuthCallback(request, env) {
   });
 }
 
-async function handleSheetEnsure(request, env) {
-  const sessionContext = await requireSession(request, env);
-  const token = await getGoogleAccessToken(env, sessionContext);
-  const sheet = await ensureSpreadsheetAndSchema(token, sessionContext.session);
-  await saveSession(env, sessionContext, sheet.sessionPatch);
-
-  return jsonResponse({
-    ok: true,
-    sheetId: sheet.sheetId,
-    sheetName: sheet.sheetName,
-    sheetVersion: sheet.sheetVersion,
-    lastUpdated: sheet.lastUpdated,
-    schemaCapability,
-    hasCardRows: sheet.hasCardRows,
-  });
-}
-
-async function handleCardsLoad(request, env) {
-  const sessionContext = await requireSession(request, env);
-  const token = await getGoogleAccessToken(env, sessionContext);
-  const sheet = await getInitializedSpreadsheet(token, sessionContext.session);
-  const baseMeta = await readSheetMeta(token, sheet.sheetId);
-  if (!baseMeta.sheetVersion) throw sheetSetupRequired();
-  const [headerRow, ...rows] = await readSheetValues(token, sheet.sheetId, CARDS_RANGE);
-  const cards = cardsFromSheetRows(rows, validateCardHeaders(headerRow));
-  const meta = await readSheetMeta(token, sheet.sheetId);
-  if (baseMeta.sheetVersion !== meta.sheetVersion) {
-    return jsonResponse({ ok: false, error: "The Sheet changed while loading. Load it again.", schemaCapability }, 409);
-  }
-  await saveSession(env, sessionContext, {
-    sheetId: sheet.sheetId,
-    sheetName: sheet.sheetName,
-    sheetVersion: meta.sheetVersion || "",
-  });
-
-  return jsonResponse({
-    ok: true,
-    cards,
-    schemaCapability,
-    sheetId: sheet.sheetId,
-    sheetName: sheet.sheetName,
-    sheetVersion: meta.sheetVersion || "",
-    lastUpdated: meta.lastUpdated || "",
-  });
-}
-
-async function handleCardsSave(request, env) {
-  const sessionContext = await requireSession(request, env);
-  const body = await request.json().catch(() => null);
-  const compatible = body?.schemaCapability === schemaCapability;
-  const protectedInventory = body && Object.hasOwn(body, "cardsWithMetadata");
-  if (protectedInventory && !compatible) throw cardCapabilityError();
-  const inventory = protectedInventory ? body.cardsWithMetadata : body?.cards;
-  if (!Array.isArray(inventory) || (protectedInventory && Object.hasOwn(body, "cards"))) {
-    throw new HttpError(400, { ok: false, error: "Expected one cards array." });
-  }
-
-  const cards = validateCards(inventory);
-  const populatedHeaders = optionalCardHeaders.filter((header) =>
-    cards.some((card) => card[header] !== undefined)
-  );
-  if (populatedHeaders.length && !compatible) throw cardCapabilityError();
-
-  const baseSheetVersion = String(body.baseSheetVersion || "").trim();
-  const token = await getGoogleAccessToken(env, sessionContext);
-  const sheet = await getInitializedSpreadsheet(token, sessionContext.session);
-  const [currentHeaderRow, ...currentRows] = await readSheetValues(token, sheet.sheetId, CARDS_RANGE);
-  const currentHeaders = validateCardHeaders(currentHeaderRow);
-  const extended = optionalCardHeaders.some((header) => currentHeaders.has(header));
-  if (extended && !compatible) throw cardCapabilityError();
-  let removesMetadata = false;
-  if (extended) {
-    const savedCardsByNumber = new Map(cards.map((card) => [card.cardNumber, card]));
-    const cardNumberColumn = currentHeaders.get("cardNumber");
-    for (const [index, row] of currentRows.entries()) {
-      const metadata = readSheetCardMetadata(row, currentHeaders, index);
-      const replacement = savedCardsByNumber.get(String(row[cardNumberColumn] ?? "").trim());
-      if (Object.keys(metadata).some((field) => replacement?.[field] === undefined)) {
-        removesMetadata = true;
-      }
-    }
-  }
-
-  const headerRow = normalizeHeaderRow(currentHeaderRow).slice(0, currentHeaders.size);
-  const appendedHeaders = [];
-  if (!currentHeaders.has("merchantInferred")) appendedHeaders.push("merchantInferred");
-  appendedHeaders.push(...populatedHeaders.filter((header) => !currentHeaders.has(header)));
-
-  if (appendedHeaders.length) {
-    const targetCells = await readSheetValues(token, sheet.sheetId, CARDS_RANGE, "FORMULA");
-    checkAppendTargets(targetCells, headerRow.length, appendedHeaders.length);
-  }
-
-  // Compare the version after read-only validation and immediately before the batch.
-  const metaRows = await readSheetValues(token, sheet.sheetId, `${META_TAB}!A:B`);
-  const remoteSheetVersion = String(parseSheetMeta(metaRows).sheetVersion || "").trim();
-  if (remoteSheetVersion !== baseSheetVersion) {
-    return jsonResponse({ ok: false, conflict: true, remoteSheetVersion, schemaCapability }, 409);
-  }
-  if (!remoteSheetVersion) throw sheetSetupRequired();
-  if (removesMetadata && body.acknowledgeMetadataRemoval !== true) {
-    return jsonResponse({
-      ok: false,
-      conflict: true,
-      errorType: "cards_metadata_loss",
-      error: "Sync stopped because this session would remove saved balance-check metadata. Load the Sheet to keep it, or back up the Sheet before choosing Overwrite sheet with this session.",
-      remoteSheetVersion,
-      schemaCapability,
-    }, 409);
-  }
-
-  const nextMeta = { sheetVersion: generateSheetVersion(), lastUpdated: new Date().toISOString() };
-  await writeCardsSnapshot(token, sheet, cards, headerRow, appendedHeaders, metaRows, nextMeta);
-  await saveSession(env, sessionContext, {
-    sheetId: sheet.sheetId,
-    sheetName: sheet.sheetName,
-    sheetVersion: nextMeta.sheetVersion,
-  });
-
-  return jsonResponse({
-    ok: true,
-    schemaCapability,
-    sheetId: sheet.sheetId,
-    sheetName: sheet.sheetName,
-    ...nextMeta,
-  });
-}
-
-function cardCapabilityError() {
-  return new HttpError(409, {
-    ok: false,
-    error: "This Sheet or save requires card metadata support. Reload an updated client before syncing. Export a CSV backup before destructive recovery.",
-    errorType: "cards_schema_capability",
-    schemaCapability,
-  });
-}
-
 function sheetSetupRequired() {
   return new HttpError(409, {
     ok: false,
@@ -406,7 +275,10 @@ async function handleStatus(request, env) {
   }
 
   try {
-    await getGoogleAccessToken(env, sessionContext);
+    const token = await getGoogleAccessToken(env, sessionContext);
+    await verifySessionPrincipal(env, sessionContext, token);
+    const file = await findOwnedSheet(token, sessionContext.session.principal, sessionContext.session.sheetId).catch(error => {if(error instanceof HttpError && error.status!==401)return null;throw error;});
+    await saveSession(env, sessionContext, {sheetId:file?.id||'',sheetName:file?.name||DEFAULT_SHEET_NAME});
   } catch (error) {
     if (!(error instanceof HttpError) || error.status !== 401) {
       throw error;
@@ -422,6 +294,11 @@ async function handleStatus(request, env) {
   return jsonResponse(
     {
       authenticated: true,
+      principal: sessionContext.session.principal,
+      ownershipVerified: true,
+      syncProtocol,
+      coordinationAvailable: Boolean(env.SHEET_COORDINATOR)&&env.SYNC_ACTIVATION_BLOCKED!=='true',
+      activationBlocked: env.SYNC_ACTIVATION_BLOCKED==='true',
       email: sessionContext.session.email || "",
       name: sessionContext.session.name || "",
       sheetId: sessionContext.session.sheetId || "",
@@ -545,50 +422,10 @@ async function getGoogleAccessToken(env, context) {
   return payload.access_token;
 }
 
-async function getInitializedSpreadsheet(accessToken, session) {
-  const file = await findSessionSpreadsheet(accessToken, session);
-  if (!file) throw sheetSetupRequired();
-  const metadata = await getSpreadsheetMetadata(accessToken, file.id);
-  const cardsProperties = getSheetProperties(metadata, CARDS_TAB);
-  const metaProperties = getSheetProperties(metadata, META_TAB);
-  if (!cardsProperties || !metaProperties) throw sheetSetupRequired();
-  return {
-    sheetId: file.id,
-    sheetName: metadata?.properties?.title || file.name || DEFAULT_SHEET_NAME,
-    cardsProperties,
-    metaProperties,
-  };
-}
-
-async function findSessionSpreadsheet(accessToken, session) {
-  const file = session.sheetId ? await getDriveFile(accessToken, session.sheetId).catch(() => null) : null;
-  return file || findWalmartGcSpreadsheet(accessToken);
-}
-
-async function ensureSpreadsheetAndSchema(accessToken, session) {
-  const file = await findSessionSpreadsheet(accessToken, session) || await createWalmartGcSpreadsheet(accessToken);
-
-  const { metadata, hasCardRows } = await ensureSheetStructure(accessToken, file.id);
-  const meta = await ensureSheetMeta(accessToken, file.id, getSheetProperties(metadata, META_TAB));
-  await deleteEmptyDefaultSheetIfSafe(accessToken, file.id, metadata);
-  const sheetName = metadata?.properties?.title || file.name || DEFAULT_SHEET_NAME;
-  return {
-    sheetId: file.id,
-    sheetName,
-    sheetVersion: meta.sheetVersion || "",
-    lastUpdated: meta.lastUpdated || "",
-    hasCardRows,
-    sessionPatch: {
-      sheetId: file.id,
-      sheetName,
-      sheetVersion: meta.sheetVersion || "",
-    },
-  };
-}
-
 async function googleFetch(url, accessToken, options = {}) {
   const response = await fetch(url, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(20000),
     headers: {
       Accept: "application/json",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -616,36 +453,15 @@ function encodeRange(range) {
 }
 
 async function getDriveFile(accessToken, fileId) {
-  const fields = encodeURIComponent("id,name,mimeType,webViewLink");
+  const fields = encodeURIComponent("id,name,mimeType,webViewLink,ownedByMe,owners(permissionId),trashed");
   const file = await googleFetch(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=${fields}`, accessToken);
   return file?.mimeType === GOOGLE_SPREADSHEET_MIME_TYPE ? file : null;
 }
 
-function escapeDriveQueryValue(value) {
-  return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-async function findWalmartGcSpreadsheet(accessToken) {
-  const query = [
-    `name = '${escapeDriveQueryValue(DEFAULT_SHEET_NAME)}'`,
-    `mimeType = '${GOOGLE_SPREADSHEET_MIME_TYPE}'`,
-    "trashed = false",
-  ].join(" and ");
-  const params = new URLSearchParams({
-    q: query,
-    spaces: "drive",
-    pageSize: "10",
-    orderBy: "modifiedTime desc,name",
-    fields: "files(id,name,mimeType,webViewLink,modifiedTime)",
-  });
-  const body = await googleFetch(`${GOOGLE_DRIVE_API}/files?${params.toString()}`, accessToken);
-  return Array.isArray(body.files) ? body.files[0] || null : null;
-}
-
-async function createWalmartGcSpreadsheet(accessToken) {
+async function createWalmartGcSpreadsheet(accessToken, creationId) {
   return googleFetch(`${GOOGLE_DRIVE_API}/files?fields=id,name,mimeType,webViewLink`, accessToken, {
     method: "POST",
-    body: JSON.stringify({ name: DEFAULT_SHEET_NAME, mimeType: GOOGLE_SPREADSHEET_MIME_TYPE }),
+    body: JSON.stringify({ name: DEFAULT_SHEET_NAME, mimeType: GOOGLE_SPREADSHEET_MIME_TYPE, ...(creationId?{appProperties:{gcWalletCreationId:creationId}}:{}) }),
   });
 }
 
@@ -657,65 +473,12 @@ function getSheetProperties(metadata, title) {
   return metadata?.sheets?.find((sheet) => sheet?.properties?.title === title)?.properties || null;
 }
 
-async function ensureSheetStructure(accessToken, spreadsheetId) {
-  let metadata = await getSpreadsheetMetadata(accessToken, spreadsheetId);
-  const cardsProperties = getSheetProperties(metadata, CARDS_TAB);
-  const metaProperties = getSheetProperties(metadata, META_TAB);
-  const [headerRow] = cardsProperties
-    ? await readSheetValues(accessToken, spreadsheetId, `${CARDS_RANGE}!1:1`, "FORMULA")
-    : [];
-  const initializeCards = isSheetValuesEmpty([headerRow]);
-  let hasCardRows = false;
-  if (!initializeCards) {
-    const headers = validateCardHeaders(headerRow);
-    const [, ...cardRows] = await readSheetValues(accessToken, spreadsheetId, CARDS_RANGE);
-    cardRows.forEach((row, index) => readSheetCardMetadata(row, headers, index));
-    hasCardRows = cardRows.some((row) => !isSheetValuesEmpty([row.slice(0, headers.size)]));
-  } else if (cardsProperties) {
-    const cardsCells = await readSheetValues(accessToken, spreadsheetId, CARDS_RANGE, "FORMULA");
-    if (!isSheetValuesEmpty(cardsCells)) {
-      throw new HttpError(409, buildCardsHeaderError("Cards has data without a usable header row. Fix row 1 manually before syncing."));
-    }
-  }
-  const requests = [];
-
-  if (!cardsProperties) {
-    requests.push({ addSheet: { properties: { title: CARDS_TAB } } });
-  }
-  if (!metaProperties) {
-    requests.push({ addSheet: { properties: { title: META_TAB, hidden: true } } });
-  } else if (!metaProperties.hidden) {
-    requests.push({ updateSheetProperties: { properties: { sheetId: metaProperties.sheetId, hidden: true }, fields: "hidden" } });
-  }
-
-  if (requests.length) {
-    await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}:batchUpdate`, accessToken, {
-      method: "POST",
-      body: JSON.stringify({ requests }),
-    });
-    metadata = await getSpreadsheetMetadata(accessToken, spreadsheetId);
-  }
-
-  if (initializeCards) {
-    await writeSheetValues(accessToken, spreadsheetId, `${CARDS_RANGE}!A1:K1`, [CARD_HEADERS]);
-  }
-
-  return { metadata, hasCardRows };
-}
-
 async function readSheetValues(accessToken, spreadsheetId, range, valueRenderOption = "FORMATTED_VALUE") {
   const body = await googleFetch(
     `${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}?majorDimension=ROWS&valueRenderOption=${valueRenderOption}`,
     accessToken,
   );
   return Array.isArray(body.values) ? body.values : [];
-}
-
-async function writeSheetValues(accessToken, spreadsheetId, range, values) {
-  return googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}/values/${encodeRange(range)}?valueInputOption=RAW`, accessToken, {
-    method: "PUT",
-    body: JSON.stringify({ range, majorDimension: "ROWS", values }),
-  });
 }
 
 async function readSheetMeta(accessToken, spreadsheetId) {
@@ -730,51 +493,6 @@ function parseSheetMeta(values) {
       meta[key] = String(row?.[1] || "");
     }
   });
-  return meta;
-}
-
-async function ensureSheetMeta(accessToken, spreadsheetId, { sheetId, gridProperties }) {
-  const rows = await readSheetValues(accessToken, spreadsheetId, `${META_TAB}!A:B`, "FORMULA");
-  const [header] = rows;
-  const requests = [];
-  const writeRow = (rowIndex, values) => ({
-    updateCells: {
-      start: { sheetId, rowIndex, columnIndex: 0 },
-      rows: [sheetCellData(values)],
-      fields: "userEnteredValue",
-    },
-  });
-  if (isSheetValuesEmpty([header])) {
-    requests.push(writeRow(0, ["key", "value"]));
-  } else if (header[0] !== "key" || header[1] !== "value") {
-    throw new HttpError(409, { ok: false, error: "Fix the _META header to key,value before initializing the Sheet." });
-  }
-
-  const meta = parseSheetMeta(rows);
-  const defaults = {
-    schemaVersion: SCHEMA_VERSION,
-    sheetVersion: generateSheetVersion(),
-    lastUpdated: new Date().toISOString(),
-    appName: APP_NAME,
-  };
-  let nextRow = Math.max(1, rows.length);
-  for (const [key, value] of Object.entries(defaults)) {
-    const indexes = findMetaRows(rows, key);
-    if (indexes.length > 1) throw sheetSetupRequired();
-    if (meta[key]) continue;
-    requests.push(writeRow(indexes[0] ?? nextRow++, [key, value]));
-    meta[key] = value;
-  }
-  if (requests.length) {
-    const availableRows = gridProperties?.rowCount;
-    if (Number.isInteger(availableRows) && nextRow > availableRows) {
-      requests.unshift({ appendDimension: { sheetId, dimension: "ROWS", length: nextRow - availableRows } });
-    }
-    await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}:batchUpdate`, accessToken, {
-      method: "POST",
-      body: JSON.stringify({ requests }),
-    });
-  }
   return meta;
 }
 
@@ -848,7 +566,7 @@ async function writeCardsSnapshot(accessToken, sheet, cards, headerRow, appended
   const { cardsProperties, metaProperties } = sheet;
   const cardsId = cardsProperties.sheetId;
   const headers = [...headerRow, ...appendedHeaders];
-  const requests = [];
+  const requests = [...(sheet.pendingRequests || [])];
 
   // A Sheet can have been trimmed to its current used dimensions.
   for (const [dimension, needed, available] of [
@@ -879,17 +597,17 @@ async function writeCardsSnapshot(accessToken, sheet, cards, headerRow, appended
       fields: "userEnteredValue",
     },
   });
+  let metaNextRow = Math.max(1, metaRows.length);
   for (const [key, value] of Object.entries(nextMeta)) {
     const matchingRows = findMetaRows(metaRows, key);
-    if (matchingRows.length !== 1) throw sheetSetupRequired();
-    requests.push({
-      updateCells: {
-        start: { sheetId: metaProperties.sheetId, rowIndex: matchingRows[0], columnIndex: 1 },
-        rows: [sheetCellData([value])],
-        fields: "userEnteredValue",
-      },
-    });
+    if (matchingRows.length > 1) throw sheetSetupRequired();
+    const present = matchingRows.length === 1;
+    requests.push({ updateCells: {
+      start: {sheetId:metaProperties.sheetId,rowIndex:present ? matchingRows[0] : metaNextRow++,columnIndex:present ? 1 : 0},
+      rows:[sheetCellData(present ? [value] : [key,value])],fields:"userEnteredValue"
+    }});
   }
+  if(metaNextRow > (metaProperties.gridProperties?.rowCount || 1000)) requests.unshift({appendDimension:{sheetId:metaProperties.sheetId,dimension:"ROWS",length:metaNextRow-metaProperties.gridProperties.rowCount}});
   await googleFetch(`${GOOGLE_SHEETS_API}/${sheet.sheetId}:batchUpdate`, accessToken, {
     method: "POST",
     body: JSON.stringify({ requests }),
@@ -1036,28 +754,6 @@ function readSheetCardMetadata(row, headerMap, index) {
 
 function isSheetValuesEmpty(values) {
   return !Array.isArray(values) || values.every((row) => !Array.isArray(row) || row.every((cell) => String(cell ?? "").trim() === ""));
-}
-
-async function deleteEmptyDefaultSheetIfSafe(accessToken, spreadsheetId, metadata) {
-  const sheets = Array.isArray(metadata?.sheets) ? metadata.sheets : [];
-  const cardsSheet = getSheetProperties(metadata, CARDS_TAB);
-  const metaSheet = getSheetProperties(metadata, META_TAB);
-  const defaultSheet = getSheetProperties(metadata, DEFAULT_TAB);
-  const defaultSheetId = defaultSheet?.sheetId;
-  if (!cardsSheet || !metaSheet || !defaultSheet || sheets.length <= 1 || !Number.isInteger(defaultSheetId)) {
-    return false;
-  }
-
-  const defaultValues = await readSheetValues(accessToken, spreadsheetId, `'${DEFAULT_TAB}'`, "FORMULA").catch(() => null);
-  if (!defaultValues || !isSheetValuesEmpty(defaultValues)) {
-    return false;
-  }
-
-  await googleFetch(`${GOOGLE_SHEETS_API}/${spreadsheetId}:batchUpdate`, accessToken, {
-    method: "POST",
-    body: JSON.stringify({ requests: [{ deleteSheet: { sheetId: defaultSheetId } }] }),
-  }).catch(() => null);
-  return true;
 }
 
 function generateSheetVersion() {
@@ -1210,3 +906,146 @@ export const workerTestInternals = {
   validateCardHeaders,
   inferMerchantFromCardNumber,
 };
+
+// Only Google account metadata is read to establish identity; no additional scope.
+export async function readGooglePrincipal(token) {
+  const result = await googleFetch(`${GOOGLE_DRIVE_API}/about?fields=user(permissionId,emailAddress,displayName)`,token);
+  if(typeof result.user?.permissionId!=='string'||!result.user.permissionId||result.user.permissionId.length>128) throw new HttpError(401,{error:'Google account identity could not be verified.'});
+  return result.user;
+}
+export function ownedByPrincipal(file,principal) {
+  return Boolean(file&&file.mimeType===GOOGLE_SPREADSHEET_MIME_TYPE&&!file.trashed&&file.ownedByMe===true
+    &&file.owners?.some(owner=>owner.permissionId===principal));
+}
+async function verifySessionPrincipal(env,context,token) {
+  const user=await readGooglePrincipal(token);
+  if(context.session.principal&&context.session.principal!==user.permissionId)throw new HttpError(401,{error:'Account identity changed. Reconnect Google.'});
+  const patch={principal:user.permissionId,email:user.emailAddress||'',name:user.displayName||''};
+  if(!context.session.principal)Object.assign(patch,{sheetId:'',sheetVersion:''});
+  await saveSession(env,context,patch);
+  return user.permissionId;
+}
+async function findOwnedSheet(token,principal,exactId) {
+  if(exactId){
+    const file=await getDriveFile(token,exactId);
+    if(!ownedByPrincipal(file,principal))throw new HttpError(403,{error:'The exact Sheet is not privately owned by this Google account.'});
+    return file;
+  }
+  const params=new URLSearchParams({q:`name = '${DEFAULT_SHEET_NAME}' and mimeType = '${GOOGLE_SPREADSHEET_MIME_TYPE}' and trashed = false and 'me' in owners`,fields:'files(id,name,mimeType,ownedByMe,owners(permissionId),trashed)',pageSize:'100'});
+  const body=await googleFetch(`${GOOGLE_DRIVE_API}/files?${params}`,token);
+  const files=(body.files??[]).filter(file=>ownedByPrincipal(file,principal));
+  if(files.length>1)throw new HttpError(409,{error:'Multiple owned wallet Sheets exist. Enter the exact Sheet ID in Settings.'});
+  return files[0]??null;
+}
+
+async function handleProtectedSync(request,env,pathname) {
+  const body=request.method==='GET'?{protocol:new URL(request.url).searchParams.get('protocol'),action:'pull'}:await request.json().catch(()=>({}));
+  if(body.protocol!==syncProtocol)throw new HttpError(426,{error:'This wallet requires the protected synchronization protocol. Reload the app.',syncProtocol});
+  if(!env.SHEET_COORDINATOR)throw new HttpError(503,{error:'Protected synchronization is not configured. Local cards remain saved.'});
+  const context=await requireSession(request,env),token=await getGoogleAccessToken(env,context);
+  const principal=await verifySessionPrincipal(env,context,token);
+  if(body.principal&&body.principal!==principal)throw new HttpError(409,{error:'Account context changed.'});
+  if(body.action!=='pull'&&pathname!=='/api/cards/load'){
+    const setup=env.SHEET_COORDINATOR.get(env.SHEET_COORDINATOR.idFromName('setup:'+principal));
+    const inspected=await setup.fetch(new Request('https://coordinator/setup',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({protocol:syncProtocol,principal,action:'inspect-setup'})}));
+    if(!inspected.ok)return jsonResponse(await inspected.json(),inspected.status);
+  }
+  let file=await findOwnedSheet(token,principal,body.sheetId||context.session.sheetId);
+  // Allow exact Drive identity/ownership checks while every inventory read/write
+  // and setup creation remains blocked during controlled production activation.
+  if(env.SYNC_ACTIVATION_BLOCKED==='true')throw new HttpError(503,{code:'activation_pending',error:'Protected inventory synchronization is paused for activation. Local work remains saved.'});
+  if(!file){
+    if(pathname!=='/api/sheet/ensure')throw sheetSetupRequired();
+    if(!body.id)throw new HttpError(400,{error:'Missing durable setup identity.'});
+    const stub=env.SHEET_COORDINATOR.get(env.SHEET_COORDINATOR.idFromName('setup:'+principal));
+    const response=await stub.fetch(new Request('https://coordinator/create',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...body,principal,action:'create'})}));
+    const result=await response.json();if(!response.ok)return jsonResponse(result,response.status);
+    file=await findOwnedSheet(token,principal,result.sheetId);
+  }
+  await saveSession(env,context,{sheetId:file.id,sheetName:file.name});
+  const stub=env.SHEET_COORDINATOR.get(env.SHEET_COORDINATOR.idFromName('sheet:'+file.id));
+  const action=pathname==='/api/sheet/ensure'?'ensure':body.action||'commit';
+  const response=await stub.fetch(new Request('https://coordinator/sync',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...body,action,principal,sheetId:file.id})}));
+  return jsonResponse({...await response.json(),principal,sheetId:file.id},response.status);
+}
+
+export function googleSheetAdapter(token,sheetId) {
+  return {
+    async read(){
+      const metadata=await getSpreadsheetMetadata(token,sheetId);
+      const cardsProperties=getSheetProperties(metadata,CARDS_TAB),metaProperties=getSheetProperties(metadata,META_TAB);
+      const metaRows=metaProperties?await readSheetValues(token,sheetId,'_META!A:B'):[];
+      for(const key of ['schemaVersion','appName','lastUpdated','sheetVersion','syncProtocol','commitId','contentFingerprint','syncEvidence','maintenance'])if(findMetaRows(metaRows,key).length>1)throw sheetSetupRequired();
+      if(metaRows.length && (metaRows[0]?.[0]!=='key'||metaRows[0]?.[1]!=='value'))throw sheetSetupRequired();
+      const meta=parseSheetMeta(metaRows);
+      const cells=cardsProperties?await readSheetValues(token,sheetId,CARDS_RANGE):[];
+      const header=isSheetValuesEmpty(cells)?[]:cells[0];
+      const cards=header.length?validateInventory(cardsFromSheetRows(cells.slice(1),validateCardHeaders(header))):[];
+      validateCards(cards);
+      const after=metaProperties?await readSheetMeta(token,sheetId):meta;
+      if(meta.sheetVersion!==after.sheetVersion)throw new HttpError(409,{error:'Sheet changed during read.'});
+      let evidence;
+      try{evidence=validateEvidence(meta.syncEvidence?JSON.parse(meta.syncEvidence):emptyEvidence());}catch{throw new HttpError(409,{error:'Synchronization recovery evidence is damaged. Preserve a Sheet backup.'});}
+      return {cards,evidence,version:meta.sheetVersion||'',protocol:meta.syncProtocol||'',commitId:meta.commitId||'',fingerprint:meta.contentFingerprint||'',maintenance:meta.maintenance==='paused',
+        internal:{metadata,cardsProperties,metaProperties,metaRows,header}};
+    },
+    async prepare(snapshot,previous){
+      const cards=validateCards(snapshot.cards),data=previous.internal,header=normalizeHeaderRow(data.header).filter(Boolean);
+      const appended=[...CARD_HEADERS.filter(h=>!header.includes(h)),...optionalCardHeaders.filter(h=>!header.includes(h)&&cards.some(c=>c[h]!==undefined))];
+      if(data.cardsProperties&&appended.length)checkAppendTargets(await readSheetValues(token,sheetId,CARDS_RANGE,'FORMULA'),header.length,appended.length);
+    },
+    async write(snapshot,id,hash,previous){
+      const cards=validateCards(snapshot.cards),data=previous.internal;
+      const taken=new Set(data.metadata.sheets?.map(s=>s.properties.sheetId));
+      const properties=title=>{let id=1;while(taken.has(id))id++;taken.add(id);return {title,sheetId:id,gridProperties:{rowCount:1000,columnCount:26},...(title===META_TAB?{hidden:true}:{})};};
+      const sheet={sheetId,cardsProperties:data.cardsProperties??properties(CARDS_TAB),metaProperties:data.metaProperties??properties(META_TAB),pendingRequests:[]};
+      if(!data.cardsProperties)sheet.pendingRequests.push({addSheet:{properties:sheet.cardsProperties}});
+      if(!data.metaProperties)sheet.pendingRequests.push({addSheet:{properties:sheet.metaProperties}});
+      const rows=data.metaRows.length?data.metaRows:[['key','value']];
+      if(!data.metaRows.length)sheet.pendingRequests.push({updateCells:{start:{sheetId:sheet.metaProperties.sheetId,rowIndex:0,columnIndex:0},rows:[sheetCellData(['key','value'])],fields:'userEnteredValue'}});
+      const header=normalizeHeaderRow(data.header).filter(Boolean);
+      const appended=[...CARD_HEADERS.filter(h=>!header.includes(h)),...optionalCardHeaders.filter(h=>!header.includes(h)&&cards.some(c=>c[h]!==undefined))];
+      await writeCardsSnapshot(token,sheet,cards,header,appended,rows,{schemaVersion:SCHEMA_VERSION,appName:APP_NAME,sheetVersion:generateSheetVersion(),lastUpdated:new Date().toISOString(),syncProtocol,commitId:id,contentFingerprint:hash,syncEvidence:JSON.stringify(snapshot.evidence),maintenance:snapshot.maintenance?'paused':'active'});
+    }
+  };
+}
+
+export class SheetCoordinator {
+  constructor(ctx){this.ctx=ctx;this.tail=Promise.resolve();}
+  fetch(request){const next=this.tail.then(()=>this.handle(request));this.tail=next.then(()=>undefined,()=>undefined);return next;}
+  async handle(request){
+    try{
+      const body=await request.json();
+      const token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
+      if(!['pull','inspect-setup'].includes(body.action)&&!/^([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/.test(body.id||''))return jsonResponse({error:'A UUID commit identity is required.'},400);
+      if(!token||!body.principal||body.protocol!==syncProtocol)return jsonResponse({error:'Invalid internal synchronization request.'},403);
+      if(['create','inspect-setup'].includes(body.action)){
+        let setup=await this.ctx.storage.get('setup');
+        if(setup&&!setup.sheetId){
+          const params=new URLSearchParams({q:`appProperties has { key='gcWalletCreationId' and value='${setup.id}' } and trashed=false`,fields:'files(id,mimeType,ownedByMe,owners(permissionId),appProperties,trashed)',pageSize:'100'});
+          const found=await googleFetch(`${GOOGLE_DRIVE_API}/files?${params}`,token);
+          const files=(found.files??[]).filter(file=>ownedByPrincipal(file,body.principal)&&file.appProperties?.gcWalletCreationId===setup.id);
+          if(files.length===1){setup={...setup,sheetId:files[0].id,phase:'confirmed'};await this.ctx.storage.put('setup',setup);}
+        }
+        if(body.action==='inspect-setup'&&!setup)return jsonResponse({ok:true});
+        if(setup?.sheetId)return jsonResponse({sheetId:setup.sheetId});
+        if(setup)throw Object.assign(Error('Sheet creation is uncertain. Do not retry creation; inspect app-owned files before operator recovery.'),{code:'uncertain'});
+        await this.ctx.storage.put('setup',{id:body.id,phase:'possible-dispatch'});
+        const file=await createWalmartGcSpreadsheet(token,body.id);
+        if(!file.id)throw Object.assign(Error('Sheet creation outcome is uncertain.'),{code:'uncertain'});
+        await this.ctx.storage.put('setup',{id:body.id,sheetId:file.id,phase:'confirmed'});
+        return jsonResponse({sheetId:file.id});
+      }
+      if(body.action==='commit'){
+        if(!equal(body.cards,validateInventory(body.cards))||!equal(body.base.cards,validateInventory(body.base.cards)))throw Error('Canonical card data is required for synchronization.');
+        if(!Array.isArray(body.operations)||body.operations.length>128)throw Error('Unsupported pending operation set.');
+        const ids=new Set();
+        for(const op of body.operations){
+          if(typeof op.id!=='string'||op.id.length>160||ids.has(op.id)||!/^63\d{14}$/.test(op.cardNumber)||!['legacy-recovery','set-balance','set-notes','set-used','patch','mark-zero-used','csv-recovery','manual-verification','batch-verification','resolve-conflict','unbound-recovery'].includes(op.kind))throw Error('Invalid or repeated pending operation identity.');
+          ids.add(op.id);if(op.after&&!equal(op.after,validateInventory([op.after])[0]))throw Error('Invalid pending card representation.');if(op.before&&!equal(op.before,validateInventory([op.before])[0]))throw Error('Invalid pending baseline representation.');
+        }
+      }
+      return jsonResponse(await coordinate(this.ctx.storage,googleSheetAdapter(token,body.sheetId),body));
+    }catch(error){return jsonResponse({error:error.message,code:error.code||'sync_error',notDispatched:error.code==='baseline_expired'},error.code==='uncertain'?503:409);}
+  }
+}

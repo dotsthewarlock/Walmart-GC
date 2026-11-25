@@ -1,130 +1,100 @@
-# QA Test Checklist & Troubleshooting Guide
+# GC Wallet integrated acceptance
 
-This document combines the manual QA test plan and troubleshooting guidance for the Walmart-GC application. Use it to verify releases, debug active incidents, and ensure OAuth, session, and synchronization behaviors conform to approved specifications.
+Use this one cycle for the V0.3 product. No live credentials or merchant/Sheet
+requests are needed for synthetic tests. Native IndexedDB and page-restart checks
+already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harness.
 
----
+## Automated cycle
 
-## Part 1: Manual QA Checklist
-
-### 1. Test Environment Validation
-Ensure testing is conducted on the official custom domain. Localhost OAuth or alternate OAuth origins are not supported.
-- **Production/Dev/Testing URL**: `https://walmart-gc.dotsthewarlock.com`
-- **Worker Routing**: Same-origin `/auth/*` and `/api/*` routed via Cloudflare to the Worker (`walmart-gc-oauth`).
-
-| Item | Expected Status | Checked |
-| --- | --- | --- |
-| App URL | Must load from `https://walmart-gc.dotsthewarlock.com` | [ ] |
-| Security | Secure HTTPS context | [ ] |
-| Frontend token storage | NO access tokens, refresh tokens, session IDs, or Google credentials in local/session storage or cookies other than `walmart_gc_session` | [ ] |
-| Legacy references | No Apps Script health checks, legacy Apps Script URLs, or OAuth Client ID input fields visible to normal users | [ ] |
-
-### 2. OAuth & Session Persistence
-- [ ] **Google Connection**: Select **Connect Google**.
-- [ ] **Initiation URL**: Redirection starts via same-origin `/auth/init`.
-- [ ] **Google Scope Check**: Consent screen requests *only* `https://www.googleapis.com/auth/drive.file`.
-- [ ] **Successful Redirect**: Redirects back to `https://walmart-gc.dotsthewarlock.com/?auth=connected`.
-- [ ] **URL Cleanup**: App removes the `?auth=connected` query parameter cleanly; no session tokens are visible in the address bar.
-- [ ] **HttpOnly Session Cookie**: Worker sets a host-only, Secure, SameSite=Lax, HttpOnly cookie named `walmart_gc_session`.
-- [ ] **Session Check**: Same-origin `/api/status` returns connected.
-- [ ] **Page Refresh**: Refreshing the page preserves the login/connection state.
-- [ ] **Browser Restart**: Closing and reopening the browser preserves the login state (while the session remains valid).
-- [ ] **CORS Isolation**: All frontend Worker API calls use same-origin `/api/*` paths with `{ credentials: "include" }`.
-- [ ] **Logout Flow**: Selecting Logout calls same-origin `POST /api/logout`, deletes the KV session on the backend, clears the local cookie, and updates status to disconnected.
-
-### 3. Google Account & Sheet Lifecycle
-- [ ] **First-run State**: Logged-out user with no local data sees diagnostics indicating **Disconnected**, Sheet proxy **Needs setup**, and card count `0`.
-- [ ] **Sheet Creation**: Connect Google, then click **Ensure Sheet**. The Worker searches for `Walmart-GC Data` in Drive and automatically creates it if missing.
-- [ ] **Header Initialization**: The newly created Sheet is initialized with tabs `Cards` and `_META` containing the correct schema and metadata headers.
-- [ ] **Sheet URL Resolution**: **Open Sheet** correctly opens the active spreadsheet in Google Sheets.
-- [ ] **Data Fetching**: Selecting **Load from Google Sheets** fetches data from the remote Sheet and updates local state.
-- [ ] **Persistent Sheet Binding**: Reconnecting after logout correctly matches and reuses the existing `Walmart-GC Data` sheet without duplicate creation.
-
-### 4. Input Normalization & Validation
-- [ ] **Accepted Card Prefix**: Card number `6351234567890123` (starts with `635`, exactly 16 digits) is accepted.
-- [ ] **Non-635 Rejection**: A 16-digit card number not starting with `635` is rejected.
-- [ ] **Invalid Length**: Card numbers shorter or longer than 16 digits are rejected.
-- [ ] **Non-Numeric Characters**: Alphabetic characters or symbols are rejected or correctly normalized depending on validation context.
-- [ ] **Barcode Checksum**: Barcode renders correctly matching `79936686504000 + cardNumber`.
-- [ ] **CSV Multi-Card Warning**: Importing a CSV with mixed valid/invalid rows continues to warn or reject invalid rows while allowing recovery.
-
-### 5. Synchronization & Concurrency
-- [ ] **Action-Triggered Sync**: Changes sync to Google Sheets immediately after:
-  - Saving a balance update
-  - Changing card used state
-  - Editing notes
-  - Modifying card merchant
-  - Creating/saving a new card
-  - Accepting a CSV import
-- [ ] **No Keystroke Flooding**: Editing notes or balance fields does not trigger sync requests until the save action is completed.
-- [ ] **Optimistic Locking**: Stale local saves are blocked by comparing local `sheetVersion` with `_META.sheetVersion` on the Sheet.
-- [ ] **No Silent Overwrites**: App alerts the user of version conflicts rather than overwriting remote changes.
-- [ ] **Recovery Dialog**: Version conflicts display clear choices to either overwrite remote, pull remote, or cancel.
-- [ ] **Pre-recovery CSV Option**: User is offered to download a CSV backup before committing a destructive conflict resolution.
-
-### 6. Offline Usability & CSV Import/Export
-- [ ] **Offline Execution**: App remains fully interactive with local data when offline.
-- [ ] **CSV Export**: Click Export CSV while disconnected; backup download compiles and prompts.
-- [ ] **CSV Import (Offline)**: Valid CSV can be imported and stored locally while disconnected.
-- [ ] **Queue on Reconnect**: Offline changes are preserved and sync to Google Sheets when connection is restored.
-
-### 7. User Interface & M3 Compliance
-- [ ] **M3 Bottom Navigation**: Verify the phone-first Navigation Bar renders with exactly two active destinations: **Cards** and **Checkout**, with proper active indicator pills and flat, thumb-accessible layout. Verify **Settings** is accessed only via the IconButton in the top-right of the header.
-- [ ] **Cards Metrics**: Ensure the metrics strip displays precisely `Available balance` and `Visible cards` (no "Total Wallet Assets", "Card Counts", or fractional /21 indicators).
-- [ ] **M3 Cards Rows**: Verify rows maintain compact stable heights of 48-56px, right-aligned tabular (mono) amount fonts, and subtle tonal selection fill. Confirm no visual jumping occurs on card selection or scrolling.
-- [ ] **Checkout Scanner Viewport**: Ensure the barcode is passive, inline, and clearly legible without modal scrims, spotlight rings, or backdrop blurs.
-- [ ] **Screen Wake Lock**: Verify wake lock acts strictly as a passive checkout screen helper, requesting lock only while the Checkout tab is active and releasing when navigating away.
-- [ ] **Camera Access Restriction**: Ensure camera permission is *only* requested when the user clicks the explicit barcode add-card button; verify absolutely no camera requests on application load, list pages, checkout views, or passive nav.
-- [ ] **Settings Accordions**: Check that settings categories are cleanly organized into collapsible Accordion cards: **Google Sync**, **Preferences**, **Backup & CSV Actions** (hidden unless in admin/dev mode), **Troubleshooting**, and **Account**.
-- [ ] **Privacy/Account Exposure**: Verify Google emails, names, or profile avatars are displayed *only* under Settings -> Account, and are strictly absent from primary Cards and Checkout views.
-- [ ] **Technical Noise Prevention**: Ensure git branch, commit hash, device fingerprint, and internal diagnostics are hidden from normal viewports and remain collapsed under the Troubleshooting section.
-
----
-
-## Part 2: Troubleshooting Guide
-
-### 1. Runtime Debugging Priority
-If an error or failure is reported:
-1. Check the exact **live error string / observed behavior**.
-2. Inspect **current workspace/repo files**.
-3. Inspect **active deployment/config**.
-4. Consult **repo docs / intended architecture**.
-5. Disprove **prior assumptions**.
-*Note: If an error matches retired Apps Script endpoints, inspect Apps Script deploys first to verify if the client is calling a stale backend.*
-
-### 2. Common Scenarios & Diagnostics
-
-#### A. "Connect Google" does not initiate OAuth
-- **Cause**: Browser extensions (e.g., ad-blockers, tracking protection) blocking redirect, or invalid origin.
-- **Fix**: Confirm the app is loaded from `https://walmart-gc.dotsthewarlock.com`. Ensure Cloudflare is routing `/auth/init` correctly. Turn off conflicting extensions.
-
-#### B. Connected state does not persist after reload
-- **Cause**: The HttpOnly cookie `walmart_gc_session` was not set, or frontend did not include credentials in status requests.
-- **Fix**: Open Developer Tools -> Application -> Cookies. Ensure `walmart_gc_session` is present, marked `HttpOnly`, `Secure`, `SameSite=Lax`, and is tied to `walmart-gc.dotsthewarlock.com` (no `Domain=` parameter set). Verify `/api/status` calls specify `{ credentials: "include" }`.
-
-#### C. Google Consent requests broad permissions
-- **Cause**: Worker OAuth initiation is requesting a broader scope than `drive.file`.
-- **Fix**: Inspect the scopes requested by the Cloudflare Worker in `worker/src/index.js`. It must request *only* `https://www.googleapis.com/auth/drive.file`.
-
-#### D. Google Sheet setup / "Ensure Sheet" fails
-- **Cause**: Google Drive/Sheets APIs are disabled on the developer console project, or scope authorization has expired.
-- **Fix**: Confirm Google Drive API and Google Sheets API are enabled in the Google Cloud Console for the active client ID. Verify the session is still valid via `/api/status`.
-
-#### E. Cloudflare KV Bindings error on deployment
-- **Cause**: Deployed worker contains placeholder KV IDs in its configurations.
-- **Fix**: Ensure that real KV IDs are bound to `SESSIONS` and `OAUTH_STATE` in the Cloudflare Worker settings (either via dashboard or by editing `worker/wrangler.toml` before running wrangler commands).
-
-#### F. Apps Script Fallback Note
-- **Cause**: Historical code or configurations may point to retired Apps Script scripts.
-- **Fix**: If an exact live error string is found only in `apps-script/Code.gs`, it indicates the client is calling legacy infrastructure. Debug that runtime, but do not promote it to the active default architecture.
-
----
-
-## Reference: Active Data Schemas
-
-### Google Sheet & CSV Schema
-Columns must be named exactly (case-sensitive) as follows:
-```text
-cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes
+```sh
+npm ci
+npm test
+npm run test:worker
+npx playwright install chromium
+npm run test:browser
+npm run build
+git diff --check
 ```
-- **Tab 1**: `Cards` (Contains the gift cards database)
-- **Tab 2**: `_META` (Contains sheet version metadata, specifically key `sheetVersion`)
+
+Playwright is development-only (three packages plus its optional platform helper;
+no runtime dependency changes). Linux requires Chromium's system test libraries;
+CI uses `playwright install --with-deps chromium`. In a restricted development
+container, equivalent libraries may be extracted temporarily and supplied through
+LD_LIBRARY_PATH; this does not change the product or deployment. No normal app
+flow depends on Playwright or any test fixture.
+
+`test:worker` uses development-only Miniflare/workerd, the production Worker module
+graph and SQLite-backed coordinator storage. Three local-runtime scenarios cover
+protocol/account fencing, concurrent writes across external awaits and actual
+runtime restart after uncertain dispatch and the fail-closed activation pause.
+All Google responses are synthetic;
+unmatched outbound network connections are denied. This is stronger than an
+in-memory storage fake, but does not validate production bindings or live Google.
+See the [activation/recovery plan](V0.3_RELEASE_READINESS.md) for advisory disposition
+and the remaining external checks.
+
+The browser suite starts normal Vite on local 5178, blocks external traffic and
+mocks every API/auth route. It uses synthetic cards ending 0042 (100.00) and 0084
+(50.00), synthetic principal/Sheet IDs and the real coordinator/reconciliation
+modules. There is no second temporary launcher. Original sources remain the app
+under test. Font requests are blocked and use local fallbacks. Browser contexts
+provide device isolation; tabs in one context share IndexedDB and notifications.
+
+The integrated scenarios cover migration/startup/reload; balance/notes/used saves;
+manual verification and date-only persistence; Batch v1 create/preview/partial
+apply/exact replay; independent devices and stale/obsolete tabs; offline inventory
+selection and CSV/recovery warnings; injected transaction abort with unchanged
+committed state; 412 × 923 and desktop navigation; protected explicit controls,
+setup and shared maintenance. Node tests cover uncertain/late writes, restart,
+marker/content mismatch, account isolation, bounded receipts/old retries,
+reconciliation/tombstones, legacy CSV and every recognized Sheet header mapping.
+Focused readiness regressions also retain competing nonmonetary edits across
+ACK rebasing and persist missing-row recovery intent across subsequent ACKs.
+
+Old regression assertions that required dormant pendingReconciliation=true to be
+rejected, uncoordinated whole-inventory writes, or unrelated-change Batch
+invalidation are superseded. The schema compiler and contracts remain directly
+covered by the coordinated Google adapter fixtures, not by a legacy write bypass.
+
+## Minimal independent review cycle
+
+After automated tests, review the same synthetic browser scenario in headed mode:
+
+```sh
+npm run test:browser -- --headed --workers=1
+```
+
+Use `--debug` to pause for inspection. Verify Cards → Checkout → Settings, the
+passive barcode/credential controls, keyboard focus/scroll and legibility at
+412 × 923 and desktop. Confirm warnings do not impose a monetary hold, and that
+full account/Sheet details remain confined to Settings. Do not open real merchant
+or Sheet pages from a synthetic run. No separate repeated phase acceptance gates.
+
+## Infrastructure and release gates — not established by mocks
+
+- Deployed Cloudflare module/DO class compatibility, storage transactions, namespace,
+  binding and migration, service entitlement/cost and deployment route identity.
+  The production config records operator-verified resources and retains an activation
+  pause until controlled Google checks pass. Required binding: SHEET_COORDINATOR exported
+  class SheetCoordinator, with an approved new_sqlite_classes migration. This is
+  a review prerequisite, not authorization to provision it. Local workerd/SQLite
+  validation does not establish deployed configuration or entitlement.
+- Actual Drive about.user.permissionId visibility/stability and exact file owner
+  permissionId checks using only drive.file. Test different accounts and a shared /
+  nonowned Sheet before enabling production writes.
+- Secret binding NAMES/presence, account/environment placement and session signing
+  continuity; never read/print secret values. KV session/OAuth state bindings and
+  existing compatibility-date drift need environment review before deployment.
+- Controlled direct-edit maintenance across sessions, backup/restore procedures,
+  and deliberate ambiguous-outcome operator recovery. A missing marker does not
+  authorize resending a timed-out write.
+- Cross-browser/mobile/device and real scanner usability, browser storage eviction,
+  genuine merchant verification and accepted bookmarklet transfer compatibility.
+  Existing unrelated manual acceptance stays valid; run one focused release cycle.
+
+No merge, provisioning or deployment follows automatically from passing tests.
+Rollback must keep protocol fencing, IndexedDB/outbox and recovery evidence
+readable; use a compatible read-only recovery client rather than an older writable
+frontend/Worker. [Architecture](ARCHITECTURE.md) is the protocol authority.
+Use the ordered [activation and recovery plan](V0.3_RELEASE_READINESS.md) for rollout;
+the external items above are not repeated development phase gates.

@@ -81,7 +81,7 @@ export function applyBalanceObservation(cards, { cardNumber, observedBalance, ch
   }
 
   const verified = card.currentBalance === currentBalance
-    ? { ...card, lastBalanceChecked }
-    : { ...card, currentBalance, lastBalanceChecked, dateUpdated: lastBalanceChecked };
+    ? { ...card, lastBalanceChecked, ...(card.pendingReconciliation ? {pendingReconciliation:false}: {}) }
+    : { ...card, currentBalance, lastBalanceChecked, dateUpdated: lastBalanceChecked, ...(card.pendingReconciliation ? {pendingReconciliation:false}: {}) };
   return cards.map((entry) => entry === card ? verified : entry);
 }

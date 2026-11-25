@@ -8,8 +8,9 @@ import {
   assertTransferUnchanged, checkTransferContinuity, commitTransferApplication, createTransferLedger,
   createTransferDiscardGuard, decodeTransferLedger, invalidateOnObservedContext, invalidateTransferBeforeMutation,
   prepareTransferApplication, readTransferLedger, writeTransferLedger,
-} from "./balanceTransferLedger.js";
-import { bundledSampleGiftCards, loadCards } from "./cards.js";
+} from "./legacyTransfer.fixture.mjs";
+import { bundledSampleGiftCards } from "./cards.js";
+import { loadCards } from "./legacyCards.fixture.mjs";
 import { schemaCapability } from "./csvSchema.js";
 import { storageKeys } from "./storage.js";
 
@@ -141,6 +142,20 @@ test("authentication requires matching authenticated context, established sync, 
   ]) assert.throws(() => requireTransferContext({ ...status, ...changed }, knownContext));
   assert.throws(() => requireTransferContext(status, {}), /context/);
   assert.throws(() => requireTransferContext(status, { ...knownContext, sync: { ...knownContext.sync, status: "conflict" } }), /context/);
+});
+
+test("protected Batch uses verified identity and confirmed snapshot rather than the session version", () => {
+  const protectedStatus = { ...status, principal: 'account-A', ownershipVerified: true, coordinationAvailable: true, syncProtocol: 'gc-wallet-sync-v1' };
+  const local = { ...knownContext, context: { kind: 'sheet', principal: 'account-A', sheetId: context.sheetId, ownershipVerified: true },
+    remoteBase: { protocol: 'gc-wallet-sync-v1', version: context.sheetVersion } };
+  for (const sheetVersion of ['', 'stale']) assert.deepEqual(requireTransferContext({ ...protectedStatus, sheetVersion }, local), context);
+  for (const changed of [{ principal: 'account-B' }, { principal: '' }, { ownershipVerified: false }, { sheetId: 'other' }, { coordinationAvailable: false }]) {
+    assert.throws(() => requireTransferContext({ ...protectedStatus, ...changed }, local));
+  }
+  for (const changed of [{ context: { ...local.context, principal: 'account-B' } }, { context: { ...local.context, sheetId: 'other' } },
+    { context: { ...local.context, ownershipVerified: false } }, { remoteBase: null }, { remoteBase: { ...local.remoteBase, version: 'stale' } }]) {
+    assert.throws(() => requireTransferContext(protectedStatus, { ...local, ...changed }));
+  }
 });
 
 test("preview counts outcomes, applies only accepted exact identities and preserves all unrelated fields", async () => {

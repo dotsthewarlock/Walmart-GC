@@ -90,16 +90,27 @@ export function parseTransferResults(packet) {
 export function requireTransferContext(status, local) {
   if (status?.authenticated !== true) throw new Error("Connect Google to use Batch. Manual review is available offline.");
   if (status.schemaCapability !== schemaCapability) throw new Error("Batch requires a Worker that supports balance metadata.");
+  const protectedSync = status.syncProtocol === "gc-wallet-sync-v1";
   if (typeof status.sheetId !== "string" || !status.sheetId.trim()
-      || typeof status.sheetVersion !== "string" || !status.sheetVersion.trim()
       || local?.sync?.status !== "connected" || local?.sheets?.status !== "ready"
       || !local.sheets.spreadsheetId || !local.sync.lastKnownSheetVersion
       || local.sheets.spreadsheetId !== status.sheetId
-      || local.sync.lastKnownSheetVersion !== status.sheetVersion
-      || local.sheets.remoteSheetVersion !== status.sheetVersion) {
+      || (protectedSync ? (
+        status.ownershipVerified !== true || status.coordinationAvailable !== true
+        || typeof status.principal !== "string" || !status.principal.trim()
+        || local.context?.kind !== "sheet" || local.context.ownershipVerified !== true
+        || local.context.principal !== status.principal || local.context.sheetId !== status.sheetId
+        || local.remoteBase?.protocol !== status.syncProtocol
+        || local.remoteBase.version !== local.sync.lastKnownSheetVersion
+        || local.sheets.remoteSheetVersion !== local.remoteBase.version
+      ) : (
+        typeof status.sheetVersion !== "string" || !status.sheetVersion.trim()
+        || local.sync.lastKnownSheetVersion !== status.sheetVersion
+        || local.sheets.remoteSheetVersion !== status.sheetVersion
+      ))) {
     throw new Error("The Sheet context could not be verified. Use Settings to establish the matching Sheet and version.");
   }
-  return { sheetId: status.sheetId, sheetVersion: status.sheetVersion };
+  return { sheetId: status.sheetId, sheetVersion: protectedSync ? local.sync.lastKnownSheetVersion : status.sheetVersion };
 }
 
 export function sameTransferContext(a, b) {

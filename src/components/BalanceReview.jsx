@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Copy } from "lucide-react";
-import { applyBalanceObservation, createBalanceReviewQueue, parseVerifiedBalance } from "../lib/balanceReview";
-import { captureBalanceReviewStorage, persistBalanceReviewCards } from "../lib/cards";
+import { createBalanceReviewQueue, parseVerifiedBalance } from "../lib/balanceReview";
+import { profileOf, inventoryContext } from "../lib/inventory";
 import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { TextField } from "./primitives/TextField";
@@ -33,26 +33,19 @@ export function BalanceReview({ onExit, ...props }) {
   );
 }
 
-function ManualBalanceReview({ cards, allowEmptyStorage, onSave, beforeManualSave, copyText, maskCardNumber }) {
+function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, maskCardNumber }) {
   const [queue] = useState(() => createBalanceReviewQueue(cards));
-  const [initialStorage] = useState(() => {
-    if (queue.length === 0) return {};
-    try {
-      return { raw: captureBalanceReviewStorage(cards, { allowEmptyStorage }) };
-    } catch (error) {
-      return { error: error.message };
-    }
-  });
+  const [initialVersions] = useState(() => ({ ...profileOf(walletSnapshot).versions }));
+  const [initialContext] = useState(() => inventoryContext(walletSnapshot));
   const [position, setPosition] = useState(0);
   const [saved, setSaved] = useState(0);
   const [amount, setAmount] = useState("");
   const [inputError, setInputError] = useState("");
-  const [saveError, setSaveError] = useState(initialStorage.error ?? "");
+  const [saveError, setSaveError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
   const cursor = useRef(0);
   const copyAttempt = useRef(0);
-  const expectedInventory = useRef(cards);
-  const storage = useRef(initialStorage.raw);
+  const saving = useRef(false);
   const pendingObservation = useRef(null);
   const taskHeading = useRef(null);
   const entry = queue[position];
@@ -72,8 +65,8 @@ function ManualBalanceReview({ cards, allowEmptyStorage, onSave, beforeManualSav
     pendingObservation.current = null;
   }
 
-  function saveObservation(value, fromInput = false) {
-    if (cursor.current !== position || !card) return;
+  async function saveObservation(value, fromInput = false) {
+    if (saving.current || cursor.current !== position || !card) return;
     let verifiedBalance;
     try {
       verifiedBalance = parseVerifiedBalance(value);
@@ -85,28 +78,16 @@ function ManualBalanceReview({ cards, allowEmptyStorage, onSave, beforeManualSav
     if (pendingObservation.current?.value !== value) {
       pendingObservation.current = { value, checkedAt: new Date() };
     }
+    saving.current = true;
     try {
-      const updated = applyBalanceObservation(cards, {
-        cardNumber: card.cardNumber,
-        observedBalance: verifiedBalance,
-        checkedAt: pendingObservation.current.checkedAt,
-        expected: entry,
-      });
-      if (cards !== expectedInventory.current) {
-        throw new Error("The card inventory changed during review. Exit and restart the review.");
-      }
-      if (storage.current === undefined) {
-        storage.current = captureBalanceReviewStorage(cards, { allowEmptyStorage });
-      }
-      beforeManualSave();
-      storage.current = persistBalanceReviewCards(updated, storage.current);
-      expectedInventory.current = updated;
-      onSave(updated);
+      await commitWallet({ kind: "manual-verification", ...initialContext,
+        cardNumber: card.cardNumber, version: initialVersions[card.cardNumber],
+        observation: { observedBalance: verifiedBalance, checkedAt: pendingObservation.current.checkedAt.toISOString() } });
       setSaved((count) => count + 1);
       advance();
     } catch (error) {
       setSaveError(error.message);
-    }
+    } finally { saving.current = false; }
   }
 
   async function copy(label, value) {
@@ -215,7 +196,7 @@ function ManualBalanceReview({ cards, allowEmptyStorage, onSave, beforeManualSav
         )}
         {queue.length > 0 && (
           <p role="status" className="text-sm text-m3-on-surface-variant">
-            {saved ? "Saved on this device." : "Review saves on this device."} To save to Google Sheets, use Export Sheet in Settings.
+            {saved ? "Saved on this device." : "Review saves on this device."} Confirmed local saves synchronize when connected. CSV backup is available in Settings.
           </p>
         )}
     </>

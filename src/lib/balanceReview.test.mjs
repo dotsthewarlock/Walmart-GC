@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyBalanceObservation, createBalanceReviewQueue, parseVerifiedBalance } from "./balanceReview.js";
 import {
-  bundledSampleGiftCards, calculateVisibleCards, captureBalanceReviewStorage, loadCards, persistBalanceReviewCards,
+  bundledSampleGiftCards, calculateVisibleCards,
 } from "./cards.js";
+import { captureBalanceReviewStorage, loadCards, persistBalanceReviewCards } from "./legacyCards.fixture.mjs";
 
 const first = {
   cardNumber: "6300000000010042", pin: "0042", merchant: "", merchantInferred: "walmart-ca",

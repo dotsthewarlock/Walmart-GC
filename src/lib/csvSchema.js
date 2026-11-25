@@ -77,13 +77,10 @@ export function readOptionalCardMetadata(card, { cellValues = false } = {}) {
   const pending = card.pendingReconciliation;
   if (!isAbsentMetadata(pending, cellValues)) {
     const flag = cellValues && typeof pending === "string" ? pending.trim().toLowerCase() : pending;
-    if (flag === true || (cellValues && flag === "true")) {
-      throw new Error("pendingReconciliation=true is unsupported in V0.1.");
-    }
-    if (flag !== false && !(cellValues && flag === "false")) {
+    if (![true,false].includes(flag) && !(cellValues && ['true','false'].includes(flag))) {
       throw new Error("pendingReconciliation must be Boolean or blank.");
     }
-    metadata.pendingReconciliation = false;
+    metadata.pendingReconciliation = flag === true || flag === 'true';
   }
   return metadata;
 }
