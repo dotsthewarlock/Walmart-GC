@@ -103,18 +103,24 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!mounted.current) throw new Error("Batch was closed.");
   }
 
-  async function verifiedSession() {
+  async function verifiedSession(fresh=true) {
     getTransferWallet();
     const start = await readWallet();
     assertInventoryContext(start, inventoryContext(walletSnapshot));
-    const status = await fetchWorkerJson("/api/status", { cache: "no-store" });
-    ensureMounted();
-    assertInventoryContext(await readWallet(), inventoryContext(start));
-    const state = await commitWallet({ kind: "observe-session", ...inventoryContext(start), status });
-    const profile = profileOf(state);
-    if (profile.ledgerRecovery) throw new Error("Discard the preserved interrupted Batch before continuing.");
-    if(status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
-    const context = requireTransferContext(status, { context: profile.context, remoteBase: profile.remoteBase, sheets: profile.sheets, sync: profile.sync });
+    let state=start,status;
+    if(fresh){
+      status=await fetchWorkerJson("/api/status", { cache: "no-store" });
+      ensureMounted();
+      assertInventoryContext(await readWallet(), inventoryContext(start));
+      state=await commitWallet({kind:"observe-session",...inventoryContext(start),status});
+    }
+    const profile=profileOf(state);
+    if(profile.ledgerRecovery)throw new Error("Discard the preserved interrupted Batch before continuing.");
+    if(fresh&&status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
+    // Preparation/preview only inspect the saved compartment. Export and apply
+    // still require live account and exact Sheet verification.
+    if(!fresh&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.sync?.status!=='connected'||profile.sheets?.status!=='ready'||profile.context.sheetId!==profile.sheets.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets.remoteSheetVersion))throw new Error("Load the matching verified Sheet before preparing a Batch.");
+    const context=fresh?requireTransferContext(status,{context:profile.context,remoteBase:profile.remoteBase,sheets:profile.sheets,sync:profile.sync}):{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
     if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
     const inventoryRaw = inventoryBytes(state);
     if (profile.ledger?.requests.some(r => r.state === "pending")) {
@@ -141,7 +147,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }
 
   async function createBatch() {
-    const session = await verifiedSession();
+    const session = await verifiedSession(false);
     const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
     if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
     const { selected } = selectTransferCards(session.profile.cards, preferences);
@@ -182,7 +188,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function importResults() {
     const results = parseTransferResults(packet);
-    const session = await verifiedSession();
+    const session = await verifiedSession(false);
     setPreview(buildPreview(session, results));
     setPacket("");
   }
