@@ -87,7 +87,7 @@ test("selection excludes ambiguous identities and invalid transfer credentials",
 test("independent filters, explicit sorts and limits preserve deterministic identities", () => {
   const cards = [card(1, { used: true, currentBalance: 0 }), card(2, { currentBalance: 0, lastBalanceChecked: "2026-05-25", dateAdded: "2026-02-01" }),
     card(3, { used: true, lastBalanceChecked: "2026-05-24", currentBalance: 20 }), card(4, { lastBalanceChecked: "2026-05-25" }), card(5)];
-  const select = changes => selectTransferCards([...cards].reverse(), prefs(changes), new Date("2026-06-01T23:59:59Z"));
+  const select = changes => selectTransferCards([...cards].reverse(), prefs({ checked: "any", ...changes }), new Date("2026-06-01T23:59:59Z"));
   const ids = changes => select(changes).selected.map(x => x.card.cardNumber);
   assert.deepEqual(ids({}), [cards[4], cards[3]].map(x => x.cardNumber));
   assert.deepEqual(ids({ status: "used", balance: "zero" }), [cards[0].cardNumber]);
@@ -195,14 +195,14 @@ test("preview counts outcomes, applies only accepted exact identities and preser
     { ref: unknownRef, balance: 1, checkedAt: checked },
   ], now);
   assert.deepEqual(preview.counts, {
-    accepted: 4, changed: 2, unchanged: 2, unknown: 1, invalidated: 0, stale: 3, alreadyApplied: 0, rejected: 0,
+    accepted: 5, changed: 2, unchanged: 3, unknown: 1, invalidated: 0, stale: 2, alreadyApplied: 0, rejected: 0,
   });
   assert.equal(preview.netCents, 512n);
   assert.deepEqual(preview.candidate[0], { ...cards[0], currentBalance: 0, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01" });
   assert.deepEqual(preview.candidate[1], { ...cards[1], lastBalanceChecked: "2026-06-01" });
   assert.deepEqual(preview.candidate[2], { ...cards[2], currentBalance: 21.12, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01" });
   assert.equal(preview.items[2].used, true);
-  assert.equal(preview.candidate[3], cards[3]);
+  assert.deepEqual(preview.candidate[3], cards[3]);
   assert.equal(preview.outstanding, 7);
 });
 

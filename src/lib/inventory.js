@@ -187,6 +187,21 @@ export function reduceInventory(input, command) {
     const remote=command.snapshot;
     validateInventory(remote.cards);
     if (remote.protocol!==syncProtocol) throw new Error('Incompatible synchronization response.');
+    // Evidence revisions reveal remote monetary actions even when balance and
+    // date-only verification metadata are unchanged. Discount this flight's
+    // own operations so a compatible acknowledgment preserves continuation.
+    if (profile.ledger && profile.remoteBase) {
+      const submitted = command.kind === 'sync-ack' ? profile.inFlight?.request.operations ?? [] : [];
+      for (const request of profile.ledger.requests) {
+        if (request.state !== 'pending') continue;
+        const number = request.cardNumber;
+        const before = profile.remoteBase.evidence?.cards?.[number]?.money ?? 0;
+        const after = remote.evidence?.cards?.[number]?.money ?? 0;
+        const own = submitted.filter(op => op.cardNumber === number && isMonetaryOperation(op)).length;
+        if (after !== before + own || remote.evidence?.maintenanceAt !== profile.remoteBase.evidence?.maintenanceAt) request.state = 'invalidated';
+      }
+      if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
+    }
     let base=profile.remoteBase?.cards??[];
     if (command.kind==='sync-ack') {
       const flight=profile.inFlight;
@@ -232,7 +247,7 @@ export function reduceInventory(input, command) {
     for(const old of profile.cards)if(!merged.cards.some(c=>c.cardNumber===old.cardNumber))state.quarantine.push({kind:'tombstoned-local',record:old,reason:'Explicit remote deletion retained for recovery.'});
     profile.cards=merged.cards;profile.recoveryEvidence=merged.evidence;profile.remoteBase=remote;
     profile.sheets={spreadsheetId:profile.context.sheetId,remoteSheetVersion:remote.version,status:'ready'};
-    profile.sync={status:'connected',lastKnownSheetVersion:remote.version};
+    profile.sync={status:'connected',lastKnownSheetVersion:remote.version,...(command.confirmedAt ? {lastConfirmedAt:command.confirmedAt} : {})};
     profile.ledger=relevantLedger(profile.ledger,profile.cards);
     if(profile.ledger)profile.ledger.context.sheetVersion=remote.version;
   } else if (command.kind === 'sync-rejected') {
@@ -389,6 +404,12 @@ export function reduceInventory(input, command) {
     decodeTransferLedger(JSON.stringify(profile.ledger));
   } else {
     throw new Error('Unknown inventory operation.');
+  }
+  // A verification is a new observation even when its amount and calendar date
+  // did not change. Requests created before it must not overwrite that evidence.
+  if (command.kind === 'manual-verification' && profile.ledger) {
+    for (const request of profile.ledger.requests) if (request.state === 'pending' && request.cardNumber === command.cardNumber) request.state = 'invalidated';
+    if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
   }
   if (['patch','manual-verification','csv-recovery','resolve-conflict'].includes(command.kind)) profile.ledger=relevantLedger(profile.ledger,profile.cards);
   if(!command.kind.startsWith('sync-')&&!command.kind.startsWith('control-')&&command.kind!=='bind-remote')state.receipts[command.id] = digest;

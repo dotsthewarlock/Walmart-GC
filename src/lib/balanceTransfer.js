@@ -31,7 +31,7 @@ function transferEligibleCards(cards) {
 }
 
 export const transferPreferenceKey = "gc-wallet-batch-selection-v1";
-export const defaultTransferPreferences = Object.freeze({ version: 2, quantity: "all", status: "active", balance: "yes", checked: "any", days: 30, sort: "checked-oldest" });
+export const defaultTransferPreferences = Object.freeze({ version: 2, quantity: "all", status: "active", balance: "yes", checked: "older", days: 30, sort: "checked-oldest" });
 export function readTransferPreferences(storage) {
   try {
     const value = JSON.parse(storage.getItem(transferPreferenceKey));
@@ -40,7 +40,7 @@ export function readTransferPreferences(storage) {
       quantity: ["all", "1", "5", "20", "50"].includes(value.quantity) ? value.quantity : "all",
       status: value.version === 1 ? (value.includeUsed === true ? "all" : "active") : (["active", "used", "all"].includes(value.status) ? value.status : "active"),
       balance: value.version === 1 ? (value.includeZero === true ? "all" : "yes") : (["yes", "zero", "all"].includes(value.balance) ? value.balance : "yes"),
-      checked: ["any", "never", "older", "recent"].includes(value.checked) ? value.checked : "any",
+      checked: ["any", "never", "older", "recent"].includes(value.checked) ? value.checked : defaultTransferPreferences.checked,
       days: [1, 3, 7, 30, 90, 180].includes(value.days) ? value.days : 30,
       sort: ["checked-oldest", "checked-newest", "added-oldest", "added-newest", "balance-highest", "balance-lowest"].includes(value.sort) ? value.sort : "checked-oldest" };
   } catch { return { ...defaultTransferPreferences }; }
@@ -197,9 +197,9 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     } else if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) {
       outcome = "stale";
       reason = "Observation predates its request or is more than 60 seconds in the future.";
-    } else if (card.lastBalanceChecked && checkedAt.slice(0, 10) <= card.lastBalanceChecked) {
+    } else if (card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) {
       outcome = "stale";
-      reason = "The saved verification date cannot establish that this observation is newer.";
+      reason = "The observation predates the saved verification date.";
     } else {
       candidate = applyBalanceObservation(candidate, {
         cardNumber: request.cardNumber, observedBalance: balance, checkedAt, expected: entry,

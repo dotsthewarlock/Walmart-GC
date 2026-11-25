@@ -252,6 +252,17 @@ test('Batch partial application atomically records exact refs, inventory/outbox 
   assert.ok(discarded.observationReceipts[observation.ref]);
 });
 
+test('same-day unchanged manual verification invalidates only its outstanding request', async () => {
+  let state = sheetState();
+  const ledger = await makeLedger(state);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger }));
+  const number = ledger.requests[0].cardNumber;
+  state = reduceInventory(state, command(state, 'manual-verification', { cardNumber: number,
+    version: profileOf(state).versions[number], observation: { observedBalance: profileOf(state).cards.find(c => c.cardNumber === number).currentBalance, checkedAt: '2026-11-25T00:01:00.000Z' } }));
+  assert.equal(profileOf(state).ledger.requests[0].state, 'invalidated');
+  assert.equal(profileOf(state).ledger.requests[1].state, 'pending');
+});
+
 test('Batch apply failure leaves all accepted observations and reference states together at previous commit', async () => {
   const { store, indexedDB } = fixture(raw([first]));
   await store.initialize();
