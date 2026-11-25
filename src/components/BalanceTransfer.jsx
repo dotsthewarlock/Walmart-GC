@@ -102,14 +102,17 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     const state = await commitWallet({ kind: "observe-session", ...inventoryContext(start), status });
     const profile = profileOf(state);
     if (profile.ledgerRecovery) throw new Error("Discard the preserved interrupted Batch before continuing.");
+    if(status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
     const context = requireTransferContext(status, { sheets: profile.sheets, sync: profile.sync });
     if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
     const inventoryRaw = inventoryBytes(state);
-    if (profile.ledger?.requests.some(r => r.state === "pending")
-        && (profile.ledger.inventoryDigest !== await inventoryFingerprint(inventoryRaw, profile.ledger.id)
-          || !sameTransferContext(profile.ledger.context, context))) {
-      await commitWallet({ kind: "invalidate-batch", ...inventoryContext(state) });
-      throw new Error("Saved cards changed. Create a new Batch.");
+    if (profile.ledger?.requests.some(r => r.state === "pending")) {
+      const invalid = profile.ledger.requests.filter(r=>r.state==='pending').some(r=> !profile.cards.some(c=>c.cardNumber===r.cardNumber));
+      const credentialsChanged = (await Promise.all(profile.ledger.requests.filter(r=>r.state==='pending'&&r.relevance).map(async r=>{
+        const card=profile.cards.find(c=>c.cardNumber===r.cardNumber);
+        return !card || r.relevance.pinDigest!==await inventoryFingerprint(card.pin,profile.ledger.id);
+      }))).some(Boolean);
+      if(invalid||credentialsChanged||!sameTransferContext(profile.ledger.context,context))throw new Error("Requested credentials or Sheet context changed. Create a new Batch.");
     }
     const session = { state, profile, ledger: profile.ledger, context, inventoryRaw, previewCards: profile.cards };
     await assertSession(session);
@@ -191,7 +194,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       ledgerId: session.ledger.id, observations: fresh.results, items: fresh.items, now: fresh.now,
       inventoryDigest: prepared.finalized.inventoryDigest });
     setPreview(null);
-    setMessage(`Saved ${accepted.length} locally. Sheet writes are paused during this development stage.`);
+    setMessage(`Saved ${accepted.length} locally. Synchronization will confirm the Sheet update when connected.`);
   }
 
   const recovering = Boolean(batch.error || ledger?.application);
@@ -200,7 +203,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
           <h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Batch review</h2>
-          <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device. CSV backup is available; Sheet writes are paused.</p>
+          <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
         </div>
         {recovering ? (
           <>

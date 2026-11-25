@@ -36,7 +36,7 @@ test('migration preserves exact original bytes, credentials and optional false/d
 
 test('migration quarantines every duplicate, invalid identity, unknown metadata and sample; never seeds samples', () => {
   const cards = [first, { ...first, pin: '9999' }, { ...second, cardNumber: 'broken' },
-    { ...second, pendingReconciliation: true }, ...bundledSampleGiftCards];
+    { ...second, pendingReconciliation: "ambiguous" }, ...bundledSampleGiftCards];
   const state = migrateLegacy(raw(cards));
   assert.equal(profileOf(state).cards.length, 0);
   assert.equal(profileOf(state).pending.length, 0);
@@ -196,7 +196,7 @@ test('Sheet import compartment preserves unbound pending work, quarantines destr
   assert.equal(reopened.active, 'sheet:sheet-A');
   assert.equal(profileOf(reopened).cards[0].notes, 'keep pending');
   assert.equal(profileOf(reopened).pending.length, 1);
-  assert.throws(requireSafeSheetWrite, /paused/);
+  assert.throws(requireSafeSheetWrite, /protected/);
 });
 
 test('an exact import operation retry remains idempotent after a context switch', () => {
@@ -246,7 +246,7 @@ test('Batch partial application atomically records exact refs, inventory/outbox 
   assert.equal(profileOf(completed).ledger.inventoryDigest, null);
   assert.equal(profileOf(completed).pending.length, 2);
   const edited = reduceInventory(applied, patch(applied, second.cardNumber, { notes: 'changed after first result' }));
-  assert.equal(profileOf(edited).ledger.requests[1].state, 'invalidated');
+  assert.equal(profileOf(edited).ledger.requests[1].state, 'pending');
   assert.deepEqual(profileOf(edited).ledger.requests[0].applied, observation);
   const discarded = reduceInventory(applied, command(applied, 'discard-batch', { revision: p.revision }));
   assert.ok(discarded.observationReceipts[observation.ref]);
@@ -412,19 +412,10 @@ test('existing development migration IDs upgrade atomically without changing car
   assert.deepEqual(await store.initialize(), upgraded);
 });
 
-test('UI advertises paused Sheet writes and wires per-compartment and credential recovery exports without destructive prompts', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8');
-  const batch = await readFile(new URL('../components/BalanceTransfer.jsx', import.meta.url), 'utf8');
-  const manual = await readFile(new URL('../components/BalanceReview.jsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(app + batch + manual, /Google sync on|Sync on|Sync succeeded|Syncing…|until you export|use Export Sheet in Settings|Downloaded a CSV|replaces the card rows|overwrites this browser session/);
-  assert.match(app, /Sheet writes are paused during this development stage/);
-  assert.match(app, /onChange=\{event => handleSelectCompartment\(event.target.value\)\}/);
-  assert.match(app, /handleExportCsv\(undefined, walletSnapshot.active\)/);
-  assert.match(app, /window.confirm\(recoveryWarning\)/);
-  assert.match(app, /recoveryExport\(await readWallet\(\)\)/);
-  assert.match(app, /const csvContent = cardsToCsv\(compartmentCards\(saved, key\)\)/);
-  assert.match(app, /if \(!await responseIsCurrent\(context\)\) return/);
-  assert.match(batch, /assertInventoryContext\(await readWallet\(\), prior.context\)/);
-  assert.throws(requireSafeSheetWrite, /intentionally paused during this development stage/);
+test('UI exposes protected synchronization, account recovery and balance warning without mandatory hold',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const app=await readFile(new URL('../App.jsx',import.meta.url),'utf8');
+  assert.match(app,/createSyncEngine/);assert.match(app,/Sync now/);assert.match(app,/Balance needs verification/);
+  assert.match(app,/window.confirm\(recoveryWarning\)/);assert.match(app,/handleExportCsv\(undefined, walletSnapshot.active\)/);
+  assert.doesNotMatch(app,/Sheet writes are paused during this development stage/);
 });

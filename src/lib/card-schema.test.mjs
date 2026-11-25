@@ -78,7 +78,6 @@ test("CSV rejects ambiguous headers, partial imports and malformed metadata or v
     [row + ",2024-02-29", /expected 8, 10, or 11/],
     [header + ",lastBalanceChecked\n" + row + ",2023-02-29", /valid YYYY-MM-DD/],
     [header + ",lastBalanceChecked\n" + row + ",2024-02-29T00:00:00Z", /valid YYYY-MM-DD/],
-    [header + ",pendingReconciliation\n" + row + ",true", /unsupported in V0.1/],
     [header + ",pendingReconciliation\n" + row + ",0", /must be Boolean/],
     [header + "\n" + row + "\n" + row, /duplicate card number/],
     [header + "\n" + row.replace(",4.25,", ",4.25junk,"), /invalid current balance/],
@@ -141,7 +140,6 @@ test("local storage preserves metadata and rejects unsupported data without repl
   const unchanged = values.get("walmartGc.cards");
   for (const metadata of [
     { lastBalanceChecked: "2024-04-31" },
-    { pendingReconciliation: true },
     { pendingReconciliation: "false" },
     { pendingReconciliation: null },
     { lastBalanceChecked: "" },
@@ -152,7 +150,7 @@ test("local storage preserves metadata and rejects unsupported data without repl
   }
   const unsupported = JSON.stringify([{ ...extended, pendingReconciliation: true }]);
   values.set("walmartGc.cards", unsupported);
-  assert.throws(() => loadCards(), /unsupported in V0.1.*original browser data is preserved/);
+  assert.equal(loadCards()[0].pendingReconciliation, true);
   assert.equal(values.get("walmartGc.cards"), unsupported);
 
   values.set("walmartGc.cards", "[");
@@ -163,49 +161,14 @@ test("local storage preserves metadata and rejects unsupported data without repl
   assert.deepEqual(loadCards(), [historical]);
 });
 
-test("a new client can use legacy saves, but an old Worker rejects the protected inventory", async (t) => {
-  const writes = [];
-  const fetch = t.mock.method(globalThis, "fetch", async (path, request) => {
-    assert.equal(path, "/api/cards/save");
-    assert.equal(request.credentials, "include");
-    const body = JSON.parse(request.body);
-    assert.equal(body.schemaCapability, schemaCapability);
-    assert.equal(body.baseSheetVersion, "v1");
-    // The baseline Worker checks for this exact array before accessing Sheets.
-    if (!Array.isArray(body.cards)) {
-      assert.deepEqual(body.cardsWithMetadata, [extended]);
-      return Response.json({ ok: false, error: "Expected cards array." }, { status: 400 });
-    }
-    writes.push(body.cards);
-    return Response.json({ ok: true, sheetVersion: "v2" });
-  });
-
-  await assert.rejects(saveWorkerCards([extended], "v1"), /Worker does not support card metadata/);
-  assert.deepEqual(writes, []);
-  assert.equal((await saveWorkerCards([historical], "v1")).sheetVersion, "v2");
-  assert.deepEqual(writes, [[historical]]);
-  await assert.rejects(saveWorkerCards([{ ...historical, pendingReconciliation: true }], "v1"), /unsupported/);
-  assert.equal(fetch.mock.callCount(), 2);
+test("retired whole-inventory helper cannot contact any Worker, including an old deployment", async (t) => {
+  const fetch=t.mock.method(globalThis,'fetch',async()=>assert.fail('Unsafe legacy network request'));
+  await assert.rejects(saveWorkerCards([historical],'v1'),/retired/);
+  await assert.rejects(saveWorkerCards([extended],'v1'),/retired/);
+  assert.equal(fetch.mock.callCount(),0);
 });
 
-test("a metadata save requires the capability in its success response", async (t) => {
-  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ ok: true, sheetVersion: "v2" }));
-  await assert.rejects(saveWorkerCards([extended], "v1"), /did not confirm card metadata support/);
-  assert.equal(fetch.mock.callCount(), 1);
-});
-
-test("only explicit boolean acknowledgement is sent with a save", async (t) => {
-  const requests = [];
-  t.mock.method(globalThis, "fetch", async (_path, options) => {
-    requests.push(JSON.parse(options.body));
-    return Response.json({ ok: true, schemaCapability });
-  });
-  await saveWorkerCards([], "v1");
-  await saveWorkerCards([], "v1", { acknowledgeMetadataRemoval: "true" });
-  await saveWorkerCards([], "v1", { acknowledgeMetadataRemoval: true });
-  assert.deepEqual(requests, [
-    { cards: [], baseSheetVersion: "v1", schemaCapability },
-    { cards: [], baseSheetVersion: "v1", schemaCapability },
-    { cards: [], baseSheetVersion: "v1", schemaCapability, acknowledgeMetadataRemoval: true },
-  ]);
+test("active reconciliation true round-trips CSV, while malformed flags remain rejected",()=>{
+  const disputed={...extended,pendingReconciliation:true};
+  assert.equal(parseRawCardData(cardsToCsv([disputed])).parsedCards[0].pendingReconciliation,true);
 });

@@ -17,13 +17,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node 20
+      - name: Use Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run transaction, protocol and Worker regressions
+        run: npm test
+
+      - name: Install development browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Integrated synthetic mobile and desktop acceptance
+        run: npm run test:browser
 
       - name: Build React app
         run: npm run build

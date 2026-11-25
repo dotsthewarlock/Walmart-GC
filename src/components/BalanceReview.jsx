@@ -196,7 +196,7 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
         )}
         {queue.length > 0 && (
           <p role="status" className="text-sm text-m3-on-surface-variant">
-            {saved ? "Saved on this device." : "Review saves on this device."} Sheet writes are paused during this development stage. Use CSV backup in Settings.
+            {saved ? "Saved on this device." : "Review saves on this device."} Confirmed local saves synchronize when connected. CSV backup is available in Settings.
           </p>
         )}
     </>

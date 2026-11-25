@@ -1,5 +1,18 @@
 # Deployment Guide
 
+> V0.3 release gate: this feature branch is not authorized for deployment. Follow
+> [Architecture](ARCHITECTURE.md) and [QA prerequisites](QA_TEST_CHECKLIST.md)
+> before using the historical deployment steps below. The production config still
+> contains placeholder KV IDs and no deployed Durable Object binding. Required
+> coordination binding is `SHEET_COORDINATOR`, exported class `SheetCoordinator`,
+> with an independently approved `new_sqlite_classes` migration and confirmed
+> account entitlement/runtime compatibility. Verify principal/ownership behavior
+> under drive.file and secret/session binding names/presence without printing
+> values. No provisioning or production configuration changes were performed.
+> A coordinated Worker must precede the V0.3 frontend; old writable rollback is
+> unsafe. Use one integrated acceptance cycle, not historical phase gates.
+
+
 Walmart-GC is a static GitHub Pages app. The frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.
 
 ## Active Deployment Model

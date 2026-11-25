@@ -7,3 +7,7 @@ dist
 # Local Worker secrets/state
 worker/.dev.vars
 worker/.wrangler/
+
+# Development-only browser acceptance artifacts
+test-results/
+playwright-report/

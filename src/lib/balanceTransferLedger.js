@@ -23,8 +23,12 @@ function validObservation(value) {
 }
 
 function validRequest(request) {
-  if (!keysAre(request, ["ref", "cardNumber", "createdAt", "snapshot", "state", "applied"])) return false;
+  if (!(keysAre(request, ["ref", "cardNumber", "createdAt", "snapshot", "state", "applied"]) || keysAre(request, ["ref", "cardNumber", "createdAt", "snapshot", "state", "applied", "relevance"]))) return false;
   const { snapshot, ref, cardNumber, createdAt, state, applied } = request;
+  if(request.relevance && (!keysAre(request.relevance,['pinDigest','currentBalance','lastBalanceChecked','pendingReconciliation','used'])
+    ||!digestPattern.test(request.relevance.pinDigest)||!Number.isFinite(request.relevance.currentBalance)
+    ||typeof request.relevance.used!=='boolean'||typeof request.relevance.pendingReconciliation!=='boolean'
+    ||!(request.relevance.lastBalanceChecked===''||isCalendarDate(request.relevance.lastBalanceChecked))))return false;
   return isTransferReference(ref) && typeof cardNumber === "string" && /^[0-9]{16}$/.test(cardNumber)
     && isCanonicalTimestamp(createdAt)
     && keysAre(snapshot, ["currentBalance", "lastBalanceChecked", "dateUpdated", "used"])
@@ -81,14 +85,15 @@ export async function createTransferLedger(context, selected, rawInventory, now)
     id,
     context,
     inventoryDigest,
-    requests: selected.map(({ card }) => ({
+    requests: await Promise.all(selected.map(async ({ card }) => ({
       ref: globalThis.crypto.randomUUID(),
       cardNumber: card.cardNumber,
       createdAt,
       snapshot: transferCardSnapshot(card),
+      relevance: {pinDigest: await inventoryFingerprint(card.pin,id),currentBalance:card.currentBalance,lastBalanceChecked:card.lastBalanceChecked||"",pendingReconciliation:card.pendingReconciliation===true,used:card.used},
       state: "pending",
       applied: null,
-    })),
+    }))),
     application: null,
   };
 }
