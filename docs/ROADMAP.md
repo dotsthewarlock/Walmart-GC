@@ -11,6 +11,11 @@ Independent review and [release acceptance](QA_TEST_CHECKLIST.md) precede merge 
 deployment. Actual DO runtime/binding, stable Google principal/ownership behavior,
 secret/session binding integrity and integrated browser QA remain prerequisites.
 
+Optional clipboard detection can surface applicable copied Batch results for explicit
+review, including when returning to an open Batch review. A one-time explicit
+permission action is offered where supported; detection uses only granted access.
+Manual paste and explicit application remain available.
+
 ## Near term, only after synchronization foundation
 
 Online-use reconciliation remains deferred. Full UTC verification timestamp
