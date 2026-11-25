@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { saveWorkerCards } from "./api.js";
-import { loadCards, normalizeCards, saveCards } from "./cards.js";
+import { normalizeCards } from "./cards.js";
+import { loadCards, saveCards } from "./legacyCards.fixture.mjs";
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from "./csv.js";
 import { csvHeaders, schemaCapability } from "./csvSchema.js";
 

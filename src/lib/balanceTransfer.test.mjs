@@ -8,8 +8,9 @@ import {
   assertTransferUnchanged, checkTransferContinuity, commitTransferApplication, createTransferLedger,
   createTransferDiscardGuard, decodeTransferLedger, invalidateOnObservedContext, invalidateTransferBeforeMutation,
   prepareTransferApplication, readTransferLedger, writeTransferLedger,
-} from "./balanceTransferLedger.js";
-import { bundledSampleGiftCards, loadCards } from "./cards.js";
+} from "./legacyTransfer.fixture.mjs";
+import { bundledSampleGiftCards } from "./cards.js";
+import { loadCards } from "./legacyCards.fixture.mjs";
 import { schemaCapability } from "./csvSchema.js";
 import { storageKeys } from "./storage.js";
 

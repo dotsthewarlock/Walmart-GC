@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { loadCards, saveCards, calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage, normalizeCards } from './lib/cards';
+import { calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
 import { loadSettings, saveSettings } from './lib/settings';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
-import { fetchWorkerJson, saveWorkerCards, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
+import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
 import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
 import { Card } from './components/primitives/Card';
@@ -16,7 +16,7 @@ import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { BalanceReview } from './components/BalanceReview';
-import { createTransferDiscardGuard, invalidateOnObservedContext, invalidateTransferBeforeMutation, readTransferLedger } from './lib/balanceTransferLedger';
+import { openInventory, operationId, profileOf, requireSafeSheetWrite, validateInventory } from './lib/inventory';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
 
@@ -175,15 +175,22 @@ function ActionButton({ id, onClick, icon, label, className = "", href, target, 
 
 function App() {
   const cardsLoaded = useRef(false);
-  const emptyStorageInventory = useRef(null);
+  const inventoryStore = useRef(null);
+  const walletRef = useRef(null);
+  const selectionIdentity = useRef(null);
+  const [walletSnapshot, setWalletSnapshot] = useState(null);
+  const balanceTarget = useRef(null);
+  const notesTarget = useRef(null);
+  const csvTarget = useRef(null);
+  const recoveryReloadRequired = useRef(false);
   const restoreReviewFocus = useRef(false);
   const [balanceReviewOpen, setBalanceReviewOpen] = useState(false);
   const mainTouchStart = useRef(null);
   const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
+  const [inventoryNotice, setInventoryNotice] = useState("");
   const [transferMutationError, setTransferMutationError] = useState("");
-  const [discardTransferLedger] = useState(createTransferDiscardGuard);
   const sheetMutation = useRef(false);
   const transferWallet = useRef(null);
   const [settings, setSettings] = useState({
@@ -194,6 +201,8 @@ function App() {
     themeMode: "system",
     checkoutDark: true,
   });
+  const preferences = useRef(settings);
+  preferences.current = settings;
   const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
@@ -261,21 +270,63 @@ function App() {
   });
 
   transferWallet.current = { cards, sheets: directSheetsState, sync: syncState };
+  selectionIdentity.current = cards[selectedCardIndex]?.cardNumber ?? null;
 
-  function allowTransferMutation() {
+  function adoptWallet(state) {
+    if (walletRef.current && walletRef.current.revision > state.revision) return;
+    const currentNumber = selectionIdentity.current;
+    const sameContext = walletRef.current?.active === state.active;
+    walletRef.current = state;
+    const profile = profileOf(state);
+    setWalletSnapshot(state);
+    setInventoryNotice(state.quarantine.length ? `${state.quarantine.length} recovery item(s) are quarantined. Original data remains preserved on this device.` : "");
+    setCards(profile.cards);
+    const selected = profile.cards.findIndex(card => card.cardNumber === currentNumber);
+    const visible = calculateVisibleCards(profile.cards, preferences.current, preferences.current.sortMode);
+    setSelectedCardIndex(sameContext && selected >= 0 ? selected : (visible[0] ?? -1));
+    if (profile.sheets) setDirectSheetsState({ ...profile.sheets, pendingUnsynced: profile.pending.length > 0 });
+    else setDirectSheetsState(prev => ({ ...prev, spreadsheetId: "", spreadsheetUrl: "", remoteSheetVersion: "", pendingUnsynced: profile.pending.length > 0, status: directSheetsStatuses.notConfigured }));
+    if (profile.sync) setSyncState({ ...profile.sync, pendingOperation: profile.pending.length ? "local-changes" : null });
+    else setSyncState(prev => ({ ...prev, status: syncStatuses.unsynced, lastKnownSheetVersion: "", pendingOperation: profile.pending.length ? "local-changes" : null }));
+  }
+
+  async function readWallet() {
+    if (!inventoryStore.current) throw new Error("Local inventory is still opening.");
+    return inventoryStore.current.read();
+  }
+
+  async function commitWallet(command) {
+    if (!inventoryStore.current) throw new Error("Local inventory is still opening.");
+    if (command.kind === "discard-batch" && recoveryReloadRequired.current) throw new Error("Reload the wallet before discarding the preserved Batch.");
     try {
-      invalidateTransferBeforeMutation();
+      const state = await inventoryStore.current.commit({ id: operationId(), ...command });
+      adoptWallet(state);
       setTransferMutationError("");
-      return true;
+      return state;
     } catch (error) {
+      if (command.kind === "discard-batch") recoveryReloadRequired.current = true;
       setTransferMutationError(error.message);
-      return false;
+      throw error;
     }
   }
 
-  function beginSheetMutation() {
-    if (sheetMutation.current || !allowTransferMutation()) return false;
+  function cardTarget(card) {
+    const state = walletSnapshot;
+    if (!state || !card) throw new Error("Local inventory is still opening.");
+    return { profile: state.active, cardNumber: card.cardNumber, version: profileOf(state).versions[card.cardNumber] };
+  }
+
+  async function allowTransferMutation() {
+    try {
+      await commitWallet({ kind: "invalidate-batch", profile: walletRef.current.active });
+      return true;
+    } catch { return false; }
+  }
+
+  async function beginSheetMutation() {
+    if (sheetMutation.current) return false;
     sheetMutation.current = true;
+    if (!await allowTransferMutation()) { sheetMutation.current = false; return false; }
     return true;
   }
 
@@ -294,6 +345,11 @@ function App() {
         label: "Syncing…",
         help: "Local cards stay available",
       };
+    }
+
+    if (oauthState.status === googleOAuthStatuses.connected && walletRef.current
+        && profileOf(walletRef.current).context.kind === 'sheet') {
+      return { key: "unsynced", label: "Sync issue", help: "Sheet writes paused; local cards saved" };
     }
 
     if (syncState.status === syncStatuses.conflict || directSheetsState.status === directSheetsStatuses.conflict) {
@@ -473,20 +529,12 @@ function App() {
       lastErrorMessage: "",
     }));
 
-    let startingLedger;
-    try {
-      startingLedger = readTransferLedger();
-    } catch {
-      // Preserve the normal session check even when batch storage is unavailable.
-    }
-
     try {
       const status = await fetchWorkerJson("/api/status", { cache: "no-store" });
-      if (startingLedger != null) {
-        try {
-          invalidateOnObservedContext(startingLedger, status);
-        } catch (error) {
-          setTransferMutationError(error.message);
+      if (walletRef.current) {
+        await commitWallet({ kind: "observe-session", profile: walletRef.current.active, status });
+        if (!status.authenticated && walletRef.current.active !== 'unbound') {
+          await commitWallet({ kind: "use-unbound", profile: walletRef.current.active });
         }
       }
       if (status.authenticated) {
@@ -535,50 +583,44 @@ function App() {
     }
   };
 
-  // Load cards, settings and check auth session on initialization
+  // Inventory and Batch state have one transaction boundary. Legacy values are
+  // migration inputs only; cached Sheet context is never restored as ownership.
   useEffect(() => {
-    let loadedCards;
-    try {
-      loadedCards = loadCards({ onEmptyStorage: (inventory) => { emptyStorageInventory.current = inventory; } });
-    } catch (error) {
-      setLocalCardsError(error.message);
-      return;
+    let cancelled = false;
+    let channel;
+    try { channel = typeof BroadcastChannel === "function" ? new BroadcastChannel("walmartGc.inventory") : null; } catch { /* focus reload fallback */ }
+    const store = openInventory({ notify: () => channel?.postMessage("committed") });
+    async function reload() {
+      try {
+        const state = await store.captureLegacyChanges();
+        if (!cancelled && state) adoptWallet(state);
+      } catch (error) { if (!cancelled) setTransferMutationError(error.message); }
     }
-    const loadedSettings = loadSettings();
-    cardsLoaded.current = true;
-    setCards(loadedCards);
-    setSettings(loadedSettings);
-    
-    // Restore directSheets and sync states from local storage if available
-    try {
-      const storedSheets = localStorage.getItem("walmartGc.directSheets");
-      if (storedSheets) {
-        setDirectSheetsState(JSON.parse(storedSheets));
-      }
-      const storedSync = localStorage.getItem("walmartGc.sync");
-      if (storedSync) {
-        setSyncState(JSON.parse(storedSync));
-      }
-    } catch {
-      // ignore
-    }
-    
-    // Auto-select first visible card if possible
-    const visible = calculateVisibleCards(loadedCards, loadedSettings, loadedSettings.sortMode);
-    if (visible.length > 0) {
-      setSelectedCardIndex(visible[0]);
-    }
-
-    // Process redirect callbacks from Google OAuth return
-    const url = new URL(window.location.href);
-    const authReturn = url.searchParams.get("auth") === "connected";
-    if (authReturn) {
-      url.searchParams.delete("auth");
-      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-      window.history.replaceState(window.history.state, document.title, nextUrl);
-    }
-
-    refreshWorkerSessionStatus({ authReturn });
+    if (channel) channel.onmessage = reload;
+    window.addEventListener("focus", reload);
+    const legacyChanged = event => {
+      if (event.key === null || event.key === 'walmartGc.cards' || event.key === 'walmartGc.balanceTransfer') reload();
+    };
+    window.addEventListener("storage", legacyChanged);
+    (async () => {
+      try {
+        const state = await store.initialize();
+        if (cancelled) return;
+        inventoryStore.current = store;
+        cardsLoaded.current = true;
+        preferences.current = loadSettings();
+        setSettings(preferences.current);
+        adoptWallet(state);
+        const url = new URL(window.location.href);
+        const authReturn = url.searchParams.get("auth") === "connected";
+        if (authReturn) {
+          url.searchParams.delete("auth");
+          window.history.replaceState(window.history.state, document.title, `${url.pathname}${url.search}${url.hash}`);
+        }
+        await refreshWorkerSessionStatus({ authReturn });
+      } catch (error) { if (!cancelled) setLocalCardsError(error.message); }
+    })();
+    return () => { cancelled = true; window.removeEventListener("focus", reload); window.removeEventListener("storage", legacyChanged); channel?.close(); store.close().catch(() => {}); };
   }, []);
 
   useEffect(() => {
@@ -645,53 +687,33 @@ function App() {
   };
 
   // Handle used toggles on specific card items
-  const handleToggleUsed = (index) => {
-    const updatedCards = cards.map((card, idx) => {
-      if (idx === index) {
-        const nextUsed = !card.used;
-        return {
-          ...card,
-          used: nextUsed,
-          dateUsed: nextUsed ? new Date().toISOString().slice(0, 10) : "",
-        };
-      }
-      return card;
-    });
-    
-    if (!allowTransferMutation()) return;
-    setCards(updatedCards);
-    saveCards(updatedCards);
-
-    // If auto-advance is enabled and the card is marked used, switch to the next visible card
+  const handleToggleUsed = async (index) => {
     const card = cards[index];
-    if (card && !card.used && settings.advanceOnMarkUsed) {
-      const currentPosition = visibleIndexes.indexOf(index);
-      if (currentPosition !== -1 && visibleIndexes.length > 1) {
-        const nextPositionIndex = (currentPosition + 1) % visibleIndexes.length;
-        setSelectedCardIndex(visibleIndexes[nextPositionIndex]);
+    if (!card) return;
+    const target = cardTarget(card);
+    try {
+      await commitWallet({ kind: "patch", action: "set-used", ...target, patch: { used: !card.used,
+        dateUsed: card.used ? "" : new Date().toISOString().slice(0, 10) } });
+      if (!card.used && settings.advanceOnMarkUsed) {
+        const currentPosition = visibleIndexes.indexOf(index);
+        if (walletRef.current.active === target.profile && currentPosition >= 0 && visibleIndexes.length > 1) {
+          const nextNumber = cards[visibleIndexes[(currentPosition + 1) % visibleIndexes.length]].cardNumber;
+          setSelectedCardIndex(profileOf(walletRef.current).cards.findIndex(c => c.cardNumber === nextNumber));
+        }
       }
-    }
+    } catch { /* save error is displayed; inventory remains committed state */ }
   };
 
-  // Mark all $0 cards used helper from phase-12
-  const handleMarkZeroBalanceUsed = () => {
-    if (!window.confirm(`Are you sure you want to mark all ${zeroBalanceCount} zero-balance card(s) as used?`)) {
-      return;
-    }
-
-    const updatedCards = cards.map((card) => {
-      if (card.currentBalance === 0 && !card.used) {
-        return {
-          ...card,
-          used: true,
-          dateUsed: new Date().toISOString().slice(0, 10),
-        };
-      }
-      return card;
-    });
-    if (!allowTransferMutation()) return;
-    setCards(updatedCards);
-    saveCards(updatedCards);
+  const handleMarkZeroBalanceUsed = async () => {
+    if (!window.confirm(`Mark all ${zeroBalanceCount} zero-balance card(s) as used?`)) return;
+    const state = walletSnapshot;
+    const profile = profileOf(state);
+    try {
+      await commitWallet({ kind: "mark-zero-used", profile: state.active,
+        targets: profile.cards.filter(card => card.currentBalance === 0 && !card.used)
+          .map(card => ({ cardNumber: card.cardNumber, version: profile.versions[card.cardNumber] })),
+        date: new Date().toISOString().slice(0, 10) });
+    } catch { /* save error displayed */ }
   };
 
   const zeroBalanceCount = cards.filter(card => card.currentBalance === 0 && !card.used).length;
@@ -807,40 +829,34 @@ function App() {
   };
 
   const handleOpenBalanceEdit = (currentVal) => {
+    balanceTarget.current = cardTarget(cards[selectedCardIndex]);
     setNewBalanceValue(currentVal.toString());
     setAmountUsedValue("");
     setBalanceError("");
     setIsEditingBalance(true);
   };
 
-  const handleSaveBalance = () => {
-    const value = parseFloat(newBalanceValue);
-    if (isNaN(value) || value < 0) {
+  const handleSaveBalance = async () => {
+    const value = Number(newBalanceValue);
+    if (!newBalanceValue.trim() || !Number.isFinite(value) || value < 0) {
       setBalanceError("Enter a valid non-negative balance value");
       return;
     }
-    const updatedCards = cards.map((card, idx) => {
-      if (idx === selectedCardIndex) {
-        return {
-          ...card,
-          currentBalance: Math.round(value * 100) / 100,
-          dateUpdated: new Date().toISOString().slice(0, 10),
-        };
-      }
-      return card;
-    });
-    if (!allowTransferMutation()) return;
-    setCards(updatedCards);
-    saveCards(updatedCards);
-    setIsEditingBalance(false);
+    try {
+      await commitWallet({ kind: "patch", action: "set-balance", ...balanceTarget.current, patch: {
+        currentBalance: Math.round(value * 100) / 100, dateUpdated: new Date().toISOString().slice(0, 10) } });
+      setIsEditingBalance(false);
+    } catch (error) { setBalanceError(error.message); }
   };
 
   const selectedCard = cards[selectedCardIndex];
   const visiblePosition = visibleIndexes.indexOf(selectedCardIndex);
 
   // CSV Export Action
-  const handleExportCsv = (filename = "walmart-gift-cards-export.csv") => {
-    const csvContent = cardsToCsv(cards);
+  const handleExportCsv = async (filename = "walmart-gift-cards-export.csv") => {
+    let saved;
+    try { saved = await readWallet(); } catch (error) { setTransferMutationError(error.message); return false; }
+    const csvContent = cardsToCsv(profileOf(saved).cards);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
@@ -849,6 +865,8 @@ function App() {
     document.body.append(downloadLink);
     downloadLink.click();
     downloadLink.remove();
+    URL.revokeObjectURL(url);
+    return true;
   };
 
   // CSV Import File Processing Action
@@ -856,6 +874,8 @@ function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const source = walletSnapshot;
+    csvTarget.current = { profile: source.active, revision: profileOf(source).revision };
     const reader = new FileReader();
     reader.onload = () => {
       setRawDataText(String(reader.result ?? ""));
@@ -875,6 +895,8 @@ function App() {
 
   // Raw editor actions
   const handleRefreshRawEditor = () => {
+    const source = walletSnapshot;
+    csvTarget.current = { profile: source.active, revision: profileOf(source).revision };
     setRawDataText(cardsToCsv(cards));
     setIsRawDataLocked(true);
     setValidationSummary(`Refreshed ${cards.length} card(s) into the editor.`);
@@ -886,7 +908,7 @@ function App() {
     setIsRawDataModalOpen(true);
   };
 
-  const handleUpdateRawEditor = () => {
+  const handleUpdateRawEditor = async () => {
     const { parsedCards, warnings } = parseRawCardData(rawDataText);
 
     if (warnings.length > 0) {
@@ -900,37 +922,38 @@ function App() {
         "This CSV will replace or remove saved balance-check metadata. Export a backup CSV of the current session before continuing. Apply the CSV anyway?",
       );
       if (!confirmed) return false;
-    } else if (parsedCards.length === 0 && cards.length > 0) {
-      if (!window.confirm("This CSV has no cards and will clear this browser session. Export a backup CSV before continuing. Apply the CSV anyway?")) {
-        return false;
-      }
+    }
+    try {
+      await commitWallet({ kind: "csv-recovery", ...csvTarget.current, cards: parsedCards });
+      const state = walletRef.current;
+      csvTarget.current = { profile: state.active, revision: profileOf(state).revision };
+    } catch (error) {
+      setValidationSummary("CSV recovery was not saved.");
+      setValidationWarnings([error.message]);
+      return false;
     }
 
-    if (!allowTransferMutation()) return false;
-    setCards(parsedCards);
-    saveCards(parsedCards);
-    
     // Auto-select first visible card if possible
-    const visible = calculateVisibleCards(parsedCards, settings, settings.sortMode);
+    const visible = calculateVisibleCards(profileOf(walletRef.current).cards, settings, settings.sortMode);
     if (visible.length > 0) {
       setSelectedCardIndex(visible[0]);
     } else {
       setSelectedCardIndex(-1);
     }
 
-    setValidationSummary(`Successfully updated ${parsedCards.length} card(s) from editor.`);
+    setValidationSummary(`Recovered ${parsedCards.length} card(s). Existing cards missing from the CSV were retained.`);
     setValidationWarnings([]);
     return true;
   };
 
-  const handleDoneRawEditor = () => {
-    const success = handleUpdateRawEditor();
+  const handleDoneRawEditor = async () => {
+    const success = await handleUpdateRawEditor();
     if (success) {
       setIsRawDataModalOpen(false);
     }
   };
 
-  const handleConnectGoogle = () => {
+  const handleConnectGoogle = async () => {
     if (!navigator.onLine) {
       setOauthState(prev => ({
         ...prev,
@@ -941,7 +964,10 @@ function App() {
       return;
     }
 
-    if (!allowTransferMutation()) return;
+    if (!await allowTransferMutation()) return;
+    if (walletRef.current.active !== 'unbound') {
+      try { await commitWallet({ kind: "use-unbound", profile: walletRef.current.active }); } catch { return; }
+    }
     setOauthState(prev => ({
       ...prev,
       status: googleOAuthStatuses.connecting,
@@ -956,7 +982,7 @@ function App() {
       return;
     }
 
-    if (!beginSheetMutation()) return;
+    if (!await beginSheetMutation()) return;
     setOauthState(prev => ({
       ...prev,
       status: googleOAuthStatuses.connecting,
@@ -965,8 +991,8 @@ function App() {
     }));
 
     try {
+      await commitWallet({ kind: "use-unbound", profile: walletRef.current.active });
       await fetchWorkerJson("/api/logout", { method: "POST" });
-      invalidateTransferBeforeMutation();
       const nextOauth = {
         status: googleOAuthStatuses.disconnected,
         connectedEmail: "",
@@ -1006,9 +1032,9 @@ function App() {
     return "";
   };
 
-  const downloadSessionCsvBackup = () => {
+  const downloadSessionCsvBackup = async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    handleExportCsv(`walmart-gift-cards-session-backup-${timestamp}.csv`);
+    if (!await handleExportCsv(`walmart-gift-cards-session-backup-${timestamp}.csv`)) return;
     setValidationWarnings([]);
     setValidationSummary("Downloaded a CSV backup of the current local session.");
   };
@@ -1091,266 +1117,58 @@ function App() {
     });
   };
 
-  // Ensure Walmart-GC Data sheet exists and initialize layout metadata structures
-  const handleEnsureSheet = async () => {
-    if (!beginSheetMutation()) return;
-    setDirectSheetsState(prev => ({
-      ...prev,
-      status: directSheetsStatuses.checking,
-      message: "Initializing Walmart-GC Data structure through the Worker...",
-      lastErrorMessage: "",
-    }));
-    try {
-      const result = await fetchWorkerJson("/api/sheet/ensure", { method: "POST" });
-      const now = new Date().toISOString();
-      const knownVersion = syncState.lastKnownSheetVersion || "";
-      const remoteVersion = String(result.sheetVersion || "");
-      // Setup can establish a baseline for an empty Sheet. An existing inventory
-      // needs a real load, and setup must never rebase a stale local inventory.
-      const requiresLoad = knownVersion ? knownVersion !== remoteVersion : result.hasCardRows === true;
-      const message = requiresLoad
-        ? "Load Walmart-GC Data before syncing to establish the current Sheet version."
-        : "Walmart-GC Data sheet structure initialized.";
-      const updatedSheets = {
-        spreadsheetId: result.sheetId,
-        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${result.sheetId}/edit`,
-        spreadsheetName: String(result.sheetName || "Walmart-GC Data"),
-        status: requiresLoad && knownVersion ? directSheetsStatuses.conflict : directSheetsStatuses.ready,
-        cardsSheetInitialized: "yes",
-        remoteSheetVersion: remoteVersion,
-        lastSuccessfulSyncAt: requiresLoad ? directSheetsState.lastSuccessfulSyncAt : now,
-        pendingUnsynced: requiresLoad,
-        message,
-        lastErrorMessage: "",
-      };
-      invalidateTransferBeforeMutation();
-      setDirectSheetsState(updatedSheets);
-      localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
-
-      const updatedSync = {
-        ...syncState,
-        status: requiresLoad ? (knownVersion ? syncStatuses.conflict : syncStatuses.unsynced) : syncStatuses.connected,
-        lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: requiresLoad ? knownVersion : remoteVersion,
-        message,
-        lastErrorMessage: "",
-      };
-      setSyncState(updatedSync);
-      localStorage.setItem("walmartGc.sync", JSON.stringify(updatedSync));
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Walmart-GC Data initialization failed.";
-      const isHeaderErr = isCardsHeaderError(msg);
-      const mappedMsg = msg === "Not authenticated" ? "Connect Google to sync." : msg;
-
-      setDirectSheetsState(prev => ({
-        ...prev,
-        status: isHeaderErr ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
-        cardsSheetInitialized: "unknown",
-        message: mappedMsg,
-        lastErrorMessage: msg,
-      }));
-      setSyncState(prev => ({
-        ...prev,
-        status: syncStatuses.unsynced,
-        lastErrorMessage: msg,
-      }));
-    } finally {
-      sheetMutation.current = false;
+  // Legacy writes cannot bind an authenticated principal and exact Sheet.
+  // Keep the explicit controls visible, fail before issuing any network write.
+  const showSheetWritePaused = () => {
+    try { requireSafeSheetWrite(); } catch (error) {
+      setTransferMutationError(error.message);
+      setDirectSheetsState(prev => ({ ...prev, pendingUnsynced: true, status: directSheetsStatuses.needsAttention, message: error.message, lastErrorMessage: error.message }));
     }
   };
+  const handleEnsureSheet = async () => showSheetWritePaused();
 
   // Fetch gift cards details from active Google Sheet
   const handleLoadCardsFromSheet = async () => {
-    if (!window.confirm("Importing from Google Sheets replaces your entire browser session, including balance-check metadata. Export a CSV backup before continuing. Import the Sheet now?")) {
-      return;
-    }
-
-    if (!beginSheetMutation()) return;
-    setDirectSheetsState(prev => ({
-      ...prev,
-      status: directSheetsStatuses.checking,
-      message: "Loading cards from Google Sheets through the Worker...",
-      lastErrorMessage: "",
-    }));
-
+    if (!window.confirm("Import this Sheet into its own local compartment? Existing local inventory and pending changes are preserved. An existing Sheet compartment will not be replaced.")) return;
+    if (!await beginSheetMutation()) return;
     try {
+      const source = await readWallet();
       const result = await fetchWorkerJson("/api/cards/load");
+      const normalized = validateInventory(result.cards);
       const now = new Date().toISOString();
-      const normalized = normalizeCards(result.cards);
-      if (!normalized) {
-        throw new Error("The Sheet returned invalid or unsupported card data. This browser session was preserved.");
-      }
-      invalidateTransferBeforeMutation();
-      setCards(normalized);
-      saveCards(normalized);
-
-      // Auto-select first visible card if possible
-      const visible = calculateVisibleCards(normalized, settings, settings.sortMode);
-      if (visible.length > 0) {
-        setSelectedCardIndex(visible[0]);
-      } else {
-        setSelectedCardIndex(-1);
-      }
-
-      const updatedSheets = {
-        ...directSheetsState,
-        spreadsheetId: result.sheetId,
+      const sheets = { spreadsheetId: result.sheetId,
         spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${result.sheetId}/edit`,
-        spreadsheetName: String(result.sheetName || "Walmart-GC Data"),
-        status: directSheetsStatuses.ready,
-        cardsSheetInitialized: "yes",
-        remoteSheetVersion: String(result.sheetVersion || ""),
-        lastSuccessfulSyncAt: now,
-        pendingUnsynced: false,
-        message: `Loaded ${normalized.length} card(s) from Sheets.`,
-        lastErrorMessage: "",
-      };
-      setDirectSheetsState(updatedSheets);
-      localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
-
-      const updatedSync = {
-        status: syncStatuses.connected,
-        lastSyncTimestamp: now,
-        lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: String(result.sheetVersion || ""),
-        message: `Loaded ${normalized.length} card(s) from Walmart-GC Data.`,
-        lastErrorMessage: "",
-        pendingOperation: null,
-      };
-      setSyncState(updatedSync);
-      localStorage.setItem("walmartGc.sync", JSON.stringify(updatedSync));
+        spreadsheetName: String(result.sheetName || "Walmart-GC Data"), status: directSheetsStatuses.ready,
+        cardsSheetInitialized: "yes", remoteSheetVersion: String(result.sheetVersion || ""),
+        lastSuccessfulSyncAt: now, pendingUnsynced: false,
+        message: `Loaded ${normalized.length} card(s) locally. Sheet writes are paused pending account binding.`, lastErrorMessage: "" };
+      const sync = { status: syncStatuses.connected, lastSyncTimestamp: now, lastSyncAttemptTimestamp: now,
+        lastKnownSheetVersion: String(result.sheetVersion || ""), message: sheets.message, lastErrorMessage: "", pendingOperation: null };
+      await commitWallet({ kind: "sheet-import", profile: source.active, revision: profileOf(source).revision,
+        sheetId: result.sheetId, sheetVersion: result.sheetVersion, cards: normalized, sheets, sync });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Worker Google Sheets load failed.";
-      const isHeaderErr = isCardsHeaderError(msg);
-      const mappedMsg = msg === "Not authenticated" ? "Connect Google to sync." : msg;
-
-      setDirectSheetsState(prev => ({
-        ...prev,
-        status: isHeaderErr ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
-        message: mappedMsg,
-        lastErrorMessage: msg,
-      }));
-      setSyncState(prev => ({
-        ...prev,
-        status: syncStatuses.unsynced,
-        lastErrorMessage: msg,
-      }));
-    } finally {
-      sheetMutation.current = false;
-    }
+      setTransferMutationError(error.message);
+      setDirectSheetsState(prev => ({ ...prev, status: directSheetsStatuses.error, message: error.message, lastErrorMessage: error.message }));
+    } finally { sheetMutation.current = false; }
   };
 
-  // Push active gift card arrays to Google Sheet
-  const handleSaveCardsToSheet = async (options = {}) => {
-    if (!beginSheetMutation()) return;
-    setDirectSheetsState(prev => ({
-      ...prev,
-      status: directSheetsStatuses.syncing,
-      message: options.startMessage || "Syncing current local cards to Google Sheets through the Worker...",
-      lastErrorMessage: "",
-    }));
-
-    try {
-      const baseSheetVersion = options.acknowledgeMetadataRemoval
-        ? String(directSheetsState.remoteSheetVersion || syncState.lastKnownSheetVersion || "")
-        : String(syncState.lastKnownSheetVersion || "");
-      const result = await saveWorkerCards(cards, baseSheetVersion, {
-        acknowledgeMetadataRemoval: options.acknowledgeMetadataRemoval,
-      });
-
-      const now = new Date().toISOString();
-      const spreadsheetId = String(result.sheetId || directSheetsState.spreadsheetId || "").trim();
-      const updatedSheets = {
-        ...directSheetsState,
-        spreadsheetId,
-        spreadsheetUrl: spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : directSheetsState.spreadsheetUrl,
-        spreadsheetName: String(result.sheetName || directSheetsState.spreadsheetName || "Walmart-GC Data"),
-        status: directSheetsStatuses.ready,
-        remoteSheetVersion: String(result.sheetVersion || ""),
-        lastSuccessfulSyncAt: now,
-        pendingUnsynced: false,
-        message: options.successMessage || `Synced ${cards.length} card(s) successfully.`,
-        lastErrorMessage: "",
-      };
-      invalidateTransferBeforeMutation();
-      setDirectSheetsState(updatedSheets);
-      localStorage.setItem("walmartGc.directSheets", JSON.stringify(updatedSheets));
-
-      const updatedSync = {
-        ...syncState,
-        status: syncStatuses.connected,
-        lastSyncTimestamp: now,
-        lastSyncAttemptTimestamp: now,
-        lastKnownSheetVersion: String(result.sheetVersion || ""),
-        message: options.successMessage || "Sync succeeded. Current local cards were saved to Google Sheets.",
-        lastErrorMessage: "",
-      };
-      setSyncState(updatedSync);
-      localStorage.setItem("walmartGc.sync", JSON.stringify(updatedSync));
-    } catch (error) {
-      const payload = error && typeof error === "object" ? error.payload : null;
-      if (payload && payload.conflict) {
-        const remoteVersion = String(payload.remoteSheetVersion || "");
-        const conflictMsg = payload.errorType === "cards_metadata_loss"
-          ? error.message
-          : "The Google Sheet changed since your last successful load or sync. Nothing was overwritten.";
-        
-        setDirectSheetsState(prev => ({
-          ...prev,
-          status: directSheetsStatuses.conflict,
-          remoteSheetVersion: remoteVersion,
-          pendingUnsynced: true,
-          message: conflictMsg,
-          lastErrorMessage: conflictMsg,
-        }));
-        
-        setSyncState(prev => ({
-          ...prev,
-          status: syncStatuses.conflict,
-          lastSyncAttemptTimestamp: new Date().toISOString(),
-          lastKnownSheetVersion: prev.lastKnownSheetVersion,
-          message: conflictMsg,
-          lastErrorMessage: conflictMsg,
-        }));
-        return;
-      }
-
-      const msg = error instanceof Error ? error.message : "Worker Google Sheets sync failed.";
-      const isHeaderErr = isCardsHeaderError(msg);
-      const mappedMsg = msg === "Not authenticated" ? "Connect Google to sync." : msg;
-
-      setDirectSheetsState(prev => ({
-        ...prev,
-        status: isHeaderErr ? directSheetsStatuses.needsAttention : directSheetsStatuses.error,
-        pendingUnsynced: true,
-        message: mappedMsg,
-        lastErrorMessage: msg,
-      }));
-      
-      setSyncState(prev => ({
-        ...prev,
-        status: prev.status === syncStatuses.conflict ? syncStatuses.conflict : syncStatuses.unsynced,
-        lastSyncAttemptTimestamp: new Date().toISOString(),
-        message: mappedMsg,
-        lastErrorMessage: msg,
-      }));
-    } finally {
-      sheetMutation.current = false;
-    }
-  };
+  const handleSaveCardsToSheet = async () => showSheetWritePaused();
 
   if (localCardsError) {
     return <p role="alert" className="p-4 text-m3-error">{localCardsError}</p>;
+  }
+
+  if (!walletSnapshot) {
+    return <p role="status" className="p-4 text-m3-on-surface">Opening saved cards…</p>;
   }
 
   if (balanceReviewOpen) {
     return (
       <BalanceReview
         cards={cards}
-        allowEmptyStorage={cards === emptyStorageInventory.current}
-        onSave={setCards}
-        beforeManualSave={invalidateTransferBeforeMutation}
-        discardTransferLedger={discardTransferLedger}
+        walletSnapshot={walletSnapshot}
+        readWallet={readWallet}
+        commitWallet={commitWallet}
         getTransferWallet={getTransferWallet}
         onExit={() => {
           restoreReviewFocus.current = true;
@@ -1509,7 +1327,7 @@ function App() {
         onTouchEnd={handleMainTouchEnd}
       >
         <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
-          {transferMutationError && <p role="alert" className="px-4 pt-4 text-sm text-m3-error">{transferMutationError}</p>}
+          {(transferMutationError || inventoryNotice) && <p role="alert" className="px-4 pt-4 text-sm text-m3-error">{transferMutationError || inventoryNotice}</p>}
           {activePanel === 'list' ? (
             <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
               <Button id="review-balances" onClick={() => setBalanceReviewOpen(true)} disabled={!cardsLoaded.current} className="self-start">
@@ -2200,6 +2018,7 @@ function App() {
                       {!isEditingNotes && (
                         <Button
                           onClick={() => {
+                            notesTarget.current = cardTarget(selectedCard);
                             setNewNotesValue(selectedCard.notes || "");
                             setIsEditingNotes(true);
                           }}
@@ -2221,20 +2040,11 @@ function App() {
                         />
                         <div className="flex gap-2 justify-end">
                           <Button
-                            onClick={() => {
-                              const updatedCards = cards.map((c, idx) => {
-                                if (idx === selectedCardIndex) {
-                                  return {
-                                    ...c,
-                                    notes: newNotesValue.trim(),
-                                  };
-                                }
-                                return c;
-                              });
-                              if (!allowTransferMutation()) return;
-                              setCards(updatedCards);
-                              saveCards(updatedCards);
-                              setIsEditingNotes(false);
+                            onClick={async () => {
+                              try {
+                                await commitWallet({ kind: "patch", action: "set-notes", ...notesTarget.current, patch: { notes: newNotesValue.trim() } });
+                                setIsEditingNotes(false);
+                              } catch { /* save error displayed */ }
                             }}
                             variant="filled"
                             density="compact"
