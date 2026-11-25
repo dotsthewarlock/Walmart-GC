@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import json
 root=Path(__file__).resolve().parents[1];site=root/'site'
 # This tests the exact built bundle with a synthetic location binding, not live navigation or the hosted loader.
 with sync_playwright() as p:
-    browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+    browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page(viewport={'width':412,'height':923})
     page.set_content((site/'bookmarklet-lab.html').read_text().replace('<link rel="stylesheet" href="style.css">','<style>'+(site/'style.css').read_text()+'</style>'))
     code=(site/'bookmarklet.js').read_text()

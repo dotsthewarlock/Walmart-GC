@@ -16,7 +16,7 @@ for group in ('core','ui','extension'):
 manifest_path=ext/'manifest.json'
 manifest=json.loads(manifest_path.read_text());manifest['version']=version
 manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
-for name in ('manual.html','popup.html','checker-launcher.js'):
+for name in ('manual.html','popup.html','checker-launcher.js','protocol.js','manual-acceptance.js'):
  p=ext/name;p.write_text(p.read_text().replace('__COMPANION_VERSION__',version))
 for name in ('wire.js','protocol.js','queue.js','lab.js','style.css'):
  shutil.copy2(ext/name,site/name)
@@ -24,7 +24,7 @@ shutil.copy2(ext/'lab.html',site/'launcher.html')
 shutil.copy2(src/'site/fixture.html',site/'fixture.html')
 # Bundle the same checked-in modules; no eval, remote execution, or dependencies in the extension.
 def flatten(p):
- s=p.read_text();s=re.sub(r"\bimport\s*\{[^}]+\}\s*from\s*[^;]+;",'',s);s=re.sub(r'export\s*\{[^}]+\};','',s);return s.replace('export ','')
+ s=p.read_text().replace('__COMPANION_VERSION__',version);s=re.sub(r"\bimport\s*\{[^}]+\}\s*from\s*[^;]+;",'',s);s=re.sub(r'export\s*\{[^}]+\};','',s);return s.replace('export ','')
 (ext/'merchant-assist.js').write_text(flatten(src/'core'/'merchant-fields.js')+'\n'+(src/'extension'/'merchant-assist-entry.js').read_text())
 files=[src/'core'/n for n in ('wire.js','protocol.js','queue.js')]+[src/'bookmarklet/transport.js',src/'ui/lab.js']
 # Avoid overlapping bindings: wire.js owns HEAD; protocol imports/re-exports it.
@@ -77,14 +77,34 @@ package=assets/'extension.zip';shutil.copyfile(site/'extension.zip',package)
 metadata={**release,'channel':'manual-candidate','extensionSha256':hashlib.sha256(package.read_bytes()).hexdigest(),'extensionBytes':package.stat().st_size,'productionBookmarkletUnchanged':True,'approvedForRelease':False}
 (assets/'release.json').write_text(json.dumps(metadata,indent=2)+'\n')
 
-# Candidate hosted helper retains the baseline checking controls and request behavior.
-legacy=(root/'BASELINE-bookmarklet.js').read_text().replace("'WM GC Helper · v0.3.0'","'GC Wallet · "+version+" · '+(document.currentScript?.dataset.gcChannel==='stable'?'Stable':'Dev')")
-start=legacy.index('  const form = () =>');end=legacy.index('  if (fields().some',start)
-legacy=legacy.replace('const BATCH_LIMIT=10, STEP_MS=1200, LONG_STEP_MS=2400, COOLDOWN_MS=10000, RESPONSE_MS=30000;',flatten(src/'core'/'batch-policy.js')).replace('batchCount%2===0?LONG_STEP_MS:STEP_MS','batchDelay(batchCount)')
-legacy=legacy[:start]+flatten(src/'core'/'merchant-fields.js')+"\n  const {form,fields,visible,dialogs,resultDialog} = createMerchantFields(document,window);\n"+legacy[end:]
-# No change to legacy submit/retry/queue behavior. Only share the DOM selectors and matching.
-legacy=legacy.replace("function matches(){const r=current(),[n,p]=fields();return !!r&&!!n&&!!p&&digits(n.value)===r.number&&p.value===r.pin;}","function matches(){const r=current();return !!r&&createMerchantFields(document,window).matches(r.number,r.pin);}")
-(assets/'bookmarklet.js').write_text(legacy)
+# The merchant bookmarklet and extension use the same session, UI and merchant adapter.
+# A closed shadow root provides the bookmarklet's in-page UI; the extension keeps its
+# private extension-origin frame and its message bridge. Neither uses remote code.
+markup=(src/'ui'/'manual.html').read_text().split('<main ',1)[1].split('</main>',1)[0]
+markup='<main '+markup+'</main>'
+markup=markup.replace('__COMPANION_VERSION__',version)
+css=(src/'ui'/'style.css').read_text().replace(':root',':host')+'\n.dock #panel{position:static;width:auto;box-shadow:none;margin-top:12px}.manual-review{padding:8px;background:var(--surface);color:var(--ink)}'
+manual=flatten(src/'ui'/'manual.js').replace('const uiRoot=document,companionRuntime=globalThis.chrome?.runtime,bookmarkletMode=false;', 'const uiRoot=companionShadow,companionRuntime=companionBridge.runtime,bookmarkletMode=true;')
+assert 'const uiRoot=companionShadow' in manual
+assist=(src/'extension'/'merchant-assist-entry.js').read_text().replace("&&!document.getElementById('wmgc-helper-v01')", "&&document.getElementById('wmgc-helper-v01')===companionHost")
+assert "===companionHost" in assist
+prelude="""(()=>{
+if(location.origin!=='https://www.walmart.ca'||location.pathname!=='/en/account/giftcards/balance'||window!==window.top)return;
+if(document.getElementById('wmgc-helper-v01')||document.getElementById('gc-wallet-companion-launcher')){alert('Close the existing helper first.');return;}
+const companionHost=document.createElement('div');companionHost.id='wmgc-helper-v01';companionHost.style.cssText='all:initial;position:fixed;right:12px;bottom:12px;z-index:2147483647;display:block;width:min(380px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto';
+const companionChannel=document.currentScript?.dataset.gcChannel==='stable'?'Stable':'Dev';
+const companionShadow=companionHost.attachShadow({mode:'closed'}),companionStyle=document.createElement('style'),companionTemplate=document.createElement('template');
+companionStyle.textContent=CSS_TEXT;companionTemplate.innerHTML=UI_MARKUP;companionShadow.append(companionStyle,companionTemplate.content);companionShadow.querySelector('.eyebrow').textContent=VERSION_LABEL+companionChannel;document.body.append(companionHost);
+const companionMove=document.createElement('button');companionMove.type='button';companionMove.textContent='Move';companionMove.setAttribute('aria-label','Move companion; click to change corner');companionMove.style.cssText='float:right;min-height:36px;padding:4px 12px;touch-action:none;cursor:grab';companionShadow.querySelector('.eyebrow').after(companionMove);
+let companionDrag=null,companionMoved=false;function companionPlace(x,y){const r=companionHost.getBoundingClientRect();companionHost.style.right='auto';companionHost.style.bottom='auto';companionHost.style.left=Math.max(0,Math.min(x,innerWidth-r.width))+'px';companionHost.style.top=Math.max(0,Math.min(y,innerHeight-r.height))+'px';}
+companionMove.addEventListener('pointerdown',e=>{if(!e.isTrusted||e.button!==0)return;const r=companionHost.getBoundingClientRect();companionDrag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};companionMoved=false;companionMove.setPointerCapture(e.pointerId);});
+companionMove.addEventListener('pointermove',e=>{if(!companionDrag||e.pointerId!==companionDrag.id)return;const dx=e.clientX-companionDrag.x,dy=e.clientY-companionDrag.y;if(Math.hypot(dx,dy)>5)companionMoved=true;if(companionMoved)companionPlace(companionDrag.left+dx,companionDrag.top+dy);});
+companionMove.addEventListener('pointerup',e=>{if(companionDrag?.id===e.pointerId)companionDrag=null;});companionMove.addEventListener('pointercancel',()=>{companionDrag=null;});companionMove.addEventListener('click',e=>{if(!e.isTrusted||companionMoved)return;const r=companionHost.getBoundingClientRect();companionPlace(r.left<innerWidth/2?innerWidth-r.width-12:12,r.top);});
+let companionHandler;const companionBridge={runtime:{id:'bookmarklet',onMessage:{addListener(fn){companionHandler=fn;}},sendMessage(message){if(message.type==='clipboard-copy')return navigator.clipboard?.writeText(message.text).then(()=>({ok:true}),()=>({ok:false}))??Promise.resolve({ok:false});return new Promise(resolve=>{if(!companionHandler){resolve({ok:false});return;}try{companionHandler(message,{id:'bookmarklet'},resolve);}catch{resolve({ok:false});}});}}};const chrome=companionBridge;
+""".replace('CSS_TEXT',json.dumps(css)).replace('UI_MARKUP',json.dumps(markup)).replace('VERSION_LABEL',json.dumps('GC Wallet · '+version+' · ',ensure_ascii=False))
+shared=[src/'core'/n for n in ('wire.js','protocol.js','session.js','manual-session.js','manual-acceptance.js','batch-policy.js','merchant-fields.js')]
+bookmarklet=prelude+'\n'+'\n'.join(flatten(p) for p in shared)+'\n'+assist+'\n'+manual+'\n})();\n'
+(assets/'bookmarklet.js').write_text(bookmarklet)
 (assets/'bookmarklet-launcher.txt').write_text("javascript:(()=>{if(location.origin!=='https://www.walmart.ca'||location.pathname.replace(/\\/$/,'')!=='/en/account/giftcards/balance')return alert('Open the Walmart Canada balance page first.');const s=document.createElement('script');s.src='https://walmart-gc.dotsthewarlock.com/companion/bookmarklet.js?v='+Date.now();s.onerror=()=>alert('Hosted helper unavailable. Use the existing standalone bookmarklet.');document.head.append(s)})()\n")
 metadata.update({'channel':'assisted-candidate','merchantEnabled':True,'merchantSubmission':'explicit-foreground-batch-or-individual','bookmarkletVersion':version,'bookmarkletSha256':hashlib.sha256((assets/'bookmarklet.js').read_bytes()).hexdigest(),'hostedLoaderVerified':False,'sharedEngineParity':False})
 (assets/'release.json').write_text(json.dumps(metadata,indent=2)+'\n')

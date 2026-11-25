@@ -23,6 +23,6 @@ with TemporaryDirectory() as d:
  previous=(stable/'release.json').read_bytes();assert json.loads(previous)['channel']=='stable'
  (dev/'bookmarklet.js').write_text('tampered')
  run(repo,*args,ok=False);assert (stable/'release.json').read_bytes()==previous
- (repo/'version.json').write_text('{"version":"1.0.3","protocolVersion":1}')
+ (repo/'version.json').write_text('{"version":"1.0.4","protocolVersion":1}')
  run(repo,sys.executable,'stage_release.py','--source-revision',rev,ok=False)
 print('Channel tests: clean source identity, synchronized versions, explicit promotion, identical bytes, tamper rejection, dirty source rejection PASS')

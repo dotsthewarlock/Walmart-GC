@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import json,re
@@ -6,9 +7,10 @@ def flatten(p):
  s=re.sub(r'\bimport\s*\{[^}]+\}\s*from\s*[^;]+;','',p.read_text());s=re.sub(r'export\s*\{[^}]+\};','',s);return s.replace('export ','')
 # Mock extension messaging and isolated storage; use the exact generated executable code.
 mock="""(()=>{const m=new Map();Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)}});Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(k,f)=>f()}});if(!crypto.randomUUID)Object.defineProperty(crypto,'randomUUID',{value:()=> '44444444-4444-4444-8444-444444444444'});window.chrome={runtime:{sendMessage:async m=>m.type==='ping'?{ok:true,mode:'internal',version:'0.6.0',merchant:false}:m.type==='start'?{ok:true,result:{ref:m.ref,balanceCAD:({'1':'12.34','2':'0.00','3':'1234.56'})[m.ref[0]],checkedAt:new Date().toISOString()}}:{ok:true}}};})()"""
+mock=mock.replace("version:'0.6.0'","version:'"+json.loads((root/'version.json').read_text())['version']+"'")
 results=[]
 with sync_playwright() as p:
- browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  for mode in ('internal','bookmarklet'):
   page=browser.new_page(viewport={'width':412,'height':923});errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
   html=(ext/'companion.html' if mode=='internal' else site/'companion-bookmarklet.html').read_text().replace('<link rel="stylesheet" href="style.css">','<style>'+(ext/'style.css').read_text()+'</style>').replace('<script type="module" src="companion.js"></script>','')

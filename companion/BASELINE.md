@@ -1,5 +1,7 @@
-# Source baseline
-- Accepted bookmarklet v0.3.1 source recovered: SHA-256 `2ac87a16938e43f811a9567e49b5ca759a20395efccf4e22812d82729c9dd30a`.
-- Extension v0.3.0 ZIP: SHA-256 `1535ca86348ddc6eade5c707f06b6737bab6e42d118bc83df4b3e2204328ff34`.
-- Bookmarklet parser preserves BOM, CRLF, trailing whitespace, exact headers, UUID v4, digit strings, identical duplicates, conflicting refs and multiple refs/card rejection. Extracted into wire.js; extension synthetic allowlist remains separate.
-- Existing bookmarklet legacy import, merchant interaction, result history and dock are NOT migrated or replaced. No claim of production behavioral parity.
+# Source baseline and parity audit
+
+- Original bookmarklet v0.3.1 source: `BASELINE-bookmarklet.js`, SHA-256 `2ac87a16938e43f811a9567e49b5ca759a20395efccf4e22812d82729c9dd30a`.
+- Batch v1 and legacy parser comparisons cover BOM, CRLF, exact headers, UUID v4, digit strings, duplicates, conflicts and legacy inputs. The shared manual session preserves verified history independently from the queue, keeps card credentials out of persisted history, and offers explicit restoration of previous history without deleting original bytes.
+- Both delivery wrappers now use the same review session and UI, foreground batch policy and merchant field/result adapter. The bookmarklet retains a movable in-page dock; the extension retains its movable private frame. Both support explicit import, individual checks, bounded opted-in batches, pause/stop, queue management, verified wallet and legacy exports, and separate result clearing. The shared dialog confirms destructive actions. Optional clipboard detection and result copying retain manual fallback.
+- The consolidated workflow saves a matched observation before advancing. The most recent session observation can be explicitly discarded, returning that card to the pending queue; other saved history is retained. Pending entries can be selected from the queue. Unlike the original previous/next controls, completed rows are reviewed in Results rather than navigated for checking. A capture mismatch or challenge stops rather than saving.
+- Offline synthetic merchant tests cover matched capture, mismatch, challenge and submission boundaries. They do not prove hosted script compatibility, native clipboard permission behavior in every browser, or ordinary-use acceptance. No live merchant requests were made.

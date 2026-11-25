@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import json,re
@@ -7,7 +8,7 @@ def flatten(n):
 html=(d/'popup.html').read_text().replace('<link rel="stylesheet" href="style.css">','<style>'+(d/'style.css').read_text()+'</style>').replace('<script type="module" src="popup.js"></script>','')
 results=[]
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  for width in [344,412]:
   page=b.new_page(viewport={'width':width,'height':600});page.route('**/*',lambda r:r.abort());errors=[];page.on('pageerror',lambda e:errors.append(str(e)));page.set_content(html);page.add_script_tag(content="window.calls=[];window.close=()=>{};window.chrome={runtime:{sendMessage:async m=>{calls.push(m.type);return {ok:true}},getManifest:()=>({version:'0.7.1'}),getURL:p=>p},tabs:{sendMessage:async(id,m)=>{calls.push(m.type);return {ok:true}},query:async()=>[{id:1,url:'https://www.walmart.ca/en/account/giftcards/balance'}]},storage:{session:{get:async()=>({})}}};")
   page.add_script_tag(content='(()=>{'+ '\n'.join(flatten(n) for n in ['navigation.js','release-check.js','merchant-compat.js','popup.js'])+'})()');page.wait_for_function("document.querySelector('#context').textContent==='Walmart checker is open'");assert not page.locator('#probe').is_visible();assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');

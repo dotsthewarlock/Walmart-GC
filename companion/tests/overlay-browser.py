@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import json
 root=Path(__file__).resolve().parents[1];d=root/'gc-wallet-companion';target='https://www.walmart.ca/en/account/giftcards/balance'
 results=[]
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  for width,height in [(320,480),(412,923),(1440,900)]:
   page=b.new_page(viewport={'width':width,'height':height});page.route('**/*',lambda r:r.abort());errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
   page.set_content('<main><h1>Synthetic merchant</h1><button id="merchant">Unrelated page control</button></main>')

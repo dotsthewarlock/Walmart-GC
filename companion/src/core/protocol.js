@@ -1,6 +1,6 @@
 import {REQUEST_HEAD,HEAD,parseWireRequest,validateWireObservation,formatWireResults} from './wire.js';
 export {HEAD};
-export const VERSION='1.0.0';
+export const VERSION='__COMPANION_VERSION__';
 export const LAUNCHER='http://localhost:8765/launcher.html';
 export const TARGET='http://127.0.0.1:8765/fixture.html';
 export const FIXTURES=Object.freeze([

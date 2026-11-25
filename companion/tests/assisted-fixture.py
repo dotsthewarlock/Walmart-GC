@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import json
@@ -5,7 +6,7 @@ root=Path(__file__).resolve().parents[1];script=(root/'gc-wallet-companion/merch
 fixture='''<form id="check-gift-card-balance-form"><input name="gc-number"><input name="securitycode"><button type="submit">Check Balance</button></form><script>window.submissions=0;window.dismissals=0;window.kind='valid';window.after='normal';document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();submissions++;if(kind==='noresponse')return;const d=document.createElement('div');d.setAttribute('role','dialog');d.innerHTML=kind==='blocked'?'<h2>Challenge</h2>':'<h2>Gift card balance</h2><p class="cardnumber">Ending in '+(kind==='mismatch'?'9999':document.querySelector('[name="gc-number"]').value.replace(/\\D/g,'').slice(-4))+'</p><p class="balance">Balance: $0.00</p><button>Check another card balance</button>';if(d.querySelector('button'))d.querySelector('button').onclick=()=>{dismissals++;if(after==='challenge'){d.remove();const x=document.createElement('div');x.setAttribute('role','dialog');x.textContent='Challenge';document.body.append(x);return;}if(after==='stuck')return;setTimeout(()=>{d.remove();document.querySelector('[name="gc-number"]').value='';document.querySelector('[name="securitycode"]').value='';},150);};document.body.append(d);});</script>'''
 checks=[]
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']);page=b.new_page();page.route('**/*',lambda r:r.abort());page.set_content(fixture)
+ b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox']);page=b.new_page();page.route('**/*',lambda r:r.abort());page.set_content(fixture)
  page.add_script_tag(content="window.chrome={runtime:{id:'fixture',onMessage:{addListener:f=>window.assist=f}}};window.send=(m,id='fixture')=>new Promise(resolve=>{const async=assist(m,{id},resolve);if(async!==true)setTimeout(()=>resolve(null),0);});")
  page.add_script_tag(content="(function(location){"+script+"})({href:'https://www.walmart.ca/en/account/giftcards/balance'})")
  token='11111111-1111-4111-8111-111111111111';fill={'type':'assist-fill','number':'0000000000001111','pin':'0001','token':token};read={'type':'assist-read','token':token};finish={'type':'assist-finish','token':token}
