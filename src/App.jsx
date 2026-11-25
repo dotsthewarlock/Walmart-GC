@@ -205,6 +205,7 @@ function App() {
     sortMode: "balance-asc",
     themeMode: "system",
     checkoutDark: true,
+    automaticSync: true,
   });
   const preferences = useRef(settings);
   preferences.current = settings;
@@ -323,7 +324,8 @@ function App() {
       setTransferMutationError("");
       if (['patch','manual-verification','mark-zero-used','csv-recovery','apply-batch','resolve-conflict','select-compartment'].includes(command.kind)) {
         setSyncUi({phase:'local',message:'Changes saved on this device.'});
-        syncEngine.current?.schedule();
+        if(command.kind==='select-compartment')syncEngine.current?.foreground();
+        else if(profileOf(state).pending.length||profileOf(state).inFlight)syncEngine.current?.schedule();
       }
       return state;
     } catch (error) {
@@ -524,15 +526,15 @@ function App() {
           url.searchParams.delete("auth");
           window.history.replaceState(window.history.state, document.title, `${url.pathname}${url.search}${url.hash}`);
         }
-        const engine=createSyncEngine({store,request:fetchWorkerJson,
+        const engine=createSyncEngine({store,request:fetchWorkerJson,automatic:()=>preferences.current.automaticSync!==false,
           onState:state=>{if(!cancelled)adoptWallet(state);},
           onStatus:value=>{if(!cancelled)setSyncUi(value);},
           onAuth:status=>{if(!cancelled)setOauthState({status:status.authenticated?'connected':'disconnected',connectedEmail:status.email||'',connectedName:status.name||'',principal:status.principal||'',message:status.authenticated?'Google account connected.':'Connect Google for automatic synchronization.',lastErrorMessage:'',workerVersion:status.workerVersion||'',schemaMode:status.schemaMode||''});}});
-        syncEngine.current=engine;engine.start();
+        syncEngine.current=engine;engine.start({authReturn});
       } catch (error) { if (!cancelled) setLocalCardsError(error.message); }
     })();
-    const foreground=()=>{if(document.visibilityState==='visible')syncEngine.current?.sync();};
-    const reconnect=()=>syncEngine.current?.sync();
+    const foreground=()=>{if(document.visibilityState==='visible')syncEngine.current?.foreground();};
+    const reconnect=foreground;
     window.addEventListener("online",reconnect);document.addEventListener("visibilitychange",foreground);window.addEventListener("focus",reconnect);
     return () => { cancelled = true; syncEngine.current?.stop();window.removeEventListener("online",reconnect);document.removeEventListener("visibilitychange",foreground);window.removeEventListener("focus",reconnect); window.removeEventListener("focus", reload); window.removeEventListener("storage", legacyChanged); channel?.close(); store.close().catch(() => {}); };
   }, []);
@@ -961,7 +963,7 @@ function App() {
     setValidationSummary("CSV backup download requested for the selected saved inventory.");
   };
 
-  const syncNow = async (bind=false) => syncEngine.current?.sync({bind});
+  const syncNow = async (bind=false) => syncEngine.current?.manual({bind});
   const handleEnsureSheet = async () => {
     try { await syncEngine.current?.control('ensure',{sheetId:exactSheetId.trim()}); }
     catch(error){setTransferMutationError(error.message);}
@@ -1478,6 +1480,8 @@ function App() {
 
                 <Card as="section" className="p-3 flex flex-col gap-2" aria-label="Synchronization recovery">
                   <p role="status" className="text-sm">{syncUi.message}</p>
+                  <label className="flex items-center justify-between gap-3 min-h-[48px]"><span>Automatic synchronization</span><Switch checked={settings.automaticSync} onChange={()=>{const next={...settings,automaticSync:!settings.automaticSync};preferences.current=next;setSettings(next);saveSettings(next);if(next.automaticSync)syncEngine.current?.foreground();}} /></label>
+                  <p className="text-xs text-m3-on-surface-variant">{settings.automaticSync?"Sync saved changes and check when returning to the wallet.":"Save locally until you select Sync now."}</p>
                   <Button variant="outlined" onClick={()=>syncNow()}>Sync now</Button>
                   <details>
                     <summary className="cursor-pointer text-sm font-medium">Connection and recovery</summary>
