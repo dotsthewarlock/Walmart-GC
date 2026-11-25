@@ -54,14 +54,15 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
  });
  await test.step('Batch v1 preview is read-only; partial application and exact replay remain atomic',async()=>{
   await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
-  const includeUsed=page.getByRole('checkbox',{name:'Include cards marked used (1)'}),includeZero=page.getByRole('checkbox',{name:'Include $0 balance cards (0)'});await expect(includeUsed).not.toBeChecked();await expect(includeZero).not.toBeChecked();await expect(page.getByText('1 matching · 1 selected')).toBeVisible();
-  await includeUsed.check();await includeZero.check();await page.getByLabel('Quantity').selectOption('5');await page.getByLabel('Last checked').selectOption('older');await page.getByRole('combobox',{name:'Days',exact:true}).selectOption('7');
+  const status=page.getByRole('group',{name:'Status'}),balance=page.getByRole('group',{name:'Balance'}),quantity=page.getByRole('group',{name:/Quantity/});
+  await expect(status.getByLabel('Active')).toBeChecked();await expect(balance.getByLabel('Yes')).toBeChecked();await expect(page.getByText('· 1 matching')).toBeVisible();
+  await status.getByText('All',{exact:true}).click();await balance.getByText('All',{exact:true}).click();await quantity.getByText('5',{exact:true}).click();await page.getByLabel('Last checked').selectOption('older');await page.getByLabel('Days').selectOption('7');
   await page.getByRole('button',{name:'Exit',exact:true}).click();await page.reload();await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
-  await expect(includeUsed).toBeChecked();await expect(includeZero).toBeChecked();await expect(page.getByLabel('Quantity')).toHaveValue('5');await expect(page.getByLabel('Last checked')).toHaveValue('older');await expect(page.getByRole('combobox',{name:'Days',exact:true})).toHaveValue('7');
-  await page.getByLabel('Last checked').selectOption('any');await expect(page.getByRole('combobox',{name:'Days',exact:true})).toHaveCount(0);await expect(page.getByText('2 matching · 2 selected')).toBeVisible();await page.getByRole('button',{name:'Create batch',exact:true}).click();
+  await expect(status.getByLabel('All')).toBeChecked();await expect(balance.getByLabel('All')).toBeChecked();await expect(quantity.getByLabel('5',{exact:true})).toBeChecked();await expect(page.getByLabel('Last checked')).toHaveValue('older');await expect(page.getByLabel('Days')).toHaveValue('7');
+  await page.getByLabel('Last checked').selectOption('any');await expect(page.getByLabel('Days')).toBeDisabled();await expect(page.getByText('· 2 matching')).toBeVisible();await page.getByRole('button',{name:'Create batch (2)',exact:true}).click();
   await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
   const state=await snapshot(page),ledger=active(state).ledger;expect(ledger.requests).toHaveLength(2);
-  await includeUsed.uncheck();expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
+  await page.getByRole('button',{name:'Reset',exact:true}).click();await expect(status.getByLabel('Active')).toBeChecked();await expect(balance.getByLabel('Yes')).toBeChecked();expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
   // Card A was verified today, so use never-verified B for the partial result.
   const ref=ledger.requests.find(r=>r.cardNumber===cardB.cardNumber).ref;
   const packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');

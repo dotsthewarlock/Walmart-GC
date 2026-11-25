@@ -63,7 +63,7 @@ function mockStorage(t, cards) {
 }
 
 async function makeLedger(cards, inventoryRaw = JSON.stringify(cards)) {
-  return createTransferLedger(context, selectTransferCards(cards, prefs({ includeUsed: true, includeZero: true })).selected, inventoryRaw, new Date(created));
+  return createTransferLedger(context, selectTransferCards(cards, prefs({ status: "all", balance: "all" })).selected, inventoryRaw, new Date(created));
 }
 
 function observation(request, balance = 8, checkedAt = checked) {
@@ -78,58 +78,34 @@ async function stage(t, cards = [card(1), card(2)]) {
   return { fixture, inventoryRaw, ledger, raw, cards };
 }
 
-test("selection is deterministic with 35+ cards, exact identities and strict transfer credentials", () => {
-  const cards = Array.from({ length: 36 }, (_, index) => card(index + 1,
-    { lastBalanceChecked: index < 3 ? "" : "2026-02-04" }));
-  cards[0] = { ...cards[0], used: true, currentBalance: 0, pin: "0000" };
-  const inventory = [
-    ...cards.toReversed(), ...bundledSampleGiftCards, card(40, { merchant: "other" }),
-    card(41, { pin: "12345" }), card(42, { pin: "１２３４" }), card(43, { pin: " 1234" }),
-    card(44), card(44, { pin: "9999" }), card(45, { cardNumber: "1" }), card(46, { pin: 1234 }),
-  ];
-  const all = selectTransferCards(inventory);
-  assert.deepEqual(all.selected.map(({ card }) => card), cards.slice(1));
-  assert.equal(all.matching, 35);
-  assert.equal(all.usedCount, 1);
-  assert.deepEqual(selectTransferCards(inventory, prefs({ checked: "never", includeUsed: true, includeZero: true })).selected.map(({ card }) => card), [cards[1], cards[2], cards[0]]);
-  for (const count of [5, 10, 20, 30]) {
-    assert.deepEqual(selectTransferCards(inventory, prefs({ quantity: String(count), includeUsed: true, includeZero: true })).selected.map(({ card }) => card), cards.slice(1, count + 1));
-  }
-  assert.deepEqual(selectTransferCards(inventory, prefs({ includeUsed: true, includeZero: true })).selected.map(({ card }) => card), [...cards.slice(1), cards[0]]);
+test("selection excludes ambiguous identities and invalid transfer credentials", () => {
+  const valid = card(1);
+  const inventory = [valid, card(2, { pin: "12345" }), card(3, { pin: "１２３４" }), card(4), card(4, { pin: "9999" }), ...bundledSampleGiftCards];
+  assert.deepEqual(selectTransferCards(inventory, prefs({ status: "all", balance: "all" })).selected.map(x => x.card), [valid]);
 });
 
-test("used cards follow active cards in verification order before limits are applied", () => {
-  const cards = [card(1, { used: true }), card(2, { lastBalanceChecked: "2026-02-02" }),
-    card(3), card(4, { used: true, lastBalanceChecked: "2026-01-01" }),
-    card(5, { lastBalanceChecked: "2026-01-01" }), card(6, { used: true, pin: "bad" })];
-  const chosen = selectTransferCards(cards, prefs({ quantity: "5", includeUsed: true }));
-  assert.deepEqual(chosen.selected.map(({ card }) => card), [cards[2], cards[4], cards[1], cards[0], cards[3]]);
-  assert.equal(chosen.usedCount, 2);
-  assert.equal(selectTransferCards(cards).matching, 3);
-  assert.deepEqual(selectTransferCards(cards, prefs({ checked: "never", includeUsed: true })).selected.map(({ card }) => card), [cards[2], cards[0]]);
+test("independent filters, explicit sorts and limits preserve deterministic identities", () => {
+  const cards = [card(1, { used: true, currentBalance: 0 }), card(2, { currentBalance: 0, lastBalanceChecked: "2026-05-25", dateAdded: "2026-02-01" }),
+    card(3, { used: true, lastBalanceChecked: "2026-05-24", currentBalance: 20 }), card(4, { lastBalanceChecked: "2026-05-25" }), card(5)];
+  const select = changes => selectTransferCards([...cards].reverse(), prefs(changes), new Date("2026-06-01T23:59:59Z"));
+  const ids = changes => select(changes).selected.map(x => x.card.cardNumber);
+  assert.deepEqual(ids({}), [cards[4], cards[3]].map(x => x.cardNumber));
+  assert.deepEqual(ids({ status: "used", balance: "zero" }), [cards[0].cardNumber]);
+  assert.deepEqual(ids({ status: "all", balance: "all", checked: "older", days: 7 }), [cards[0], cards[4], cards[2], cards[1], cards[3]].map(x => x.cardNumber));
+  assert.deepEqual(ids({ status: "all", balance: "all", checked: "recent", days: 7 }), [cards[1], cards[3]].map(x => x.cardNumber));
+  assert.deepEqual(ids({ status: "all", balance: "all", sort: "checked-newest" }), [cards[1], cards[3], cards[2], cards[0], cards[4]].map(x => x.cardNumber));
+  assert.deepEqual(ids({ status: "all", balance: "all", sort: "added-newest", quantity: "1" }), [cards[1].cardNumber]);
+  assert.deepEqual(ids({ status: "all", balance: "all", sort: "balance-highest", quantity: "1" }), [cards[2].cardNumber]);
+  assert.deepEqual(ids({ status: "all", balance: "all", sort: "balance-lowest", quantity: "1" }), [cards[0].cardNumber]);
 });
 
-test("overlap, priority and UTC date boundaries are independent of stable counts", () => {
-  const cards = [card(1, { used: true, currentBalance: 0 }), card(2, { currentBalance: 0, lastBalanceChecked: "2026-05-25" }),
-    card(3, { used: true, lastBalanceChecked: "2026-05-24" }), card(4, { lastBalanceChecked: "2026-05-25" }),
-    card(5, { lastBalanceChecked: "2026-05-26" }), card(6)];
-  const at = new Date("2026-06-01T23:59:59Z");
-  const select = changes => selectTransferCards(cards, prefs(changes), at);
-  assert.deepEqual(select({ includeUsed: true }).selected.map(x => x.card), [cards[5], cards[3], cards[4], cards[2]]);
-  assert.deepEqual(select({ includeZero: true }).selected.map(x => x.card), [cards[5], cards[3], cards[4], cards[1]]);
-  assert.deepEqual(select({ includeUsed: true, includeZero: true }).selected.map(x => x.card), [cards[5], cards[3], cards[4], cards[1], cards[2], cards[0]]);
-  assert.deepEqual(select({ includeUsed: true, includeZero: true, checked: "older", days: 7 }).selected.map(x => x.card), [cards[5], cards[3], cards[1], cards[2], cards[0]]);
-  assert.deepEqual(select({ includeUsed: true, includeZero: true, checked: "recent", days: 7 }).selected.map(x => x.card), [cards[3], cards[4], cards[1]]);
-  assert.equal(select({ checked: "never" }).usedCount, 2);
-  assert.equal(select({ checked: "never" }).zeroCount, 2);
-});
-
-test("selection preferences restore valid values and default safely", () => {
+test("selection preferences migrate checkboxes and validate saved values", () => {
   const read = value => readTransferPreferences({ getItem: () => value });
-  const valid = prefs({ quantity: "10", includeUsed: true, includeZero: true, checked: "older", days: 7 });
+  const valid = prefs({ quantity: "50", status: "used", balance: "zero", checked: "older", days: 7, sort: "added-oldest" });
   assert.deepEqual(read(JSON.stringify(valid)), valid);
-  for (const raw of [null, "{", JSON.stringify({ ...valid, version: 2 })]) assert.deepEqual(read(raw), prefs());
-  assert.deepEqual(read(JSON.stringify({ version: 1, quantity: "999", includeUsed: "true", includeZero: true, checked: "bad", days: 2 })), prefs({ includeZero: true }));
+  assert.deepEqual(read(JSON.stringify({ version: 1, quantity: "5", includeUsed: true, includeZero: true, checked: "older", days: 7 })), prefs({ quantity: "5", status: "all", balance: "all", checked: "older", days: 7 }));
+  assert.deepEqual(read(JSON.stringify({ version: 1, quantity: "10", includeUsed: "true", includeZero: false })), prefs());
+  for (const raw of [null, "{", JSON.stringify({ version: 3 })]) assert.deepEqual(read(raw), prefs());
   assert.deepEqual(readTransferPreferences({ getItem() { throw Error("blocked"); } }), prefs());
 });
 
