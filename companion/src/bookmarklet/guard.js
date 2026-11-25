@@ -1,0 +1,1 @@
+if(location.origin!=='http://localhost:8765'||location.pathname!=='/bookmarklet-lab.html'||document.body?.dataset.companionFixture!=='synthetic-bookmarklet-v1'||document.body.dataset.started==='yes')return;document.body.dataset.started='yes';
