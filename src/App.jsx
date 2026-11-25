@@ -323,9 +323,11 @@ function App() {
       adoptWallet(state);
       setTransferMutationError("");
       if (['patch','manual-verification','mark-zero-used','csv-recovery','apply-batch','resolve-conflict','select-compartment'].includes(command.kind)) {
-        setSyncUi({phase:'local',message:'Changes saved on this device.'});
-        if(command.kind==='select-compartment')syncEngine.current?.foreground();
-        else if(profileOf(state).pending.length||profileOf(state).inFlight)syncEngine.current?.schedule();
+        if(command.kind==='select-compartment'||profileOf(state).pending.length||profileOf(state).inFlight){
+          setSyncUi({phase:'local',message:'Changes saved on this device.'});
+          if(command.kind==='select-compartment')syncEngine.current?.foreground();
+          if(profileOf(state).pending.length||profileOf(state).inFlight)syncEngine.current?.schedule();
+        }
       }
       return state;
     } catch (error) {
