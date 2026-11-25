@@ -49,7 +49,8 @@ export async function fetchWorkerJson(path, options = {}) {
   if(response.status===429&&limitedPath(path)){
     const header=response.headers.get('Retry-After');
     const until=header&&/^\d+$/.test(header)?Date.now()+Number(header)*1000:Date.parse(header||'');
-    retryAt=Math.max(Date.now()+900000,Number(payload.retryAt)||0,Number.isFinite(until)?until:0);
+    const daily=payload.code==='kv_daily_limit'&&Number(payload.retryAt)>Date.now();
+    retryAt=Math.max(daily?Number(payload.retryAt):Date.now()+900000,Number(payload.retryAt)||0,Number.isFinite(until)?until:0);
     try{globalThis.localStorage?.setItem(cooldownKey,String(retryAt));}catch{/* in-memory cooldown remains */}
     throw rateError(retryAt);
   }
