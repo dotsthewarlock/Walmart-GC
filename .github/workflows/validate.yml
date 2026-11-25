@@ -13,7 +13,8 @@ permissions:
 
 jobs:
   build-and-check:
-    runs-on: ubuntu-latest
+    # Match the supported platform for the pinned development browser.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
