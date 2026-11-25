@@ -387,6 +387,12 @@ export function reduceInventory(input, command) {
   } else {
     throw new Error('Unknown inventory operation.');
   }
+  // A verification is a new observation even when its amount and calendar date
+  // did not change. Requests created before it must not overwrite that evidence.
+  if (command.kind === 'manual-verification' && profile.ledger) {
+    for (const request of profile.ledger.requests) if (request.state === 'pending' && request.cardNumber === command.cardNumber) request.state = 'invalidated';
+    if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
+  }
   if (['patch','manual-verification','csv-recovery','resolve-conflict'].includes(command.kind)) profile.ledger=relevantLedger(profile.ledger,profile.cards);
   if(!command.kind.startsWith('sync-')&&!command.kind.startsWith('control-')&&command.kind!=='bind-remote')state.receipts[command.id] = digest;
   const receiptIds=Object.keys(state.receipts);for(const id of receiptIds.slice(0,-128))delete state.receipts[id];

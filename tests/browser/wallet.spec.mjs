@@ -62,12 +62,13 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
   await page.getByLabel('Last checked').selectOption('any');await expect(page.getByLabel('Days')).toBeDisabled();await expect(page.getByText('· 2 matching')).toBeVisible();await page.getByRole('button',{name:'Create batch (2)',exact:true}).click();
   await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
   const state=await snapshot(page),ledger=active(state).ledger;expect(ledger.requests).toHaveLength(2);
-  await page.getByRole('button',{name:'Reset',exact:true}).click();await expect(status.getByLabel('Active')).toBeChecked();await expect(balance.getByLabel('Yes')).toBeChecked();expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
-  // Card A was verified today, so use never-verified B for the partial result.
-  const ref=ledger.requests.find(r=>r.cardNumber===cardB.cardNumber).ref;
+  await expect(page.getByRole('heading',{name:'Saved batch'})).toBeVisible();await expect(page.getByRole('button',{name:'Reset',exact:true})).toHaveCount(0);expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
+  // A same-day verification before request creation remains eligible.
+  const ref=ledger.requests.find(r=>r.cardNumber===cardA.cardNumber).ref;
   const packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');
-  await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardB.cardNumber).currentBalance).toBe(50);
+  await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(86);
   await page.getByRole('button',{name:'Apply accepted results'}).click();await expect.poll(async()=>active(await snapshot(page)).ledger.requests.filter(r=>r.state==='applied').length).toBe(1);
+  await expect.poll(async()=>active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(40);await expect(page.getByText(/1 outstanding/).first()).toBeVisible();
   await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();await expect(page.getByRole('button',{name:'Apply accepted results'})).toBeDisabled();await page.getByRole('button',{name:'Exit',exact:true}).click();
  });
  await test.step('offline compartments, selected CSV and credential-warned recovery download',async()=>{

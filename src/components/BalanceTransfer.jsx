@@ -226,7 +226,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const recovering = Boolean(batch.error || ledger?.application);
   return (
     <>
-      <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
+      {(!pending || recovering) && <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
           <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Create batch</h2>
             {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
@@ -268,12 +268,12 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
             <Button disabled={busy || !selectionCounts.selected.length} onClick={() => run(createBatch)}>Create batch ({selectionCounts.selected.length})</Button>
           </>
         )}
-      </Card>
+      </Card>}
 
       {ledger && !recovering && (
         <>
           <Card as="section" aria-labelledby="active-batch-heading" className="flex flex-col gap-3 p-4">
-            <h3 id="active-batch-heading" className="font-semibold">Saved batch</h3>
+            <h3 id="active-batch-heading" tabIndex={-1} ref={pending ? heading : undefined} className="font-semibold">Saved batch</h3>
             <p className="text-sm text-m3-on-surface-variant" role="status">
               {pending} outstanding · {invalidated} invalidated · {ledger.requests.length - pending - invalidated} applied
             </p>

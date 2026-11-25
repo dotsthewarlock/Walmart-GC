@@ -195,6 +195,13 @@ Ledger requests have per-card relevance snapshots and salted PIN digests (no
 cleartext PIN). Unrelated notes/other cards and compatible sync acknowledgments
 preserve outstanding requests. Relevant identity, balance, used or verification
 changes invalidate affected requests; context/account switches are fenced.
+An outstanding request captures the card state before its full UTC creation time.
+An observation at or after that time may be accepted on the same UTC day as a
+legacy date-only verification, provided the captured card state remains relevant.
+A subsequent manual verification invalidates that card's request even when its
+amount and calendar date are unchanged. Dates in Sheets and CSV remain date-only;
+they do not establish an ordering between independent devices on the same day.
+Protected synchronization continues to reconcile concurrent monetary operations.
 Partial apply atomically saves accepted observations, inventory, semantic pending
 operations and applied references. Exact replay is a no-op; conflicting replay is
 rejected. Legacy damaged/interrupted applications remain quarantined for checked
