@@ -26,14 +26,21 @@ function credentialsValid(card) {
     && typeof card.pin === "string" && pinPattern.test(card.pin);
 }
 
-export function selectTransferCards(cards, selection) {
-  const eligible = createBalanceReviewQueue(cards).filter(({ card }) => credentialsValid(card));
+function transferEligibleCards(cards) {
+  return createBalanceReviewQueue(cards).filter(({ card }) => credentialsValid(card));
+}
+
+export function selectTransferCards(cards, selection, includeUsed = false) {
+  const allEligible = transferEligibleCards(cards);
+  const usedCount = allEligible.filter(({ card }) => card.used === true).length;
+  const eligible = allEligible.filter(({ card }) => includeUsed || card.used !== true)
+    .sort((a, b) => Number(a.card.used === true) - Number(b.card.used === true));
   let selected;
   if (selection === "all") selected = eligible;
   else if (selection === "never") selected = eligible.filter(({ card }) => !card.lastBalanceChecked);
   else if (["5", "10", "20", "30"].includes(selection)) selected = eligible.slice(0, Number(selection));
   else throw new Error("Choose a batch selection.");
-  return { selected, eligible: eligible.length, excluded: cards.length - eligible.length };
+  return { selected, eligible: eligible.length, excluded: cards.length - eligible.length, usedCount };
 }
 
 // These fields can be compared across reloads. The whole saved-inventory
@@ -118,7 +125,7 @@ export function sameTransferContext(a, b) {
 }
 
 export function transferRequestRows(ledger, cards) {
-  const eligible = new Map(selectTransferCards(cards, "all").selected.map(({ card }) => [card.cardNumber, card]));
+  const eligible = new Map(transferEligibleCards(cards).map(({ card }) => [card.cardNumber, card]));
   if (ledger.application) throw new Error("Resolve the interrupted application before copying a request.");
   return ledger.requests.filter(({ state }) => state === "pending").map(({ ref, cardNumber, snapshot }) => {
     const card = eligible.get(cardNumber);
@@ -131,7 +138,7 @@ export function transferRequestRows(ledger, cards) {
 
 export function previewTransferResults(ledger, cards, observations, now = Date.now()) {
   const requests = new Map(ledger.requests.map((request, index) => [request.ref, { ...request, position: index + 1 }]));
-  const eligible = new Map(selectTransferCards(cards, "all").selected.map((entry) => [entry.card.cardNumber, entry]));
+  const eligible = new Map(transferEligibleCards(cards).map((entry) => [entry.card.cardNumber, entry]));
   const counts = { accepted: 0, changed: 0, unchanged: 0, unknown: 0, invalidated: 0, stale: 0, alreadyApplied: 0, rejected: 0 };
   const items = [];
   let candidate = cards;

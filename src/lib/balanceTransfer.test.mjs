@@ -62,7 +62,7 @@ function mockStorage(t, cards) {
 }
 
 async function makeLedger(cards, inventoryRaw = JSON.stringify(cards)) {
-  return createTransferLedger(context, selectTransferCards(cards, "all").selected, inventoryRaw, new Date(created));
+  return createTransferLedger(context, selectTransferCards(cards, "all", true).selected, inventoryRaw, new Date(created));
 }
 
 function observation(request, balance = 8, checkedAt = checked) {
@@ -87,12 +87,25 @@ test("selection is deterministic with 35+ cards, exact identities and strict tra
     card(44), card(44, { pin: "9999" }), card(45, { cardNumber: "1" }), card(46, { pin: 1234 }),
   ];
   const all = selectTransferCards(inventory, "all");
-  assert.deepEqual(all.selected.map(({ card }) => card), cards);
-  assert.equal(all.excluded, 13);
-  assert.deepEqual(selectTransferCards(inventory, "never").selected.map(({ card }) => card), cards.slice(0, 3));
+  assert.deepEqual(all.selected.map(({ card }) => card), cards.slice(1));
+  assert.equal(all.excluded, 14);
+  assert.equal(all.usedCount, 1);
+  assert.deepEqual(selectTransferCards(inventory, "never", true).selected.map(({ card }) => card), [cards[1], cards[2], cards[0]]);
   for (const count of [5, 10, 20, 30]) {
-    assert.deepEqual(selectTransferCards(inventory, String(count)).selected.map(({ card }) => card), cards.slice(0, count));
+    assert.deepEqual(selectTransferCards(inventory, String(count), true).selected.map(({ card }) => card), cards.slice(1, count + 1));
   }
+  assert.deepEqual(selectTransferCards(inventory, "all", true).selected.map(({ card }) => card), [...cards.slice(1), cards[0]]);
+});
+
+test("used cards follow active cards in verification order before limits are applied", () => {
+  const cards = [card(1, { used: true }), card(2, { lastBalanceChecked: "2026-02-02" }),
+    card(3), card(4, { used: true, lastBalanceChecked: "2026-01-01" }),
+    card(5, { lastBalanceChecked: "2026-01-01" }), card(6, { used: true, pin: "bad" })];
+  const chosen = selectTransferCards(cards, "5", true);
+  assert.deepEqual(chosen.selected.map(({ card }) => card), [cards[2], cards[4], cards[1], cards[0], cards[3]]);
+  assert.equal(chosen.usedCount, 2);
+  assert.equal(selectTransferCards(cards, "all").eligible, 3);
+  assert.deepEqual(selectTransferCards(cards, "never", true).selected.map(({ card }) => card), [cards[2], cards[0]]);
 });
 
 test("request format preserves leading zeros and resuming uses the original lowercase UUID references", async (t) => {

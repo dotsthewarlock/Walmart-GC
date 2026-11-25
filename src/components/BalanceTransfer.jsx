@@ -33,6 +33,7 @@ function formatNet(cents) {
 
 export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet }) {
   const [selection, setSelection] = useState("all");
+  const [includeUsed, setIncludeUsed] = useState(false);
   const [batch, setBatch] = useState(() => savedBatch(walletSnapshot));
   const [packet, setPacket] = useState("");
   const [preview, setPreview] = useState(null);
@@ -47,7 +48,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const ledger = batch.ledger;
   const pending = ledger?.requests.filter(({ state }) => state === "pending").length ?? 0;
   const invalidated = ledger?.requests.filter(({ state }) => state === "invalidated").length ?? 0;
-  const selectionCounts = selectTransferCards(cards, selection);
+  const selectionCounts = selectTransferCards(cards, selection, includeUsed);
 
   useEffect(() => {
     mounted.current = true;
@@ -133,7 +134,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     const session = await verifiedSession();
     const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
     if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
-    const { selected } = selectTransferCards(session.profile.cards, selection);
+    const { selected } = selectTransferCards(session.profile.cards, selection, includeUsed);
     const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw);
     await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
@@ -223,6 +224,11 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
               <SelectField disabled={busy} value={selection} onChange={(event) => setSelection(event.target.value)}>
                 {choices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </SelectField>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={includeUsed} disabled={busy} onChange={(event) => setIncludeUsed(event.target.checked)}
+                className="h-5 w-5 accent-m3-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary" />
+              Include cards marked used ({selectionCounts.usedCount})
             </label>
             <p className="text-sm text-m3-on-surface-variant" role="status">
               {selectionCounts.selected.length} selected · {selectionCounts.eligible} eligible · {selectionCounts.excluded} excluded
