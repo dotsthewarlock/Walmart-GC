@@ -37,7 +37,7 @@ function formatNet(cents) {
   return `${cents < 0n ? "−" : cents > 0n ? "+" : ""}$${(absolute / 100n).toLocaleString("en-CA")}.${String(absolute % 100n).padStart(2, "0")}`;
 }
 
-export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, detectedResults }) {
+export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, detectedResults, onOccupiedChange, onDetectedConsumed }) {
   const [preferences, setPreferences] = useState(() => {
     try { return readTransferPreferences(window.localStorage); } catch { return { ...defaultTransferPreferences }; }
   });
@@ -68,6 +68,11 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   useEffect(() => { setBatch(savedBatch(walletSnapshot)); }, [walletSnapshot]);
   useEffect(() => { setPreview(null); setPacket(""); }, [walletSnapshot.active, walletSnapshot.contextGeneration]);
+
+  useEffect(() => {
+    onOccupiedChange(Boolean(preview) || busy);
+    return () => onOccupiedChange(false);
+  }, [preview, busy, onOccupiedChange]);
 
   useEffect(() => {
     if (preview) {
@@ -188,13 +193,14 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }
 
   useEffect(() => {
-    if (!detectedResults) return;
+    if (!detectedResults || preview || locked.current) return;
+    onDetectedConsumed();
     run(async () => {
       assertInventoryContext(await readWallet(), detectedResults.context);
       const session = await verifiedSession();
       setPreview(buildPreview(session, detectedResults.results));
     });
-  }, []);
+  }, [detectedResults]);
 
   async function applyResults() {
     const prior = preview;

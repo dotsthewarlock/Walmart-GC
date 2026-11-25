@@ -147,3 +147,27 @@ test('opt-in clipboard detection offers review without applying or interrupting 
  await checkoutA(page);const reads=await page.evaluate(()=>window.qaClipboard.reads);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(reads);
  await context.close();
 });
+
+test('checker return detects in open Batch and preserves an existing preview',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);await setup(context,remote,[]);
+ await context.addInitScript(()=>{
+  window.qaClipboard={text:'unrelated private text',reads:0,permission:'prompt'};
+  Object.defineProperty(navigator,'permissions',{value:{query:async()=>({state:window.qaClipboard.permission})}});
+  Object.defineProperty(navigator,'clipboard',{value:{readText:async()=>{window.qaClipboard.reads++;window.qaClipboard.permission='granted';return window.qaClipboard.text;},writeText:async()=>{}}});
+ });
+ await context.route('https://www.walmart.ca/**',route=>route.fulfill({contentType:'text/html',body:'<title>Synthetic checker</title>'}));
+ const page=await context.newPage();await start(page);await settings(page);await page.getByText('Detect copied Batch results').click();
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(0);
+ await page.getByRole('button',{name:'Allow clipboard access'}).click();await expect.poll(()=>page.evaluate(()=>window.qaClipboard.reads)).toBe(1);await expect(page.getByRole('button',{name:'Allow clipboard access'})).toHaveCount(0);
+ await cards(page);await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();await page.getByRole('button',{name:/Create batch/}).click();await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
+ await expect(page.getByRole('link',{name:/Open Walmart checker/})).toBeEnabled();
+ await page.evaluate(()=>{window.qaClipboard.permission='prompt';window.dispatchEvent(new Event('focus'));});await expect.poll(()=>page.evaluate(()=>window.qaClipboard.reads)).toBe(1);
+ await page.evaluate(()=>window.qaClipboard.permission='granted');
+ const ledger=active(await snapshot(page)).ledger,packet=amount=>['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ledger.requests[0].ref+'\t'+amount+'\t'+new Date().toISOString()].join('\n');
+ const popupPromise=page.waitForEvent('popup');await page.getByRole('link',{name:/Open Walmart checker/}).click();const checker=await popupPromise;await checker.waitForLoadState();await checker.bringToFront();await page.evaluate(text=>window.qaClipboard.text=text,packet('40.00'));await page.bringToFront();
+ // Headless Chromium does not dispatch a window focus event when switching tabs.
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+ await expect(page.getByText('Copied Batch results found.')).toBeVisible({timeout:10000});await page.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('heading',{name:'Results preview'})).toBeVisible();await expect(page.getByText(/\$40\.00 CAD/)).toBeVisible();
+ const reads=await page.evaluate(()=>window.qaClipboard.reads);await checker.bringToFront();await page.evaluate(text=>window.qaClipboard.text=text,packet('35.00'));await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.getByText(/\$40\.00 CAD/)).toBeVisible();expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(reads);await expect(page.getByText('Copied Batch results found.')).toHaveCount(0);
+ expect(active(await snapshot(page)).ledger.requests.every(r=>r.state==='pending')).toBe(true);await page.reload();await settings(page);await expect(page.getByRole('button',{name:'Allow clipboard access'})).toHaveCount(0);await context.close();
+});

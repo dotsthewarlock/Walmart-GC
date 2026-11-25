@@ -8,6 +8,7 @@ export const defaultSettings = {
   themeMode: "system",
   checkoutDark: true,
   detectBatchResults: false,
+  clipboardPermissionAttempted: false,
 };
 
 const allowedSortModes = [
@@ -42,6 +43,7 @@ export function normalizeStoredSettings(settings) {
       ? settings.themeMode
       : defaultSettings.themeMode,
     detectBatchResults: settings.detectBatchResults === true,
+    clipboardPermissionAttempted: settings.clipboardPermissionAttempted === true,
     checkoutDark: typeof settings.checkoutDark === "boolean"
       ? settings.checkoutDark
       : defaultSettings.checkoutDark,

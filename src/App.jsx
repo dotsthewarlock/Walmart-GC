@@ -208,6 +208,7 @@ function App() {
     themeMode: "system",
     checkoutDark: true,
     detectBatchResults: false,
+    clipboardPermissionAttempted: false,
   });
   const preferences = useRef(settings);
   preferences.current = settings;
@@ -218,6 +219,8 @@ function App() {
   const [copyFeedback, setCopyFeedback] = useState("");
   const [detectedResults, setDetectedResults] = useState(null);
   const [reviewResults, setReviewResults] = useState(null);
+  const [reviewMode, setReviewMode] = useState("manual");
+  const [reviewOccupied, setReviewOccupied] = useState(false);
   const seenResults = useRef(new Set());
   
   // Balance Editor Form State
@@ -364,7 +367,7 @@ function App() {
     let cancelled = false;
     let reading = false;
     setDetectedResults(null);
-    if (!settings.detectBatchResults || !walletSnapshot || activePanel === 'detail' || balanceReviewOpen) return;
+    if (!settings.detectBatchResults || !walletSnapshot || (!balanceReviewOpen && activePanel === 'detail') || (balanceReviewOpen && (reviewMode !== 'batch' || reviewOccupied))) return;
     const profile = profileOf(walletSnapshot);
     if (profile.ledgerRecovery || profile.ledger?.application || !profile.ledger?.requests.some(r => r.state === 'pending')) return;
     async function detect() {
@@ -401,7 +404,7 @@ function App() {
     }
     window.addEventListener('focus', detect);
     return () => { cancelled = true; window.removeEventListener('focus', detect); };
-  }, [settings.detectBatchResults, walletSnapshot?.active, walletSnapshot?.contextGeneration, walletSnapshot && profileOf(walletSnapshot).ledger?.id, activePanel, balanceReviewOpen]);
+  }, [settings.detectBatchResults, walletSnapshot?.active, walletSnapshot?.contextGeneration, walletSnapshot && profileOf(walletSnapshot).ledger?.id, activePanel, balanceReviewOpen, reviewMode, reviewOccupied]);
 
   const getAppSyncSummaryState = () => {
     const pending = walletRef.current && profileOf(walletRef.current).pending.length;
@@ -619,6 +622,14 @@ function App() {
     };
     setSettings(nextSettings);
     saveSettings(nextSettings);
+  };
+
+  const requestClipboardPermission = () => {
+    const nextSettings = { ...settings, clipboardPermissionAttempted: true };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+    // Read only from this explicit gesture; discard whatever is on the clipboard.
+    try { navigator.clipboard?.readText()?.catch(() => {}); } catch { /* Manual paste remains available. */ }
   };
 
   const handleResetFilters = () => {
@@ -1054,11 +1065,23 @@ function App() {
     return <p role="status" className="p-4 text-m3-on-surface">Opening saved cards…</p>;
   }
 
+  const resultsNotice = detectedResults && (
+    <div role="status" className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+      <span>Copied Batch results found.</span>
+      <Button variant="text" onClick={() => { setReviewResults(detectedResults); setDetectedResults(null); setReviewMode("batch"); setBalanceReviewOpen(true); }}>Review</Button>
+      <button type="button" aria-label="Dismiss Batch results notification" onClick={() => setDetectedResults(null)}><X size={20} /></button>
+    </div>
+  );
+
   if (balanceReviewOpen) {
     return (
       <BalanceReview
         cards={cards}
         detectedResults={reviewResults}
+        resultsNotice={resultsNotice}
+        onModeChange={setReviewMode}
+        onOccupiedChange={setReviewOccupied}
+        onDetectedConsumed={() => setReviewResults(null)}
         walletSnapshot={walletSnapshot}
         readWallet={readWallet}
         commitWallet={commitWallet}
@@ -1068,6 +1091,8 @@ function App() {
           setTransferMutationError("");
           setBalanceReviewOpen(false);
           setReviewResults(null);
+          setReviewMode("manual");
+          setReviewOccupied(false);
         }}
         copyText={writeClipboardText}
         maskCardNumber={maskCardNumber}
@@ -1371,6 +1396,13 @@ function App() {
                       <span>Detect copied Batch results</span>
                       <Switch checked={settings.detectBatchResults} onChange={() => handleToggleSetting('detectBatchResults')} />
                     </label>
+
+                    {settings.detectBatchResults && !settings.clipboardPermissionAttempted && navigator.clipboard?.readText && navigator.permissions?.query && (
+                      <div className="px-2 text-sm text-m3-on-surface-variant">
+                        <p>Allow clipboard access for automatic detection. You can still paste results manually.</p>
+                        <Button variant="text" onClick={requestClipboardPermission}>Allow clipboard access</Button>
+                      </div>
+                    )}
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Hide Used Cards</span>
@@ -2098,13 +2130,7 @@ function App() {
         </Dialog>
       )}
 
-      {detectedResults && activePanel !== 'detail' && (
-        <div role="status" className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
-          <span>Copied Batch results found.</span>
-          <Button variant="text" onClick={() => { setReviewResults(detectedResults); setDetectedResults(null); setBalanceReviewOpen(true); }}>Review</Button>
-          <button type="button" aria-label="Dismiss Batch results notification" onClick={() => setDetectedResults(null)}><X size={20} /></button>
-        </div>
-      )}
+      {activePanel !== 'detail' && resultsNotice}
       {/* M3 Snackbar Toast */}
       {copyFeedback && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-xs font-bold px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4 min-w-[288px] max-w-sm pointer-events-none animate-snackbar">
