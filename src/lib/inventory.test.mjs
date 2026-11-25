@@ -263,6 +263,18 @@ test('same-day unchanged manual verification invalidates only its outstanding re
   assert.equal(profileOf(state).ledger.requests[1].state, 'pending');
 });
 
+test('leaving and reopening a compartment preserves its outstanding references while fencing old commands', async () => {
+  let state = sheetState();
+  const ledger = await makeLedger(state);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger }));
+  const oldContext = inventoryContext(state);
+  const originalProfile = state.active;
+  state = reduceInventory(state, command(state, 'use-unbound'));
+  state = reduceInventory(state, command(state, 'select-compartment', { target: originalProfile }));
+  assert.equal(profileOf(state).ledger.requests[0].state, 'pending');
+  assert.throws(() => reduceInventory(state, { id: crypto.randomUUID(), kind: 'discard-batch', ...oldContext, revision: profileOf(state).revision }), /context changed/);
+});
+
 test('Batch apply failure leaves all accepted observations and reference states together at previous commit', async () => {
   const { store, indexedDB } = fixture(raw([first]));
   await store.initialize();

@@ -371,7 +371,6 @@ export function reduceInventory(input, command) {
   } else if (command.kind === 'use-unbound') {
     state.contextGeneration++;
     editable(profile);
-    profile.ledger = invalidatedLedger(profile.ledger);
     state.active = 'unbound';
   } else if (command.kind === 'set-batch') {
     editable(profile);

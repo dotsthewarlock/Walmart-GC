@@ -61,6 +61,7 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
   await status.getByText('All',{exact:true}).click();await balance.getByText('All',{exact:true}).click();await quantity.getByText('5',{exact:true}).click();await page.getByLabel('Last checked').selectOption('older');await page.getByLabel('Days').selectOption('7');
   await page.getByRole('button',{name:'Exit',exact:true}).click();await page.reload();await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
   await expect(status.getByLabel('All')).toBeChecked();await expect(balance.getByLabel('All')).toBeChecked();await expect(quantity.getByLabel('5',{exact:true})).toBeChecked();await expect(page.getByLabel('Last checked')).toHaveValue('older');await expect(page.getByLabel('Days')).toHaveValue('7');
+  qa.mock.offline=true;
   await page.getByLabel('Last checked').selectOption('any');await expect(page.getByLabel('Days')).toBeDisabled();await expect(page.getByText('· 2 matching')).toBeVisible();await page.getByRole('button',{name:'Create batch (2)',exact:true}).click();
   await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
   const state=await snapshot(page),ledger=active(state).ledger;expect(ledger.requests).toHaveLength(2);
@@ -71,6 +72,7 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
   await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(86);
   await page.getByRole('button',{name:'Apply accepted results'}).click();await expect.poll(async()=>active(await snapshot(page)).ledger.requests.filter(r=>r.state==='applied').length).toBe(1);
   await expect.poll(async()=>active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(40);await expect(page.getByText(/1 outstanding/).first()).toBeVisible();
+  expect(active(await snapshot(page)).pending.some(op=>op.kind==='batch-verification')).toBe(true);
   await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();await expect(page.getByRole('button',{name:'Apply accepted results'})).toBeDisabled();await page.getByRole('button',{name:'Exit',exact:true}).click();
  });
  await test.step('offline compartments, selected CSV and credential-warned recovery download',async()=>{

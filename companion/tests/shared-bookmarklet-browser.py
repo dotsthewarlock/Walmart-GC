@@ -17,8 +17,6 @@ with sync_playwright() as p:
  page.locator('#discardLast').click();assert page.locator('#confirmDialog').evaluate('(d)=>d.open');page.locator('#confirmDialog [value=cancel]').click();assert '12.34' in page.locator('#history').inner_text()
  page.locator('#clearResults').click();assert page.locator('#confirmDialog').evaluate('(d)=>d.open');page.locator('#confirmDialog [value=cancel]').click();assert '12.34' in page.locator('#history').inner_text()
  page.locator('#clearResults').click();page.locator('#confirmDialog [value=confirm]').click();page.wait_for_function("!document.querySelector('#wmgc-helper-v01').shadowRoot.querySelector('#history').textContent.includes('12.34')")
- page.locator('#queueTab').click();page.locator('#detectClipboard').check();packet='WMGC-REQUEST\t1\nref\tcardNumber\tpin\n22222222-2222-4222-8222-222222222222\t0000000000002222\t0002';page.evaluate('(x)=>window.testClip=x',packet);page.evaluate("window.dispatchEvent(new Event('focus'))")
- page.wait_for_function("document.querySelector('#wmgc-helper-v01').shadowRoot.querySelector('#confirmDialog').open");page.locator('#confirmDialog [value=confirm]').click();page.wait_for_function("document.querySelector('#wmgc-helper-v01').shadowRoot.querySelector('#status').textContent.includes('1 added')")
- page.evaluate("window.dispatchEvent(new Event('focus'))");page.wait_for_timeout(300);assert not page.locator('#confirmDialog').evaluate('(d)=>d.open');assert not errors,errors
+ assert page.locator('#detectClipboard').count()==0;assert page.locator('#checkTab').count()==0;assert not errors,errors
  b.close()
 print('Shared bookmarklet: offline merchant fill, submission, verified result and wallet export PASS')

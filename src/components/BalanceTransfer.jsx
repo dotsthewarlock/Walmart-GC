@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { fetchWorkerJson } from "../lib/api";
 import { inventoryBytes, profileOf, inventoryContext, assertInventoryContext } from "../lib/inventory";
 import {
-  checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults, requireTransferContext,
+  checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults,
   sameTransferContext, selectTransferCards, transferRequestRows, readTransferPreferences, defaultTransferPreferences, transferPreferenceKey,
 } from "../lib/balanceTransfer";
 import { createTransferLedger, inventoryFingerprint, prepareTransferApplication } from "../lib/balanceTransferLedger";
@@ -103,24 +102,17 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!mounted.current) throw new Error("Batch was closed.");
   }
 
-  async function verifiedSession(fresh=true) {
+  async function verifiedSession() {
     getTransferWallet();
     const start = await readWallet();
     assertInventoryContext(start, inventoryContext(walletSnapshot));
-    let state=start,status;
-    if(fresh){
-      status=await fetchWorkerJson("/api/status", { cache: "no-store" });
-      ensureMounted();
-      assertInventoryContext(await readWallet(), inventoryContext(start));
-      state=await commitWallet({kind:"observe-session",...inventoryContext(start),status});
-    }
+    const state=start;
     const profile=profileOf(state);
     if(profile.ledgerRecovery)throw new Error("Discard the preserved interrupted Batch before continuing.");
-    if(fresh&&status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
-    // Preparation/preview only inspect the saved compartment. Export and apply
-    // still require live account and exact Sheet verification.
-    if(!fresh&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.sync?.status!=='connected'||profile.sheets?.status!=='ready'||profile.context.sheetId!==profile.sheets.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets.remoteSheetVersion))throw new Error("Load the matching verified Sheet before preparing a Batch.");
-    const context=fresh?requireTransferContext(status,{context:profile.context,remoteBase:profile.remoteBase,sheets:profile.sheets,sync:profile.sync}):{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
+    // The saved compartment, never a cached session, identifies local work.
+    // Synchronization independently verifies principal and Sheet ownership.
+    if(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.context.sheetId!==profile.sheets?.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync?.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets?.remoteSheetVersion)throw new Error("Load the matching verified Sheet before preparing a Batch.");
+    const context={sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
     if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
     const inventoryRaw = inventoryBytes(state);
     if (profile.ledger?.requests.some(r => r.state === "pending")) {
@@ -147,7 +139,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }
 
   async function createBatch() {
-    const session = await verifiedSession(false);
+    const session = await verifiedSession();
     const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
     if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
     const { selected } = selectTransferCards(session.profile.cards, preferences);
@@ -188,7 +180,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function importResults() {
     const results = parseTransferResults(packet);
-    const session = await verifiedSession(false);
+    const session = await verifiedSession();
     setPreview(buildPreview(session, results));
     setPacket("");
   }
@@ -221,7 +213,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
         <div>
           <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Create batch</h2>
             {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
-          <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
+          <p className="text-sm text-m3-on-surface-variant">Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
         </div>
         {recovering ? (
           <>
