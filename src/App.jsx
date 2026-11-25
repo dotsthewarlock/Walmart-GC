@@ -17,6 +17,8 @@ import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { SelectField } from './components/primitives/SelectField';
 import { BalanceReview } from './components/BalanceReview';
+import { parseTransferResults, previewTransferResults, requireTransferContext, sameTransferContext } from './lib/balanceTransfer';
+import { inventoryFingerprint } from './lib/balanceTransferLedger';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
@@ -205,6 +207,8 @@ function App() {
     sortMode: "balance-asc",
     themeMode: "system",
     checkoutDark: true,
+    detectBatchResults: false,
+    clipboardPermissionAttempted: false,
   });
   const preferences = useRef(settings);
   preferences.current = settings;
@@ -213,6 +217,11 @@ function App() {
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const [revealNumber, setRevealNumber] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [detectedResults, setDetectedResults] = useState(null);
+  const [reviewResults, setReviewResults] = useState(null);
+  const [reviewMode, setReviewMode] = useState("manual");
+  const [reviewOccupied, setReviewOccupied] = useState(false);
+  const seenResults = useRef(new Set());
   
   // Balance Editor Form State
   const [isEditingBalance, setIsEditingBalance] = useState(false);
@@ -353,6 +362,49 @@ function App() {
     if (sheetMutation.current) throw new Error("Wait for the current Sheet operation to finish.");
     return transferWallet.current;
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    let reading = false;
+    setDetectedResults(null);
+    if (!settings.detectBatchResults || !walletSnapshot || (!balanceReviewOpen && activePanel === 'detail') || (balanceReviewOpen && (reviewMode !== 'batch' || reviewOccupied))) return;
+    const profile = profileOf(walletSnapshot);
+    if (profile.ledgerRecovery || profile.ledger?.application || !profile.ledger?.requests.some(r => r.state === 'pending')) return;
+    async function detect() {
+      if (reading || document.visibilityState !== 'visible' || !navigator.permissions?.query || !navigator.clipboard?.readText) return;
+      reading = true;
+      try {
+        const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+        if (cancelled || permission.state !== 'granted' || !document.hasFocus()) return;
+        const text = await navigator.clipboard.readText();
+        const results = parseTransferResults(text);
+        const start = await readWallet();
+        assertInventoryContext(start, inventoryContext(walletSnapshot));
+        const current = profileOf(start), ledger = current.ledger;
+        if (!ledger || current.ledgerRecovery || ledger.application || !ledger.requests.some(r => r.state === 'pending')) return;
+        getTransferWallet();
+        const status = await fetchWorkerJson('/api/status', { cache: 'no-store' });
+        const context = requireTransferContext(status, { context: current.context, remoteBase: current.remoteBase, sheets: current.sheets, sync: current.sync });
+        if (current.context.kind !== 'sheet' || current.context.sheetId !== context.sheetId || !sameTransferContext(ledger.context, context)) return;
+        const pending = ledger.requests.filter(r => r.state === 'pending');
+        if ((await Promise.all(pending.map(async r => {
+          const card = current.cards.find(c => c.cardNumber === r.cardNumber);
+          return !card || (r.relevance && r.relevance.pinDigest !== await inventoryFingerprint(card.pin, ledger.id));
+        }))).some(Boolean)) return;
+        if (!previewTransferResults(ledger, current.cards, results).counts.accepted) return;
+        const fresh = await readWallet();
+        assertInventoryContext(fresh, inventoryContext(start));
+        if (profileOf(fresh).revision !== current.revision || cancelled || !document.hasFocus()) return;
+        const key = JSON.stringify([start.active, start.contextGeneration, ledger.id, results]);
+        if (seenResults.current.has(key)) return;
+        seenResults.current.add(key);
+        setDetectedResults({ results, context: inventoryContext(start) });
+      } catch { /* Clipboard and validation failures leave manual paste available. */ }
+      finally { reading = false; }
+    }
+    window.addEventListener('focus', detect);
+    return () => { cancelled = true; window.removeEventListener('focus', detect); };
+  }, [settings.detectBatchResults, walletSnapshot?.active, walletSnapshot?.contextGeneration, walletSnapshot && profileOf(walletSnapshot).ledger?.id, activePanel, balanceReviewOpen, reviewMode, reviewOccupied]);
 
   const getAppSyncSummaryState = () => {
     const pending = walletRef.current && profileOf(walletRef.current).pending.length;
@@ -570,6 +622,14 @@ function App() {
     };
     setSettings(nextSettings);
     saveSettings(nextSettings);
+  };
+
+  const requestClipboardPermission = () => {
+    const nextSettings = { ...settings, clipboardPermissionAttempted: true };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+    // Read only from this explicit gesture; discard whatever is on the clipboard.
+    try { navigator.clipboard?.readText()?.catch(() => {}); } catch { /* Manual paste remains available. */ }
   };
 
   const handleResetFilters = () => {
@@ -1005,10 +1065,23 @@ function App() {
     return <p role="status" className="p-4 text-m3-on-surface">Opening saved cards…</p>;
   }
 
+  const resultsNotice = detectedResults && (
+    <div role="status" className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+      <span>Copied Batch results found.</span>
+      <Button variant="text" onClick={() => { setReviewResults(detectedResults); setDetectedResults(null); setReviewMode("batch"); setBalanceReviewOpen(true); }}>Review</Button>
+      <button type="button" aria-label="Dismiss Batch results notification" onClick={() => setDetectedResults(null)}><X size={20} /></button>
+    </div>
+  );
+
   if (balanceReviewOpen) {
     return (
       <BalanceReview
         cards={cards}
+        detectedResults={reviewResults}
+        resultsNotice={resultsNotice}
+        onModeChange={setReviewMode}
+        onOccupiedChange={setReviewOccupied}
+        onDetectedConsumed={() => setReviewResults(null)}
         walletSnapshot={walletSnapshot}
         readWallet={readWallet}
         commitWallet={commitWallet}
@@ -1017,6 +1090,9 @@ function App() {
           restoreReviewFocus.current = true;
           setTransferMutationError("");
           setBalanceReviewOpen(false);
+          setReviewResults(null);
+          setReviewMode("manual");
+          setReviewOccupied(false);
         }}
         copyText={writeClipboardText}
         maskCardNumber={maskCardNumber}
@@ -1315,6 +1391,18 @@ function App() {
                       </div>
                       <Switch checked={settings.checkoutDark} onChange={() => handleToggleSetting('checkoutDark')} />
                     </label>
+
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Detect copied Batch results</span>
+                      <Switch checked={settings.detectBatchResults} onChange={() => handleToggleSetting('detectBatchResults')} />
+                    </label>
+
+                    {settings.detectBatchResults && !settings.clipboardPermissionAttempted && navigator.clipboard?.readText && navigator.permissions?.query && (
+                      <div className="px-2 text-sm text-m3-on-surface-variant">
+                        <p>Allow clipboard access for automatic detection. You can still paste results manually.</p>
+                        <Button variant="text" onClick={requestClipboardPermission}>Allow clipboard access</Button>
+                      </div>
+                    )}
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Hide Used Cards</span>
@@ -2042,6 +2130,7 @@ function App() {
         </Dialog>
       )}
 
+      {activePanel !== 'detail' && resultsNotice}
       {/* M3 Snackbar Toast */}
       {copyFeedback && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-xs font-bold px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4 min-w-[288px] max-w-sm pointer-events-none animate-snackbar">
