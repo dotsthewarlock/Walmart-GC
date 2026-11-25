@@ -103,7 +103,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     const profile = profileOf(state);
     if (profile.ledgerRecovery) throw new Error("Discard the preserved interrupted Batch before continuing.");
     if(status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
-    const context = requireTransferContext(status, { sheets: profile.sheets, sync: profile.sync });
+    const context = requireTransferContext(status, { context: profile.context, remoteBase: profile.remoteBase, sheets: profile.sheets, sync: profile.sync });
     if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
     const inventoryRaw = inventoryBytes(state);
     if (profile.ledger?.requests.some(r => r.state === "pending")) {

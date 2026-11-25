@@ -24,7 +24,7 @@ async function setup(context,remote,legacy=[cardA,cardB]){
   if(!url.pathname.startsWith('/api/'))return route.continue();
   requests.push({path:url.pathname,method:request.method()});
   if(mock.offline)return route.abort('internetdisconnected');
-  if(url.pathname==='/api/status')return route.fulfill({json:{...mock,ownershipVerified:true,syncProtocol:protocol,coordinationAvailable:true,schemaCapability,sheetVersion:(await remote.read()).version,email:'qa@example.invalid'}});
+  if(url.pathname==='/api/status')return route.fulfill({json:{...mock,ownershipVerified:true,syncProtocol:protocol,coordinationAvailable:true,schemaCapability,sheetVersion:'',email:'qa@example.invalid'}});
   const body=request.postDataJSON();
   if(url.pathname!=='/api/sync'&&url.pathname!=='/api/sheet/ensure'){blocked.push(url.pathname);return route.fulfill({status:403,json:{error:'Unsupported synthetic API'}});}
   if(mock.hold)await mock.hold;
