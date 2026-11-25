@@ -13,10 +13,16 @@ import { SelectField } from "./primitives/SelectField";
 import { TextArea } from "./primitives/TextArea";
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
-const choices = [
-  ["all", "All matching cards"],
-  ...[5, 10, 20, 30].map((count) => [String(count), `Up to ${count} cards`]),
-];
+function Segments({ label, value, choices, onChange, disabled, detail }) {
+  return <fieldset disabled={disabled} className="min-w-0">
+    <legend className="mb-1 text-sm font-medium">{label} {detail && <span className="font-normal text-m3-on-surface-variant">{detail}</span>}</legend>
+    <div className="flex overflow-hidden rounded-full border border-m3-outline">
+      {choices.map(([option, text]) => <label key={option} className={`flex min-h-[48px] min-w-0 flex-1 cursor-pointer items-center justify-center border-r border-m3-outline px-1 text-sm last:border-r-0 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-m3-primary ${value === option ? "bg-m3-secondary-container text-m3-on-secondary-container" : "text-m3-on-surface"}`}>
+        <input className="sr-only" type="radio" name={label} value={option} checked={value === option} onChange={() => onChange(option)} />{text}
+      </label>)}
+    </div>
+  </fieldset>;
+}
 
 function savedBatch(state) {
   if (!state) return {};
@@ -207,7 +213,8 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     <>
       <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
-          <h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Batch review</h2>
+          <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Create batch</h2>
+            {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
           <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
         </div>
         {recovering ? (
@@ -223,42 +230,27 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
           </>
         ) : (
           <>
-            <label className="flex flex-col gap-1 text-sm font-medium">
-              Quantity
-              <SelectField disabled={busy} value={preferences.quantity} onChange={(event) => setPreference("quantity", event.target.value)}>
-                {choices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </SelectField>
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" checked={preferences.includeUsed} disabled={busy} onChange={(event) => setPreference("includeUsed", event.target.checked)}
-                className="h-5 w-5 accent-m3-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary" />
-              Include cards marked used ({selectionCounts.usedCount})
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" checked={preferences.includeZero} disabled={busy} onChange={(event) => setPreference("includeZero", event.target.checked)}
-                className="h-5 w-5 accent-m3-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary" />
-              Include $0 balance cards ({selectionCounts.zeroCount})
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-medium">
-              Last checked
-              <SelectField disabled={busy} value={preferences.checked} onChange={(event) => setPreference("checked", event.target.value)}>
-                <option value="any">Any time</option><option value="never">Never checked</option>
-                <option value="older">At least N days ago</option><option value="recent">Within the last N days</option>
-              </SelectField>
-            </label>
-            {(preferences.checked === "older" || preferences.checked === "recent") && (
-              <label className="flex flex-col gap-1 text-sm font-medium">
-                Days
-                <SelectField disabled={busy} value={preferences.days} onChange={(event) => setPreference("days", Number(event.target.value))}>
-                  {[1, 3, 7, 30, 90, 180].map((days) => <option key={days} value={days}>{days} {days === 1 ? "day" : "days"}</option>)}
+            <Segments label="Status" value={preferences.status} disabled={busy} onChange={v => setPreference("status", v)} choices={[["active", "Active"], ["used", "Used"], ["all", "All"]]} />
+            <Segments label="Balance" value={preferences.balance} disabled={busy} onChange={v => setPreference("balance", v)} choices={[["yes", "Yes"], ["zero", "$0"], ["all", "All"]]} />
+            <div className="grid grid-cols-[2fr_1fr] gap-2">
+              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">Last checked
+                <SelectField disabled={busy} value={preferences.checked} onChange={event => setPreference("checked", event.target.value)}>
+                  <option value="any">Any time</option><option value="never">Never</option><option value="older">At least</option><option value="recent">Within</option>
                 </SelectField>
               </label>
-            )}
-            <p className="text-sm text-m3-on-surface-variant" role="status">
-              {selectionCounts.matching} matching · {selectionCounts.selected.length} selected
-            </p>
-            <Button variant={ledger ? "outlined" : "filled"} disabled={busy || !selectionCounts.selected.length}
-              onClick={() => run(createBatch)}>{ledger ? "Replace batch" : "Create batch"}</Button>
+              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">Days
+                <SelectField disabled={busy || !["older", "recent"].includes(preferences.checked)} value={preferences.days} onChange={event => setPreference("days", Number(event.target.value))}>
+                  {[1, 3, 7, 30, 90, 180].map(days => <option key={days} value={days}>{days} {days === 1 ? "day" : "days"}</option>)}
+                </SelectField>
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 text-sm font-medium">Sort by
+              <SelectField disabled={busy} value={preferences.sort} onChange={event => setPreference("sort", event.target.value)}>
+                <option value="checked-oldest">Checked oldest</option><option value="checked-newest">Checked newest</option><option value="added-oldest">Added oldest</option><option value="added-newest">Added newest</option><option value="balance-highest">Balance highest</option><option value="balance-lowest">Balance lowest</option>
+              </SelectField>
+            </label>
+            <Segments label="Quantity" detail={`· ${selectionCounts.matching} matching`} value={preferences.quantity} disabled={busy} onChange={v => setPreference("quantity", v)} choices={[["1", "1"], ["5", "5"], ["20", "20"], ["50", "50"], ["all", "All"]]} />
+            <Button disabled={busy || !selectionCounts.selected.length} onClick={() => run(createBatch)}>Create batch ({selectionCounts.selected.length})</Button>
           </>
         )}
       </Card>
