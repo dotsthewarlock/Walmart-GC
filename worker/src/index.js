@@ -47,7 +47,12 @@ export default {
       if (error instanceof HttpError) {
         return withCors(request, jsonResponse(error.body, error.status), env);
       }
-      return withCors(request, jsonResponse({ ok: false, error: "server_error", message: safeErrorMessage(error) }, 500), env);
+      const message=safeErrorMessage(error);
+      if(/\bKV\b/i.test(message)&&/limit|quota|429/i.test(message)){
+        const daily=/daily|per day|for the day/i.test(message),now=Date.now(),retryAt=daily?(Math.floor(now/86400000)+1)*86400000:now+900000;
+        return withCors(request,jsonResponse({ok:false,error:"Synchronization temporarily limited. Local cards remain saved.",code:daily?"kv_daily_limit":"kv_rate_limit",retryAt},429,{"Retry-After":String(Math.max(1,Math.ceil((retryAt-now)/1000)))}),env);
+      }
+      return withCors(request, jsonResponse({ ok: false, error: "server_error", message }, 500), env);
     }
   },
 };
