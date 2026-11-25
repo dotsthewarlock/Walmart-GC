@@ -6,7 +6,7 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 ## Current development
 
 - Repository: dotsthewarlock/Walmart-GC.
-- Production main: PR #231 merged as `56e20bce60149c661cbfb8d16303b6bbf13f4050`.
+- PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal); its full CI passed. Worker version last independently observed was `01b61767-abad-41e8-a3de-137a51fc7d8f`, with activation false. Do not confuse merge with production deployment.
 - Consolidated V0.3 source: `feature/sync-foundation` at `a73222a`.
 - V0.3A.1 reviewed foundation: `819eef8c9536042fceabbf1f9b41d2d8f0cf234f`.
 - Reviewed release-readiness candidate: `4acbf6dfa2a241ed0294d89018a9b1d66912344c`.
@@ -26,11 +26,11 @@ per-Sheet coordination, conservative automatic reconciliation and fresh merchant
 verification for balance uncertainty. Unbound/older unverified inventories remain
 separate and recoverable; binding never automatically copies them to an account.
 
-Automatic synchronization coalesces completed actions around two seconds and
-checks the foreground about every minute, on launch, foreground and reconnect.
-Pending work and in-flight identities survive closure. Closed-page execution is
-not promised. Explicit controls use the same protected protocol; legacy whole-
-inventory writes are fenced. Shared maintenance is required before direct edits.
+Lean maintenance candidate `fix/lean-sync-efficiency` follows the bounded roadmap:
+change-driven sync, no idle polling, manual mode, no-op suppression, local Batch
+preparation/preview and bounded retry/timeout/quota recovery. Validation and release
+remain distinct from implementation. Pending work and in-flight identities survive
+closure; the existing protected protocol, shared maintenance and recovery remain.
 
 ## Acceptance and deployment context
 
