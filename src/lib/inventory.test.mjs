@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { migrateLegacy, openInventory, profileOf, reduceInventory, inventoryBytes, requireSafeSheetWrite } from './inventory.js';
+import { migrateLegacy, openInventory, profileOf, reduceInventory, inventoryBytes, requireSafeSheetWrite, inventoryContext } from './inventory.js';
 import { bundledSampleGiftCards } from './cards.js';
 import { createTransferLedger, prepareTransferApplication } from './balanceTransferLedger.js';
 import { previewTransferResults, selectTransferCards } from './balanceTransfer.js';
@@ -12,7 +12,7 @@ const second = { ...first, cardNumber: '6300000000020042' };
 const raw = (cards = [first], ledger = null) => ({ cards: JSON.stringify(cards), ledger, sheets: '{"spreadsheetId":"untrusted"}', sync: '{"status":"connected"}' });
 const source = bytes => ({ getItem: key => bytes[{ 'walmartGc.cards': 'cards', 'walmartGc.balanceTransfer': 'ledger', 'walmartGc.directSheets': 'sheets', 'walmartGc.sync': 'sync' }[key]] });
 let sequence = 0;
-const command = (state, kind, values = {}) => ({ id: `operation-${++sequence}`, profile: state.active, kind, ...values });
+const command = (state, kind, values = {}) => ({ id: `operation-${++sequence}`, ...inventoryContext(state), kind, ...values });
 const patch = (state, cardNumber, values, version = profileOf(state).versions[cardNumber]) => command(state, 'patch', { cardNumber, version, patch: values });
 const fixture = (bytes = raw()) => {
   const indexedDB = syntheticIndexedDB();
@@ -268,4 +268,163 @@ test('Batch apply failure leaves all accepted observations and reference states 
   await assert.rejects(store.commit(command(state, 'apply-batch', { revision: profileOf(state).revision, ledgerId: ledger.id,
     observations: [observation], items: preview.items, now, inventoryDigest: prepared.finalized.inventoryDigest })), /storage failure/);
   assert.deepEqual(await store.read(), state);
+});
+
+test('offline compartment selection retains separate inventories, outboxes and Batch recovery across restart', async () => {
+  const { store, indexedDB } = fixture();
+  let state = await store.initialize();
+  state = await store.commit(command(state, 'sheet-import', { revision: 0, cards: [second], sheetId: 'offline-sheet', sheetVersion: 'v1' }));
+  state = await store.commit(patch(state, second.cardNumber, { notes: 'saved Sheet edit' }));
+  const savedSheet = structuredClone(profileOf(state));
+  state = await store.commit(command(state, 'select-compartment', { target: 'unbound' }));
+  assert.equal(profileOf(state).cards[0].cardNumber, first.cardNumber);
+  assert.equal(profileOf(state).pending.length, 1);
+  assert.equal(state.profiles['sheet:offline-sheet'].pending.length, 1);
+  state = await store.commit(command(state, 'select-compartment', { target: 'sheet:offline-sheet' }));
+  assert.deepEqual(profileOf(state).cards, savedSheet.cards);
+  assert.deepEqual(profileOf(state).pending, savedSheet.pending);
+  assert.equal(profileOf(state).context.ownershipVerified, false);
+  await store.close();
+  const reopened = openInventory({ indexedDB, name: 'synthetic', storage: source(raw()) });
+  assert.deepEqual(await reopened.initialize(), state);
+  await assert.rejects(reopened.commit(command(state, 'select-compartment', { target: 'missing' })), /unavailable/);
+  const damaged = migrateLegacy(raw([first], '{broken'));
+  assert.doesNotThrow(() => reduceInventory(damaged, command(damaged, 'select-compartment', { target: 'unbound' })));
+});
+
+test('CSV backups address a captured compartment and recovery export retains exact original and quarantined credentials', async () => {
+  const { savedCompartments, compartmentCards, recoveryExport, recoveryWarning } = await import('./inventory.js');
+  const { cardsToCsv, parseRawCardData } = await import('./csv.js');
+  const bytes = raw([first, { ...second, pin: '1111' }, { ...second, pin: '2222' }], '{broken');
+  bytes.cards = ' \n' + bytes.cards;
+  const migrated = migrateLegacy(bytes);
+  const initial = reduceInventory(migrated, command(migrated, 'discard-batch', { revision: 0 }));
+  const state = reduceInventory(initial, command(initial, 'sheet-import', { revision: profileOf(initial).revision, cards: [second], sheetId: 'backup-sheet', sheetVersion: 'v1' }));
+  assert.equal(savedCompartments(state).length, 2);
+  assert.match(savedCompartments(state)[1].label, /ownership unverified/);
+  assert.deepEqual(parseRawCardData(cardsToCsv(compartmentCards(state, 'unbound'))).parsedCards, profileOf(initial).cards);
+  assert.equal(parseRawCardData(cardsToCsv(compartmentCards(state, 'sheet:backup-sheet'))).parsedCards[0].cardNumber, second.cardNumber);
+  assert.throws(() => compartmentCards(state, 'missing'), /unavailable/);
+  const exported = JSON.parse(recoveryExport(state));
+  assert.match(recoveryWarning, /contain card credentials/);
+  assert.equal(exported.warning, recoveryWarning);
+  assert.deepEqual(exported.wallet, JSON.parse(JSON.stringify(state)));
+  assert.equal(exported.wallet.migration.cards, bytes.cards);
+  assert.deepEqual(exported.wallet.quarantine.filter(item => item.kind === 'legacy-card').map(item => item.record.pin), ['1111', '2222']);
+  assert.equal(exported.wallet.migration.ledger, '{broken');
+  assert.equal(profileOf(state).cards.length, 1); // No ambiguous records merged.
+});
+
+test('persistent generations reject stale editors and responses after switching away and back, including across connections', async () => {
+  const { assertInventoryContext } = await import('./inventory.js');
+  const { store, indexedDB } = fixture();
+  let state = await store.initialize();
+  state = await store.commit(command(state, 'sheet-import', { revision: 0, cards: [second], sheetId: 'generation-sheet', sheetVersion: 'v1' }));
+  const stale = state;
+  const tab = openInventory({ indexedDB, name: 'synthetic', storage: source(raw()) });
+  state = await tab.commit(command(state, 'select-compartment', { target: 'unbound' }));
+  state = await tab.commit(command(state, 'select-compartment', { target: stale.active }));
+  assert.equal(state.active, stale.active);
+  assert.equal(profileOf(state).versions[second.cardNumber], profileOf(stale).versions[second.cardNumber]);
+  assert.throws(() => assertInventoryContext(state, inventoryContext(stale)), /context changed/);
+  const requests = [
+    patch(stale, second.cardNumber, { notes: 'obsolete' }),
+    command(stale, 'manual-verification', { cardNumber: second.cardNumber, version: 1, observation: { observedBalance: 90, checkedAt: '2026-11-25T00:01:00.000Z' } }),
+    command(stale, 'csv-recovery', { revision: profileOf(stale).revision, cards: [first] }),
+    command(stale, 'observe-session', { status: { authenticated: false } }),
+    command(stale, 'sheet-import', { revision: profileOf(stale).revision, cards: [], sheetId: 'wrong-sheet', sheetVersion: 'v2' }),
+    command(stale, 'discard-batch', { revision: profileOf(stale).revision }),
+  ];
+  for (const request of requests) await assert.rejects(store.commit(request), /context changed/);
+  assert.deepEqual(await store.read(), state);
+  await store.close();
+  const reopened = openInventory({ indexedDB, name: 'synthetic', storage: source(raw()) });
+  assert.equal((await reopened.initialize()).contextGeneration, state.contextGeneration);
+  await assert.rejects(reopened.commit(patch(stale, second.cardNumber, { notes: 'still stale after restart' })), /context changed/);
+});
+
+test('new authentication/Sheet request epochs reject delayed success and failure contexts without clearing pending work', async () => {
+  const { assertInventoryContext } = await import('./inventory.js');
+  const { store } = fixture();
+  let state = await store.initialize();
+  state = await store.commit(command(state, 'begin-context'));
+  const firstRequest = inventoryContext(state);
+  let release;
+  const delayed = new Promise(resolve => { release = resolve; }).then(async () => {
+    assertInventoryContext(await store.read(), firstRequest);
+    return store.commit({ id: 'delayed-status', kind: 'observe-session', ...firstRequest, status: { authenticated: true } });
+  });
+  const pending = structuredClone(profileOf(state).pending);
+  state = await store.commit(command(state, 'begin-context'));
+  release();
+  await assert.rejects(delayed, /context changed/);
+  assert.throws(() => assertInventoryContext(state, firstRequest), /context changed/); // Same guard used before error setters.
+  assert.deepEqual(profileOf(await store.read()).pending, pending);
+  assert.doesNotThrow(() => assertInventoryContext(state, inventoryContext(state)));
+});
+
+test('migration IDs are globally namespaced, stable after failed inventory transaction and independent of later legacy bytes', async () => {
+  const bytes = raw();
+  const indexedDB = syntheticIndexedDB();
+  let seed;
+  indexedDB.beforeComplete = ({ key, proposed }) => {
+    if (key === 'migration-seed' && proposed) { seed = proposed; indexedDB.failNextWrite = true; }
+  };
+  const store = openInventory({ indexedDB, storage: source(bytes), name: 'retry-migration' });
+  await assert.rejects(store.initialize(), /storage failure/);
+  assert.equal(await store.read(), undefined);
+  assert.match(seed.id, /^[0-9a-f-]{36}$/);
+  indexedDB.beforeComplete = null;
+  bytes.cards = JSON.stringify([second]);
+  await store.close();
+  const restarted = openInventory({ indexedDB, storage: source(bytes), name: 'retry-migration' });
+  const state = await restarted.initialize();
+  const id = profileOf(state).pending[0].id;
+  assert.equal(id, `migration:${seed.id}:0`);
+  assert.equal(profileOf(state).cards[0].cardNumber, first.cardNumber);
+  assert.equal(state.quarantine.at(-1).raw.cards, bytes.cards);
+  assert.equal(profileOf(await restarted.initialize()).pending[0].id, id);
+  const independent = fixture(raw());
+  const other = await independent.store.initialize();
+  assert.notEqual(profileOf(other).pending[0].id, id);
+});
+
+test('existing development migration IDs upgrade atomically without changing cards, evidence or pending operation content', async () => {
+  const indexedDB = syntheticIndexedDB();
+  const request = indexedDB.open('older-wallet', 1);
+  const db = await new Promise(resolve => { request.onsuccess = () => resolve(request.result); });
+  const older = migrateLegacy(raw());
+  delete older.contextGeneration;
+  delete older.migrationOperationNamespace;
+  profileOf(older).pending[0].id = 'migration:0';
+  await new Promise(resolve => { const tx = db.transaction('state', 'readwrite'); tx.objectStore('state').get('wallet').onsuccess = () => tx.objectStore('state').put(older, 'wallet'); tx.oncomplete = resolve; });
+  const store = openInventory({ indexedDB, name: 'older-wallet', storage: source(raw()) });
+  indexedDB.failNextWrite = true;
+  await assert.rejects(store.initialize(), /storage failure/);
+  assert.deepEqual(await store.read(), older);
+  const upgraded = await store.initialize();
+  assert.match(profileOf(upgraded).pending[0].id, /^migration:[0-9a-f-]{36}:0$/);
+  assert.deepEqual(profileOf(upgraded).cards, profileOf(older).cards);
+  assert.deepEqual(upgraded.quarantine, older.quarantine);
+  const expected = structuredClone(profileOf(older).pending);
+  expected[0].id = profileOf(upgraded).pending[0].id;
+  assert.deepEqual(profileOf(upgraded).pending, expected);
+  assert.deepEqual(await store.initialize(), upgraded);
+});
+
+test('UI advertises paused Sheet writes and wires per-compartment and credential recovery exports without destructive prompts', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8');
+  const batch = await readFile(new URL('../components/BalanceTransfer.jsx', import.meta.url), 'utf8');
+  const manual = await readFile(new URL('../components/BalanceReview.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(app + batch + manual, /Google sync on|Sync on|Sync succeeded|Syncing…|until you export|use Export Sheet in Settings|Downloaded a CSV|replaces the card rows|overwrites this browser session/);
+  assert.match(app, /Sheet writes are paused during this development stage/);
+  assert.match(app, /onChange=\{event => handleSelectCompartment\(event.target.value\)\}/);
+  assert.match(app, /handleExportCsv\(undefined, walletSnapshot.active\)/);
+  assert.match(app, /window.confirm\(recoveryWarning\)/);
+  assert.match(app, /recoveryExport\(await readWallet\(\)\)/);
+  assert.match(app, /const csvContent = cardsToCsv\(compartmentCards\(saved, key\)\)/);
+  assert.match(app, /if \(!await responseIsCurrent\(context\)\) return/);
+  assert.match(batch, /assertInventoryContext\(await readWallet\(\), prior.context\)/);
+  assert.throws(requireSafeSheetWrite, /intentionally paused during this development stage/);
 });

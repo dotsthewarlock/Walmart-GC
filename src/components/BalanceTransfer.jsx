@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { fetchWorkerJson } from "../lib/api";
-import { inventoryBytes, profileOf } from "../lib/inventory";
+import { inventoryBytes, profileOf, inventoryContext, assertInventoryContext } from "../lib/inventory";
 import {
   checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults, requireTransferContext,
   sameTransferContext, selectTransferCards, transferRequestRows,
@@ -56,6 +56,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }, []);
 
   useEffect(() => { setBatch(savedBatch(walletSnapshot)); }, [walletSnapshot]);
+  useEffect(() => { setPreview(null); setPacket(""); }, [walletSnapshot.active, walletSnapshot.contextGeneration]);
 
   useEffect(() => {
     if (preview) {
@@ -94,10 +95,11 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function verifiedSession() {
     getTransferWallet();
     const start = await readWallet();
+    assertInventoryContext(start, inventoryContext(walletSnapshot));
     const status = await fetchWorkerJson("/api/status", { cache: "no-store" });
     ensureMounted();
-    if ((await readWallet()).active !== start.active) throw new Error("Inventory context changed.");
-    const state = await commitWallet({ kind: "observe-session", profile: start.active, status });
+    assertInventoryContext(await readWallet(), inventoryContext(start));
+    const state = await commitWallet({ kind: "observe-session", ...inventoryContext(start), status });
     const profile = profileOf(state);
     if (profile.ledgerRecovery) throw new Error("Discard the preserved interrupted Batch before continuing.");
     const context = requireTransferContext(status, { sheets: profile.sheets, sync: profile.sync });
@@ -106,7 +108,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (profile.ledger?.requests.some(r => r.state === "pending")
         && (profile.ledger.inventoryDigest !== await inventoryFingerprint(inventoryRaw, profile.ledger.id)
           || !sameTransferContext(profile.ledger.context, context))) {
-      await commitWallet({ kind: "invalidate-batch", profile: state.active });
+      await commitWallet({ kind: "invalidate-batch", ...inventoryContext(state) });
       throw new Error("Saved cards changed. Create a new Batch.");
     }
     const session = { state, profile, ledger: profile.ledger, context, inventoryRaw, previewCards: profile.cards };
@@ -118,6 +120,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     ensureMounted();
     getTransferWallet();
     const current = await readWallet();
+    assertInventoryContext(current, inventoryContext(session.state));
     if (current.active !== session.state.active || profileOf(current).revision !== session.profile.revision) {
       throw new Error("Inventory or Sheet context changed. Preview again.");
     }
@@ -129,7 +132,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
     const { selected } = selectTransferCards(session.profile.cards, selection);
     const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw);
-    await commitWallet({ kind: "set-batch", profile: session.state.active, revision: session.profile.revision, ledger });
+    await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
     setPacket("");
     setMessage(`Batch ready. ${selected.length} requests saved on this device.`);
@@ -149,7 +152,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function discardBatch() {
     const displayed = walletSnapshot;
     if (!window.confirm("Discard this Batch and its outstanding request references? Saved cards and archived recovery evidence will be preserved.")) return;
-    await commitWallet({ kind: "discard-batch", profile: displayed.active, revision: profileOf(displayed).revision });
+    await commitWallet({ kind: "discard-batch", ...inventoryContext(displayed), revision: profileOf(displayed).revision });
     setPreview(null);
     setPacket("");
     setMessage("Batch discarded. Recovery evidence remains preserved.");
@@ -160,7 +163,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (session.ledger.application) throw new Error("Resolve the interrupted application first.");
     const now = Date.now();
     return { ...previewTransferResults(session.ledger, session.previewCards, results, now),
-      results, now, ledgerRaw: JSON.stringify(session.ledger), inventoryRaw: session.inventoryRaw };
+      context: inventoryContext(session.state), results, now, ledgerRaw: JSON.stringify(session.ledger), inventoryRaw: session.inventoryRaw };
   }
 
   async function importResults() {
@@ -173,6 +176,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function applyResults() {
     const prior = preview;
     if (!prior?.counts.accepted) return;
+    assertInventoryContext(await readWallet(), prior.context);
     const session = await verifiedSession();
     const fresh = buildPreview(session, prior.results);
     if (prior.ledgerRaw !== fresh.ledgerRaw || prior.inventoryRaw !== fresh.inventoryRaw
@@ -183,11 +187,11 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     }
     const accepted = fresh.items.filter(item => item.outcome === "accepted");
     const prepared = await prepareTransferApplication(session.ledger, fresh.candidate, accepted);
-    await commitWallet({ kind: "apply-batch", profile: session.state.active, revision: session.profile.revision,
+    await commitWallet({ kind: "apply-batch", ...inventoryContext(session.state), revision: session.profile.revision,
       ledgerId: session.ledger.id, observations: fresh.results, items: fresh.items, now: fresh.now,
       inventoryDigest: prepared.finalized.inventoryDigest });
     setPreview(null);
-    setMessage(`Saved ${accepted.length} locally. Sheet writes remain paused until account binding is supported.`);
+    setMessage(`Saved ${accepted.length} locally. Sheet writes are paused during this development stage.`);
   }
 
   const recovering = Boolean(batch.error || ledger?.application);
@@ -196,7 +200,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
           <h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Batch review</h2>
-          <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device until you export.</p>
+          <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device. CSV backup is available; Sheet writes are paused.</p>
         </div>
         {recovering ? (
           <>

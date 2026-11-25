@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { createBalanceReviewQueue, parseVerifiedBalance } from "../lib/balanceReview";
-import { profileOf } from "../lib/inventory";
+import { profileOf, inventoryContext } from "../lib/inventory";
 import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { TextField } from "./primitives/TextField";
@@ -36,7 +36,7 @@ export function BalanceReview({ onExit, ...props }) {
 function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, maskCardNumber }) {
   const [queue] = useState(() => createBalanceReviewQueue(cards));
   const [initialVersions] = useState(() => ({ ...profileOf(walletSnapshot).versions }));
-  const [initialProfile] = useState(walletSnapshot.active);
+  const [initialContext] = useState(() => inventoryContext(walletSnapshot));
   const [position, setPosition] = useState(0);
   const [saved, setSaved] = useState(0);
   const [amount, setAmount] = useState("");
@@ -80,7 +80,7 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
     }
     saving.current = true;
     try {
-      await commitWallet({ kind: "manual-verification", profile: initialProfile,
+      await commitWallet({ kind: "manual-verification", ...initialContext,
         cardNumber: card.cardNumber, version: initialVersions[card.cardNumber],
         observation: { observedBalance: verifiedBalance, checkedAt: pendingObservation.current.checkedAt.toISOString() } });
       setSaved((count) => count + 1);
@@ -196,7 +196,7 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
         )}
         {queue.length > 0 && (
           <p role="status" className="text-sm text-m3-on-surface-variant">
-            {saved ? "Saved on this device." : "Review saves on this device."} To save to Google Sheets, use Export Sheet in Settings.
+            {saved ? "Saved on this device." : "Review saves on this device."} Sheet writes are paused during this development stage. Use CSV backup in Settings.
           </p>
         )}
     </>

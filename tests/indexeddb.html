@@ -7,7 +7,7 @@
 <button id="run">Run checks</button> <button id="reload" disabled>Reload and verify</button>
 <pre id="result" role="status"></pre>
 <script type="module">
-import { openInventory, profileOf, operationId, inventoryBytes } from '../src/lib/inventory.js';
+import { openInventory, profileOf, operationId, inventoryBytes, inventoryContext, assertInventoryContext, recoveryExport, savedCompartments, compartmentCards } from '../src/lib/inventory.js';
 import { createTransferLedger, prepareTransferApplication } from '../src/lib/balanceTransferLedger.js';
 import { selectTransferCards, previewTransferResults } from '../src/lib/balanceTransfer.js';
 
@@ -20,7 +20,7 @@ const second = { ...first,cardNumber:'6300000000020042' };
 const bytes = { 'walmartGc.cards':JSON.stringify([first,second]),'walmartGc.balanceTransfer':null,'walmartGc.directSheets':null,'walmartGc.sync':null };
 const storage = { getItem:key => bytes[key] };
 const checkpointKey = 'gc-sync-foundation-native-checkpoint';
-const op = (state,kind,details={}) => ({ id:operationId(),profile:state.active,kind,...details });
+const op = (state,kind,details={}) => ({ id:operationId(),...inventoryContext(state),kind,...details });
 const patch = (state,number,notes) => op(state,'patch',{ action:'set-notes',cardNumber:number,version:profileOf(state).versions[number],patch:{notes} });
 let abortNextWrite = false;
 let completedWrite = false;
@@ -77,6 +77,7 @@ document.querySelector('#run').onclick=async()=>{
     await Promise.all([a.initialize(),b.initialize()]);
     let state=await a.read();
     equal(state.migration.cards,bytes['walmartGc.cards']);equal(profileOf(state).pending.length,2);
+    if(!/^migration:[0-9a-f-]{36}:0$/.test(profileOf(state).pending[0].id))throw Error('Missing unique migration namespace');
     equal(profileOf(state).context.principal,null);log('PASS migration retains exact source, pending operations and unbound context');
     const initial=state;
     completedWrite=false;
@@ -113,6 +114,17 @@ document.querySelector('#run').onclick=async()=>{
     equal(await a.commit(apply),state);
     equal(previewTransferResults(profileOf(state).ledger,profileOf(state).cards,[observation],now).counts.alreadyApplied,1);
     log('PASS partial Batch apply, abort/retry and exact replay atomically preserve references and inventory');
+    const prior=state;
+    state=await b.commit(op(state,'select-compartment',{target:'unbound'}));
+    equal(compartmentCards(state,'unbound').length,2);
+    state=await b.commit(op(state,'select-compartment',{target:prior.active}));
+    await fails(()=>a.commit(patch(prior,first.cardNumber,'obsolete after switch back')));
+    await fails(async()=>assertInventoryContext(await a.read(),inventoryContext(prior)));
+    equal(profileOf(state).pending,profileOf(prior).pending);
+    equal(profileOf(state).ledger,profileOf(prior).ledger);
+    equal(savedCompartments(state).length,2);
+    equal(JSON.parse(recoveryExport(state)).wallet.migration.cards,bytes['walmartGc.cards']);
+    log('PASS offline selection preserves Batch/outbox; persistent generation rejects stale editor/response after switching back; recovery export retains originals');
     sessionStorage.setItem(checkpointKey,JSON.stringify({name,expected:state}));
     document.querySelector('#reload').disabled=false;
     result.dataset.status='passed';log('PASS all native checks. Use Reload and verify for a page restart.');

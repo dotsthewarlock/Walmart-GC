@@ -9,7 +9,7 @@ export function syntheticIndexedDB() {
       const request = {};
       queueMicrotask(() => {
         const fresh = !databases.has(name);
-        if (fresh) databases.set(name, { value: undefined, tail: Promise.resolve() });
+        if (fresh) databases.set(name, { values: new Map(), tail: Promise.resolve() });
         const bank = databases.get(name);
         let closed = false;
         request.result = {
@@ -17,14 +17,15 @@ export function syntheticIndexedDB() {
           close() { closed = true; },
           transaction(_store, mode) {
             if (closed) throw new Error('Connection closed');
-            let getRequest, proposed, changed = false, aborted = false;
+            let getRequest, readKey, writeKey, proposed, changed = false, aborted = false;
             const tx = {
               error: null,
               abort() { aborted = true; },
               objectStore() {
                 return {
-                  get() { getRequest = {}; return getRequest; },
-                  put(value) {
+                  get(key) { readKey = key; getRequest = {}; return getRequest; },
+                  put(value, key) {
+                    writeKey = key;
                     if (factory.failNextWrite) { factory.failNextWrite = false; throw new Error('Synthetic storage failure'); }
                     proposed = structuredClone(value); changed = true;
                   },
@@ -32,12 +33,12 @@ export function syntheticIndexedDB() {
               },
             };
             const run = async () => {
-              getRequest.result = structuredClone(bank.value);
+              getRequest.result = structuredClone(bank.values.get(readKey));
               getRequest.onsuccess();
               await Promise.resolve();
               if (aborted) { tx.onabort(); return; }
-              factory.beforeComplete?.({ mode, previous: structuredClone(bank.value) });
-              if (changed) bank.value = proposed;
+              factory.beforeComplete?.({ mode, key: readKey, proposed: structuredClone(proposed), previous: structuredClone(bank.values.get(readKey)) });
+              if (changed) bank.values.set(writeKey, proposed);
               tx.oncomplete();
             };
             bank.tail = bank.tail.then(run);

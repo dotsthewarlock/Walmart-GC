@@ -14,6 +14,23 @@ export function operationId() {
   return globalThis.crypto.randomUUID();
 }
 export const profileOf = state => state.profiles[state.active];
+export const inventoryContext = state => ({ profile: state.active, generation: state.contextGeneration ?? 0 });
+export function assertInventoryContext(state, context) {
+  if (context.profile !== state.active || context.generation !== (state.contextGeneration ?? 0)) {
+    throw new Error('Inventory context changed. Reopen this editor or retry the request.');
+  }
+}
+export const recoveryWarning = 'Recovery exports contain card credentials, original storage and quarantined data. Store the file privately.';
+export function savedCompartments(state) {
+  return Object.entries(state.profiles).map(([key, profile]) => ({ key,
+    label: key === 'unbound' ? 'Unbound local inventory' : `Saved Sheet ${profile.context.sheetId} (ownership unverified)`,
+    count: profile.cards.length }));
+}
+export function compartmentCards(state, key) {
+  if (!Object.hasOwn(state.profiles, key)) throw new Error('Saved compartment is unavailable.');
+  return state.profiles[key].cards;
+}
+export const recoveryExport = state => JSON.stringify({ format: 'gc-wallet-recovery-v1', warning: recoveryWarning, wallet: state }, null, 2);
 
 export function validateInventory(cards) {
   if (!Array.isArray(cards)) throw new Error('Expected an inventory array.');
@@ -34,10 +51,11 @@ export function validateInventory(cards) {
 const newProfile = context => ({ cards: [], pending: [], versions: {}, ledger: null,
   ledgerRecovery: false, revision: 0, context, sheets: null, sync: null });
 
-export function migrateLegacy(raw) {
-  const state = { schema: 1, revision: 0, active: 'unbound',
+export function migrateLegacy(raw, migrationId = operationId()) {
+  const state = { schema: 1, revision: 0, active: 'unbound', contextGeneration: 0,
     profiles: { unbound: newProfile({ kind: 'unbound', principal: null }) },
-    migration: structuredClone(raw), legacyObserved: structuredClone(raw), quarantine: [], receipts: {}, observationReceipts: {} };
+    migration: structuredClone(raw), migrationOperationNamespace: migrationId,
+    legacyObserved: structuredClone(raw), quarantine: [], receipts: {}, observationReceipts: {} };
   const profile = profileOf(state);
   let cards;
   try {
@@ -55,7 +73,7 @@ export function migrateLegacy(raw) {
       const [card] = validateInventory([c]);
       profile.cards.push(card);
       profile.versions[card.cardNumber] = 1;
-      profile.pending.push({ id: `migration:${index}`, kind: 'legacy-recovery', cardNumber: card.cardNumber,
+      profile.pending.push({ id: `migration:${migrationId}:${index}`, kind: 'legacy-recovery', cardNumber: card.cardNumber,
         before: null, after: card, revision: 1 });
     } catch (error) {
       state.quarantine.push({ kind: 'legacy-card', reason: error.message, record: c });
@@ -105,8 +123,17 @@ export function reduceInventory(input, command) {
     if (state.receipts[command.id] !== digest) throw new Error('Operation ID was reused with different content.');
     return input;
   }
-  if (command.profile !== state.active) throw new Error('Inventory context changed.');
-  if (command.kind === 'discard-batch') {
+  assertInventoryContext(state, command);
+  state.contextGeneration ??= 0;
+  if (command.kind === 'begin-context') {
+    // Invalidate older requests and editors before asynchronous context work.
+    state.contextGeneration++;
+  } else if (command.kind === 'select-compartment') {
+    if (!Object.hasOwn(state.profiles, command.target)) throw new Error('Saved compartment is unavailable.');
+    // Selection remains available even when Batch recovery blocks card edits.
+    state.active = command.target;
+    state.contextGeneration++;
+  } else if (command.kind === 'discard-batch') {
     if (command.revision !== profile.revision) throw new Error(stale);
     validateInventory(profile.cards);
     // Recovery artifacts remain in quarantine/migration; discard never erases them.
@@ -166,6 +193,7 @@ export function reduceInventory(input, command) {
     }
     // A recovery file is a set of explicit additions/updates, never a delete list.
   } else if (command.kind === 'sheet-import') {
+    state.contextGeneration++;
     editable(profile);
     if (command.revision !== profile.revision) throw new Error(stale);
     if (!command.sheetId || !command.sheetVersion) throw new Error('Missing Sheet context.');
@@ -191,6 +219,7 @@ export function reduceInventory(input, command) {
       state.active = key;
     }
   } else if (command.kind === 'use-unbound') {
+    state.contextGeneration++;
     editable(profile);
     profile.ledger = invalidatedLedger(profile.ledger);
     state.active = 'unbound';
@@ -250,21 +279,21 @@ export function openInventory({ indexedDB, storage,
     };
   });
 
-  async function transaction(mode, transform) {
+  async function transaction(mode, transform, key = 'wallet') {
     const db = await connected;
     return new Promise((resolve, reject) => {
       let tx;
       try { tx = db.transaction('state', mode, { durability: 'strict' }); }
       catch (error) { reject(error); return; }
       const store = tx.objectStore('state');
-      const request = store.get('wallet');
+      const request = store.get(key);
       let state, failure;
       request.onsuccess = () => {
         try {
-          if (request.result) validateSnapshot(request.result);
+          if (key === 'wallet' && request.result) validateSnapshot(request.result);
           state = transform ? transform(request.result) : request.result;
           if (state?.then) throw new Error('Asynchronous inventory transaction is forbidden.');
-          if (mode === 'readwrite' && state !== request.result) store.put(state, 'wallet');
+          if (mode === 'readwrite' && state !== request.result) store.put(state, key);
         } catch (error) { failure = error; tx.abort(); }
       };
       tx.onabort = () => reject(failure ?? tx.error ?? new Error('Inventory transaction aborted.'));
@@ -299,13 +328,37 @@ export function openInventory({ indexedDB, storage,
       const existing = await read();
       if (existing) {
         if (existing.schema !== 1) throw new Error('Unsupported local inventory schema.');
+        // Upgrade development-stage migration IDs without remigrating inventory
+        // or altering pending operation content. The namespace commits with IDs.
+        await transaction('readwrite', current => {
+          const needsUpgrade = Object.values(current.profiles).some(profile =>
+            profile.pending.some(op => op.kind === 'legacy-recovery' && /^migration:\d+$/.test(op.id)));
+          if (!needsUpgrade) return current;
+          const next = structuredClone(current);
+          next.migrationOperationNamespace ??= operationId();
+          for (const profile of Object.values(next.profiles)) {
+            for (const op of profile.pending) {
+              if (op.kind === 'legacy-recovery' && /^migration:\d+$/.test(op.id)) {
+                op.id = `migration:${next.migrationOperationNamespace}:${op.id.slice('migration:'.length)}`;
+              }
+            }
+          }
+          next.revision++;
+          return next;
+        });
         return captureLegacyChanges();
       }
-      let raw;
-      try {
-        raw = legacyBytes();
-      } catch { throw new Error('Legacy browser storage cannot be read. Migration stopped without replacing it.'); }
-      const candidate = migrateLegacy(raw);
+      let seed = await transaction('readonly', undefined, 'migration-seed');
+      if (!seed) {
+        let raw;
+        try {
+          raw = legacyBytes();
+        } catch { throw new Error('Legacy browser storage cannot be read. Migration stopped without replacing it.'); }
+        // Persist a unique namespace and exact source before attempting migration.
+        // An aborted inventory transaction reuses this seed on retry/restart.
+        seed = await transaction('readwrite', existing => existing ?? { id: operationId(), raw }, 'migration-seed');
+      }
+      const candidate = migrateLegacy(seed.raw, seed.id);
       // Concurrent first opens cannot replace whichever migration committed first.
       await transaction('readwrite', state => state ?? candidate);
       const verified = await read();
@@ -327,6 +380,7 @@ export function openInventory({ indexedDB, storage,
 
 function validateSnapshot(state) {
   if (state.schema !== 1 || !state.profiles || !Object.hasOwn(state.profiles, state.active)) throw new Error('Unsupported or damaged local inventory. Saved data was preserved.');
+  if (state.contextGeneration !== undefined && (!Number.isSafeInteger(state.contextGeneration) || state.contextGeneration < 0)) throw new Error('Damaged inventory context generation. Saved data was preserved.');
   for (const profile of Object.values(state.profiles)) {
     const cards = validateInventory(profile.cards);
     if (!Array.isArray(profile.pending) || !Number.isSafeInteger(profile.revision) || profile.revision < 0
@@ -344,5 +398,5 @@ export const inventoryBytes = state => serializeReviewInventory(profileOf(state)
 // The legacy Worker cannot enforce principal + exact Sheet destination. Keep
 // outbound writes fail-closed; never acknowledge/remove semantic pending work.
 export function requireSafeSheetWrite() {
-  throw new Error('Sheet writes are paused: this Worker cannot verify the account and exact Sheet destination. Local cards and pending changes remain saved; CSV backup is available.');
+  throw new Error('Sheet writes are intentionally paused during this development stage. Local cards and pending changes remain saved; use CSV backup.');
 }

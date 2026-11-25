@@ -13,7 +13,11 @@ The original assertions remain intact. Their old localStorage-specific APIs now
 come from [legacy card fixtures](../src/lib/legacyCards.fixture.mjs) and
 [legacy Batch fixtures](../src/lib/legacyTransfer.fixture.mjs), which the
 application does not import. Protocol/review/schema logic remains production code.
-The focused tests exercise the new [adapter and reducer](../src/lib/inventory.js).
+The focused tests exercise the new [adapter and reducer](../src/lib/inventory.js),
+including offline compartment selection and per-compartment CSV/recovery exports,
+persistent context generations rejecting delayed responses and stale editors,
+and unique migration IDs retained through abort/restart. UI copy/wiring checks
+are source assertions, not React interaction tests.
 [The Node transaction model](./syntheticIndexedDB.mjs) is explicitly synthetic;
 passing it does not establish native browser correctness.
 
