@@ -55,3 +55,44 @@ test('uncertain Sheet creation uses tagged positive discovery, never another cre
  const result=await call('inspect-setup');assert.equal(result.status,200);assert.equal((await result.json()).sheetId,'created-sheet');assert.equal(creates,1);
  assert.doesNotMatch(JSON.stringify([...storage.data.values()]),/synthetic-only/);
 });
+
+
+test('steady-state status and protected pull do not rewrite unchanged KV sessions',async(t)=>{
+ const session={principal:'principal-A',email:'',name:'',sheetId:'own-sheet',sheetName:'Walmart-GC Data',accessToken:'synthetic-access',refreshToken:'synthetic-refresh',expiresAt:new Date(Date.now()+3600000).toISOString(),updatedAt:new Date().toISOString()};
+ const {env,writes}=environment(session);
+ env.SHEET_COORDINATOR={idFromName:name=>name,get:()=>({fetch:async()=>Response.json({ok:true})})};
+ t.mock.method(globalThis,'fetch',async(url)=>{
+  if(String(url).includes('/about?'))return Response.json({user:{permissionId:'principal-A'}});
+  assert.match(String(url),/\/files\/own-sheet/);
+  return Response.json({id:'own-sheet',name:'Walmart-GC Data',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:true,owners:[{permissionId:'principal-A'}]});
+ });
+ const headers={Cookie:'walmart_gc_session=synthetic-session'};
+ for(let i=0;i<10;i++){
+  assert.equal((await worker.fetch(new Request('https://synthetic/api/status',{headers}),env)).status,200);
+  assert.equal((await worker.fetch(new Request('https://synthetic/api/sync',{method:'POST',headers,body:JSON.stringify({protocol:'gc-wallet-sync-v1',action:'pull',principal:'principal-A',sheetId:'own-sheet'})}),env)).status,200);
+ }
+ assert.equal(writes.length,0);
+});
+test('unchanged session renews once when aged and actual metadata changes persist',async(t)=>{
+ let session={principal:'principal-A',email:'',name:'',sheetId:'own-sheet',sheetName:'Walmart-GC Data',accessToken:'synthetic-access',refreshToken:'synthetic-refresh',expiresAt:new Date(Date.now()+3600000).toISOString(),updatedAt:new Date(Date.now()-90000000).toISOString()};
+ const {env,writes}=environment(session);
+ env.SESSIONS.get=async()=>structuredClone(session);
+ env.SESSIONS.put=async(k,v,options)=>{session=JSON.parse(v);writes.push(session);assert.equal(options.expirationTtl,2592000);};
+ let email='';
+ t.mock.method(globalThis,'fetch',async(url)=>String(url).includes('/about?')?Response.json({user:{permissionId:'principal-A',emailAddress:email}}):Response.json({id:'own-sheet',name:'Walmart-GC Data',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:true,owners:[{permissionId:'principal-A'}]}));
+ const status=()=>worker.fetch(new Request('https://synthetic/api/status',{headers:{Cookie:'walmart_gc_session=synthetic-session'}}),env);
+ assert.equal((await status()).status,200);assert.equal(writes.length,1);
+ assert.equal((await status()).status,200);assert.equal(writes.length,1);
+ email='changed@example.invalid';
+ assert.equal((await status()).status,200);assert.equal(writes.length,2);assert.equal(session.email,email);
+ assert.equal((await status()).status,200);assert.equal(writes.length,2);
+});
+
+test('KV daily quota error returns a bounded retry time without deleting the session',async()=>{
+ const {env}=environment(null);let deleted=0;
+ env.SESSIONS.get=async()=>{throw Error('KV get() limit exceeded for the day');};
+ env.SESSIONS.delete=async()=>{deleted++;};
+ const response=await worker.fetch(new Request('https://synthetic/api/status',{headers:{Cookie:'walmart_gc_session=synthetic-session'}}),env);
+ assert.equal(response.status,429);const result=await response.json();assert.equal(result.code,'kv_daily_limit');
+ assert.equal(result.retryAt,(Math.floor(Date.now()/86400000)+1)*86400000);assert.equal(deleted,0);
+});

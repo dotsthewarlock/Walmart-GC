@@ -1,11 +1,32 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {openInventory,inventoryContext,profileOf} from './inventory.js';
+import {openInventory,inventoryContext,profileOf,inventoryBytes} from './inventory.js';
 import {createSyncEngine} from './syncEngine.js';
+import {createTransferLedger} from './balanceTransferLedger.js';
+import {selectTransferCards} from './balanceTransfer.js';
 import {syncProtocol} from './syncProtocol.js';
 import {syntheticIndexedDB} from '../../tests/syntheticIndexedDB.mjs';
 import {cardA as a,cardB as b,syntheticRemote} from '../../tests/syncFixtures.mjs';
 const timers={setTimeout(){return 1;},clearTimeout(){},setInterval(){return 1;},clearInterval(){}};
+test('remote same-day unchanged verification invalidates an outstanding request',async()=>{
+ const f=await fixture();let state=await f.store.read(),p=profileOf(state);
+ const checkedAt=new Date().toISOString(),verified={...p.cards[0],lastBalanceChecked:checkedAt.slice(0,10)};
+ const {commitRequest,operation}=await import('../../tests/syncFixtures.mjs');
+ await f.remote.coordinator.run(await commitRequest(f.remote,[verified],[operation('initial-check',p.cards[0],verified,'manual-verification',{checkedAt,observedBalance:verified.currentBalance})]));
+ await f.engine.sync();state=await f.store.read();p=profileOf(state);
+ const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:p.sync.lastKnownSheetVersion},selectTransferCards(p.cards,{version:2,quantity:'all',status:'all',balance:'all',checked:'any',days:30,sort:'checked-oldest'}).selected,inventoryBytes(state));
+ await f.store.commit({id:crypto.randomUUID(),kind:'set-batch',...inventoryContext(state),revision:p.revision,ledger});
+ const same=profileOf(await f.store.read()).cards[0],anotherTime=new Date().toISOString();
+ await f.remote.coordinator.run(await commitRequest(f.remote,[same],[operation('remote-check',same,same,'manual-verification',{checkedAt:anotherTime,observedBalance:same.currentBalance})]));
+ await f.engine.sync();assert.equal(profileOf(await f.store.read()).ledger.requests[0].state,'invalidated');
+});
+test('acknowledging a prior local verification preserves a later Batch request',async()=>{
+ const f=await fixture();let state=await f.store.read(),p=profileOf(state),card=p.cards[0];
+ state=await f.store.commit({id:crypto.randomUUID(),kind:'manual-verification',...inventoryContext(state),cardNumber:card.cardNumber,version:p.versions[card.cardNumber],observation:{checkedAt:new Date().toISOString(),observedBalance:card.currentBalance}});p=profileOf(state);
+ const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:p.sync.lastKnownSheetVersion},selectTransferCards(p.cards,{version:2,quantity:'all',status:'all',balance:'all',checked:'any',days:30,sort:'checked-oldest'}).selected,inventoryBytes(state));
+ await f.store.commit({id:crypto.randomUUID(),kind:'set-batch',...inventoryContext(state),revision:p.revision,ledger});
+ await f.engine.sync();assert.equal(profileOf(await f.store.read()).ledger.requests[0].state,'pending');
+});
 async function fixture(){
  const indexedDB=syntheticIndexedDB(),store=openInventory({indexedDB,name:'sync-engine',storage:{getItem:key=>key==='walmartGc.cards'?JSON.stringify([b]):null}});await store.initialize();
  const remote=await syntheticRemote([a]);let posts=0,status={authenticated:true,principal:'synthetic-principal',ownershipVerified:true,sheetId:'synthetic-sheet',syncProtocol,coordinationAvailable:true};
@@ -103,4 +124,64 @@ test('a missing remote card gets durable recovery intent, stays uncertain and su
  await f.store.commit({id:crypto.randomUUID(),kind:'resolve-conflict',...inventoryContext(state),cardNumber:a.cardNumber,version:profile.versions[a.cardNumber],conflictId:conflict.id,choice:'local'});
  await f.engine.sync();assert.ok((await f.remote.read()).evidence.cards[a.cardNumber].conflicts.find(c=>c.id===conflict.id).resolution);
  await edit(f.store,'still retained');await f.engine.sync();assert.equal(profileOf(await f.store.read()).cards[0].pin,a.pin);assert.equal((await f.remote.read()).cards[0].notes,'still retained');
+});
+
+function testClock(){
+ let time=100000,id=0;const jobs=new Map();
+ return {now:()=>time,timers:{setTimeout(fn,ms){jobs.set(++id,{fn,due:time+ms});return id;},clearTimeout(id){jobs.delete(id);}},
+  async advance(ms){const end=time+ms;for(;;){const next=[...jobs].sort((a,b)=>a[1].due-b[1].due)[0];if(!next||next[1].due>end)break;jobs.delete(next[0]);time=next[1].due;await next[1].fn();}time=end;}};
+}
+test('automatic scheduling has no idle polling, fresh foreground checks coalesce, and pushes respect minimum intervals',async()=>{
+ const f=await fixture(),clock=testClock();let visible=true;
+ const engine=createSyncEngine({store:f.store,request:f.request,timers:clock.timers,now:clock.now,visible:()=>visible});
+ await engine.start();const initial=f.posts();
+ await engine.foreground();await engine.foreground();assert.equal(f.posts(),initial);
+ await clock.advance(300000);assert.equal(f.posts(),initial);
+ await engine.foreground();assert.equal(f.posts(),initial+1);
+ await edit(f.store,'coalesced A');engine.schedule();await edit(f.store,'coalesced B');engine.schedule();
+ await clock.advance(14999);assert.equal(f.posts(),initial+1);
+ await clock.advance(1);assert.equal(f.posts(),initial+2);assert.equal(profileOf(await f.store.read()).pending.length,0);
+ visible=false;await edit(f.store,'hidden pending');engine.schedule();await clock.advance(300000);assert.equal(f.posts(),initial+2);
+ visible=true;await engine.foreground();assert.equal(f.posts(),initial+3);
+ engine.stop();
+});
+test('manual mode sends no automatic requests and Sync now respects its cooldown',async()=>{
+ const f=await fixture(),clock=testClock();let auto=false;
+ const engine=createSyncEngine({store:f.store,request:f.request,timers:clock.timers,now:clock.now,automatic:()=>auto});
+ const initial=f.posts();await engine.start();await edit(f.store,'manual pending');engine.schedule();await engine.foreground();await clock.advance(300000);assert.equal(f.posts(),initial);
+ await engine.manual();assert.equal(f.posts(),initial+1);assert.equal(profileOf(await f.store.read()).pending.length,0);
+ await engine.manual();assert.equal(f.posts(),initial+1);await clock.advance(5000);await engine.manual();assert.equal(f.posts(),initial+2);
+ engine.stop();
+});
+test('unchanged local edits and identical verified pulls do not mutate saved inventory',async()=>{
+ const f=await fixture();const before=await f.store.read(),p=profileOf(before);
+ await edit(f.store,p.cards[0].notes);assert.deepEqual(await f.store.read(),before);
+ await f.engine.sync();assert.deepEqual(await f.store.read(),before);
+});
+test('automatic transport recovery retries once and never generates a new flight identity',async()=>{
+ const f=await fixture(),clock=testClock();let calls=0;
+ await edit(f.store,'pending retry');
+ const engine=createSyncEngine({store:f.store,timers:clock.timers,now:clock.now,request:async(path,options)=>{
+  if(path==='/api/sync'){calls++;throw new TypeError('Synthetic transport error');}
+  return f.request(path,options);
+ }});
+ await engine.start();const id=profileOf(await f.store.read()).inFlight.request.id;
+ await clock.advance(59999);assert.equal(calls,1);
+ await clock.advance(1);assert.equal(calls,2);assert.equal(profileOf(await f.store.read()).inFlight.request.id,id);
+ await clock.advance(300000);assert.equal(calls,2);
+ engine.stop();
+});
+test('an edit scheduled during a stale pull is pushed after that pull is rejected',async()=>{
+ const f=await fixture(),clock=testClock();let release,started;
+ const barrier=new Promise(resolve=>{release=resolve;});
+ const pulling=new Promise(resolve=>{started=resolve;});let hold=true;
+ const engine=createSyncEngine({store:f.store,timers:clock.timers,now:clock.now,request:async(path,options)=>{
+  if(path==='/api/sync'&&JSON.parse(options.body).action==='pull'&&hold){hold=false;started();await barrier;}
+  return f.request(path,options);
+ }});
+ const sync=engine.foreground();await pulling;
+ await edit(f.store,'saved during pull');engine.schedule();await clock.advance(15000);
+ release();await sync;assert.equal(profileOf(await f.store.read()).pending.length,1);
+ await clock.advance(3000);assert.equal(profileOf(await f.store.read()).pending.length,0);
+ assert.equal((await f.remote.read()).cards[0].notes,'saved during pull');engine.stop();
 });

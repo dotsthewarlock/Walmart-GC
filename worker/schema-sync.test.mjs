@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import worker, {googleSheetAdapter} from "./src/index.js";
 import {fingerprint,snapshotContent,syncProtocol,emptyEvidence} from "../src/lib/syncProtocol.js";
+import {openInventory,profileOf,inventoryContext,inventoryBytes} from '../src/lib/inventory.js';
+import {createSyncEngine} from '../src/lib/syncEngine.js';
+import {createTransferLedger,prepareTransferApplication} from '../src/lib/balanceTransferLedger.js';
+import {selectTransferCards,previewTransferResults} from '../src/lib/balanceTransfer.js';
+import {syntheticIndexedDB} from '../tests/syntheticIndexedDB.mjs';
+import {cardA,memoryStorage} from '../tests/syncFixtures.mjs';
+import {SerialCoordinator} from './src/syncCoordinator.js';
 import {
   requiredCardHeaders, oldApprovedCsvHeaders, optionalCardHeaders, schemaCapability,
 } from "../src/lib/csvSchema.js";
@@ -174,6 +181,25 @@ async function write(adapter, previous, cards=previous.cards) {
   await adapter.prepare(next,previous);
   await adapter.write(next,'synthetic-commit',await fingerprint(snapshotContent(next)),previous);
 }
+
+test('unchanged Batch verification survives IndexedDB, protected commit and Sheet cells',async(t)=>{
+  const sheet=setupSheet(t,{rows:[rowFor(requiredCardHeaders,cardA)]});
+  const adapter=googleSheetAdapter('fixture-access',spreadsheetId), coordinator=new SerialCoordinator(memoryStorage(),adapter);
+  const store=openInventory({indexedDB:syntheticIndexedDB(),name:'batch-roundtrip',storage:{getItem:()=>null}});await store.initialize();
+  const status={authenticated:true,principal:'synthetic-principal',ownershipVerified:true,sheetId:spreadsheetId,syncProtocol,coordinationAvailable:true};
+  const timers={setTimeout(){return 1;},clearTimeout(){},setInterval(){return 1;},clearInterval(){}};
+  const engine=createSyncEngine({store,timers,request:async(path,options)=>path==='/api/status'?status:{...await coordinator.run(JSON.parse(options.body)),principal:status.principal,sheetId:spreadsheetId}});
+  await engine.sync({bind:true});let state=await store.read(),profile=profileOf(state);
+  const ledger=await createTransferLedger({sheetId:spreadsheetId,sheetVersion:profile.sync.lastKnownSheetVersion},selectTransferCards(profile.cards).selected,inventoryBytes(state));
+  state=await store.commit({id:crypto.randomUUID(),kind:'set-batch',...inventoryContext(state),revision:profile.revision,ledger});profile=profileOf(state);
+  const observation={ref:ledger.requests[0].ref,balance:cardA.currentBalance,checkedAt:new Date().toISOString()},now=Date.now();
+  const preview=previewTransferResults(profile.ledger,profile.cards,[observation],now),prepared=await prepareTransferApplication(profile.ledger,preview.candidate,preview.items);
+  state=await store.commit({id:crypto.randomUUID(),kind:'apply-batch',...inventoryContext(state),ledgerId:ledger.id,observations:[observation],items:preview.items,now,inventoryDigest:prepared.finalized.inventoryDigest});
+  assert.equal(profileOf(state).pending[0].kind,'batch-verification');assert.equal(profileOf(state).cards[0].lastBalanceChecked,observation.checkedAt.slice(0,10));
+  await engine.sync();state=await store.read();assert.equal(profileOf(state).pending.length,0);assert.ok(profileOf(state).sync.lastConfirmedAt);
+  const reloaded=await adapter.read();assert.equal(reloaded.cards[0].currentBalance,cardA.currentBalance);assert.equal(reloaded.cards[0].lastBalanceChecked,observation.checkedAt.slice(0,10));
+  assert.equal(sheet.cards[1][sheet.cards[0].indexOf('lastBalanceChecked')],observation.checkedAt.slice(0,10));
+});
 
 test('legacy whole-inventory and ensure requests are fenced before any Google call',async(t)=>{
   const fixture=setupSheet(t);

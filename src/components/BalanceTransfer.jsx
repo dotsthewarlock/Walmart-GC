@@ -37,7 +37,7 @@ function formatNet(cents) {
   return `${cents < 0n ? "−" : cents > 0n ? "+" : ""}$${(absolute / 100n).toLocaleString("en-CA")}.${String(absolute % 100n).padStart(2, "0")}`;
 }
 
-export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, detectedResults, onOccupiedChange, onDetectedConsumed }) {
+export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet }) {
   const [preferences, setPreferences] = useState(() => {
     try { return readTransferPreferences(window.localStorage); } catch { return { ...defaultTransferPreferences }; }
   });
@@ -68,11 +68,6 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   useEffect(() => { setBatch(savedBatch(walletSnapshot)); }, [walletSnapshot]);
   useEffect(() => { setPreview(null); setPacket(""); }, [walletSnapshot.active, walletSnapshot.contextGeneration]);
-
-  useEffect(() => {
-    onOccupiedChange(Boolean(preview) || busy);
-    return () => onOccupiedChange(false);
-  }, [preview, busy, onOccupiedChange]);
 
   useEffect(() => {
     if (preview) {
@@ -108,18 +103,24 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!mounted.current) throw new Error("Batch was closed.");
   }
 
-  async function verifiedSession() {
+  async function verifiedSession(fresh=true) {
     getTransferWallet();
     const start = await readWallet();
     assertInventoryContext(start, inventoryContext(walletSnapshot));
-    const status = await fetchWorkerJson("/api/status", { cache: "no-store" });
-    ensureMounted();
-    assertInventoryContext(await readWallet(), inventoryContext(start));
-    const state = await commitWallet({ kind: "observe-session", ...inventoryContext(start), status });
-    const profile = profileOf(state);
-    if (profile.ledgerRecovery) throw new Error("Discard the preserved interrupted Batch before continuing.");
-    if(status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
-    const context = requireTransferContext(status, { context: profile.context, remoteBase: profile.remoteBase, sheets: profile.sheets, sync: profile.sync });
+    let state=start,status;
+    if(fresh){
+      status=await fetchWorkerJson("/api/status", { cache: "no-store" });
+      ensureMounted();
+      assertInventoryContext(await readWallet(), inventoryContext(start));
+      state=await commitWallet({kind:"observe-session",...inventoryContext(start),status});
+    }
+    const profile=profileOf(state);
+    if(profile.ledgerRecovery)throw new Error("Discard the preserved interrupted Batch before continuing.");
+    if(fresh&&status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
+    // Preparation/preview only inspect the saved compartment. Export and apply
+    // still require live account and exact Sheet verification.
+    if(!fresh&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.sync?.status!=='connected'||profile.sheets?.status!=='ready'||profile.context.sheetId!==profile.sheets.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets.remoteSheetVersion))throw new Error("Load the matching verified Sheet before preparing a Batch.");
+    const context=fresh?requireTransferContext(status,{context:profile.context,remoteBase:profile.remoteBase,sheets:profile.sheets,sync:profile.sync}):{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
     if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
     const inventoryRaw = inventoryBytes(state);
     if (profile.ledger?.requests.some(r => r.state === "pending")) {
@@ -146,7 +147,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }
 
   async function createBatch() {
-    const session = await verifiedSession();
+    const session = await verifiedSession(false);
     const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
     if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
     const { selected } = selectTransferCards(session.profile.cards, preferences);
@@ -187,20 +188,10 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function importResults() {
     const results = parseTransferResults(packet);
-    const session = await verifiedSession();
+    const session = await verifiedSession(false);
     setPreview(buildPreview(session, results));
     setPacket("");
   }
-
-  useEffect(() => {
-    if (!detectedResults || preview || locked.current) return;
-    onDetectedConsumed();
-    run(async () => {
-      assertInventoryContext(await readWallet(), detectedResults.context);
-      const session = await verifiedSession();
-      setPreview(buildPreview(session, detectedResults.results));
-    });
-  }, [detectedResults]);
 
   async function applyResults() {
     const prior = preview;
@@ -220,13 +211,13 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       ledgerId: session.ledger.id, observations: fresh.results, items: fresh.items, now: fresh.now,
       inventoryDigest: prepared.finalized.inventoryDigest });
     setPreview(null);
-    setMessage(`Saved ${accepted.length} locally. Synchronization will confirm the Sheet update when connected.`);
+    setMessage(`Applied ${accepted.length} locally (${fresh.counts.changed} balances changed, ${fresh.counts.unchanged} unchanged). Verification dates were recorded. ${fresh.outstanding - accepted.length} requests remain outstanding. Sheet synchronization is pending confirmation.`);
   }
 
   const recovering = Boolean(batch.error || ledger?.application);
   return (
     <>
-      <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
+      {(!pending || recovering) && <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
           <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Create batch</h2>
             {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
@@ -268,12 +259,12 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
             <Button disabled={busy || !selectionCounts.selected.length} onClick={() => run(createBatch)}>Create batch ({selectionCounts.selected.length})</Button>
           </>
         )}
-      </Card>
+      </Card>}
 
       {ledger && !recovering && (
         <>
           <Card as="section" aria-labelledby="active-batch-heading" className="flex flex-col gap-3 p-4">
-            <h3 id="active-batch-heading" className="font-semibold">Saved batch</h3>
+            <h3 id="active-batch-heading" tabIndex={-1} ref={pending ? heading : undefined} className="font-semibold">Saved batch</h3>
             <p className="text-sm text-m3-on-surface-variant" role="status">
               {pending} outstanding · {invalidated} invalidated · {ledger.requests.length - pending - invalidated} applied
             </p>

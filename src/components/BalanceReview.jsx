@@ -10,9 +10,8 @@ import { checkerUrl } from "../lib/balanceTransfer";
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 
-export function BalanceReview({ onExit, resultsNotice, onModeChange, ...props }) {
-  const [mode, setMode] = useState(props.detectedResults ? "batch" : "manual");
-  useEffect(() => { onModeChange(mode); }, [mode, onModeChange]);
+export function BalanceReview({ onExit, ...props }) {
+  const [mode, setMode] = useState("manual");
   return (
     <main className="min-h-screen bg-m3-surface text-m3-on-surface">
       <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">
@@ -30,7 +29,6 @@ export function BalanceReview({ onExit, resultsNotice, onModeChange, ...props })
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
         {mode === "manual" ? <ManualBalanceReview {...props} /> : <BalanceTransfer {...props} />}
       </div>
-      {resultsNotice}
     </main>
   );
 }

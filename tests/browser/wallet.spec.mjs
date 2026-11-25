@@ -2,6 +2,8 @@ import {test,expect} from '@playwright/test';
 import {syntheticRemote,cardA,cardB} from '../syncFixtures.mjs';
 import {schemaCapability} from '../../src/lib/csvSchema.js';
 const protocol='gc-wallet-sync-v1';
+test.describe.configure({timeout:120000});
+const syncPoll=fn=>expect.poll(fn,{timeout:22000});
 async function snapshot(page){return page.evaluate(()=>new Promise((resolve,reject)=>{const req=indexedDB.open('walmartGc.inventory',1);req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result,tx=db.transaction('state','readonly'),read=tx.objectStore('state').get('wallet');read.onsuccess=()=>{resolve(read.result);db.close();};};}));}
 const active=s=>s.profiles[s.active];
 async function settings(page){await page.getByRole('button',{name:'Open settings'}).click();}
@@ -34,7 +36,7 @@ async function setup(context,remote,legacy=[cardA,cardB]){
  return {errors,blocked,requests,mock,dialogs};
 }
 async function start(page){await page.goto('/');await expect(page.getByRole('button',{name:'Open settings'})).toBeVisible();await expect.poll(async()=>active(await snapshot(page)).context.ownershipVerified).toBe(true);}
-async function recover(page){await settings(page);await page.locator('summary').filter({hasText:'Connection and recovery'}).click();await page.getByRole('button',{name:'Recover unbound inventory into connected account'}).click();await expect.poll(async()=>active(await snapshot(page)).pending.length).toBe(0);await cards(page);}
+async function recover(page){await settings(page);await page.locator('summary').filter({hasText:'Advanced synchronization and recovery'}).click();await page.getByRole('button',{name:'Recover unbound inventory into connected account'}).click();await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);await cards(page);}
 
 test('integrated mobile wallet, persistence, verification, Batch, exports, failure and protected sync',async({browser})=>{
  const context=await browser.newContext({viewport:{width:412,height:923}}),remote=await syntheticRemote([]),qa=await setup(context,remote);const page=await context.newPage();
@@ -62,12 +64,13 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
   await page.getByLabel('Last checked').selectOption('any');await expect(page.getByLabel('Days')).toBeDisabled();await expect(page.getByText('· 2 matching')).toBeVisible();await page.getByRole('button',{name:'Create batch (2)',exact:true}).click();
   await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
   const state=await snapshot(page),ledger=active(state).ledger;expect(ledger.requests).toHaveLength(2);
-  await page.getByRole('button',{name:'Reset',exact:true}).click();await expect(status.getByLabel('Active')).toBeChecked();await expect(balance.getByLabel('Yes')).toBeChecked();expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
-  // Card A was verified today, so use never-verified B for the partial result.
-  const ref=ledger.requests.find(r=>r.cardNumber===cardB.cardNumber).ref;
+  await expect(page.getByRole('heading',{name:'Saved batch'})).toBeVisible();await expect(page.getByRole('button',{name:'Reset',exact:true})).toHaveCount(0);expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
+  // A same-day verification before request creation remains eligible.
+  const ref=ledger.requests.find(r=>r.cardNumber===cardA.cardNumber).ref;
   const packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');
-  await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardB.cardNumber).currentBalance).toBe(50);
+  await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(86);
   await page.getByRole('button',{name:'Apply accepted results'}).click();await expect.poll(async()=>active(await snapshot(page)).ledger.requests.filter(r=>r.state==='applied').length).toBe(1);
+  await expect.poll(async()=>active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(40);await expect(page.getByText(/1 outstanding/).first()).toBeVisible();
   await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();await expect(page.getByRole('button',{name:'Apply accepted results'})).toBeDisabled();await page.getByRole('button',{name:'Exit',exact:true}).click();
  });
  await test.step('offline compartments, selected CSV and credential-warned recovery download',async()=>{
@@ -78,22 +81,21 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
   await page.locator('#saved-inventory').selectOption('account:qa-principal:sheet:synthetic-sheet');qa.mock.offline=false;await page.evaluate(()=>window.dispatchEvent(new Event('online')));
  });
  await test.step('injected transaction abort is visible and preserves exact committed state',async()=>{
-  await expect.poll(async()=>active(await snapshot(page)).pending.length).toBe(0);
+  await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);
   await cards(page);await page.getByText(/0084/).first().click();await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByPlaceholder('Add card notes...').fill('MUST NOT SAVE');
   // Wait for the previous push before measuring exact transaction state.
-  await expect.poll(async()=>active(await snapshot(page)).pending.length).toBe(0);const before=await snapshot(page);await page.evaluate(()=>sessionStorage.setItem('qa-fail','yes'));await page.getByRole('button',{name:'Save Notes'}).click();await expect(page.getByText('QA transaction failure',{exact:true})).toBeVisible();expect(await snapshot(page)).toEqual(before);await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);const before=await snapshot(page);await page.evaluate(()=>sessionStorage.setItem('qa-fail','yes'));await page.getByRole('button',{name:'Save Notes'}).click();await expect(page.getByText('QA transaction failure',{exact:true})).toBeVisible();expect(await snapshot(page)).toEqual(before);await page.getByRole('button',{name:'Cancel',exact:true}).click();
  });
  await test.step('412 × 923 navigation and protected explicit controls use only coordinated API writes',async()=>{
   expect(await page.evaluate(()=>({width:innerWidth,height:innerHeight}))).toEqual({width:412,height:923});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(412);
-  await cards(page);await settings(page);const connection=page.locator('summary').filter({hasText:'Google connection'});if(!await connection.evaluate(node=>node.parentElement.open))await connection.click();await page.locator('#save-to-sheets').click();await expect.poll(async()=>active(await snapshot(page)).pending.length).toBe(0);
+  await cards(page);await settings(page);await expect(page.locator('#open-direct-sheet')).toHaveAttribute('href','https://docs.google.com/spreadsheets/d/synthetic-sheet/edit');await expect(page.getByText(/Last confirmed synchronization:/)).toBeVisible();const recovery=page.locator('summary').filter({hasText:'Advanced synchronization and recovery'});if(!await recovery.evaluate(node=>node.parentElement.open))await recovery.click();await page.locator('#save-to-sheets').click();await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);
   expect(qa.requests.filter(r=>['/api/cards/save'].includes(r.path))).toEqual([]);expect(qa.blocked.every(url=>url.startsWith('https://fonts.googleapis.com/'))).toBe(true);expect(qa.errors).toEqual([]);
-  const recovery=page.locator('summary').filter({hasText:'Connection and recovery'});if(!await recovery.evaluate(node=>node.parentElement.open))await recovery.click();
   await page.getByRole('button',{name:'Create or initialize private Sheet'}).click();await expect.poll(()=>qa.requests.filter(r=>r.path==='/api/sheet/ensure').length).toBe(1);
   await expect.poll(async()=>(await remote.read()).commitId).not.toBe('');
   // Wait for control acknowledgment before exercising shared maintenance.
   await expect.poll(async()=>Object.keys((await snapshot(page)).controlFlights??{}).length).toBe(0);
-  await page.getByRole('button',{name:'Pause shared maintenance'}).click();await expect.poll(async()=>(await remote.read()).maintenance).toBe(true);await expect.poll(async()=>Object.keys((await snapshot(page)).controlFlights??{}).length).toBe(0);
-  await page.getByRole('button',{name:'Accept maintenance and resume'}).click();await expect.poll(async()=>(await remote.read()).maintenance).toBe(false);
+  await page.getByRole('button',{name:'Pause shared maintenance'}).click();await syncPoll(async()=>(await remote.read()).maintenance).toBe(true);await expect.poll(async()=>Object.keys((await snapshot(page)).controlFlights??{}).length).toBe(0);
+  await page.getByRole('button',{name:'Accept maintenance and resume'}).click();await syncPoll(async()=>(await remote.read()).maintenance).toBe(false);
   await page.setViewportSize({width:1280,height:900});await cards(page);await settings(page);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
  });
  await context.close();
@@ -103,7 +105,7 @@ test('two devices combine independent edits and preserve monetary conflicts for 
  const remote=await syntheticRemote([cardA,cardB]);const a=await browser.newContext(),b=await browser.newContext();await setup(a,remote,[]);await setup(b,remote,[]);const first=await a.newPage(),second=await b.newPage();await start(first);await start(second);
  await checkoutA(first);await first.getByRole('button',{name:'Edit',exact:true}).click();await first.getByPlaceholder('Add card notes...').fill('Device A note');await first.getByRole('button',{name:'Save Notes'}).click();
  await cards(second);await second.getByText(/0084/).first().click();await second.locator('#open-balance-modal').click();await second.locator('#balance-input').fill('45.00');await second.locator('#save-balance-update').click();
- await expect.poll(async()=>(await remote.read()).cards.find(c=>c.cardNumber===cardA.cardNumber).notes).toBe('Device A note');await expect.poll(async()=>(await remote.read()).cards.find(c=>c.cardNumber===cardB.cardNumber).currentBalance).toBe(45);
+ await syncPoll(async()=>(await remote.read()).cards.find(c=>c.cardNumber===cardA.cardNumber).notes).toBe('Device A note');await syncPoll(async()=>(await remote.read()).cards.find(c=>c.cardNumber===cardB.cardNumber).currentBalance).toBe(45);
  await settings(first);await first.getByRole('button',{name:'Sync now',exact:true}).first().click();await expect.poll(async()=>active(await snapshot(first)).cards.find(c=>c.cardNumber===cardB.cardNumber).currentBalance).toBe(45);await a.close();await b.close();
 });
 
@@ -120,54 +122,42 @@ test('two tabs reject stale editors and obsolete generation responses',async({br
 test('concurrent monetary actions retain remote provisional evidence and fresh unchanged verification clears the checkout warning',async({browser})=>{
  const remote=await syntheticRemote([cardA]),one=await browser.newContext(),two=await browser.newContext();await setup(one,remote,[]);await setup(two,remote,[]);const a=await one.newPage(),b=await two.newPage();await start(a);await start(b);
  let release;remote.delay=new Promise(resolve=>{release=resolve;});
- await checkoutA(a);await a.locator('#open-balance-modal').click();await a.locator('#balance-input').fill('80.00');await a.locator('#save-balance-update').click();await expect.poll(()=>remote.writes).toBe(1);
- await checkoutA(b);await b.locator('#open-balance-modal').click();await b.locator('#balance-input').fill('70.00');await b.locator('#save-balance-update').click();await expect.poll(async()=>Boolean(active(await snapshot(b)).inFlight)).toBe(true);release();
- await expect.poll(async()=>(await remote.read()).cards[0].pendingReconciliation).toBe(true);expect((await remote.read()).cards[0].currentBalance).toBe(80);
- await expect.poll(async()=>active(await snapshot(a)).pending.length).toBe(0);await settings(a);await a.getByRole('button',{name:'Sync now',exact:true}).first().click();await expect.poll(async()=>active(await snapshot(a)).cards[0].pendingReconciliation).toBe(true);
+ await checkoutA(a);await a.locator('#open-balance-modal').click();await a.locator('#balance-input').fill('80.00');await a.locator('#save-balance-update').click();await syncPoll(()=>remote.writes).toBe(1);
+ await checkoutA(b);await b.locator('#open-balance-modal').click();await b.locator('#balance-input').fill('70.00');await b.locator('#save-balance-update').click();await syncPoll(async()=>Boolean(active(await snapshot(b)).inFlight)).toBe(true);release();
+ await syncPoll(async()=>(await remote.read()).cards[0].pendingReconciliation).toBe(true);expect((await remote.read()).cards[0].currentBalance).toBe(80);
+ await syncPoll(async()=>active(await snapshot(a)).pending.length).toBe(0);await settings(a);await a.getByRole('button',{name:'Sync now',exact:true}).first().click();await expect.poll(async()=>active(await snapshot(a)).cards[0].pendingReconciliation).toBe(true);
  await checkoutA(a);await expect(a.getByText(/Balance needs verification/)).toBeVisible();await expect(a.locator('#open-balance-modal')).toBeEnabled();const updated=(await remote.read()).cards[0].dateUpdated;
  await cards(a);await a.locator('#review-balances').click();await a.getByLabel('Verified balance (CAD)').fill('80.00');await a.getByRole('button',{name:'Save & next'}).click();await a.getByRole('button',{name:'Exit',exact:true}).click();
- await expect.poll(async()=>(await remote.read()).cards[0].pendingReconciliation).toBe(false);expect((await remote.read()).cards[0].lastBalanceChecked).toBe(new Date().toISOString().slice(0,10));expect((await remote.read()).cards[0].dateUpdated).toBe(updated);
+ await syncPoll(async()=>(await remote.read()).cards[0].pendingReconciliation).toBe(false);expect((await remote.read()).cards[0].lastBalanceChecked).toBe(new Date().toISOString().slice(0,10));expect((await remote.read()).cards[0].dateUpdated).toBe(updated);
  await one.close();await two.close();
 });
 
-test('opt-in clipboard detection offers review without applying or interrupting checkout',async({browser})=>{
- const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);await setup(context,remote,[]);
+test('legacy clipboard opt-in is ignored; checker return requires explicit paste',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);const qa=await setup(context,remote,[]);
  await context.addInitScript(()=>{
-  window.qaClipboard={text:'',reads:0,permission:'granted'};
-  Object.defineProperty(navigator,'permissions',{value:{query:async()=>({state:window.qaClipboard.permission})}});
+  localStorage.setItem('walmartGc.settings',JSON.stringify({detectBatchResults:true,clipboardPermissionAttempted:true}));
+  window.qaClipboard={text:'',reads:0,queries:0};
+  Object.defineProperty(navigator,'permissions',{value:{query:async()=>{window.qaClipboard.queries++;return {state:'granted'};}}});
   Object.defineProperty(navigator,'clipboard',{value:{readText:async()=>{window.qaClipboard.reads++;return window.qaClipboard.text;},writeText:async()=>{}}});
  });
- const page=await context.newPage();await start(page);await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();await page.getByRole('button',{name:/Create batch/}).click();await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBeGreaterThan(0);
- const state=await snapshot(page),ref=active(state).ledger.requests[0].ref,packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');
- await page.getByRole('button',{name:'Exit',exact:true}).click();await page.evaluate(p=>{window.qaClipboard.text=p;window.dispatchEvent(new Event('focus'));},packet);expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(0);
- await settings(page);await page.getByText('Detect copied Batch results').click();await cards(page);
- await expect.poll(async()=>{await page.evaluate(()=>window.dispatchEvent(new Event('focus')));return page.getByText('Copied Batch results found.').isVisible();},{timeout:10000}).toBe(true);
- await page.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('heading',{name:'Results preview'})).toBeVisible();expect(active(await snapshot(page)).ledger.requests.every(r=>r.state==='pending')).toBe(true);
- await page.getByRole('button',{name:'Exit',exact:true}).click();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.getByText('Copied Batch results found.')).toHaveCount(0);
- await checkoutA(page);const reads=await page.evaluate(()=>window.qaClipboard.reads);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(reads);
+ const page=await context.newPage();await start(page);await settings(page);
+ await expect(page.getByText('Detect copied Batch results')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Allow clipboard access'})).toHaveCount(0);
+ await page.getByText('Automatic synchronization',{exact:true}).click();
+ const before=qa.requests.length;
+ await cards(page);await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();await page.getByRole('button',{name:/Create batch/}).click();await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBeGreaterThan(0);
+ const ref=active(await snapshot(page)).ledger.requests[0].ref,packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');
+ await page.evaluate(text=>{window.qaClipboard.text=text;window.dispatchEvent(new Event('focus'));},packet);
+ await expect(page.getByRole('heading',{name:'Results preview'})).toHaveCount(0);
+ await expect(page.getByText('Copied Batch results found.')).toHaveCount(0);
+ expect(await page.evaluate(()=>({reads:window.qaClipboard.reads,queries:window.qaClipboard.queries}))).toEqual({reads:0,queries:0});
+ await page.getByRole('textbox').fill(packet);await page.getByRole('button',{name:'Preview results'}).click();await expect(page.getByRole('heading',{name:'Results preview'})).toBeVisible();
+ expect(active(await snapshot(page)).ledger.requests.every(r=>r.state==='pending')).toBe(true);
+ expect(qa.requests.length).toBe(before);
+ await page.getByRole('button',{name:'Apply accepted results'}).click();await expect.poll(async()=>active(await snapshot(page)).ledger.requests.some(r=>r.state==='applied')).toBe(true);
+ expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(0);
+ expect(active(await snapshot(page)).pending.length).toBeGreaterThan(0);expect(remote.writes).toBe(0);
+ await page.getByRole('button',{name:'Exit',exact:true}).click();await settings(page);await page.getByRole('button',{name:'Sync now',exact:true}).first().click();
+ await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);expect(remote.writes).toBe(1);
  await context.close();
-});
-
-test('checker return detects in open Batch and preserves an existing preview',async({browser})=>{
- const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);await setup(context,remote,[]);
- await context.addInitScript(()=>{
-  window.qaClipboard={text:'unrelated private text',reads:0,permission:'prompt'};
-  Object.defineProperty(navigator,'permissions',{value:{query:async()=>({state:window.qaClipboard.permission})}});
-  Object.defineProperty(navigator,'clipboard',{value:{readText:async()=>{window.qaClipboard.reads++;window.qaClipboard.permission='granted';return window.qaClipboard.text;},writeText:async()=>{}}});
- });
- await context.route('https://www.walmart.ca/**',route=>route.fulfill({contentType:'text/html',body:'<title>Synthetic checker</title>'}));
- const page=await context.newPage();await start(page);await settings(page);await page.getByText('Detect copied Batch results').click();
- await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(0);
- await page.getByRole('button',{name:'Allow clipboard access'}).click();await expect.poll(()=>page.evaluate(()=>window.qaClipboard.reads)).toBe(1);await expect(page.getByRole('button',{name:'Allow clipboard access'})).toHaveCount(0);
- await cards(page);await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();await page.getByRole('button',{name:/Create batch/}).click();await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
- await expect(page.getByRole('link',{name:/Open Walmart checker/})).toBeEnabled();
- await page.evaluate(()=>{window.qaClipboard.permission='prompt';window.dispatchEvent(new Event('focus'));});await expect.poll(()=>page.evaluate(()=>window.qaClipboard.reads)).toBe(1);
- await page.evaluate(()=>window.qaClipboard.permission='granted');
- const ledger=active(await snapshot(page)).ledger,packet=amount=>['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ledger.requests[0].ref+'\t'+amount+'\t'+new Date().toISOString()].join('\n');
- const popupPromise=page.waitForEvent('popup');await page.getByRole('link',{name:/Open Walmart checker/}).click();const checker=await popupPromise;await checker.waitForLoadState();await checker.bringToFront();await page.evaluate(text=>window.qaClipboard.text=text,packet('40.00'));await page.bringToFront();
- // Headless Chromium does not dispatch a window focus event when switching tabs.
- await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
- await expect(page.getByText('Copied Batch results found.')).toBeVisible({timeout:10000});await page.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('heading',{name:'Results preview'})).toBeVisible();await expect(page.getByText(/\$40\.00 CAD/)).toBeVisible();
- const reads=await page.evaluate(()=>window.qaClipboard.reads);await checker.bringToFront();await page.evaluate(text=>window.qaClipboard.text=text,packet('35.00'));await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.getByText(/\$40\.00 CAD/)).toBeVisible();expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(reads);await expect(page.getByText('Copied Batch results found.')).toHaveCount(0);
- expect(active(await snapshot(page)).ledger.requests.every(r=>r.state==='pending')).toBe(true);await page.reload();await settings(page);await expect(page.getByRole('button',{name:'Allow clipboard access'})).toHaveCount(0);await context.close();
 });

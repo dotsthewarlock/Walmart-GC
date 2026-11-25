@@ -47,7 +47,12 @@ export default {
       if (error instanceof HttpError) {
         return withCors(request, jsonResponse(error.body, error.status), env);
       }
-      return withCors(request, jsonResponse({ ok: false, error: "server_error", message: safeErrorMessage(error) }, 500), env);
+      const message=safeErrorMessage(error);
+      if(/\bKV\b/i.test(message)&&/limit|quota|429/i.test(message)){
+        const daily=/daily|per day|for the day/i.test(message),now=Date.now(),retryAt=daily?(Math.floor(now/86400000)+1)*86400000:now+900000;
+        return withCors(request,jsonResponse({ok:false,error:"Synchronization temporarily limited. Local cards remain saved.",code:daily?"kv_daily_limit":"kv_rate_limit",retryAt},429,{"Retry-After":String(Math.max(1,Math.ceil((retryAt-now)/1000)))}),env);
+      }
+      return withCors(request, jsonResponse({ ok: false, error: "server_error", message }, 500), env);
     }
   },
 };
@@ -381,13 +386,21 @@ async function loadSessionByKey(env, key) {
 }
 
 async function saveSession(env, context, patch = {}) {
-  const now = new Date().toISOString();
-  context.session = {
+  const now = Date.now();
+  const lastWrite = Date.parse(context.session.updatedAt || "");
+  const changed = Object.entries(patch).some(([key, value]) => context.session[key] !== value);
+  // Normal status and Sheet polls must not renew KV on every request. Keep
+  // rolling session expiry with at most one unchanged renewal per day.
+  if (!changed && Number.isFinite(lastWrite) && lastWrite <= now && now - lastWrite < 86400_000) {
+    return;
+  }
+  const next = {
     ...context.session,
     ...patch,
-    updatedAt: now,
+    updatedAt: new Date(now).toISOString(),
   };
-  await env.SESSIONS.put(context.key, JSON.stringify(context.session), { expirationTtl: SESSION_TTL_SECONDS });
+  await env.SESSIONS.put(context.key, JSON.stringify(next), { expirationTtl: SESSION_TTL_SECONDS });
+  context.session = next;
 }
 
 async function getGoogleAccessToken(env, context) {

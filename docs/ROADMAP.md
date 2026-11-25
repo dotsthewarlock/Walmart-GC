@@ -11,10 +11,14 @@ Independent review and [release acceptance](QA_TEST_CHECKLIST.md) precede merge 
 deployment. Actual DO runtime/binding, stable Google principal/ownership behavior,
 secret/session binding integrity and integrated browser QA remain prerequisites.
 
-Optional clipboard detection can surface applicable copied Batch results for explicit
-review, including when returning to an open Batch review. A one-time explicit
-permission action is offered where supported; detection uses only granted access.
-Manual paste and explicit application remain available.
+Batch uses explicit copy, paste, preview and application only. No passive clipboard
+reads, focus-triggered result detection or clipboard permission prompts.
+
+## V0.3 maintenance: lean synchronization and quota recovery
+
+1. PR #240 supplies unchanged KV write suppression and explicit-only Batch clipboard transfer. PR #241 builds on that merge and supplies event-driven automatic sync (3s coalescing, 15s minimum, 5min freshness, no idle polling), manual-only mode, no-op suppression, local Batch preparation/preview and bounded timeout and quota recovery.
+2. The matching Worker was deployed before Pages as version `062fca0a-95dc-4a8d-b49a-4fb4428724ef`, retaining the unpaused flag, existing secrets and bindings, migration and privacy configuration. The protected content read and durable commit evidence remain; no protocol or schema change, cache, leader election or added infrastructure is introduced.
+3. Verify real KV usage over an ordinary-use day and comparable development test. Acceptance: zero redundant writes in steady state, no quota warnings, target under 50 writes/day for one development user, checkout and Batch unchanged. 50 daily users is a planning target (10 necessary writes/user/day with 50% headroom), not measured capacity. No further work without demonstrated need.
 
 ## Near term, only after synchronization foundation
 

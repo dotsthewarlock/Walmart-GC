@@ -17,8 +17,6 @@ import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { SelectField } from './components/primitives/SelectField';
 import { BalanceReview } from './components/BalanceReview';
-import { parseTransferResults, previewTransferResults, requireTransferContext, sameTransferContext } from './lib/balanceTransfer';
-import { inventoryFingerprint } from './lib/balanceTransferLedger';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
@@ -207,8 +205,7 @@ function App() {
     sortMode: "balance-asc",
     themeMode: "system",
     checkoutDark: true,
-    detectBatchResults: false,
-    clipboardPermissionAttempted: false,
+    automaticSync: true,
   });
   const preferences = useRef(settings);
   preferences.current = settings;
@@ -217,12 +214,6 @@ function App() {
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const [revealNumber, setRevealNumber] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
-  const [detectedResults, setDetectedResults] = useState(null);
-  const [reviewResults, setReviewResults] = useState(null);
-  const [reviewMode, setReviewMode] = useState("manual");
-  const [reviewOccupied, setReviewOccupied] = useState(false);
-  const seenResults = useRef(new Set());
-  
   // Balance Editor Form State
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [newBalanceValue, setNewBalanceValue] = useState("");
@@ -332,8 +323,11 @@ function App() {
       adoptWallet(state);
       setTransferMutationError("");
       if (['patch','manual-verification','mark-zero-used','csv-recovery','apply-batch','resolve-conflict','select-compartment'].includes(command.kind)) {
-        setSyncUi({phase:'local',message:'Changes saved on this device.'});
-        syncEngine.current?.schedule();
+        if(command.kind==='select-compartment'||profileOf(state).pending.length||profileOf(state).inFlight){
+          setSyncUi({phase:'local',message:'Changes saved on this device.'});
+          if(command.kind==='select-compartment')syncEngine.current?.foreground();
+          if(profileOf(state).pending.length||profileOf(state).inFlight)syncEngine.current?.schedule();
+        }
       }
       return state;
     } catch (error) {
@@ -362,49 +356,6 @@ function App() {
     if (sheetMutation.current) throw new Error("Wait for the current Sheet operation to finish.");
     return transferWallet.current;
   }
-
-  useEffect(() => {
-    let cancelled = false;
-    let reading = false;
-    setDetectedResults(null);
-    if (!settings.detectBatchResults || !walletSnapshot || (!balanceReviewOpen && activePanel === 'detail') || (balanceReviewOpen && (reviewMode !== 'batch' || reviewOccupied))) return;
-    const profile = profileOf(walletSnapshot);
-    if (profile.ledgerRecovery || profile.ledger?.application || !profile.ledger?.requests.some(r => r.state === 'pending')) return;
-    async function detect() {
-      if (reading || document.visibilityState !== 'visible' || !navigator.permissions?.query || !navigator.clipboard?.readText) return;
-      reading = true;
-      try {
-        const permission = await navigator.permissions.query({ name: 'clipboard-read' });
-        if (cancelled || permission.state !== 'granted' || !document.hasFocus()) return;
-        const text = await navigator.clipboard.readText();
-        const results = parseTransferResults(text);
-        const start = await readWallet();
-        assertInventoryContext(start, inventoryContext(walletSnapshot));
-        const current = profileOf(start), ledger = current.ledger;
-        if (!ledger || current.ledgerRecovery || ledger.application || !ledger.requests.some(r => r.state === 'pending')) return;
-        getTransferWallet();
-        const status = await fetchWorkerJson('/api/status', { cache: 'no-store' });
-        const context = requireTransferContext(status, { context: current.context, remoteBase: current.remoteBase, sheets: current.sheets, sync: current.sync });
-        if (current.context.kind !== 'sheet' || current.context.sheetId !== context.sheetId || !sameTransferContext(ledger.context, context)) return;
-        const pending = ledger.requests.filter(r => r.state === 'pending');
-        if ((await Promise.all(pending.map(async r => {
-          const card = current.cards.find(c => c.cardNumber === r.cardNumber);
-          return !card || (r.relevance && r.relevance.pinDigest !== await inventoryFingerprint(card.pin, ledger.id));
-        }))).some(Boolean)) return;
-        if (!previewTransferResults(ledger, current.cards, results).counts.accepted) return;
-        const fresh = await readWallet();
-        assertInventoryContext(fresh, inventoryContext(start));
-        if (profileOf(fresh).revision !== current.revision || cancelled || !document.hasFocus()) return;
-        const key = JSON.stringify([start.active, start.contextGeneration, ledger.id, results]);
-        if (seenResults.current.has(key)) return;
-        seenResults.current.add(key);
-        setDetectedResults({ results, context: inventoryContext(start) });
-      } catch { /* Clipboard and validation failures leave manual paste available. */ }
-      finally { reading = false; }
-    }
-    window.addEventListener('focus', detect);
-    return () => { cancelled = true; window.removeEventListener('focus', detect); };
-  }, [settings.detectBatchResults, walletSnapshot?.active, walletSnapshot?.contextGeneration, walletSnapshot && profileOf(walletSnapshot).ledger?.id, activePanel, balanceReviewOpen, reviewMode, reviewOccupied]);
 
   const getAppSyncSummaryState = () => {
     const pending = walletRef.current && profileOf(walletRef.current).pending.length;
@@ -577,15 +528,15 @@ function App() {
           url.searchParams.delete("auth");
           window.history.replaceState(window.history.state, document.title, `${url.pathname}${url.search}${url.hash}`);
         }
-        const engine=createSyncEngine({store,request:fetchWorkerJson,
+        const engine=createSyncEngine({store,request:fetchWorkerJson,automatic:()=>preferences.current.automaticSync!==false,
           onState:state=>{if(!cancelled)adoptWallet(state);},
           onStatus:value=>{if(!cancelled)setSyncUi(value);},
           onAuth:status=>{if(!cancelled)setOauthState({status:status.authenticated?'connected':'disconnected',connectedEmail:status.email||'',connectedName:status.name||'',principal:status.principal||'',message:status.authenticated?'Google account connected.':'Connect Google for automatic synchronization.',lastErrorMessage:'',workerVersion:status.workerVersion||'',schemaMode:status.schemaMode||''});}});
-        syncEngine.current=engine;engine.start();
+        syncEngine.current=engine;engine.start({authReturn});
       } catch (error) { if (!cancelled) setLocalCardsError(error.message); }
     })();
-    const foreground=()=>{if(document.visibilityState==='visible')syncEngine.current?.sync();};
-    const reconnect=()=>syncEngine.current?.sync();
+    const foreground=()=>{if(document.visibilityState==='visible')syncEngine.current?.foreground();};
+    const reconnect=foreground;
     window.addEventListener("online",reconnect);document.addEventListener("visibilitychange",foreground);window.addEventListener("focus",reconnect);
     return () => { cancelled = true; syncEngine.current?.stop();window.removeEventListener("online",reconnect);document.removeEventListener("visibilitychange",foreground);window.removeEventListener("focus",reconnect); window.removeEventListener("focus", reload); window.removeEventListener("storage", legacyChanged); channel?.close(); store.close().catch(() => {}); };
   }, []);
@@ -622,14 +573,6 @@ function App() {
     };
     setSettings(nextSettings);
     saveSettings(nextSettings);
-  };
-
-  const requestClipboardPermission = () => {
-    const nextSettings = { ...settings, clipboardPermissionAttempted: true };
-    setSettings(nextSettings);
-    saveSettings(nextSettings);
-    // Read only from this explicit gesture; discard whatever is on the clipboard.
-    try { navigator.clipboard?.readText()?.catch(() => {}); } catch { /* Manual paste remains available. */ }
   };
 
   const handleResetFilters = () => {
@@ -1022,7 +965,7 @@ function App() {
     setValidationSummary("CSV backup download requested for the selected saved inventory.");
   };
 
-  const syncNow = async (bind=false) => syncEngine.current?.sync({bind});
+  const syncNow = async (bind=false) => syncEngine.current?.manual({bind});
   const handleEnsureSheet = async () => {
     try { await syncEngine.current?.control('ensure',{sheetId:exactSheetId.trim()}); }
     catch(error){setTransferMutationError(error.message);}
@@ -1065,23 +1008,10 @@ function App() {
     return <p role="status" className="p-4 text-m3-on-surface">Opening saved cards…</p>;
   }
 
-  const resultsNotice = detectedResults && (
-    <div role="status" className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
-      <span>Copied Batch results found.</span>
-      <Button variant="text" onClick={() => { setReviewResults(detectedResults); setDetectedResults(null); setReviewMode("batch"); setBalanceReviewOpen(true); }}>Review</Button>
-      <button type="button" aria-label="Dismiss Batch results notification" onClick={() => setDetectedResults(null)}><X size={20} /></button>
-    </div>
-  );
-
   if (balanceReviewOpen) {
     return (
       <BalanceReview
         cards={cards}
-        detectedResults={reviewResults}
-        resultsNotice={resultsNotice}
-        onModeChange={setReviewMode}
-        onOccupiedChange={setReviewOccupied}
-        onDetectedConsumed={() => setReviewResults(null)}
         walletSnapshot={walletSnapshot}
         readWallet={readWallet}
         commitWallet={commitWallet}
@@ -1090,9 +1020,6 @@ function App() {
           restoreReviewFocus.current = true;
           setTransferMutationError("");
           setBalanceReviewOpen(false);
-          setReviewResults(null);
-          setReviewMode("manual");
-          setReviewOccupied(false);
         }}
         copyText={writeClipboardText}
         maskCardNumber={maskCardNumber}
@@ -1393,18 +1320,6 @@ function App() {
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <span>Detect copied Batch results</span>
-                      <Switch checked={settings.detectBatchResults} onChange={() => handleToggleSetting('detectBatchResults')} />
-                    </label>
-
-                    {settings.detectBatchResults && !settings.clipboardPermissionAttempted && navigator.clipboard?.readText && navigator.permissions?.query && (
-                      <div className="px-2 text-sm text-m3-on-surface-variant">
-                        <p>Allow clipboard access for automatic detection. You can still paste results manually.</p>
-                        <Button variant="text" onClick={requestClipboardPermission}>Allow clipboard access</Button>
-                      </div>
-                    )}
-
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
                       <span>Hide Used Cards</span>
                       <Switch checked={settings.hideUsedCards} onChange={() => handleToggleSetting('hideUsedCards')} />
                     </label>
@@ -1487,42 +1402,6 @@ function App() {
                             {directSheetsState.message}
                           </p>
 
-                          <div className="grid grid-cols-2 gap-2 w-full px-2 pb-1">
-                            <ActionButton
-                              id="ensure-sheet"
-                              onClick={handleEnsureSheet}
-                              icon="wrench"
-                              label="Set up Sheet"
-                              compact
-                            />
-                            {directSheetsState.spreadsheetUrl && (
-                              <ActionButton
-                                id="open-direct-sheet"
-                                href={directSheetsState.spreadsheetUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                icon="external"
-                                label="Open Sheet"
-                                compact
-                              />
-                            )}
-                            <ActionButton
-                              id="load-from-sheets"
-                              onClick={handleLoadCardsFromSheet}
-                              icon="download"
-                              label="Import Sheet"
-                              compact
-                            />
-                            <ActionButton
-                              id="save-to-sheets"
-                              onClick={handleSaveCardsToSheet}
-                              icon="upload"
-                              label="Save to Sheet"
-                              className={!directSheetsState.spreadsheetUrl ? "col-span-2" : ""}
-                              compact
-                            />
-                          </div>
-
                         </div>
                       </div>
                     </details>
@@ -1566,11 +1445,22 @@ function App() {
                 </Card>
 
                 <Card as="section" className="p-3 flex flex-col gap-2" aria-label="Synchronization recovery">
+                  <h3 className="text-sm font-semibold">Synchronization</h3>
+                  <p className="text-sm">Active inventory: {savedCompartments(walletSnapshot).find(item => item.key === walletSnapshot.active)?.label}</p>
+                  <p className="text-sm">Destination: {profileOf(walletSnapshot).context.ownershipVerified === true ? `Google Sheet ${profileOf(walletSnapshot).context.sheetId}` : 'No verified Sheet for this inventory'}</p>
+                  <p className="text-sm">Pending changes: {profileOf(walletSnapshot).pending.length}{profileOf(walletSnapshot).inFlight ? ' · confirmation in progress' : ''}</p>
+                  <p className="text-sm">Last confirmed synchronization: {profileOf(walletSnapshot).sync?.lastConfirmedAt ? new Date(profileOf(walletSnapshot).sync.lastConfirmedAt).toLocaleString() : 'Not yet recorded on this device'}</p>
                   <p role="status" className="text-sm">{syncUi.message}</p>
+                  <label className="flex items-center justify-between gap-3 min-h-[48px]"><span>Automatic synchronization</span><Switch checked={settings.automaticSync} onChange={()=>{const next={...settings,automaticSync:!settings.automaticSync};preferences.current=next;setSettings(next);saveSettings(next);if(next.automaticSync)syncEngine.current?.foreground();}} /></label>
+                  <p className="text-xs text-m3-on-surface-variant">{settings.automaticSync?"Sync saved changes and check when returning to the wallet.":"Save locally until you select Sync now."}</p>
                   <Button variant="outlined" onClick={()=>syncNow()}>Sync now</Button>
+                  {profileOf(walletSnapshot).context.ownershipVerified === true && profileOf(walletSnapshot).context.sheetId && <ActionButton id="open-direct-sheet" href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(profileOf(walletSnapshot).context.sheetId)}/edit`} target="_blank" rel="noopener noreferrer" icon="external" label="Open Sheet" compact />}
                   <details>
-                    <summary className="cursor-pointer text-sm font-medium">Connection and recovery</summary>
+                    <summary className="cursor-pointer text-sm font-medium">Advanced synchronization and recovery</summary>
                     <div className="flex flex-col gap-2 pt-2">
+                      <ActionButton id="ensure-sheet" onClick={handleEnsureSheet} icon="wrench" label="Set up Sheet" compact />
+                      <ActionButton id="load-from-sheets" onClick={handleLoadCardsFromSheet} icon="download" label="Import Sheet" compact />
+                      <ActionButton id="save-to-sheets" onClick={handleSaveCardsToSheet} icon="upload" label="Save to Sheet" compact />
                       <label htmlFor="exact-sheet-id">Exact Sheet ID (optional)</label>
                       <TextField id="exact-sheet-id" value={exactSheetId} onChange={e=>setExactSheetId(e.target.value)} />
                       <Button variant="outlined" onClick={handleEnsureSheet}>Create or initialize private Sheet</Button>
@@ -1712,7 +1602,7 @@ function App() {
                           <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                             <span>Last Sheet read</span>
                             <span className="text-[10px] text-m3-on-surface font-medium">
-                              {directSheetsState.lastSuccessfulSyncAt || "No Sheet read yet"}
+                              {profileOf(walletSnapshot).sync?.lastConfirmedAt ? new Date(profileOf(walletSnapshot).sync.lastConfirmedAt).toLocaleString() : "Not yet recorded on this device"}
                             </span>
                           </li>
                           <li className="flex justify-between">
@@ -2130,7 +2020,6 @@ function App() {
         </Dialog>
       )}
 
-      {activePanel !== 'detail' && resultsNotice}
       {/* M3 Snackbar Toast */}
       {copyFeedback && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-xs font-bold px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4 min-w-[288px] max-w-sm pointer-events-none animate-snackbar">
