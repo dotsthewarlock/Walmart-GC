@@ -150,3 +150,17 @@ test('automatic transport recovery retries once and never generates a new flight
  await clock.advance(300000);assert.equal(calls,2);
  engine.stop();
 });
+test('an edit scheduled during a stale pull is pushed after that pull is rejected',async()=>{
+ const f=await fixture(),clock=testClock();let release,started;
+ const barrier=new Promise(resolve=>{release=resolve;});
+ const pulling=new Promise(resolve=>{started=resolve;});let hold=true;
+ const engine=createSyncEngine({store:f.store,timers:clock.timers,now:clock.now,request:async(path,options)=>{
+  if(path==='/api/sync'&&JSON.parse(options.body).action==='pull'&&hold){hold=false;started();await barrier;}
+  return f.request(path,options);
+ }});
+ const sync=engine.foreground();await pulling;
+ await edit(f.store,'saved during pull');engine.schedule();await clock.advance(15000);
+ release();await sync;assert.equal(profileOf(await f.store.read()).pending.length,1);
+ await clock.advance(3000);assert.equal(profileOf(await f.store.read()).pending.length,0);
+ assert.equal((await f.remote.read()).cards[0].notes,'saved during pull');engine.stop();
+});

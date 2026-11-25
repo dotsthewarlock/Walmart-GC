@@ -48,7 +48,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
     const isAuto=source!=='manual';
     if(stopped||(isAuto&&!autoAllowed()))return;
     if(running){if(source==='change')again=true;return;}
-    running=true;let context,completed=false,bound=false;
+    running=true;let context,bound=false;
     try{
       let state=await store.read();context=inventoryContext(state);
       if(isAuto&&!autoAllowed())return;
@@ -98,7 +98,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         await verifySnapshot(result,status.principal,status.sheetId);
         state=await commit({kind:'sync-pull',...context,revision:profile.revision,snapshot:result.snapshot});
       }
-      attempts=0;retryNotBefore=0;completed=true;lastCheck=now();lastContext=JSON.stringify(inventoryContext(state));
+      attempts=0;retryNotBefore=0;lastCheck=now();lastContext=JSON.stringify(inventoryContext(state));
       const evidence=profileOf(state).recoveryEvidence;
       const conflicts=Object.values(evidence?.cards??{}).flatMap(e=>e.conflicts??[]).filter(c=>!c.resolution).length;
       onStatus({phase:profileOf(state).remoteBase?.maintenance?'maintenance':conflicts?'review':'saved',message:profileOf(state).remoteBase?.maintenance?'Shared maintenance is paused. Local work remains saved.':conflicts?'Saved with recovery evidence. Review uncertain cards.':'Changes saved to your private Sheet.'});
@@ -115,11 +115,10 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         retryNotBefore=now()+60000;
         if(attempts++===0)retryTimer=timers.setTimeout(()=>sync({bind,source:'retry'}),60000);
       }
-      again=false;
     }finally{
       running=false;
       const follow=again;again=false;
-      if(follow&&(completed||now()<Math.max(lastAttempt+15000,retryNotBefore)))schedule();
+      if(follow)schedule();
     }
   }
   function schedule(){
