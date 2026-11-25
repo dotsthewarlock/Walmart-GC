@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "GC Wallet Companion",
+  "version": "0.0.0",
+  "description": "Walmart balance review with user-triggered form fill and result capture.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwkC2+5c08TQx7ULFVrwXs+VhtIEO7CcWZHkPI1uwsdr0mrxtypv/78MiIr9rBPMAF00y4vTvdcTfkEHGYMuLaUi7FBKWJCZdZqb+N1Q9CMWCiPRtcgv+nkaWcGsUlXmEm0mnV3M/RSUfRrItX90nA98qq33E8M2XJRI0GV5g7rotm4AU46rbmzEnHG5djULGIPPBOLbWl7iaUz/TPw5bgG695yxCAvrb3GF8QI5cIvo7gQ7/QqZ7w4r1iwWcsp9crBp5bHmnNDYXyStfZ+0WBxDtPRiA9c1+jvz+sU20s8sRaKdWLIPtimVxkNRt6PYILtFO24J6euJ6765s4E/EsQIDAQAB",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GC Wallet Companion"
+  },
+  "background": {
+    "service_worker": "worker.js",
+    "type": "module"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost/*"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/fixture.html*"
+      ],
+      "js": [
+        "fixture.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.walmart.ca/en/account/giftcards/balance"
+      ],
+      "js": [
+        "merchant-assist.js",
+        "overlay-position.js",
+        "checker-launcher.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "https://walmart-gc.dotsthewarlock.com/*",
+    "https://www.walmart.ca/*",
+    "https://walmart.ca/*"
+  ],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "clipboardWrite"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "overlay.html"
+      ],
+      "matches": [
+        "https://www.walmart.ca/*"
+      ]
+    }
+  ]
+}

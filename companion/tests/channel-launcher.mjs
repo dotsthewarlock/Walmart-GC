@@ -1,0 +1,12 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';
+const code=readFileSync(new URL('../launcher.txt',import.meta.url),'utf8').trim().slice('javascript:'.length);
+function fixture({origin='https://www.walmart.ca',path='/en/account/giftcards/balance'}={}){
+ const elements=[],alerts=[],timers=[];let focused;
+ function element(tag){const e={tag,children:[],style:{},dataset:{},disabled:false,removed:false,append(...c){this.children.push(...c);},attachShadow(){return this.shadow=element('shadow');},setAttribute(){},remove(){this.removed=true;},focus(){focused=this;}};elements.push(e);return e;}
+ const body=element('body'),head=element('head');const document={body,head,createElement:element,getElementById:id=>elements.find(e=>e.id===id&&!e.removed)};
+ vm.runInNewContext(code,{document,location:{origin,pathname:path},alert:t=>alerts.push(t),setTimeout:f=>{timers.push(f);return timers.length;},clearTimeout(){},Date});
+ return {elements,alerts,timers,head,element,get focused(){return focused;},button:t=>elements.find(e=>e.tag==='button'&&e.textContent===t),status:()=>elements.find(e=>e.tag==='span')?.textContent};
+}
+test('Dev primary focus; no load until explicit trusted click; fixed channel endpoint',()=>{const f=fixture();assert.equal(f.focused.textContent,'Launch Dev');assert.equal(f.head.children.length,0);f.button('Launch Dev').onclick({isTrusted:false});assert.equal(f.head.children.length,0);f.button('Launch Dev').onclick({isTrusted:true});const s=f.head.children[0];assert.match(s.src,/^https:\/\/walmart-gc\.dotsthewarlock\.com\/companion\/dev\/bookmarklet\.js\?v=\d+$/);assert.equal(s.dataset.gcChannel,'dev');assert.equal(s.referrerPolicy,'no-referrer');s.onerror();assert.match(f.status(),/Could not load dev/);assert.equal(f.button('Launch Dev').disabled,false);});
+test('Stable explicit selection and success',()=>{const f=fixture();f.button('Launch Stable').onclick({isTrusted:true});const s=f.head.children[0];assert.match(s.src,/\/stable\/bookmarklet\.js\?/);f.element('div').id='wmgc-helper-v01';s.onload();assert.equal(f.elements.find(e=>e.id==='gc-wallet-channel-launcher').removed,true);});
+test('Wrong page does not load; timeout fails closed',()=>{const w=fixture({path:'/checkout'});assert.equal(w.alerts.length,1);assert.equal(w.head.children.length,0);const f=fixture();f.button('Launch Dev').onclick({isTrusted:true});f.timers[0]();assert.match(f.status(),/Refresh the page/);assert.equal(f.button('Launch Stable').disabled,true);});

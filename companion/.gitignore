@@ -1,0 +1,7 @@
+/gc-wallet-companion/
+/site/
+/release-assets/
+/staging/
+/tests/*-results.json
+/tests/*-results.txt
+/__pycache__/
