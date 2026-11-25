@@ -26,14 +26,26 @@ function credentialsValid(card) {
     && typeof card.pin === "string" && pinPattern.test(card.pin);
 }
 
+function selectEligibleRows(eligible, selection) {
+  if (selection === "all") return eligible;
+  if (selection === "never") return eligible.filter(({ card }) => !card.lastBalanceChecked);
+  if (["5", "10", "20", "30"].includes(selection)) return eligible.slice(0, Number(selection));
+  throw new Error("Choose a batch selection.");
+}
+
 export function selectTransferCards(cards, selection) {
   const eligible = createBalanceReviewQueue(cards).filter(({ card }) => credentialsValid(card));
-  let selected;
-  if (selection === "all") selected = eligible;
-  else if (selection === "never") selected = eligible.filter(({ card }) => !card.lastBalanceChecked);
-  else if (["5", "10", "20", "30"].includes(selection)) selected = eligible.slice(0, Number(selection));
-  else throw new Error("Choose a batch selection.");
-  return { selected, eligible: eligible.length, excluded: cards.length - eligible.length };
+  return { selected: selectEligibleRows(eligible, selection), eligible: eligible.length, excluded: cards.length - eligible.length };
+}
+
+// New batches only: saved request and result validation retains the full eligible inventory.
+export function selectNewBatchCards(cards, selection, includeUsed = false) {
+  const all = selectTransferCards(cards, "all").selected;
+  const unused = all.filter(({ card }) => !card.used);
+  const used = all.filter(({ card }) => card.used);
+  const eligible = includeUsed ? [...unused, ...used] : unused;
+  return { selected: selectEligibleRows(eligible, selection), eligible: eligible.length,
+    excluded: cards.length - eligible.length, eligibleUsed: used.length };
 }
 
 // These fields can be compared across reloads. The whole saved-inventory
