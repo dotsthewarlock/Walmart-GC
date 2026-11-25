@@ -31,16 +31,18 @@ function transferEligibleCards(cards) {
 }
 
 export const transferPreferenceKey = "gc-wallet-batch-selection-v1";
-export const defaultTransferPreferences = Object.freeze({ version: 1, quantity: "all", includeUsed: false, includeZero: false, checked: "any", days: 30 });
+export const defaultTransferPreferences = Object.freeze({ version: 2, quantity: "all", status: "active", balance: "yes", checked: "any", days: 30, sort: "checked-oldest" });
 export function readTransferPreferences(storage) {
   try {
     const value = JSON.parse(storage.getItem(transferPreferenceKey));
-    if (!value || value.version !== 1) return { ...defaultTransferPreferences };
-    return { version: 1,
-      quantity: ["all", "5", "10", "20", "30"].includes(value.quantity) ? value.quantity : "all",
-      includeUsed: value.includeUsed === true, includeZero: value.includeZero === true,
+    if (!value || ![1, 2].includes(value.version)) return { ...defaultTransferPreferences };
+    return { version: 2,
+      quantity: ["all", "1", "5", "20", "50"].includes(value.quantity) ? value.quantity : "all",
+      status: value.version === 1 ? (value.includeUsed === true ? "all" : "active") : (["active", "used", "all"].includes(value.status) ? value.status : "active"),
+      balance: value.version === 1 ? (value.includeZero === true ? "all" : "yes") : (["yes", "zero", "all"].includes(value.balance) ? value.balance : "yes"),
       checked: ["any", "never", "older", "recent"].includes(value.checked) ? value.checked : "any",
-      days: [1, 3, 7, 30, 90, 180].includes(value.days) ? value.days : 30 };
+      days: [1, 3, 7, 30, 90, 180].includes(value.days) ? value.days : 30,
+      sort: ["checked-oldest", "checked-newest", "added-oldest", "added-newest", "balance-highest", "balance-lowest"].includes(value.sort) ? value.sort : "checked-oldest" };
   } catch { return { ...defaultTransferPreferences }; }
 }
 
@@ -52,12 +54,19 @@ export function selectTransferCards(cards, preferences = defaultTransferPreferen
   const cutoff = new Date(Date.parse(`${today}T00:00:00.000Z`) - preferences.days * 86400000).toISOString().slice(0, 10);
   const matching = allEligible.filter(({ card }) => {
     const checked = card.lastBalanceChecked || "";
-    return (preferences.includeUsed || card.used !== true) && (preferences.includeZero || card.currentBalance !== 0)
+    return (preferences.status === "all" || (preferences.status === "used" ? card.used === true : card.used !== true))
+      && (preferences.balance === "all" || (preferences.balance === "zero" ? card.currentBalance === 0 : card.currentBalance > 0))
       && (preferences.checked === "any" || (preferences.checked === "never" && !checked)
         || (preferences.checked === "older" && (!checked || checked <= cutoff))
         || (preferences.checked === "recent" && checked && checked >= cutoff && checked <= today));
-  }).sort((a, b) => (Number(a.card.used === true) * 2 + Number(a.card.currentBalance === 0))
-    - (Number(b.card.used === true) * 2 + Number(b.card.currentBalance === 0)));
+  }).sort(({ card: a }, { card: b }) => {
+    const sort = preferences.sort;
+    let order;
+    if (sort.startsWith("checked-")) order = (a.lastBalanceChecked || "").localeCompare(b.lastBalanceChecked || "") * (sort === "checked-newest" ? -1 : 1);
+    else if (sort.startsWith("added-")) order = (a.dateAdded || "").localeCompare(b.dateAdded || "") * (sort === "added-newest" ? -1 : 1);
+    else order = (a.currentBalance - b.currentBalance) * (sort === "balance-highest" ? -1 : 1);
+    return order || a.cardNumber.localeCompare(b.cardNumber);
+  });
   const selected = preferences.quantity === "all" ? matching : matching.slice(0, Number(preferences.quantity));
   return { selected, matching: matching.length, usedCount, zeroCount };
 }
