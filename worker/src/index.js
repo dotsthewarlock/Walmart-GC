@@ -381,13 +381,21 @@ async function loadSessionByKey(env, key) {
 }
 
 async function saveSession(env, context, patch = {}) {
-  const now = new Date().toISOString();
-  context.session = {
+  const now = Date.now();
+  const lastWrite = Date.parse(context.session.updatedAt || "");
+  const changed = Object.entries(patch).some(([key, value]) => context.session[key] !== value);
+  // Normal status and Sheet polls must not renew KV on every request. Keep
+  // rolling session expiry with at most one unchanged renewal per day.
+  if (!changed && Number.isFinite(lastWrite) && lastWrite <= now && now - lastWrite < 86400_000) {
+    return;
+  }
+  const next = {
     ...context.session,
     ...patch,
-    updatedAt: now,
+    updatedAt: new Date(now).toISOString(),
   };
-  await env.SESSIONS.put(context.key, JSON.stringify(context.session), { expirationTtl: SESSION_TTL_SECONDS });
+  await env.SESSIONS.put(context.key, JSON.stringify(next), { expirationTtl: SESSION_TTL_SECONDS });
+  context.session = next;
 }
 
 async function getGoogleAccessToken(env, context) {
