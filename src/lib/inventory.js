@@ -212,6 +212,7 @@ export function reduceInventory(input, command) {
       base=flight.request.cards;
       profile.inFlight=null;delete profile.syncBlocked;
     } else if (profile.inFlight || profile.pending.length || command.revision!==profile.revision) throw new Error('Saved cards changed. Recheck synchronization before accepting this remote response.');
+    if(command.kind==='sync-pull'&&syncEqual(profile.remoteBase,remote)&&syncEqual(profile.cards,remote.cards)&&syncEqual(profile.recoveryEvidence,remote.evidence)&&profile.sync?.status==='connected'&&profile.sheets?.status==='ready'&&(!profile.ledger||profile.ledger.context.sheetVersion===remote.version))return input;
     const local=command.kind==='sync-ack'?materialize(remote.cards,profile.pending):profile.cards;
     if(command.kind==='sync-ack')for(const card of profile.cards)if(!local.some(c=>c.cardNumber===card.cardNumber)&&!remote.evidence.tombstones[card.cardNumber])local.push(card);
     const merged=reconcile({base,local,remote:remote.cards,operations:profile.pending,
@@ -302,6 +303,8 @@ export function reduceInventory(input, command) {
       const allowed = ['currentBalance', 'dateUpdated', 'used', 'dateUsed', 'notes'];
       if (Object.keys(command.patch).some(k => !allowed.includes(k))) throw new Error('Unsupported local edit.');
       [after] = validateInventory([{ ...before, ...command.patch }]);
+      if(command.action==='set-balance'&&before.currentBalance===after.currentBalance)after.dateUpdated=before.dateUpdated;
+      if(syncEqual(before,after))return input;
     }
     record(profile, { ...command, kind: command.action ?? command.kind }, before, after);
   } else if (command.kind === 'mark-zero-used') {
@@ -500,12 +503,13 @@ export function openInventory({ indexedDB, storage,
       return captureLegacyChanges();
     },
     async commit(command) {
+      let changed=false;
       const state = await transaction('readwrite', current => {
         if (!current) throw new Error('Initialize local inventory first.');
-        return reduceInventory(current, command);
+        const next=reduceInventory(current, command);changed=next!==current;return next;
       });
       // Notification failures cannot turn a completed commit into a failed save.
-      try { notify(); } catch { /* tab focus also reloads committed state */ }
+      if(changed)try { notify(); } catch { /* tab focus also reloads committed state */ }
       return state;
     },
     async close() { (await connected).close(); },
