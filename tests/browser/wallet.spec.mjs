@@ -129,3 +129,21 @@ test('concurrent monetary actions retain remote provisional evidence and fresh u
  await expect.poll(async()=>(await remote.read()).cards[0].pendingReconciliation).toBe(false);expect((await remote.read()).cards[0].lastBalanceChecked).toBe(new Date().toISOString().slice(0,10));expect((await remote.read()).cards[0].dateUpdated).toBe(updated);
  await one.close();await two.close();
 });
+
+test('opt-in clipboard detection offers review without applying or interrupting checkout',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);await setup(context,remote,[]);
+ await context.addInitScript(()=>{
+  window.qaClipboard={text:'',reads:0,permission:'granted'};
+  Object.defineProperty(navigator,'permissions',{value:{query:async()=>({state:window.qaClipboard.permission})}});
+  Object.defineProperty(navigator,'clipboard',{value:{readText:async()=>{window.qaClipboard.reads++;return window.qaClipboard.text;},writeText:async()=>{}}});
+ });
+ const page=await context.newPage();await start(page);await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();await page.getByRole('button',{name:/Create batch/}).click();await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBeGreaterThan(0);
+ const state=await snapshot(page),ref=active(state).ledger.requests[0].ref,packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');
+ await page.getByRole('button',{name:'Exit',exact:true}).click();await page.evaluate(p=>{window.qaClipboard.text=p;window.dispatchEvent(new Event('focus'));},packet);expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(0);
+ await settings(page);await page.getByText('Detect copied Batch results').click();await cards(page);
+ await expect.poll(async()=>{await page.evaluate(()=>window.dispatchEvent(new Event('focus')));return page.getByText('Copied Batch results found.').isVisible();},{timeout:10000}).toBe(true);
+ await page.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('heading',{name:'Results preview'})).toBeVisible();expect(active(await snapshot(page)).ledger.requests.every(r=>r.state==='pending')).toBe(true);
+ await page.getByRole('button',{name:'Exit',exact:true}).click();await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.getByText('Copied Batch results found.')).toHaveCount(0);
+ await checkoutA(page);const reads=await page.evaluate(()=>window.qaClipboard.reads);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(await page.evaluate(()=>window.qaClipboard.reads)).toBe(reads);
+ await context.close();
+});

@@ -11,7 +11,7 @@ import { checkerUrl } from "../lib/balanceTransfer";
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 
 export function BalanceReview({ onExit, ...props }) {
-  const [mode, setMode] = useState("manual");
+  const [mode, setMode] = useState(props.detectedResults ? "batch" : "manual");
   return (
     <main className="min-h-screen bg-m3-surface text-m3-on-surface">
       <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">

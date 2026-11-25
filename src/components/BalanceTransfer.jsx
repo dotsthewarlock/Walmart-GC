@@ -37,7 +37,7 @@ function formatNet(cents) {
   return `${cents < 0n ? "−" : cents > 0n ? "+" : ""}$${(absolute / 100n).toLocaleString("en-CA")}.${String(absolute % 100n).padStart(2, "0")}`;
 }
 
-export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet }) {
+export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, detectedResults }) {
   const [preferences, setPreferences] = useState(() => {
     try { return readTransferPreferences(window.localStorage); } catch { return { ...defaultTransferPreferences }; }
   });
@@ -186,6 +186,15 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     setPreview(buildPreview(session, results));
     setPacket("");
   }
+
+  useEffect(() => {
+    if (!detectedResults) return;
+    run(async () => {
+      assertInventoryContext(await readWallet(), detectedResults.context);
+      const session = await verifiedSession();
+      setPreview(buildPreview(session, detectedResults.results));
+    });
+  }, []);
 
   async function applyResults() {
     const prior = preview;

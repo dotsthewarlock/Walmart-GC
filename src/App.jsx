@@ -17,6 +17,8 @@ import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { SelectField } from './components/primitives/SelectField';
 import { BalanceReview } from './components/BalanceReview';
+import { parseTransferResults, previewTransferResults, requireTransferContext, sameTransferContext } from './lib/balanceTransfer';
+import { inventoryFingerprint } from './lib/balanceTransferLedger';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
 import { Chip, StatusChip } from './components/primitives/Chip';
@@ -205,6 +207,7 @@ function App() {
     sortMode: "balance-asc",
     themeMode: "system",
     checkoutDark: true,
+    detectBatchResults: false,
   });
   const preferences = useRef(settings);
   preferences.current = settings;
@@ -213,6 +216,9 @@ function App() {
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const [revealNumber, setRevealNumber] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [detectedResults, setDetectedResults] = useState(null);
+  const [reviewResults, setReviewResults] = useState(null);
+  const seenResults = useRef(new Set());
   
   // Balance Editor Form State
   const [isEditingBalance, setIsEditingBalance] = useState(false);
@@ -353,6 +359,49 @@ function App() {
     if (sheetMutation.current) throw new Error("Wait for the current Sheet operation to finish.");
     return transferWallet.current;
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    let reading = false;
+    setDetectedResults(null);
+    if (!settings.detectBatchResults || !walletSnapshot || activePanel === 'detail' || balanceReviewOpen) return;
+    const profile = profileOf(walletSnapshot);
+    if (profile.ledgerRecovery || profile.ledger?.application || !profile.ledger?.requests.some(r => r.state === 'pending')) return;
+    async function detect() {
+      if (reading || document.visibilityState !== 'visible' || !navigator.permissions?.query || !navigator.clipboard?.readText) return;
+      reading = true;
+      try {
+        const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+        if (cancelled || permission.state !== 'granted' || !document.hasFocus()) return;
+        const text = await navigator.clipboard.readText();
+        const results = parseTransferResults(text);
+        const start = await readWallet();
+        assertInventoryContext(start, inventoryContext(walletSnapshot));
+        const current = profileOf(start), ledger = current.ledger;
+        if (!ledger || current.ledgerRecovery || ledger.application || !ledger.requests.some(r => r.state === 'pending')) return;
+        getTransferWallet();
+        const status = await fetchWorkerJson('/api/status', { cache: 'no-store' });
+        const context = requireTransferContext(status, { context: current.context, remoteBase: current.remoteBase, sheets: current.sheets, sync: current.sync });
+        if (current.context.kind !== 'sheet' || current.context.sheetId !== context.sheetId || !sameTransferContext(ledger.context, context)) return;
+        const pending = ledger.requests.filter(r => r.state === 'pending');
+        if ((await Promise.all(pending.map(async r => {
+          const card = current.cards.find(c => c.cardNumber === r.cardNumber);
+          return !card || (r.relevance && r.relevance.pinDigest !== await inventoryFingerprint(card.pin, ledger.id));
+        }))).some(Boolean)) return;
+        if (!previewTransferResults(ledger, current.cards, results).counts.accepted) return;
+        const fresh = await readWallet();
+        assertInventoryContext(fresh, inventoryContext(start));
+        if (profileOf(fresh).revision !== current.revision || cancelled || !document.hasFocus()) return;
+        const key = JSON.stringify([start.active, start.contextGeneration, ledger.id, results]);
+        if (seenResults.current.has(key)) return;
+        seenResults.current.add(key);
+        setDetectedResults({ results, context: inventoryContext(start) });
+      } catch { /* Clipboard and validation failures leave manual paste available. */ }
+      finally { reading = false; }
+    }
+    window.addEventListener('focus', detect);
+    return () => { cancelled = true; window.removeEventListener('focus', detect); };
+  }, [settings.detectBatchResults, walletSnapshot?.active, walletSnapshot?.contextGeneration, walletSnapshot && profileOf(walletSnapshot).ledger?.id, activePanel, balanceReviewOpen]);
 
   const getAppSyncSummaryState = () => {
     const pending = walletRef.current && profileOf(walletRef.current).pending.length;
@@ -1009,6 +1058,7 @@ function App() {
     return (
       <BalanceReview
         cards={cards}
+        detectedResults={reviewResults}
         walletSnapshot={walletSnapshot}
         readWallet={readWallet}
         commitWallet={commitWallet}
@@ -1017,6 +1067,7 @@ function App() {
           restoreReviewFocus.current = true;
           setTransferMutationError("");
           setBalanceReviewOpen(false);
+          setReviewResults(null);
         }}
         copyText={writeClipboardText}
         maskCardNumber={maskCardNumber}
@@ -1314,6 +1365,11 @@ function App() {
                         <span className="text-[10px] text-m3-on-surface-variant font-normal">Overrides Appearance on Checkout</span>
                       </div>
                       <Switch checked={settings.checkoutDark} onChange={() => handleToggleSetting('checkoutDark')} />
+                    </label>
+
+                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
+                      <span>Detect copied Batch results</span>
+                      <Switch checked={settings.detectBatchResults} onChange={() => handleToggleSetting('detectBatchResults')} />
                     </label>
 
                     <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
@@ -2042,6 +2098,13 @@ function App() {
         </Dialog>
       )}
 
+      {detectedResults && activePanel !== 'detail' && (
+        <div role="status" className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+          <span>Copied Batch results found.</span>
+          <Button variant="text" onClick={() => { setReviewResults(detectedResults); setDetectedResults(null); setBalanceReviewOpen(true); }}>Review</Button>
+          <button type="button" aria-label="Dismiss Batch results notification" onClick={() => setDetectedResults(null)}><X size={20} /></button>
+        </div>
+      )}
       {/* M3 Snackbar Toast */}
       {copyFeedback && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-xs font-bold px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4 min-w-[288px] max-w-sm pointer-events-none animate-snackbar">
