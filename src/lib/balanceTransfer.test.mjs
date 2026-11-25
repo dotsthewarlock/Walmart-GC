@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   formatTransferRequest, parseTransferResults, previewTransferResults, requireTransferContext,
-  isTransferReference, selectTransferCards, transferRequestRows,
+  isTransferReference, selectTransferCards, selectNewBatchCards, transferRequestRows,
 } from "./balanceTransfer.js";
 import {
   assertTransferUnchanged, checkTransferContinuity, commitTransferApplication, createTransferLedger,
@@ -93,6 +93,48 @@ test("selection is deterministic with 35+ cards, exact identities and strict tra
   for (const count of [5, 10, 20, 30]) {
     assert.deepEqual(selectTransferCards(inventory, String(count)).selected.map(({ card }) => card), cards.slice(0, count));
   }
+});
+
+test("new batches default to unused, count eligible used cards and retain zero balances", () => {
+  const unused = card(1, { currentBalance: 0, lastBalanceChecked: "2026-02-04" });
+  const used = card(2, { used: true, lastBalanceChecked: "" });
+  const invalid = card(3, { used: true, pin: "12345" });
+  const duplicate = card(4, { used: true });
+  const inventory = [used, invalid, unused, duplicate, { ...duplicate }];
+  const result = selectNewBatchCards(inventory, "all");
+  assert.deepEqual(result.selected.map(({ card }) => card), [unused]);
+  assert.deepEqual([result.eligible, result.excluded, result.eligibleUsed], [1, 4, 1]);
+  assert.deepEqual(selectNewBatchCards(inventory, "all", true).selected.map(({ card }) => card), [unused, used]);
+  assert.equal(selectNewBatchCards([used], "all").selected.length, 0);
+  assert.equal(selectNewBatchCards([used], "all", true).selected.length, 1);
+});
+
+test("new batches prioritize unused then used, with original age ordering and selection modes", () => {
+  const a = card(1, { lastBalanceChecked: "2026-03-01" });
+  const b = card(2, { lastBalanceChecked: "" });
+  const c = card(3, { lastBalanceChecked: "2026-01-01" });
+  const d = card(4, { used: true, lastBalanceChecked: "2026-02-01" });
+  const e = card(5, { used: true, lastBalanceChecked: "" });
+  const f = card(6, { used: true, lastBalanceChecked: "2026-01-01" });
+  const inventory = [a, b, c, d, e, f];
+  const order = [b, c, a, e, f, d];
+  assert.deepEqual(selectNewBatchCards(inventory, "all", true).selected.map(({ card }) => card), order);
+  assert.deepEqual(selectNewBatchCards(inventory, "5", true).selected.map(({ card }) => card), order.slice(0, 5));
+  assert.deepEqual(selectNewBatchCards(inventory, "never", true).selected.map(({ card }) => card), [b, e]);
+  assert.deepEqual(selectNewBatchCards(inventory, "never").selected.map(({ card }) => card), [b]);
+  assert.equal(selectNewBatchCards(inventory, "all", true).eligible, 6);
+  assert.deepEqual(selectTransferCards(inventory, "all").selected.map(({ card }) => card), [b, e, c, f, d, a]);
+});
+
+test("used-card requests remain exportable and applicable with new-batch filtering off", async () => {
+  const cards = [card(1, { used: true, currentBalance: 0, dateUsed: "2026-02-01" })];
+  const ledger = await makeLedger(cards);
+  assert.equal(selectNewBatchCards(cards, "all").selected.length, 0);
+  assert.equal(transferRequestRows(ledger, cards).length, 1);
+  const preview = previewTransferResults(ledger, cards, [observation(ledger.requests[0], 3)], now);
+  assert.equal(preview.counts.accepted, 1);
+  assert.equal(preview.candidate[0].currentBalance, 3);
+  assert.equal(preview.candidate[0].used, true);
 });
 
 test("request format preserves leading zeros and resuming uses the original lowercase UUID references", async (t) => {
