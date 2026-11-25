@@ -1,6 +1,6 @@
 # Product validation
 
-Run `npm test`, `npm run test:browser`, `npm run build` and `git diff --check`.
+Run `npm test`, `npm run test:worker`, `npm run test:browser`, `npm run build` and `git diff --check`.
 The [integrated QA checklist](../docs/QA_TEST_CHECKLIST.md) owns setup, acceptance
 and release prerequisites; do not duplicate historical phase checklists here.
 

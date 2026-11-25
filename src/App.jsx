@@ -1498,11 +1498,11 @@ function App() {
                       <Button variant="outlined" disabled={profileOf(walletSnapshot).context.ownershipVerified!==true||oauthState.status!=='connected'||oauthState.principal!==profileOf(walletSnapshot).context.principal} onClick={recoverUnbound}>Recover unbound inventory into connected account</Button>
                       {Object.entries(profileOf(walletSnapshot).recoveryEvidence?.cards??{}).flatMap(([number,entry])=>(entry.conflicts??[]).filter(c=>!c.resolution).map(conflict=>(
                         <div key={conflict.id} className="border border-m3-outline-variant rounded-xl p-3 text-sm">
-                          <p>Card ending {number.slice(-4)}: {conflict.kind==='balance'?'Balance needs fresh merchant verification':conflict.kind}</p>
+                          <p>Card ending {number.slice(-4)}: {conflict.kind==='balance'?'Balance needs fresh merchant verification':conflict.kind==='missing-remote'?'Recovered a missing Sheet card. Verify its balance.':conflict.kind}</p>
                           <details><summary className="cursor-pointer">Compare recovery values (may contain credentials)</summary><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify({recovered:conflict.local,sheet:conflict.remote},null,2)}</pre></details>
                           {conflict.kind!=='balance'&&<div className="flex flex-wrap gap-2">
-                            <Button variant="outlined" onClick={()=>resolveConflict(number,conflict,conflict.kind==='deleted-identity'?'restore':'local')}>Use recovered values</Button>
-                            <Button variant="outlined" onClick={()=>resolveConflict(number,conflict,'remote')}>Keep Sheet values</Button>
+                            <Button variant="outlined" onClick={()=>resolveConflict(number,conflict,conflict.kind==='deleted-identity'?'restore':'local')}>{conflict.kind==='missing-remote'?'Keep recovered card':'Use recovered values'}</Button>
+                            {conflict.kind!=='missing-remote'&&<Button variant="outlined" onClick={()=>resolveConflict(number,conflict,'remote')}>Keep Sheet values</Button>}
                           </div>}
                         </div>
                       )))}

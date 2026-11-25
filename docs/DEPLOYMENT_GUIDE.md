@@ -11,6 +11,9 @@
 > values. No provisioning or production configuration changes were performed.
 > A coordinated Worker must precede the V0.3 frontend; old writable rollback is
 > unsafe. Use one integrated acceptance cycle, not historical phase gates.
+> Follow the [consolidated V0.3 activation/recovery plan](V0.3_RELEASE_READINESS.md)
+> for current rollout order and external prerequisites. Local workerd/SQLite checks
+> passed using mocked Google; production configuration and account checks remain.
 
 
 Walmart-GC is a static GitHub Pages app. The frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.

@@ -79,3 +79,28 @@ test('an independent monetary change observed during acknowledgment cannot be hi
  await engine.sync();assert.equal((await f.remote.read()).cards[0].currentBalance,80);assert.equal((await f.remote.read()).cards[0].pendingReconciliation,true);
  assert.ok((await f.remote.read()).evidence.cards[a.cardNumber].conflicts.some(c=>c.local===90));
 });
+test('ACK rebasing retains competing later notes durably and the next commit cannot overwrite their remote alternative',async()=>{
+ const f=await fixture(),original=profileOf(await f.store.read()).cards[0];await edit(f.store,'submitted note');let release;
+ const barrier=new Promise(resolve=>{release=resolve;});let held=true;
+ const engine=createSyncEngine({store:f.store,timers,request:async(...args)=>{if(args[0]==='/api/sync'&&JSON.parse(args[1].body).action==='commit'&&held){held=false;await barrier;}return f.request(...args);}});
+ const syncing=engine.sync();let state;while(!(state=await f.store.read()).profiles[state.active].inFlight)await new Promise(resolve=>setTimeout(resolve,1));
+ await edit(f.store,'later competing note');const {commitRequest,operation}=await import('../../tests/syncFixtures.mjs');
+ await f.remote.coordinator.run(await commitRequest(f.remote,[{...original,notes:'other device'}],[operation('other-note',original,{...original,notes:'other device'})]));
+ release();await syncing;state=await f.store.read();assert.equal(profileOf(state).cards[0].notes,'other device');assert.equal(profileOf(state).pending.length,1);
+ assert.ok(profileOf(state).recoveryEvidence.cards[a.cardNumber].conflicts.some(c=>c.local==='later competing note'));
+ const restarted=createSyncEngine({store:f.store,timers,request:f.request});await restarted.sync();const remote=await f.remote.read();
+ assert.equal(remote.cards[0].notes,'other device');assert.ok(remote.evidence.cards[a.cardNumber].conflicts.some(c=>c.local==='later competing note'&&c.remote==='other device'&&c.base==='submitted note'));
+ assert.equal(profileOf(await f.store.read()).pending.length,0);
+});
+test('a missing remote card gets durable recovery intent, stays uncertain and survives later acknowledgments',async()=>{
+ const f=await fixture();await f.remote.coordinator.run({protocol:syncProtocol,action:'pause',id:crypto.randomUUID()});
+ f.remote.directEdit(s=>{s.cards=[];});await f.remote.coordinator.run({protocol:syncProtocol,action:'resume',id:crypto.randomUUID()});
+ await f.engine.sync();let state=await f.store.read(),profile=profileOf(state);
+ assert.equal(profile.cards[0].pin,a.pin);assert.equal(profile.cards[0].pendingReconciliation,true);assert.equal(profile.pending[0].kind,'unbound-recovery');
+ assert.equal(profile.recoveryEvidence.cards[a.cardNumber].conflicts[0].kind,'missing-remote');
+ await f.engine.sync();state=await f.store.read();profile=profileOf(state);assert.equal(profile.pending.length,0);assert.equal((await f.remote.read()).cards[0].pin,a.pin);
+ const conflict=profile.recoveryEvidence.cards[a.cardNumber].conflicts.find(c=>c.kind==='missing-remote'&&!c.resolution);
+ await f.store.commit({id:crypto.randomUUID(),kind:'resolve-conflict',...inventoryContext(state),cardNumber:a.cardNumber,version:profile.versions[a.cardNumber],conflictId:conflict.id,choice:'local'});
+ await f.engine.sync();assert.ok((await f.remote.read()).evidence.cards[a.cardNumber].conflicts.find(c=>c.id===conflict.id).resolution);
+ await edit(f.store,'still retained');await f.engine.sync();assert.equal(profileOf(await f.store.read()).cards[0].pin,a.pin);assert.equal((await f.remote.read()).cards[0].notes,'still retained');
+});

@@ -108,16 +108,26 @@ The DO uses an explicit promise queue for the full external sequence, rather tha
 assuming input gates make fetch transactional. Receipt/hash indexes commit in a
 DO storage transaction. Google API timeouts are treated as uncertain after
 possible dispatch. Actual Cloudflare runtime/binding compatibility remains a
-release gate. No production configuration was provisioned by this development.
+release gate. Production modules and the HTTP DO class are also exercised in local
+workerd with SQLite persistence and denied/unmatched outbound traffic. This proves
+local queue/storage/restart behavior, not deployed bindings or Google semantics.
+No production configuration was provisioned by this development.
 
 ## Conservative three-way reconciliation
 
-Independent additions and field edits combine. Unchanged local fields follow
+Independent additions and field edits combine. Pending field edits retain their
+own original field baseline across acknowledgment of an earlier commit. The
+confirmed remote baseline cannot make a competing later edit an unconditional
+overwrite. Local acknowledgment reconciliation durably preserves alternatives;
+the following protected commit writes targeted shared evidence. Unchanged local fields follow
 remote changes; identical nonmonetary edits coalesce. Competing notes retain the
 remote value provisionally plus targeted local/base alternatives. PIN, identity
 and explicit-deletion conflicts require owner resolution. No deletion is inferred
-from absence; missing remote rows preserve credentials and produce recovery
-information. Controlled explicit deletions create compact retained tombstones so
+from absence; missing remote rows preserve credentials, create durable recovery
+operations and stay balance-uncertain until verified. Their targeted missing-row
+evidence can be acknowledged after restoration; acknowledging it alone does not
+verify the balance. Later acknowledgments cannot erase the recovered row.
+Controlled explicit deletions create compact retained tombstones so
 stale devices cannot resurrect them. Restore is explicit and balance-uncertain.
 
 Monetary operations carry semantic identities and per-card monetary revisions.

@@ -9,6 +9,7 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 - Accepted production main baseline: `bbbc9334dd261b1a897b98a8012d9bb22fdf7e31`.
 - Consolidated V0.3 release candidate: `feature/sync-foundation`, draft PR #231.
 - V0.3A.1 reviewed foundation: `819eef8c9536042fceabbf1f9b41d2d8f0cf234f`.
+- Reviewed consolidated candidate: `bbe27d0a0aaf5c3091dae30867d3fc00e49c3442`.
 - React 19 / Vite / Tailwind / M3; existing Pages and same-origin Worker hosting.
 - No merge or deployment is authorized by the consolidated development brief.
 
@@ -31,11 +32,15 @@ The code and synthetic adapters do not establish production readiness. Verify th
 actual Durable Object runtime/binding/migration and service entitlement; Google
 permissionId/owned-file checks under drive.file; session/secret binding integrity;
 coordinated API routing; and the integrated browser cycle before release.
-Local acceptance includes the production Node suite and an integrated Chromium
-cycle with synthetic adapters, mobile/desktop navigation and two-device conflicts.
+Local readiness includes acknowledgment-rebase and missing-row durability fixes,
+patched build tools with a zero-finding dependency audit, the production Node suite,
+actual workerd/SQLite restart/coordination tests with mocked Google, and integrated
+Chromium mobile/desktop navigation and two-device conflicts.
 No live requests, secret reads or infrastructure changes are part of this work.
 Prior native IndexedDB/restart acceptance is retained, not repeatedly rerun.
 
 Use [QA](QA_TEST_CHECKLIST.md) for current commands and remaining integrated
 acceptance. Use [Roadmap](ROADMAP.md) for scope, and [Architecture](ARCHITECTURE.md)
 for contracts. Old explicit-sync phase briefs are historical, not active gates.
+The [consolidated activation/recovery plan](V0.3_RELEASE_READINESS.md) owns the
+ordered external steps, private backup, Google verification and safe rollback.

@@ -212,10 +212,16 @@ export function reduceInventory(input, command) {
       base=flight.request.cards;
       profile.inFlight=null;delete profile.syncBlocked;
     } else if (profile.inFlight || profile.pending.length || command.revision!==profile.revision) throw new Error('Saved cards changed. Recheck synchronization before accepting this remote response.');
-    const merged=command.kind==='sync-ack'
-      ? {cards:materialize(remote.cards,profile.pending),evidence:remote.evidence}
-      : reconcile({base,local:profile.cards,remote:remote.cards,operations:profile.pending,
-        baseEvidence:profile.remoteBase?.evidence,evidence:remote.evidence});
+    const local=command.kind==='sync-ack'?materialize(remote.cards,profile.pending):profile.cards;
+    if(command.kind==='sync-ack')for(const card of profile.cards)if(!local.some(c=>c.cardNumber===card.cardNumber)&&!remote.evidence.tombstones[card.cardNumber])local.push(card);
+    const merged=reconcile({base,local,remote:remote.cards,operations:profile.pending,
+      baseEvidence:command.kind==='sync-ack'?remote.evidence:profile.remoteBase?.evidence,evidence:remote.evidence});
+    // A restored row must have durable semantic intent; otherwise the next ACK
+    // could replace it with an absent remote baseline. Tombstones remain explicit.
+    for(const card of merged.cards)if(!remote.cards.some(c=>c.cardNumber===card.cardNumber)&&!profile.pending.some(op=>op.cardNumber===card.cardNumber)){
+      profile.pending.push({id:command.id+':missing:'+card.cardNumber,kind:'unbound-recovery',cardNumber:card.cardNumber,
+        before:profile.remoteBase?.cards.find(c=>c.cardNumber===card.cardNumber)??card,after:card,revision:profile.revision+1});
+    }
     for(const op of profile.pending.filter(op=>op.requiresReconciliation)) {const card=merged.cards.find(c=>c.cardNumber===op.cardNumber);if(card)card.pendingReconciliation=true;}
     for(const card of merged.cards) {
       const previous=profile.cards.find(c=>c.cardNumber===card.cardNumber);

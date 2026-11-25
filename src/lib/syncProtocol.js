@@ -50,7 +50,12 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       continue;
     }
     if(!saved){
-      if(prior)conflict(number,'missing-remote',{local:card,base:prior,remote:null},ids);
+      const missingBase=prior??ops.find(o=>o.before)?.before;
+      if(missingBase){
+        card.pendingReconciliation=true;
+        const entry=conflict(number,'missing-remote',{local:card,base:missingBase,remote:null},ids);
+        entry.uncertainSince??=now;
+      }
       // Preserve credentials even when direct edits removed a row without a tombstone.
       result.set(number,card);
       const financial=ops.filter(o=>['set-balance','manual-verification','batch-verification'].includes(o.kind));
@@ -60,6 +65,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     for(const op of ops.filter(o=>o.kind==='resolve-conflict')){
       const target=next.cards[number]?.conflicts?.find(c=>c.id===op.conflictId);
       if(target&&op.choice==='remote')target.resolution='remote';
+      if(target?.kind==='missing-remote'&&op.choice==='local'&&target.local?.pin===saved.pin)target.resolution='restored';
       if(target?.kind==='credentials'&&op.choice==='local'&&target.local?.pin===saved.pin)target.resolution='equivalent-local';
     }
     if(card.pin!==saved.pin){
@@ -86,10 +92,14 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
           &&(equal(c.remote,saved[field]??null)||equal(c.local,saved[field]??null));
       });
       if(resolution){assign(field,card[field]);entry.conflicts.find(c=>c.id===resolution.conflictId).resolution='local';continue;}
-      if(equal(card[field],saved[field])||equal(card[field],prior?.[field]))continue;
-      if(prior&&equal(saved[field],prior[field])&&!ops.some(o=>o.kind==='unbound-recovery'))assign(field,card[field]);
+      // A later edit retains its own field baseline across an earlier ACK.
+      // Advancing the inventory baseline must not turn a competing edit into LWW.
+      const first=ops.find(o=>o.after&&!equal(o.before?.[field],o.after[field]));
+      const fieldBase=first?first.before?.[field]:prior?.[field];
+      if(equal(card[field],saved[field])||equal(card[field],fieldBase))continue;
+      if((prior||first?.before)&&equal(saved[field],fieldBase)&&!ops.some(o=>o.kind==='unbound-recovery'))assign(field,card[field]);
       else if(!prior&&saved[field]===undefined)assign(field,card[field]);
-      else conflict(number,'field:'+field,{local:card[field]??null,remote:saved[field]??null,base:prior?.[field]??null},ids);
+      else conflict(number,'field:'+field,{local:card[field]??null,remote:saved[field]??null,base:fieldBase??null},ids);
     }
     const entry=next.cards[number]??{money:0,conflicts:[]};
     const verify=monetary.filter(o=>['manual-verification','batch-verification'].includes(o.kind)).at(-1);

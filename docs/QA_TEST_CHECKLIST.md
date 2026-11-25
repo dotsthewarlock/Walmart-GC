@@ -9,6 +9,7 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 ```sh
 npm ci
 npm test
+npm run test:worker
 npx playwright install chromium
 npm run test:browser
 npm run build
@@ -21,6 +22,15 @@ CI uses `playwright install --with-deps chromium`. In a restricted development
 container, equivalent libraries may be extracted temporarily and supplied through
 LD_LIBRARY_PATH; this does not change the product or deployment. No normal app
 flow depends on Playwright or any test fixture.
+
+`test:worker` uses development-only Miniflare/workerd, the production Worker module
+graph and SQLite-backed coordinator storage. Two local-runtime scenarios cover
+protocol/account fencing, concurrent writes across external awaits and actual
+runtime restart after uncertain dispatch. All Google responses are synthetic;
+unmatched outbound network connections are denied. This is stronger than an
+in-memory storage fake, but does not validate production bindings or live Google.
+See the [activation/recovery plan](V0.3_RELEASE_READINESS.md) for advisory disposition
+and the remaining external checks.
 
 The browser suite starts normal Vite on local 5178, blocks external traffic and
 mocks every API/auth route. It uses synthetic cards ending 0042 (100.00) and 0084
@@ -37,6 +47,8 @@ committed state; 412 × 923 and desktop navigation; protected explicit controls,
 setup and shared maintenance. Node tests cover uncertain/late writes, restart,
 marker/content mismatch, account isolation, bounded receipts/old retries,
 reconciliation/tombstones, legacy CSV and every recognized Sheet header mapping.
+Focused readiness regressions also retain competing nonmonetary edits across
+ACK rebasing and persist missing-row recovery intent across subsequent ACKs.
 
 Old regression assertions that required dormant pendingReconciliation=true to be
 rejected, uncoordinated whole-inventory writes, or unrelated-change Batch
@@ -59,12 +71,13 @@ or Sheet pages from a synthetic run. No separate repeated phase acceptance gates
 
 ## Infrastructure and release gates — not established by mocks
 
-- Actual Cloudflare module/DO class compatibility, storage transactions, namespace,
+- Deployed Cloudflare module/DO class compatibility, storage transactions, namespace,
   binding and migration, service entitlement/cost and deployment route identity.
   The checked-in production config remains unchanged and contains placeholder
   KV bindings; never deploy it as-is. Required binding: SHEET_COORDINATOR exported
   class SheetCoordinator, with an approved new_sqlite_classes migration. This is
-  a review prerequisite, not authorization to provision it.
+  a review prerequisite, not authorization to provision it. Local workerd/SQLite
+  validation does not establish deployed configuration or entitlement.
 - Actual Drive about.user.permissionId visibility/stability and exact file owner
   permissionId checks using only drive.file. Test different accounts and a shared /
   nonowned Sheet before enabling production writes.
@@ -82,3 +95,5 @@ No merge, provisioning or deployment follows automatically from passing tests.
 Rollback must keep protocol fencing, IndexedDB/outbox and recovery evidence
 readable; use a compatible read-only recovery client rather than an older writable
 frontend/Worker. [Architecture](ARCHITECTURE.md) is the protocol authority.
+Use the ordered [activation and recovery plan](V0.3_RELEASE_READINESS.md) for rollout;
+the external items above are not repeated development phase gates.

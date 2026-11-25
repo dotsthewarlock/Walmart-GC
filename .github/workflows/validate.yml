@@ -29,6 +29,9 @@ jobs:
       - name: Run transaction, protocol and Worker regressions
         run: npm test
 
+      - name: Local workerd and SQLite Durable Object compatibility
+        run: npm run test:worker
+
       - name: Install development browser
         run: npx playwright install --with-deps chromium
 
