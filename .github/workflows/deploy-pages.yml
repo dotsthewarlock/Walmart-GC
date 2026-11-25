@@ -35,6 +35,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Stage companion Dev release
+        run: |
+          cd companion
+          python3 stage_release.py --source-revision "$GITHUB_SHA"
+          mkdir -p ../dist/companion
+          cp -R staging/companion/dev ../dist/companion/dev
+          cp staging/companion/launcher.txt ../dist/companion/launcher.txt
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
