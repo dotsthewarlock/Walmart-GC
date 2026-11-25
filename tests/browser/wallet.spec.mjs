@@ -54,8 +54,11 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
  });
  await test.step('Batch v1 preview is read-only; partial application and exact replay remain atomic',async()=>{
   await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
-  const includeUsed=page.getByRole('checkbox',{name:'Include cards marked used (1)'});await expect(includeUsed).not.toBeChecked();await expect(page.getByText('1 selected · 1 eligible · 1 excluded')).toBeVisible();
-  await includeUsed.check();await expect(page.getByText('2 selected · 2 eligible · 0 excluded')).toBeVisible();await page.getByRole('button',{name:'Create batch',exact:true}).click();
+  const includeUsed=page.getByRole('checkbox',{name:'Include cards marked used (1)'}),includeZero=page.getByRole('checkbox',{name:'Include $0 balance cards (0)'});await expect(includeUsed).not.toBeChecked();await expect(includeZero).not.toBeChecked();await expect(page.getByText('1 matching · 1 selected')).toBeVisible();
+  await includeUsed.check();await includeZero.check();await page.getByLabel('Quantity').selectOption('5');await page.getByLabel('Last checked').selectOption('older');await page.getByRole('combobox',{name:'Days',exact:true}).selectOption('7');
+  await page.getByRole('button',{name:'Exit',exact:true}).click();await page.reload();await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
+  await expect(includeUsed).toBeChecked();await expect(includeZero).toBeChecked();await expect(page.getByLabel('Quantity')).toHaveValue('5');await expect(page.getByLabel('Last checked')).toHaveValue('older');await expect(page.getByRole('combobox',{name:'Days',exact:true})).toHaveValue('7');
+  await page.getByLabel('Last checked').selectOption('any');await expect(page.getByRole('combobox',{name:'Days',exact:true})).toHaveCount(0);await expect(page.getByText('2 matching · 2 selected')).toBeVisible();await page.getByRole('button',{name:'Create batch',exact:true}).click();
   await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
   const state=await snapshot(page),ledger=active(state).ledger;expect(ledger.requests).toHaveLength(2);
   await includeUsed.uncheck();expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();

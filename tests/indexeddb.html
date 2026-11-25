@@ -101,7 +101,7 @@ document.querySelector('#run').onclick=async()=>{
       sync:{status:'connected',lastKnownSheetVersion:'v1'},sheets:{status:'ready',spreadsheetId:'synthetic-sheet',remoteSheetVersion:'v1'}}));
     equal(state.profiles.unbound.pending.length,profileOf(imported).pending.length);
     equal(profileOf(state).context.ownershipVerified,false);log('PASS Sheet compartment retains unbound inventory and never claims ownership');
-    const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:'v1'},selectTransferCards(profileOf(state).cards,'all').selected,inventoryBytes(state),new Date('2026-11-25T00:00:00.000Z'));
+    const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:'v1'},selectTransferCards(profileOf(state).cards).selected,inventoryBytes(state),new Date('2026-11-25T00:00:00.000Z'));
     state=await a.commit(op(state,'set-batch',{revision:profileOf(state).revision,ledger}));
     const observation={ref:ledger.requests[0].ref,balance:80,checkedAt:'2026-11-25T00:01:00.000Z'};
     const now=Date.parse(observation.checkedAt);

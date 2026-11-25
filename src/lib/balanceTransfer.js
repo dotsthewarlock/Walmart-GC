@@ -30,17 +30,36 @@ function transferEligibleCards(cards) {
   return createBalanceReviewQueue(cards).filter(({ card }) => credentialsValid(card));
 }
 
-export function selectTransferCards(cards, selection, includeUsed = false) {
+export const transferPreferenceKey = "gc-wallet-batch-selection-v1";
+export const defaultTransferPreferences = Object.freeze({ version: 1, quantity: "all", includeUsed: false, includeZero: false, checked: "any", days: 30 });
+export function readTransferPreferences(storage) {
+  try {
+    const value = JSON.parse(storage.getItem(transferPreferenceKey));
+    if (!value || value.version !== 1) return { ...defaultTransferPreferences };
+    return { version: 1,
+      quantity: ["all", "5", "10", "20", "30"].includes(value.quantity) ? value.quantity : "all",
+      includeUsed: value.includeUsed === true, includeZero: value.includeZero === true,
+      checked: ["any", "never", "older", "recent"].includes(value.checked) ? value.checked : "any",
+      days: [1, 3, 7, 30, 90, 180].includes(value.days) ? value.days : 30 };
+  } catch { return { ...defaultTransferPreferences }; }
+}
+
+export function selectTransferCards(cards, preferences = defaultTransferPreferences, now = new Date()) {
   const allEligible = transferEligibleCards(cards);
   const usedCount = allEligible.filter(({ card }) => card.used === true).length;
-  const eligible = allEligible.filter(({ card }) => includeUsed || card.used !== true)
-    .sort((a, b) => Number(a.card.used === true) - Number(b.card.used === true));
-  let selected;
-  if (selection === "all") selected = eligible;
-  else if (selection === "never") selected = eligible.filter(({ card }) => !card.lastBalanceChecked);
-  else if (["5", "10", "20", "30"].includes(selection)) selected = eligible.slice(0, Number(selection));
-  else throw new Error("Choose a batch selection.");
-  return { selected, eligible: eligible.length, excluded: cards.length - eligible.length, usedCount };
+  const zeroCount = allEligible.filter(({ card }) => card.currentBalance === 0).length;
+  const today = now.toISOString().slice(0, 10);
+  const cutoff = new Date(Date.parse(`${today}T00:00:00.000Z`) - preferences.days * 86400000).toISOString().slice(0, 10);
+  const matching = allEligible.filter(({ card }) => {
+    const checked = card.lastBalanceChecked || "";
+    return (preferences.includeUsed || card.used !== true) && (preferences.includeZero || card.currentBalance !== 0)
+      && (preferences.checked === "any" || (preferences.checked === "never" && !checked)
+        || (preferences.checked === "older" && (!checked || checked <= cutoff))
+        || (preferences.checked === "recent" && checked && checked >= cutoff && checked <= today));
+  }).sort((a, b) => (Number(a.card.used === true) * 2 + Number(a.card.currentBalance === 0))
+    - (Number(b.card.used === true) * 2 + Number(b.card.currentBalance === 0)));
+  const selected = preferences.quantity === "all" ? matching : matching.slice(0, Number(preferences.quantity));
+  return { selected, matching: matching.length, usedCount, zeroCount };
 }
 
 // These fields can be compared across reloads. The whole saved-inventory
