@@ -7,13 +7,16 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 - Repository: dotsthewarlock/Walmart-GC.
 - PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal). The lean sync Worker from PR #241 is deployed as `062fca0a-95dc-4a8d-b49a-4fb4428724ef` at 100%, with activation false; its matching frontend is delivered by the main-branch Pages workflow.
-- Consolidated V0.3 source: `feature/sync-foundation` at `a73222a`.
+- PR #239 released Batch reliability and synchronization visibility. PR #237
+  published Companion 1.0.3 Dev through Pages; its release baseline is main
+  `d6b8ccbc23f8667bdbfa7efd69ec9f1a08465a98`. Stable has not been promoted.
+- Consolidated V0.3 source: `a73222a`.
 - V0.3A.1 reviewed foundation: `819eef8c9536042fceabbf1f9b41d2d8f0cf234f`.
 - Reviewed release-readiness candidate: `4acbf6dfa2a241ed0294d89018a9b1d66912344c`.
 - React 19 / Vite / Tailwind / M3; existing Pages and same-origin Worker hosting.
 - M1 is complete. M2 implementation is complete and automated validation passed;
   production acceptance through ordinary wallet use remains pending. Stop active
-  V0.3 development. Companion development owns Batch selection refinements.
+  V0.3 development and new feature work.
 - Batch correction `a73222a9057465ea9374a8ddac42f5b9c5aff726` is independently
   accepted and CI passed. PR #231 merged as `56e20bce60149c661cbfb8d16303b6bbf13f4050`;
   the then-active Worker was `01b61767-abad-41e8-a3de-137a51fc7d8f`. Production Batch
@@ -36,7 +39,8 @@ closure; the existing protected protocol, shared maintenance and recovery remain
 The lean sync cycle passed 165 Node tests, three local Worker/SQLite runtime tests,
 five synthetic browser scenarios, the build and PR CI. Previously accepted live Google
 authentication and owned-Sheet verification remain accepted. Ordinary-use production
-acceptance remains pending; synthetic tests do not establish it.
+acceptance, including real KV usage and companion/native clipboard behavior, remains
+pending; synthetic tests and the inert hosted-loader check do not establish it.
 
 The checked-in Wrangler configuration retains `SYNC_ACTIVATION_BLOCKED="true"`;
 the active deployment overrides it to false. Preserve that intent in any future
