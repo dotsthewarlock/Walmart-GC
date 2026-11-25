@@ -13,7 +13,7 @@ import {syncProtocol,fingerprint,snapshotContent} from '../../src/lib/syncProtoc
 // https://developers.cloudflare.com/workers/testing/miniflare/core/standards/
 function googleFixture(){
  const mock=createFetchMock();mock.disableNetConnect();
- const sheet={cards:[csvHeaders],meta:[['key','value'],['sheetVersion','initial']],writes:0,mode:null,principal:'qa-principal'};
+ const sheet={cards:[csvHeaders],meta:[['key','value'],['sheetVersion','initial']],reads:0,writes:0,mode:null,principal:'qa-principal'};
  const apply=requests=>{
   for(const {updateCells} of requests){
    assert.ok(updateCells,'Fixture must explicitly support every dispatched mutation');
@@ -27,10 +27,12 @@ function googleFixture(){
  google.intercept({method:'GET',path:/.*/}).reply(({path})=>{
   if(path.startsWith('/drive/v3/about'))return {statusCode:200,data:JSON.stringify({user:{permissionId:sheet.principal,emailAddress:'qa@example.invalid'}})};
   if(path.startsWith('/drive/v3/files/synthetic-sheet'))return {statusCode:200,data:JSON.stringify({id:'synthetic-sheet',name:'Walmart-GC Data',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:true,owners:[{permissionId:'qa-principal'}]})};
+  if(path.startsWith('/drive/v3/files/nonowned-sheet'))return {statusCode:200,data:JSON.stringify({id:'nonowned-sheet',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:false,owners:[{permissionId:'another-principal'}]})};
   throw Error('Unmocked Drive request: '+path);
  }).persist();
  const sheets=mock.get('https://sheets.googleapis.com');
  sheets.intercept({method:'GET',path:/.*/}).reply(({path})=>{
+  sheet.reads++;
   const decoded=decodeURIComponent(path),range=decoded.split('/values/')[1]?.split('?')[0];
   const data=range?{values:range.startsWith('_META')?sheet.meta:sheet.cards}:{sheets:[{properties:{sheetId:10,title:'Cards',gridProperties:{rowCount:1000,columnCount:26}}},{properties:{sheetId:20,title:'_META',hidden:true,gridProperties:{rowCount:1000,columnCount:26}}}]};
   return {statusCode:200,data:JSON.stringify(data)};
@@ -45,10 +47,10 @@ function googleFixture(){
  }).persist();
  return {mock,sheet};
 }
-function runtime(mock,persist){return new Miniflare({modules:true,scriptPath:resolve('worker/src/index.js'),modulesRoot:resolve('.'),
+function runtime(mock,persist,bindings={}){return new Miniflare({modules:true,scriptPath:resolve('worker/src/index.js'),modulesRoot:resolve('.'),
  modulesRules:[{type:'ESModule',include:['**/*.js'],fallthrough:true}],compatibilityDate:'2026-06-11',
  durableObjects:{SHEET_COORDINATOR:{className:'SheetCoordinator',useSQLite:true}},durableObjectsPersist:persist,
- kvNamespaces:['SESSIONS','OAUTH_STATE'],bindings:{SESSION_SECRET:'synthetic-secret',GOOGLE_CLIENT_ID:'synthetic-client',GOOGLE_CLIENT_SECRET:'synthetic-client-secret',FRONTEND_ORIGIN:'https://wallet.example',REDIRECT_URI:'https://wallet.example/auth/callback'},fetchMock:mock});}
+ kvNamespaces:['SESSIONS','OAUTH_STATE'],bindings:{SESSION_SECRET:'synthetic-secret',GOOGLE_CLIENT_ID:'synthetic-client',GOOGLE_CLIENT_SECRET:'synthetic-client-secret',FRONTEND_ORIGIN:'https://wallet.example',REDIRECT_URI:'https://wallet.example/auth/callback',...bindings},fetchMock:mock});}
 async function stub(mf,name='sheet:synthetic-sheet'){const ns=await mf.getDurableObjectNamespace('SHEET_COORDINATOR');return ns.get(ns.idFromName(name));}
 async function send(target,body){const response=await target.fetch('https://internal/sync',{method:'POST',headers:{Authorization:'Bearer synthetic-token','Content-Type':'application/json'},body:JSON.stringify({protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',...body})});return {status:response.status,...await response.json()};}
 const commit=(base,operations)=>({action:'commit',id:crypto.randomUUID(),base,cards:operations.map(op=>op.after),operations});
@@ -82,4 +84,18 @@ test('SQLite possible-dispatch and receipts survive actual runtime restart; miss
   assert.equal((await send(object,{action:'pull'})).code,'uncertain');assert.equal((await send(object,next)).code,'uncertain');assert.equal(sheet.writes,2);
   sheet.late();sheet.mode=null;const confirmed=await send(object,next);assert.equal(confirmed.status,200);assert.equal(confirmed.snapshot.cards[0].notes,'late completion');assert.equal(sheet.writes,2);
  }finally{await mf.dispose();await mock.close();await rm(persist,{recursive:true,force:true});}
+});
+test('activation block permits verified identity/ownership checks but cannot read, initialize or write inventory',async()=>{
+ const {mock,sheet}=googleFixture(),mf=runtime(mock,undefined,{SYNC_ACTIVATION_BLOCKED:'true'});try{
+  await seedSession(mf);
+  const headers={Origin:'https://wallet.example',Cookie:'walmart_gc_session=synthetic-session','Content-Type':'application/json'};
+  const status=await (await mf.dispatchFetch('https://wallet.example/api/status',{headers})).json();
+  assert.equal(status.principal,'qa-principal');assert.equal(status.ownershipVerified,true);assert.equal(status.activationBlocked,true);assert.equal(status.coordinationAvailable,false);
+  for(const [path,body] of [['/api/sync',{action:'pull'}],['/api/sync',{action:'commit',id:crypto.randomUUID()}],['/api/sheet/ensure',{id:crypto.randomUUID()}]]){
+   const result=await mf.dispatchFetch('https://wallet.example'+path,{method:'POST',headers,body:JSON.stringify({protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',...body})});
+   assert.equal(result.status,503);assert.equal((await result.json()).code,'activation_pending');
+  }
+  const rejected=await mf.dispatchFetch('https://wallet.example/api/sync',{method:'POST',headers,body:JSON.stringify({protocol:syncProtocol,action:'pull',sheetId:'nonowned-sheet'})});assert.equal(rejected.status,403);
+  assert.equal(sheet.reads,0);assert.equal(sheet.writes,0);
+ }finally{await mf.dispose();await mock.close();}
 });

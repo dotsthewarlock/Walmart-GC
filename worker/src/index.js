@@ -297,7 +297,8 @@ async function handleStatus(request, env) {
       principal: sessionContext.session.principal,
       ownershipVerified: true,
       syncProtocol,
-      coordinationAvailable: Boolean(env.SHEET_COORDINATOR),
+      coordinationAvailable: Boolean(env.SHEET_COORDINATOR)&&env.SYNC_ACTIVATION_BLOCKED!=='true',
+      activationBlocked: env.SYNC_ACTIVATION_BLOCKED==='true',
       email: sessionContext.session.email || "",
       name: sessionContext.session.name || "",
       sheetId: sessionContext.session.sheetId || "",
@@ -950,6 +951,9 @@ async function handleProtectedSync(request,env,pathname) {
     if(!inspected.ok)return jsonResponse(await inspected.json(),inspected.status);
   }
   let file=await findOwnedSheet(token,principal,body.sheetId||context.session.sheetId);
+  // Allow exact Drive identity/ownership checks while every inventory read/write
+  // and setup creation remains blocked during controlled production activation.
+  if(env.SYNC_ACTIVATION_BLOCKED==='true')throw new HttpError(503,{code:'activation_pending',error:'Protected inventory synchronization is paused for activation. Local work remains saved.'});
   if(!file){
     if(pathname!=='/api/sheet/ensure')throw sheetSetupRequired();
     if(!body.id)throw new HttpError(400,{error:'Missing durable setup identity.'});

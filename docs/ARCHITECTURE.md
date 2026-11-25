@@ -208,9 +208,14 @@ Transport retries are bounded and reuse durable identity. Sync now checks recove
 proof; it does not bypass uncertainty, ownership or protocol fences.
 
 Deploy only after independent review and the [QA gates](QA_TEST_CHECKLIST.md).
-The checked-in production Worker config deliberately still has placeholder KV IDs
-and no deployed DO binding; use approved infrastructure review, never deploy it
-unchanged. A coordinated Worker must precede enabling the frontend in production.
+The production Worker config records verified resource IDs/routes, the SQLite
+coordinator migration and operator-corrected observability settings. During
+activation `SYNC_ACTIVATION_BLOCKED="true"` reports coordination unavailable and
+blocks inventory reads, writes and setup after verified Drive ownership lookup.
+Authentication/status and controlled Drive checks remain available. Clear the pause
+only after the activation plan's Google gates pass. A coordinated Worker must
+precede enabling the matching frontend in production. Configuration alone does not
+prove the binding/migration was deployed; preserve its migration history.
 Rollback must keep indexedDB, protocol/evidence and fencing readable. An old
 writable frontend/Worker is unsafe; use a compatible read-only recovery build and
 private CSV/Sheet backups, never a localStorage dual-write bridge.

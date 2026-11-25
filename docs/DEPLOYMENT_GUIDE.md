@@ -1,9 +1,9 @@
 # Deployment Guide
 
-> V0.3 release gate: this feature branch is not authorized for deployment. Follow
+> V0.3 activation is operator-authorized, subject to the gates below. Follow
 > [Architecture](ARCHITECTURE.md) and [QA prerequisites](QA_TEST_CHECKLIST.md)
-> before using the historical deployment steps below. The production config still
-> contains placeholder KV IDs and no deployed Durable Object binding. Required
+> before using the historical deployment steps below. The production config records
+> verified KV IDs/routes and a fail-closed activation pause. Required
 > coordination binding is `SHEET_COORDINATOR`, exported class `SheetCoordinator`,
 > with an independently approved `new_sqlite_classes` migration and confirmed
 > account entitlement/runtime compatibility. Verify principal/ownership behavior
@@ -94,7 +94,12 @@ The Worker requires two KV bindings with exact binding names used by `worker/src
 - `SESSIONS` — durable server-side session records and refresh tokens.
 - `OAUTH_STATE` — short-lived OAuth state and PKCE verifier records.
 
-The repository's `worker/wrangler.toml` intentionally contains placeholder KV namespace IDs. Real Cloudflare KV namespace IDs should not be invented or exposed in documentation. Before deploying with Wrangler, replace the placeholders with the real namespace IDs for the target Cloudflare account, or configure equivalent bindings in the Cloudflare dashboard/deployment pipeline. A deployment that leaves `REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID` or `REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID` unchanged is not ready for production.
+The repository's `worker/wrangler.toml` records the operator-verified existing KV
+namespace IDs, account and routes. These are resource identifiers, not credentials.
+Do not substitute another environment's resources or discard migration history.
+Existing secrets stay in Cloudflare; Wrangler configuration must never include
+their values. Deploy initially with `SYNC_ACTIVATION_BLOCKED="true"`, verify Google
+identity/ownership under drive.file, and only then clear the activation pause.
 
 ## Worker Source of Truth
 

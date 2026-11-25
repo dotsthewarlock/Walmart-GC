@@ -24,9 +24,10 @@ LD_LIBRARY_PATH; this does not change the product or deployment. No normal app
 flow depends on Playwright or any test fixture.
 
 `test:worker` uses development-only Miniflare/workerd, the production Worker module
-graph and SQLite-backed coordinator storage. Two local-runtime scenarios cover
+graph and SQLite-backed coordinator storage. Three local-runtime scenarios cover
 protocol/account fencing, concurrent writes across external awaits and actual
-runtime restart after uncertain dispatch. All Google responses are synthetic;
+runtime restart after uncertain dispatch and the fail-closed activation pause.
+All Google responses are synthetic;
 unmatched outbound network connections are denied. This is stronger than an
 in-memory storage fake, but does not validate production bindings or live Google.
 See the [activation/recovery plan](V0.3_RELEASE_READINESS.md) for advisory disposition
@@ -73,8 +74,8 @@ or Sheet pages from a synthetic run. No separate repeated phase acceptance gates
 
 - Deployed Cloudflare module/DO class compatibility, storage transactions, namespace,
   binding and migration, service entitlement/cost and deployment route identity.
-  The checked-in production config remains unchanged and contains placeholder
-  KV bindings; never deploy it as-is. Required binding: SHEET_COORDINATOR exported
+  The production config records operator-verified resources and retains an activation
+  pause until controlled Google checks pass. Required binding: SHEET_COORDINATOR exported
   class SheetCoordinator, with an approved new_sqlite_classes migration. This is
   a review prerequisite, not authorization to provision it. Local workerd/SQLite
   validation does not establish deployed configuration or entitlement.

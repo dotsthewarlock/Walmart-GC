@@ -1,6 +1,16 @@
 name = "walmart-gc-oauth"
+account_id = "5c656a2472e0564a9f754153a7f269df"
 main = "src/index.js"
 compatibility_date = "2026-06-11"
+workers_dev = true
+preview_urls = true
+logpush = false
+
+# Preserve the existing same-origin routes; do not route the static frontend.
+routes = [
+  { pattern = "walmart-gc.dotsthewarlock.com/api/*", zone_id = "c1fca64ac5cdab683829fe9f6862656d" },
+  { pattern = "walmart-gc.dotsthewarlock.com/auth/*", zone_id = "c1fca64ac5cdab683829fe9f6862656d" }
+]
 
 # Secrets must be configured with `wrangler secret put` or in the Cloudflare dashboard:
 # - GOOGLE_CLIENT_ID
@@ -9,15 +19,43 @@ compatibility_date = "2026-06-11"
 [vars]
 FRONTEND_ORIGIN = "https://walmart-gc.dotsthewarlock.com"
 REDIRECT_URI = "https://walmart-gc.dotsthewarlock.com/auth/callback"
+SYNC_ACTIVATION_BLOCKED = "true"
 
-# Placeholder KV IDs are intentional in source control. Do not deploy this file
-# unchanged with wrangler: replace each id with the real Cloudflare KV namespace
-# id for the target account/environment, or configure equivalent bindings in the
-# Cloudflare dashboard/deployment pipeline before publishing the Worker.
+# Existing verified namespaces. Values are resource identifiers, not credentials.
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID"
+id = "12f6f66bbad24c7d9cae3e3b4b14765a"
 
 [[kv_namespaces]]
 binding = "OAUTH_STATE"
-id = "REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID"
+id = "210b6512f8c44d37ad2b23217e421ae1"
+
+[[durable_objects.bindings]]
+name = "SHEET_COORDINATOR"
+class_name = "SheetCoordinator"
+
+# No prior DO namespaces or migration tag existed at activation preparation.
+# Retain this entry permanently; append future migrations rather than replacing it.
+[[migrations]]
+tag = "gc-wallet-v0.3-sqlite-20261125"
+new_sqlite_classes = ["SheetCoordinator"]
+
+# Preserve the operator-corrected privacy settings through every deployment.
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = false
+
+[observability.traces]
+enabled = false
+head_sampling_rate = 1
+persist = true
+
+[observability.issues]
+enabled = false
