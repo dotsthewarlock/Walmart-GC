@@ -1,11 +1,32 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {openInventory,inventoryContext,profileOf} from './inventory.js';
+import {openInventory,inventoryContext,profileOf,inventoryBytes} from './inventory.js';
 import {createSyncEngine} from './syncEngine.js';
+import {createTransferLedger} from './balanceTransferLedger.js';
+import {selectTransferCards} from './balanceTransfer.js';
 import {syncProtocol} from './syncProtocol.js';
 import {syntheticIndexedDB} from '../../tests/syntheticIndexedDB.mjs';
 import {cardA as a,cardB as b,syntheticRemote} from '../../tests/syncFixtures.mjs';
 const timers={setTimeout(){return 1;},clearTimeout(){},setInterval(){return 1;},clearInterval(){}};
+test('remote same-day unchanged verification invalidates an outstanding request',async()=>{
+ const f=await fixture();let state=await f.store.read(),p=profileOf(state);
+ const checkedAt=new Date().toISOString(),verified={...p.cards[0],lastBalanceChecked:checkedAt.slice(0,10)};
+ const {commitRequest,operation}=await import('../../tests/syncFixtures.mjs');
+ await f.remote.coordinator.run(await commitRequest(f.remote,[verified],[operation('initial-check',p.cards[0],verified,'manual-verification',{checkedAt,observedBalance:verified.currentBalance})]));
+ await f.engine.sync();state=await f.store.read();p=profileOf(state);
+ const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:p.sync.lastKnownSheetVersion},selectTransferCards(p.cards,{version:2,quantity:'all',status:'all',balance:'all',checked:'any',days:30,sort:'checked-oldest'}).selected,inventoryBytes(state));
+ await f.store.commit({id:crypto.randomUUID(),kind:'set-batch',...inventoryContext(state),revision:p.revision,ledger});
+ const same=profileOf(await f.store.read()).cards[0],anotherTime=new Date().toISOString();
+ await f.remote.coordinator.run(await commitRequest(f.remote,[same],[operation('remote-check',same,same,'manual-verification',{checkedAt:anotherTime,observedBalance:same.currentBalance})]));
+ await f.engine.sync();assert.equal(profileOf(await f.store.read()).ledger.requests[0].state,'invalidated');
+});
+test('acknowledging a prior local verification preserves a later Batch request',async()=>{
+ const f=await fixture();let state=await f.store.read(),p=profileOf(state),card=p.cards[0];
+ state=await f.store.commit({id:crypto.randomUUID(),kind:'manual-verification',...inventoryContext(state),cardNumber:card.cardNumber,version:p.versions[card.cardNumber],observation:{checkedAt:new Date().toISOString(),observedBalance:card.currentBalance}});p=profileOf(state);
+ const ledger=await createTransferLedger({sheetId:'synthetic-sheet',sheetVersion:p.sync.lastKnownSheetVersion},selectTransferCards(p.cards,{version:2,quantity:'all',status:'all',balance:'all',checked:'any',days:30,sort:'checked-oldest'}).selected,inventoryBytes(state));
+ await f.store.commit({id:crypto.randomUUID(),kind:'set-batch',...inventoryContext(state),revision:p.revision,ledger});
+ await f.engine.sync();assert.equal(profileOf(await f.store.read()).ledger.requests[0].state,'pending');
+});
 async function fixture(){
  const indexedDB=syntheticIndexedDB(),store=openInventory({indexedDB,name:'sync-engine',storage:{getItem:key=>key==='walmartGc.cards'?JSON.stringify([b]):null}});await store.initialize();
  const remote=await syntheticRemote([a]);let posts=0,status={authenticated:true,principal:'synthetic-principal',ownershipVerified:true,sheetId:'synthetic-sheet',syncProtocol,coordinationAvailable:true};

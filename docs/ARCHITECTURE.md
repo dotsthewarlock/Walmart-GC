@@ -201,7 +201,11 @@ legacy date-only verification, provided the captured card state remains relevant
 A subsequent manual verification invalidates that card's request even when its
 amount and calendar date are unchanged. Dates in Sheets and CSV remain date-only;
 they do not establish an ordering between independent devices on the same day.
-Protected synchronization continues to reconcile concurrent monetary operations.
+On a protected pull or acknowledgment, a change in the per-card monetary evidence
+revision beyond the acknowledged local operations invalidates outstanding requests
+for that card, including unchanged same-day verifications. Shared maintenance also
+invalidates outstanding requests. Protected synchronization continues to reconcile
+concurrent monetary operations that have not yet been observed locally.
 Partial apply atomically saves accepted observations, inventory, semantic pending
 operations and applied references. Exact replay is a no-op; conflicting replay is
 rejected. Legacy damaged/interrupted applications remain quarantined for checked

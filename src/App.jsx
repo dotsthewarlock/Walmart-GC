@@ -1487,42 +1487,6 @@ function App() {
                             {directSheetsState.message}
                           </p>
 
-                          <div className="grid grid-cols-2 gap-2 w-full px-2 pb-1">
-                            <ActionButton
-                              id="ensure-sheet"
-                              onClick={handleEnsureSheet}
-                              icon="wrench"
-                              label="Set up Sheet"
-                              compact
-                            />
-                            {directSheetsState.spreadsheetUrl && (
-                              <ActionButton
-                                id="open-direct-sheet"
-                                href={directSheetsState.spreadsheetUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                icon="external"
-                                label="Open Sheet"
-                                compact
-                              />
-                            )}
-                            <ActionButton
-                              id="load-from-sheets"
-                              onClick={handleLoadCardsFromSheet}
-                              icon="download"
-                              label="Import Sheet"
-                              compact
-                            />
-                            <ActionButton
-                              id="save-to-sheets"
-                              onClick={handleSaveCardsToSheet}
-                              icon="upload"
-                              label="Save to Sheet"
-                              className={!directSheetsState.spreadsheetUrl ? "col-span-2" : ""}
-                              compact
-                            />
-                          </div>
-
                         </div>
                       </div>
                     </details>
@@ -1566,11 +1530,20 @@ function App() {
                 </Card>
 
                 <Card as="section" className="p-3 flex flex-col gap-2" aria-label="Synchronization recovery">
+                  <h3 className="text-sm font-semibold">Synchronization</h3>
+                  <p className="text-sm">Active inventory: {savedCompartments(walletSnapshot).find(item => item.key === walletSnapshot.active)?.label}</p>
+                  <p className="text-sm">Destination: {profileOf(walletSnapshot).context.ownershipVerified === true ? `Google Sheet ${profileOf(walletSnapshot).context.sheetId}` : 'No verified Sheet for this inventory'}</p>
+                  <p className="text-sm">Pending changes: {profileOf(walletSnapshot).pending.length}{profileOf(walletSnapshot).inFlight ? ' · confirmation in progress' : ''}</p>
+                  <p className="text-sm">Last confirmed synchronization: {profileOf(walletSnapshot).sync?.lastConfirmedAt ? new Date(profileOf(walletSnapshot).sync.lastConfirmedAt).toLocaleString() : 'Not yet recorded on this device'}</p>
                   <p role="status" className="text-sm">{syncUi.message}</p>
                   <Button variant="outlined" onClick={()=>syncNow()}>Sync now</Button>
+                  {profileOf(walletSnapshot).context.ownershipVerified === true && profileOf(walletSnapshot).context.sheetId && <ActionButton id="open-direct-sheet" href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(profileOf(walletSnapshot).context.sheetId)}/edit`} target="_blank" rel="noopener noreferrer" icon="external" label="Open Sheet" compact />}
                   <details>
-                    <summary className="cursor-pointer text-sm font-medium">Connection and recovery</summary>
+                    <summary className="cursor-pointer text-sm font-medium">Advanced synchronization and recovery</summary>
                     <div className="flex flex-col gap-2 pt-2">
+                      <ActionButton id="ensure-sheet" onClick={handleEnsureSheet} icon="wrench" label="Set up Sheet" compact />
+                      <ActionButton id="load-from-sheets" onClick={handleLoadCardsFromSheet} icon="download" label="Import Sheet" compact />
+                      <ActionButton id="save-to-sheets" onClick={handleSaveCardsToSheet} icon="upload" label="Save to Sheet" compact />
                       <label htmlFor="exact-sheet-id">Exact Sheet ID (optional)</label>
                       <TextField id="exact-sheet-id" value={exactSheetId} onChange={e=>setExactSheetId(e.target.value)} />
                       <Button variant="outlined" onClick={handleEnsureSheet}>Create or initialize private Sheet</Button>
@@ -1712,7 +1685,7 @@ function App() {
                           <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
                             <span>Last Sheet read</span>
                             <span className="text-[10px] text-m3-on-surface font-medium">
-                              {directSheetsState.lastSuccessfulSyncAt || "No Sheet read yet"}
+                              {profileOf(walletSnapshot).sync?.lastConfirmedAt ? new Date(profileOf(walletSnapshot).sync.lastConfirmedAt).toLocaleString() : "Not yet recorded on this device"}
                             </span>
                           </li>
                           <li className="flex justify-between">

@@ -79,11 +79,11 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         const result=await request('/api/sync',{method:'POST',body:JSON.stringify(flight.request)});
         await verifySnapshot(result,status.principal,status.sheetId);
         if(!result.receipt||result.receipt.id!==flight.request.id||result.receipt.requestHash!==flight.requestHash)throw Error('Commit receipt could not be confirmed. Pending work remains saved.');
-        state=await commit({kind:'sync-ack',...context,snapshot:result.snapshot,receipt:result.receipt,acknowledged:result.acknowledged});
+        state=await commit({kind:'sync-ack',...context,snapshot:result.snapshot,receipt:result.receipt,acknowledged:result.acknowledged,confirmedAt:new Date().toISOString()});
       }else{
         const result=await request('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,action:'pull',principal:status.principal,sheetId:status.sheetId})});
         await verifySnapshot(result,status.principal,status.sheetId);
-        state=await commit({kind:'sync-pull',...context,revision:profile.revision,snapshot:result.snapshot});
+        state=await commit({kind:'sync-pull',...context,revision:profile.revision,snapshot:result.snapshot,confirmedAt:new Date().toISOString()});
       }
       attempts=0;
       const evidence=profileOf(state).recoveryEvidence;

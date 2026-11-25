@@ -220,7 +220,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       ledgerId: session.ledger.id, observations: fresh.results, items: fresh.items, now: fresh.now,
       inventoryDigest: prepared.finalized.inventoryDigest });
     setPreview(null);
-    setMessage(`Saved ${accepted.length} locally. Synchronization will confirm the Sheet update when connected.`);
+    setMessage(`Applied ${accepted.length} locally (${fresh.counts.changed} balances changed, ${fresh.counts.unchanged} unchanged). Verification dates were recorded. ${fresh.outstanding - accepted.length} requests remain outstanding. Sheet synchronization is pending confirmation.`);
   }
 
   const recovering = Boolean(batch.error || ledger?.application);
