@@ -25,9 +25,18 @@ export const directSheetsStatuses = {
 };
 
 
+const cooldownKey='walmartGc.syncRetryAfter';
+let retryAt=0;
+const limitedPath=path=>['/api/status','/api/sync','/api/sheet/ensure'].includes(path);
+function rateError(until){return Object.assign(new Error('Synchronization temporarily limited. Local cards remain saved.'),{status:429,retryAt:until});}
 export async function fetchWorkerJson(path, options = {}) {
+  if(limitedPath(path)){
+    try{retryAt=Math.max(retryAt,Number(globalThis.localStorage?.getItem(cooldownKey))||0);}catch{/* local preferences unavailable */}
+    if(retryAt>Date.now())throw rateError(retryAt);
+  }
   const response = await fetch(path, {
     ...options,
+    signal:options.signal??AbortSignal.timeout(30000),
     credentials: "include",
     headers: {
       Accept: "application/json",
@@ -36,7 +45,15 @@ export async function fetchWorkerJson(path, options = {}) {
     },
   });
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = await response.json().catch(error=>{if(error.name==='AbortError'||error.name==='TimeoutError')throw error;return {};});
+  if(response.status===429&&limitedPath(path)){
+    const header=response.headers.get('Retry-After');
+    const until=header&&/^\d+$/.test(header)?Date.now()+Number(header)*1000:Date.parse(header||'');
+    const daily=payload.code==='kv_daily_limit'&&Number(payload.retryAt)>Date.now();
+    retryAt=Math.max(daily?Number(payload.retryAt):Date.now()+900000,Number(payload.retryAt)||0,Number.isFinite(until)?until:0);
+    try{globalThis.localStorage?.setItem(cooldownKey,String(retryAt));}catch{/* in-memory cooldown remains */}
+    throw rateError(retryAt);
+  }
   if (!response.ok) {
     const message = typeof payload.error === "string" && payload.error.trim()
       ? payload.error.trim()

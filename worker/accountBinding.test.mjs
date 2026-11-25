@@ -87,3 +87,12 @@ test('unchanged session renews once when aged and actual metadata changes persis
  assert.equal((await status()).status,200);assert.equal(writes.length,2);assert.equal(session.email,email);
  assert.equal((await status()).status,200);assert.equal(writes.length,2);
 });
+
+test('KV daily quota error returns a bounded retry time without deleting the session',async()=>{
+ const {env}=environment(null);let deleted=0;
+ env.SESSIONS.get=async()=>{throw Error('KV get() limit exceeded for the day');};
+ env.SESSIONS.delete=async()=>{deleted++;};
+ const response=await worker.fetch(new Request('https://synthetic/api/status',{headers:{Cookie:'walmart_gc_session=synthetic-session'}}),env);
+ assert.equal(response.status,429);const result=await response.json();assert.equal(result.code,'kv_daily_limit');
+ assert.equal(result.retryAt,(Math.floor(Date.now()/86400000)+1)*86400000);assert.equal(deleted,0);
+});

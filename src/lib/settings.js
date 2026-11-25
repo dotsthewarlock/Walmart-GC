@@ -7,6 +7,7 @@ export const defaultSettings = {
   sortMode: "balance-asc",
   themeMode: "system",
   checkoutDark: true,
+  automaticSync: true,
 };
 
 const allowedSortModes = [
@@ -40,6 +41,7 @@ export function normalizeStoredSettings(settings) {
     themeMode: ["light", "dark", "system"].includes(settings.themeMode)
       ? settings.themeMode
       : defaultSettings.themeMode,
+    automaticSync: settings.automaticSync !== false,
     checkoutDark: typeof settings.checkoutDark === "boolean"
       ? settings.checkoutDark
       : defaultSettings.checkoutDark,

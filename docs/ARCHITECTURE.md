@@ -202,10 +202,19 @@ recovery. Freshness cannot be inferred from a matching amount or date alone.
 
 ## Scheduling, deployment and rollback
 
-Completed actions coalesce around two seconds. Launch, foreground/reconnect and
-roughly 60-second visible refresh drive push/pull; there is no closed-page promise.
-Transport retries are bounded and reuse durable identity. Sync now checks recovery
-proof; it does not bypass uncertainty, ownership or protocol fences.
+Local saves are immediate. Automatic mode coalesces meaningful pending work at
+3 seconds (15-second minimum between cycles, 30-second normal batching cap).
+Launch and foreground/reconnect check remote state when needed (five-minute
+freshness for a clean compartment); no periodic idle, hidden or closed-page
+polling. Manual mode does not initiate automatic inventory sync. Sync now uses
+the same protected engine with a five-second manual cooldown. Explicit connection,
+setup and recovery actions remain available. One 60-second transport retry in
+automatic mode reuses the durable identity. Client request timeout is 30 seconds;
+quota responses suspend affected requests through the indicated reset/backoff.
+Unchanged local edits and identical verified pulls do not create inventory writes.
+Keep full Sheet content verification: metadata alone cannot detect direct edits.
+Batch preparation and preview are local; credential export and application retain
+fresh exact-account/Sheet checks. No server cache or additional infrastructure.
 
 Deploy only after independent review and the [QA gates](QA_TEST_CHECKLIST.md).
 The production Worker config records verified resource IDs/routes, the SQLite
