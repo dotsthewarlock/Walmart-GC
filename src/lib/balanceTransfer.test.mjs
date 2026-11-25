@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   formatTransferRequest, parseTransferResults, previewTransferResults, requireTransferContext,
-  isTransferReference, selectTransferCards, transferRequestRows,
+  isTransferReference, selectTransferCards, transferRequestRows, defaultTransferPreferences, readTransferPreferences,
 } from "./balanceTransfer.js";
 import {
   assertTransferUnchanged, checkTransferContinuity, commitTransferApplication, createTransferLedger,
@@ -25,6 +25,7 @@ const knownContext = {
 };
 const unknownRef = "10000000-0000-4000-8000-000000000001";
 const header = "WMGC-RESULT\t1\nref\tbalanceCAD\tcheckedAt";
+const prefs = (changes = {}) => ({ ...defaultTransferPreferences, ...changes });
 
 function card(index, fields = {}) {
   return {
@@ -62,7 +63,7 @@ function mockStorage(t, cards) {
 }
 
 async function makeLedger(cards, inventoryRaw = JSON.stringify(cards)) {
-  return createTransferLedger(context, selectTransferCards(cards, "all", true).selected, inventoryRaw, new Date(created));
+  return createTransferLedger(context, selectTransferCards(cards, prefs({ includeUsed: true, includeZero: true })).selected, inventoryRaw, new Date(created));
 }
 
 function observation(request, balance = 8, checkedAt = checked) {
@@ -86,26 +87,61 @@ test("selection is deterministic with 35+ cards, exact identities and strict tra
     card(41, { pin: "12345" }), card(42, { pin: "１２３４" }), card(43, { pin: " 1234" }),
     card(44), card(44, { pin: "9999" }), card(45, { cardNumber: "1" }), card(46, { pin: 1234 }),
   ];
-  const all = selectTransferCards(inventory, "all");
+  const all = selectTransferCards(inventory);
   assert.deepEqual(all.selected.map(({ card }) => card), cards.slice(1));
-  assert.equal(all.excluded, 14);
+  assert.equal(all.matching, 35);
   assert.equal(all.usedCount, 1);
-  assert.deepEqual(selectTransferCards(inventory, "never", true).selected.map(({ card }) => card), [cards[1], cards[2], cards[0]]);
+  assert.deepEqual(selectTransferCards(inventory, prefs({ checked: "never", includeUsed: true, includeZero: true })).selected.map(({ card }) => card), [cards[1], cards[2], cards[0]]);
   for (const count of [5, 10, 20, 30]) {
-    assert.deepEqual(selectTransferCards(inventory, String(count), true).selected.map(({ card }) => card), cards.slice(1, count + 1));
+    assert.deepEqual(selectTransferCards(inventory, prefs({ quantity: String(count), includeUsed: true, includeZero: true })).selected.map(({ card }) => card), cards.slice(1, count + 1));
   }
-  assert.deepEqual(selectTransferCards(inventory, "all", true).selected.map(({ card }) => card), [...cards.slice(1), cards[0]]);
+  assert.deepEqual(selectTransferCards(inventory, prefs({ includeUsed: true, includeZero: true })).selected.map(({ card }) => card), [...cards.slice(1), cards[0]]);
 });
 
 test("used cards follow active cards in verification order before limits are applied", () => {
   const cards = [card(1, { used: true }), card(2, { lastBalanceChecked: "2026-02-02" }),
     card(3), card(4, { used: true, lastBalanceChecked: "2026-01-01" }),
     card(5, { lastBalanceChecked: "2026-01-01" }), card(6, { used: true, pin: "bad" })];
-  const chosen = selectTransferCards(cards, "5", true);
+  const chosen = selectTransferCards(cards, prefs({ quantity: "5", includeUsed: true }));
   assert.deepEqual(chosen.selected.map(({ card }) => card), [cards[2], cards[4], cards[1], cards[0], cards[3]]);
   assert.equal(chosen.usedCount, 2);
-  assert.equal(selectTransferCards(cards, "all").eligible, 3);
-  assert.deepEqual(selectTransferCards(cards, "never", true).selected.map(({ card }) => card), [cards[2], cards[0]]);
+  assert.equal(selectTransferCards(cards).matching, 3);
+  assert.deepEqual(selectTransferCards(cards, prefs({ checked: "never", includeUsed: true })).selected.map(({ card }) => card), [cards[2], cards[0]]);
+});
+
+test("overlap, priority and UTC date boundaries are independent of stable counts", () => {
+  const cards = [card(1, { used: true, currentBalance: 0 }), card(2, { currentBalance: 0, lastBalanceChecked: "2026-05-25" }),
+    card(3, { used: true, lastBalanceChecked: "2026-05-24" }), card(4, { lastBalanceChecked: "2026-05-25" }),
+    card(5, { lastBalanceChecked: "2026-05-26" }), card(6)];
+  const at = new Date("2026-06-01T23:59:59Z");
+  const select = changes => selectTransferCards(cards, prefs(changes), at);
+  assert.deepEqual(select({ includeUsed: true }).selected.map(x => x.card), [cards[5], cards[3], cards[4], cards[2]]);
+  assert.deepEqual(select({ includeZero: true }).selected.map(x => x.card), [cards[5], cards[3], cards[4], cards[1]]);
+  assert.deepEqual(select({ includeUsed: true, includeZero: true }).selected.map(x => x.card), [cards[5], cards[3], cards[4], cards[1], cards[2], cards[0]]);
+  assert.deepEqual(select({ includeUsed: true, includeZero: true, checked: "older", days: 7 }).selected.map(x => x.card), [cards[5], cards[3], cards[1], cards[2], cards[0]]);
+  assert.deepEqual(select({ includeUsed: true, includeZero: true, checked: "recent", days: 7 }).selected.map(x => x.card), [cards[3], cards[4], cards[1]]);
+  assert.equal(select({ checked: "never" }).usedCount, 2);
+  assert.equal(select({ checked: "never" }).zeroCount, 2);
+});
+
+test("selection preferences restore valid values and default safely", () => {
+  const read = value => readTransferPreferences({ getItem: () => value });
+  const valid = prefs({ quantity: "10", includeUsed: true, includeZero: true, checked: "older", days: 7 });
+  assert.deepEqual(read(JSON.stringify(valid)), valid);
+  for (const raw of [null, "{", JSON.stringify({ ...valid, version: 2 })]) assert.deepEqual(read(raw), prefs());
+  assert.deepEqual(read(JSON.stringify({ version: 1, quantity: "999", includeUsed: "true", includeZero: true, checked: "bad", days: 2 })), prefs({ includeZero: true }));
+  assert.deepEqual(readTransferPreferences({ getItem() { throw Error("blocked"); } }), prefs());
+});
+
+test("saved used zero-balance requests remain copyable and applicable with default filters", async () => {
+  const cards = [card(1, { used: true, currentBalance: 0, dateUsed: "2026-02-01" })];
+  const ledger = await makeLedger(cards);
+  assert.equal(selectTransferCards(cards).matching, 0);
+  assert.equal(transferRequestRows(ledger, cards).length, 1);
+  const preview = previewTransferResults(ledger, cards, [observation(ledger.requests[0], 12)], now);
+  assert.equal(preview.counts.accepted, 1);
+  assert.equal(preview.candidate[0].used, true);
+  assert.equal(preview.candidate[0].currentBalance, 12);
 });
 
 test("request format preserves leading zeros and resuming uses the original lowercase UUID references", async (t) => {

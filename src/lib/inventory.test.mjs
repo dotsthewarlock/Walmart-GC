@@ -175,7 +175,7 @@ function sheetState() {
   return reduceInventory(state, command(state, 'sheet-import', { revision: 0, cards: [first, second], sheetId: 'sheet-A', sheetVersion: 'v1',
     sheets: { spreadsheetId: 'sheet-A', remoteSheetVersion: 'v1', status: 'ready' }, sync: { lastKnownSheetVersion: 'v1', status: 'connected' } }));
 }
-const makeLedger = state => createTransferLedger({ sheetId: 'sheet-A', sheetVersion: 'v1' }, selectTransferCards(profileOf(state).cards, 'all').selected, inventoryBytes(state), new Date('2026-11-25T00:00:00.000Z'));
+const makeLedger = state => createTransferLedger({ sheetId: 'sheet-A', sheetVersion: 'v1' }, selectTransferCards(profileOf(state).cards).selected, inventoryBytes(state), new Date('2026-11-25T00:00:00.000Z'));
 
 test('Sheet import compartment preserves unbound pending work, quarantines destructive reimport, and never claims ownership', () => {
   const state = sheetState();

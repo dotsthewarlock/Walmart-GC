@@ -4,7 +4,7 @@ import { fetchWorkerJson } from "../lib/api";
 import { inventoryBytes, profileOf, inventoryContext, assertInventoryContext } from "../lib/inventory";
 import {
   checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults, requireTransferContext,
-  sameTransferContext, selectTransferCards, transferRequestRows,
+  sameTransferContext, selectTransferCards, transferRequestRows, readTransferPreferences, defaultTransferPreferences, transferPreferenceKey,
 } from "../lib/balanceTransfer";
 import { createTransferLedger, inventoryFingerprint, prepareTransferApplication } from "../lib/balanceTransferLedger";
 import { Button } from "./primitives/Button";
@@ -14,8 +14,8 @@ import { TextArea } from "./primitives/TextArea";
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 const choices = [
-  ["all", "All eligible cards"], ["never", "Never verified"],
-  ...[5, 10, 20, 30].map((count) => [String(count), `Next oldest ${count} cards`]),
+  ["all", "All matching cards"],
+  ...[5, 10, 20, 30].map((count) => [String(count), `Up to ${count} cards`]),
 ];
 
 function savedBatch(state) {
@@ -32,8 +32,10 @@ function formatNet(cents) {
 }
 
 export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet }) {
-  const [selection, setSelection] = useState("all");
-  const [includeUsed, setIncludeUsed] = useState(false);
+  const [preferences, setPreferences] = useState(() => {
+    try { return readTransferPreferences(window.localStorage); } catch { return { ...defaultTransferPreferences }; }
+  });
+  const setPreference = (key, value) => setPreferences((current) => ({ ...current, [key]: value }));
   const [batch, setBatch] = useState(() => savedBatch(walletSnapshot));
   const [packet, setPacket] = useState("");
   const [preview, setPreview] = useState(null);
@@ -48,7 +50,9 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const ledger = batch.ledger;
   const pending = ledger?.requests.filter(({ state }) => state === "pending").length ?? 0;
   const invalidated = ledger?.requests.filter(({ state }) => state === "invalidated").length ?? 0;
-  const selectionCounts = selectTransferCards(cards, selection, includeUsed);
+  const selectionCounts = selectTransferCards(cards, preferences);
+
+  useEffect(() => { try { window.localStorage.setItem(transferPreferenceKey, JSON.stringify(preferences)); } catch { /* Preferences are optional. */ } }, [preferences]);
 
   useEffect(() => {
     mounted.current = true;
@@ -134,7 +138,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     const session = await verifiedSession();
     const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
     if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
-    const { selected } = selectTransferCards(session.profile.cards, selection, includeUsed);
+    const { selected } = selectTransferCards(session.profile.cards, preferences);
     const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw);
     await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
@@ -220,18 +224,38 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
         ) : (
           <>
             <label className="flex flex-col gap-1 text-sm font-medium">
-              Cards to request
-              <SelectField disabled={busy} value={selection} onChange={(event) => setSelection(event.target.value)}>
+              Quantity
+              <SelectField disabled={busy} value={preferences.quantity} onChange={(event) => setPreference("quantity", event.target.value)}>
                 {choices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </SelectField>
             </label>
             <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" checked={includeUsed} disabled={busy} onChange={(event) => setIncludeUsed(event.target.checked)}
+              <input type="checkbox" checked={preferences.includeUsed} disabled={busy} onChange={(event) => setPreference("includeUsed", event.target.checked)}
                 className="h-5 w-5 accent-m3-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary" />
               Include cards marked used ({selectionCounts.usedCount})
             </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={preferences.includeZero} disabled={busy} onChange={(event) => setPreference("includeZero", event.target.checked)}
+                className="h-5 w-5 accent-m3-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary" />
+              Include $0 balance cards ({selectionCounts.zeroCount})
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Last checked
+              <SelectField disabled={busy} value={preferences.checked} onChange={(event) => setPreference("checked", event.target.value)}>
+                <option value="any">Any time</option><option value="never">Never checked</option>
+                <option value="older">At least N days ago</option><option value="recent">Within the last N days</option>
+              </SelectField>
+            </label>
+            {(preferences.checked === "older" || preferences.checked === "recent") && (
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Days
+                <SelectField disabled={busy} value={preferences.days} onChange={(event) => setPreference("days", Number(event.target.value))}>
+                  {[1, 3, 7, 30, 90, 180].map((days) => <option key={days} value={days}>{days} {days === 1 ? "day" : "days"}</option>)}
+                </SelectField>
+              </label>
+            )}
             <p className="text-sm text-m3-on-surface-variant" role="status">
-              {selectionCounts.selected.length} selected · {selectionCounts.eligible} eligible · {selectionCounts.excluded} excluded
+              {selectionCounts.matching} matching · {selectionCounts.selected.length} selected
             </p>
             <Button variant={ledger ? "outlined" : "filled"} disabled={busy || !selectionCounts.selected.length}
               onClick={() => run(createBatch)}>{ledger ? "Replace batch" : "Create batch"}</Button>
