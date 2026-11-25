@@ -53,9 +53,12 @@ test('integrated mobile wallet, persistence, verification, Batch, exports, failu
   const card=active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber);expect(card.lastBalanceChecked).toBe(new Date().toISOString().slice(0,10));expect(card.used).toBe(true);
  });
  await test.step('Batch v1 preview is read-only; partial application and exact replay remain atomic',async()=>{
-  await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();await page.getByRole('button',{name:'Create batch',exact:true}).click();
+  await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
+  const includeUsed=page.getByRole('checkbox',{name:'Include cards marked used (1)'});await expect(includeUsed).not.toBeChecked();await expect(page.getByText('1 selected · 1 eligible · 1 excluded')).toBeVisible();
+  await includeUsed.check();await expect(page.getByText('2 selected · 2 eligible · 0 excluded')).toBeVisible();await page.getByRole('button',{name:'Create batch',exact:true}).click();
   await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
   const state=await snapshot(page),ledger=active(state).ledger;expect(ledger.requests).toHaveLength(2);
+  await includeUsed.uncheck();expect(active(await snapshot(page)).ledger).toEqual(ledger);await page.getByRole('button',{name:'Copy request'}).click();await expect(page.getByText(/Copied 2 requests/)).toBeVisible();
   // Card A was verified today, so use never-verified B for the partial result.
   const ref=ledger.requests.find(r=>r.cardNumber===cardB.cardNumber).ref;
   const packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t40.00\t'+new Date().toISOString()].join('\n');
