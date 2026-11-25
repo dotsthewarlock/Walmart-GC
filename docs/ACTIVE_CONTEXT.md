@@ -6,7 +6,7 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 ## Current development
 
 - Repository: dotsthewarlock/Walmart-GC.
-- PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal); its full CI passed. Worker version last independently observed was `01b61767-abad-41e8-a3de-137a51fc7d8f`, with activation false. Do not confuse merge with production deployment.
+- PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal). The lean sync Worker from PR #241 is deployed as `062fca0a-95dc-4a8d-b49a-4fb4428724ef` at 100%, with activation false; its matching frontend is delivered by the main-branch Pages workflow.
 - Consolidated V0.3 source: `feature/sync-foundation` at `a73222a`.
 - V0.3A.1 reviewed foundation: `819eef8c9536042fceabbf1f9b41d2d8f0cf234f`.
 - Reviewed release-readiness candidate: `4acbf6dfa2a241ed0294d89018a9b1d66912344c`.
@@ -16,7 +16,7 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
   V0.3 development. Companion development owns Batch selection refinements.
 - Batch correction `a73222a9057465ea9374a8ddac42f5b9c5aff726` is independently
   accepted and CI passed. PR #231 merged as `56e20bce60149c661cbfb8d16303b6bbf13f4050`;
-  the unpaused Worker is `01b61767-abad-41e8-a3de-137a51fc7d8f`. Production Batch
+  the then-active Worker was `01b61767-abad-41e8-a3de-137a51fc7d8f`. Production Batch
   request generation is user-confirmed working in the normal wallet UI.
 
 V0.3 retains transactional IndexedDB, semantic operations, original migration
@@ -26,16 +26,15 @@ per-Sheet coordination, conservative automatic reconciliation and fresh merchant
 verification for balance uncertainty. Unbound/older unverified inventories remain
 separate and recoverable; binding never automatically copies them to an account.
 
-Lean maintenance candidate `fix/lean-sync-efficiency` follows the bounded roadmap:
+Lean maintenance in PR #241 follows the bounded roadmap:
 change-driven sync, no idle polling, manual mode, no-op suppression, local Batch
-preparation/preview and bounded retry/timeout/quota recovery. Validation and release
-remain distinct from implementation. Pending work and in-flight identities survive
+preparation/preview and bounded retry/timeout/quota recovery. Pending work and in-flight identities survive
 closure; the existing protected protocol, shared maintenance and recovery remain.
 
 ## Acceptance and deployment context
 
-The integrated cycle passed 154 Node tests, three local Worker/SQLite runtime tests,
-four synthetic browser scenarios and the build. Previously accepted live Google
+The lean sync cycle passed 165 Node tests, three local Worker/SQLite runtime tests,
+five synthetic browser scenarios, the build and PR CI. Previously accepted live Google
 authentication and owned-Sheet verification remain accepted. Ordinary-use production
 acceptance remains pending; synthetic tests do not establish it.
 
