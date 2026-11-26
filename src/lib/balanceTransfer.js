@@ -197,7 +197,8 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     } else if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) {
       outcome = "stale";
       reason = "Observation predates its request or is more than 60 seconds in the future.";
-    } else if (card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) {
+    } else if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked)
+        || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) {
       outcome = "stale";
       reason = "The observation predates the saved verification date.";
     } else {

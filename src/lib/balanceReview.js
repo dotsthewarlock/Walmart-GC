@@ -76,12 +76,14 @@ export function applyBalanceObservation(cards, { cardNumber, observedBalance, ch
   }
   const currentBalance = parseVerifiedBalance(observedBalance);
   const lastBalanceChecked = observationDate(checkedAt);
-  if (card.lastBalanceChecked && lastBalanceChecked < card.lastBalanceChecked) {
+  const lastBalanceCheckedAt = new Date(checkedAt).toISOString();
+  if ((card.lastBalanceChecked && lastBalanceChecked < card.lastBalanceChecked)
+      || (card.lastBalanceCheckedAt && lastBalanceCheckedAt <= card.lastBalanceCheckedAt)) {
     throw new Error("This observation is older than the last verification.");
   }
 
   const verified = card.currentBalance === currentBalance
-    ? { ...card, lastBalanceChecked, ...(card.pendingReconciliation ? {pendingReconciliation:false}: {}) }
-    : { ...card, currentBalance, lastBalanceChecked, dateUpdated: lastBalanceChecked, ...(card.pendingReconciliation ? {pendingReconciliation:false}: {}) };
+    ? { ...card, lastBalanceChecked, lastBalanceCheckedAt, ...(card.pendingReconciliation ? {pendingReconciliation:false}: {}) }
+    : { ...card, currentBalance, lastBalanceChecked, lastBalanceCheckedAt, dateUpdated: lastBalanceChecked, ...(card.pendingReconciliation ? {pendingReconciliation:false}: {}) };
   return cards.map((entry) => entry === card ? verified : entry);
 }

@@ -198,11 +198,11 @@ test("preview counts outcomes, applies only accepted exact identities and preser
     accepted: 5, changed: 2, unchanged: 3, unknown: 1, invalidated: 0, stale: 2, alreadyApplied: 0, rejected: 0,
   });
   assert.equal(preview.netCents, 512n);
-  assert.deepEqual(preview.candidate[0], { ...cards[0], currentBalance: 0, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01" });
-  assert.deepEqual(preview.candidate[1], { ...cards[1], lastBalanceChecked: "2026-06-01" });
-  assert.deepEqual(preview.candidate[2], { ...cards[2], currentBalance: 21.12, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01" });
+  assert.deepEqual(preview.candidate[0], { ...cards[0], currentBalance: 0, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01", lastBalanceCheckedAt: checked });
+  assert.deepEqual(preview.candidate[1], { ...cards[1], lastBalanceChecked: "2026-06-01", lastBalanceCheckedAt: checked });
+  assert.deepEqual(preview.candidate[2], { ...cards[2], currentBalance: 21.12, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01", lastBalanceCheckedAt: checked });
   assert.equal(preview.items[2].used, true);
-  assert.deepEqual(preview.candidate[3], cards[3]);
+  assert.deepEqual(preview.candidate[3], { ...cards[3], lastBalanceCheckedAt: checked });
   assert.equal(preview.outstanding, 7);
 });
 

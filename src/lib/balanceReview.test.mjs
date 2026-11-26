@@ -50,17 +50,17 @@ test("applies only to the full number, preserving used state, notes, PIN and opt
   const cards = [second, first];
   const [unchanged, verified] = applyBalanceObservation(cards, observation(cards, first, { observedBalance: "20,05" }));
   assert.equal(unchanged, second);
-  assert.deepEqual(verified, { ...first, currentBalance: 20.05, dateUpdated: "2024-02-29", lastBalanceChecked: "2024-02-29" });
+  assert.deepEqual(verified, { ...first, currentBalance: 20.05, dateUpdated: "2024-02-29", lastBalanceChecked: "2024-02-29", lastBalanceCheckedAt: "2024-02-29T23:15:00.000Z" });
   assert.equal(first.currentBalance, 7.25);
   assert.throws(() => applyBalanceObservation(cards, observation(cards, first, { cardNumber: "0042" })), /missing or ambiguous/);
 });
 
 test("unchanged observations advance the UTC date only, and zero is accepted", () => {
   const cards = [first];
-  assert.deepEqual(applyBalanceObservation(cards, observation(cards)), [{ ...first, lastBalanceChecked: "2024-02-29" }]);
+  assert.deepEqual(applyBalanceObservation(cards, observation(cards)), [{ ...first, lastBalanceChecked: "2024-02-29", lastBalanceCheckedAt: "2024-02-29T23:15:00.000Z" }]);
   assert.deepEqual(applyBalanceObservation(cards, observation(cards, first, {
     observedBalance: "0", checkedAt: new Date("2024-03-01T00:10:00Z"),
-  })), [{ ...first, currentBalance: 0, dateUpdated: "2024-03-01", lastBalanceChecked: "2024-03-01" }]);
+  })), [{ ...first, currentBalance: 0, dateUpdated: "2024-03-01", lastBalanceChecked: "2024-03-01", lastBalanceCheckedAt: "2024-03-01T00:10:00.000Z" }]);
 });
 
 test("rejects missing, duplicate, replaced and in-place changed snapshots", () => {

@@ -84,7 +84,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     const assign=(field,value)=>{if(value===undefined)delete merged[field];else merged[field]=value;};
     for(const field of new Set([...Object.keys(card),...Object.keys(saved)])){
       if(['cardNumber','pin','currentBalance','pendingReconciliation'].includes(field))continue;
-      if(localMoney&&['dateUpdated','lastBalanceChecked'].includes(field))continue;
+      if(localMoney&&['dateUpdated','lastBalanceChecked','lastBalanceCheckedAt'].includes(field))continue;
       const entry=next.cards[number];
       const resolution=ops.find(o=>{
         const c=entry?.conflicts?.find(c=>c.id===o.conflictId&&!c.resolution);
@@ -120,10 +120,11 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     if(localMoney&&(changedRemotely||entry.uncertainSince||saved.pendingReconciliation)&&!fresh){
       conflict(number,'balance',{local:card.currentBalance,remote:saved.currentBalance,base:prior?.currentBalance??null},ids);
       entry.uncertainSince??=now;merged.pendingReconciliation=true;
-      assign('dateUpdated',saved.dateUpdated);assign('lastBalanceChecked',saved.lastBalanceChecked);
+      assign('dateUpdated',saved.dateUpdated);assign('lastBalanceChecked',saved.lastBalanceChecked);assign('lastBalanceCheckedAt',saved.lastBalanceCheckedAt);
     }else if(localMoney){
       merged.currentBalance=card.currentBalance;merged.dateUpdated=card.dateUpdated;
       if(card.lastBalanceChecked)merged.lastBalanceChecked=card.lastBalanceChecked;
+      assign('lastBalanceCheckedAt',card.lastBalanceCheckedAt);
       if(monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
       if(fresh){
         if(saved.pendingReconciliation!==undefined||card.pendingReconciliation!==undefined||entry.uncertainSince)merged.pendingReconciliation=false;
