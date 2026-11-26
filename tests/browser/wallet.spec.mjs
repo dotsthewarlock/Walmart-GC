@@ -38,6 +38,32 @@ async function setup(context,remote,legacy=[cardA,cardB]){
 async function start(page){await page.goto('/');await expect(page.getByRole('button',{name:'Open settings'})).toBeVisible();await expect.poll(async()=>active(await snapshot(page)).context.ownershipVerified).toBe(true);}
 async function recover(page){await settings(page);await page.locator('summary').filter({hasText:'Advanced synchronization and recovery'}).click();await page.getByRole('button',{name:'Recover unbound inventory into connected account'}).click();await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);await cards(page);}
 
+test('offline selections survive reload and synchronize delayed observations',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([]),qa=await setup(context,remote);const page=await context.newPage();
+ await start(page);await recover(page);qa.mock.offline=true;
+ await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
+ await page.getByLabel('Last checked').selectOption('any');await page.getByRole('button',{name:'Create batch (2)'}).click();
+ await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(2);
+ const firstLedger=active(await snapshot(page)).ledger;
+ await page.getByRole('button',{name:'Create batch (2)'}).click();
+ await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length).toBe(4);
+ const both=active(await snapshot(page)).ledger;
+ const first=firstLedger.requests.find(r=>r.cardNumber===cardA.cardNumber),second=both.requests.slice(2).find(r=>r.cardNumber===cardA.cardNumber);
+ await page.reload();await page.locator('#review-balances').click();await page.getByRole('button',{name:'Batch',exact:true}).click();
+ const checked=new Date().toISOString(),later=new Date(Date.now()+1000).toISOString();
+ for(const [ref,balance,at] of [[first.ref,'90.00',checked],[second.ref,'80.00',later]]){
+  await page.getByRole('textbox').fill(['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',`${ref}\t${balance}\t${at}`].join('\n'));
+  await page.getByRole('button',{name:'Preview results'}).click();await page.getByRole('button',{name:'Apply accepted results'}).click();
+  await expect.poll(async()=>active(await snapshot(page)).ledger.requests.find(r=>r.ref===ref).state).toBe('applied');
+ }
+ expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(80);
+ qa.mock.offline=false;await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ await page.getByRole('button',{name:'Exit',exact:true}).click();await settings(page);await page.getByRole('button',{name:'Sync now'}).click();
+ await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);
+ expect((await remote.read()).cards.find(c=>c.cardNumber===cardA.cardNumber).currentBalance).toBe(80);
+ await context.close();
+});
+
 test('integrated mobile wallet, persistence, verification, Batch, exports, failure and protected sync',async({browser})=>{
  const context=await browser.newContext({viewport:{width:412,height:923}}),remote=await syntheticRemote([]),qa=await setup(context,remote);const page=await context.newPage();
  await test.step('migration/startup and reload preserve original evidence and compartments',async()=>{

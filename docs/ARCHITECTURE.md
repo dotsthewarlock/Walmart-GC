@@ -169,17 +169,18 @@ Required headers, in preferred creation order:
 cardNumber,pin,startingBalance,currentBalance,merchant,merchantInferred,dateAdded,dateUpdated,dateUsed,used,notes
 ```
 
-Optional fields: UTC date-only `lastBalanceChecked` (`YYYY-MM-DD`) and Boolean
+Optional fields: UTC date-only `lastBalanceChecked` (`YYYY-MM-DD`), precise UTC
+`lastBalanceCheckedAt` (canonical ISO timestamp matching that date), and Boolean
 `pendingReconciliation` (absent/false/true). Empty optional cells become absent.
 Merchant is explicit override; inferred merchant is derived from identity; runtime
 effectiveMerchant and barcode payload are never persisted.
 
-Historical 10-column Sheets omit only merchantInferred. Recognized 11/12/13-column
+Historical 10-column Sheets omit only merchantInferred. Recognized 11–14-column
 headers may reorder fields. Unknown/duplicate/interior-blank headers and occupied
 append targets, including blank-looking formulas, block writes. Header extension
 is lazy and part of the inventory/commit batch, without eager row backfill.
-CSV accepts legacy 8/10/11-column headered/headerless layouts and extended 12/13
-headered layouts. Export always includes all 13 fields. Invalid/ambiguous imports
+CSV accepts legacy 8/10/11-column headered/headerless layouts and extended 12/13/14
+headered layouts. Export includes all 14 fields. Invalid/ambiguous imports
 abort atomically. Missing rows never delete local cards. Optional metadata loss
 requires explicit backup-aware confirmation.
 
@@ -188,19 +189,21 @@ requires explicit backup-aware confirmation.
 Manual verification always updates lastBalanceChecked, even unchanged; dateUpdated
 changes only with the verified balance. Verification never reactivates used cards.
 Batch TSV remains `WMGC-REQUEST<TAB>1` / `WMGC-RESULT<TAB>1` with exact UUID refs,
-CAD cents and ISO UTC checkedAt. Dates persisted on cards remain date-only. No
-bookmarklet rewrite, merchant automation or timestamp migration.
+CAD cents and ISO UTC checkedAt. New verifications persist their exact UTC time;
+historical date-only records remain valid without guessing a time.
 
-Ledger requests have per-card relevance snapshots and salted PIN digests (no
-cleartext PIN). Unrelated notes/other cards and compatible sync acknowledgments
+Ledger requests are retained per inventory across selections, with per-card relevance
+snapshots and salted PIN digests (no cleartext PIN). A selection identifies which
+references to export; results resolve against the inventory ledger. Unrelated notes/other cards and compatible sync acknowledgments
 preserve outstanding requests. Relevant identity, balance, used or verification
 changes invalidate affected requests; context/account switches are fenced.
 An outstanding request captures the card state before its full UTC creation time.
 An observation at or after that time may be accepted on the same UTC day as a
 legacy date-only verification, provided the captured card state remains relevant.
 A subsequent manual verification invalidates that card's request even when its
-amount and calendar date are unchanged. Dates in Sheets and CSV remain date-only;
-they do not establish an ordering between independent devices on the same day.
+amount and calendar date are unchanged. Precise timestamps order new observations;
+legacy date-only values do not establish ordering within a day. Equal-time
+conflicting observations are rejected.
 On a protected pull or acknowledgment, a change in the per-card monetary evidence
 revision beyond the acknowledged local operations invalidates outstanding requests
 for that card, including unchanged same-day verifications. Shared maintenance also
@@ -224,8 +227,9 @@ automatic mode reuses the durable identity. Client request timeout is 30 seconds
 quota responses suspend affected requests through the indicated reset/backoff.
 Unchanged local edits and identical verified pulls do not create inventory writes.
 Keep full Sheet content verification: metadata alone cannot detect direct edits.
-Batch preparation and preview are local; credential export and application retain
-fresh exact-account/Sheet checks. No server cache or additional infrastructure.
+Batch preparation, export, preview and application use the saved compartment
+locally, including the unbound inventory. Protected synchronization independently
+verifies the account and exact Sheet before any remote write. No server cache or additional infrastructure.
 
 Deploy only after independent review and the [QA gates](QA_TEST_CHECKLIST.md).
 The production Worker config records verified resource IDs/routes, the SQLite

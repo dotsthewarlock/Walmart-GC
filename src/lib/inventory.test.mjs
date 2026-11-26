@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { migrateLegacy, openInventory, profileOf, reduceInventory, inventoryBytes, requireSafeSheetWrite, inventoryContext } from './inventory.js';
 import { bundledSampleGiftCards } from './cards.js';
-import { createTransferLedger, prepareTransferApplication } from './balanceTransferLedger.js';
+import { createTransferLedger, decodeTransferLedger, prepareTransferApplication } from './balanceTransferLedger.js';
 import { previewTransferResults, selectTransferCards } from './balanceTransfer.js';
 import { syntheticIndexedDB } from '../../tests/syntheticIndexedDB.mjs';
 
@@ -269,6 +269,7 @@ test('successive selections preserve references and accept later checks without 
   state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger: one }));
   const selected = selectTransferCards(profileOf(state).cards).selected;
   const two = await createTransferLedger(one.context, selected, inventoryBytes(state), new Date('2026-11-25T00:00:10.000Z'), one.id);
+  assert.throws(() => decodeTransferLedger(JSON.stringify({...one, requests:[...one.requests,...two.requests]})), /damaged or unsupported/);
   state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger: two }));
   const apply = async (ref, balance, checkedAt) => {
     const observations = [{ ref, balance, checkedAt }], now = Date.parse(checkedAt), profile = profileOf(state);
@@ -287,6 +288,15 @@ test('successive selections preserve references and accept later checks without 
   assert.equal(profileOf(state).cards.find(c => c.cardNumber === older.cardNumber).currentBalance, 70);
   assert.equal(profileOf(state).ledger.requests.find(r => r.ref === older.ref).state, 'applied');
   assert.equal(profileOf(state).ledger.requests.find(r => r.ref === later.ref).state, 'applied');
+});
+
+test('an unbound local inventory can retain requests without transferring them to a Sheet compartment', async () => {
+  let state = migrateLegacy(raw());
+  const ledger = await createTransferLedger({sheetId:'local:unbound',sheetVersion:'local'}, selectTransferCards(profileOf(state).cards).selected, inventoryBytes(state));
+  state = reduceInventory(state, command(state, 'set-batch', {revision:profileOf(state).revision,ledger}));
+  state = reduceInventory(state, command(state, 'sheet-import', {revision:profileOf(state).revision,cards:[second],sheetId:'sheet-A',sheetVersion:'v1'}));
+  assert.equal(profileOf(state).ledger, null);
+  assert.equal(state.profiles.unbound.ledger.requests[0].state, 'pending');
 });
 
 test('leaving and reopening a compartment preserves its outstanding references while fencing old commands', async () => {

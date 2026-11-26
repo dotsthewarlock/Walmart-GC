@@ -107,7 +107,8 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     const observedValue=verify?.kind==='manual-verification'?verify.observation?.observedBalance:verify?.observation?.balance;
     const applicable=typeof observedAt==='string'&&Number.isFinite(Date.parse(observedAt))&&new Date(observedAt).toISOString()===observedAt
       &&typeof observedValue==='number'&&verify.after?.currentBalance===observedValue
-      &&verify.after?.lastBalanceChecked===observedAt.slice(0,10)&&verify.after?.pin===saved.pin
+      &&verify.after?.lastBalanceChecked===observedAt.slice(0,10)
+      &&(!verify.after?.lastBalanceCheckedAt||verify.after.lastBalanceCheckedAt===observedAt)&&verify.after?.pin===saved.pin
       &&verify.before?.pin===saved.pin&&(verify.after?.merchant||verify.after?.merchantInferred)==='walmart-ca'
       &&(saved.merchant||saved.merchantInferred)==='walmart-ca';
     const fresh=applicable&&monetary.at(-1)===verify

@@ -27,8 +27,8 @@ and native clipboard acceptance remain pending.
 
 ## Near term, only after synchronization foundation
 
-Online-use reconciliation remains deferred. Full UTC verification timestamp
-persistence is a separate approved design exercise; preserve date-only storage now.
+Online-use reconciliation remains deferred. V0.4 adds precise UTC verification
+timestamps while retaining historical date-only compatibility.
 Improve recovery evidence cleanup only when actual usage warrants it and safe
 retention/backup requirements are established.
 

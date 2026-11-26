@@ -111,9 +111,9 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if(profile.ledgerRecovery)throw new Error("Discard the preserved interrupted Batch before continuing.");
     // The saved compartment, never a cached session, identifies local work.
     // Synchronization independently verifies principal and Sheet ownership.
-    if(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.context.sheetId!==profile.sheets?.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync?.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets?.remoteSheetVersion)throw new Error("Load the matching verified Sheet before preparing a Batch.");
-    const context={sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
-    if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
+    const localOnly = profile.context.kind === 'unbound';
+    if(!localOnly&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.context.sheetId!==profile.sheets?.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync?.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets?.remoteSheetVersion))throw new Error("Open a saved local inventory or the matching verified Sheet before preparing a Batch.");
+    const context=localOnly?{sheetId:'local:unbound',sheetVersion:'local'}:{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
     const inventoryRaw = inventoryBytes(state);
     if (profile.ledger?.requests.some(r => r.state === "pending")) {
       const invalid = profile.ledger.requests.filter(r=>r.state==='pending').some(r=> !profile.cards.some(c=>c.cardNumber===r.cardNumber));

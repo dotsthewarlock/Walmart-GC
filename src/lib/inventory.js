@@ -378,13 +378,15 @@ export function reduceInventory(input, command) {
     const ledger = decodeTransferLedger(JSON.stringify(command.ledger));
     if (ledger.application || ledger.requests.some(r => r.state !== 'pending')) throw new Error('A new Batch must contain only pending requests.');
     if (ledger.requests.some(r => Object.hasOwn(state.observationReceipts, r.ref))) throw new Error('A Batch reference was already applied. Create a new Batch.');
-    if (profile.context.kind !== 'sheet' || ledger.context.sheetId !== profile.context.sheetId
-        || ledger.context.sheetVersion !== profile.sync?.lastKnownSheetVersion) throw new Error('Establish matching Sheet context before creating Batch.');
+    const localOnly = profile.context.kind === 'unbound' && ledger.context.sheetId === 'local:unbound' && ledger.context.sheetVersion === 'local';
+    if (!localOnly && (profile.context.kind !== 'sheet' || ledger.context.sheetId !== profile.context.sheetId
+        || ledger.context.sheetVersion !== profile.sync?.lastKnownSheetVersion)) throw new Error('Establish matching inventory context before creating Batch.');
     if (profile.ledger) {
       if (profile.ledger.id !== ledger.id || profile.ledger.application) throw new Error('Saved request context changed.');
       const existing = new Set(profile.ledger.requests.map(r => r.ref));
       if (ledger.requests.some(r => existing.has(r.ref))) throw new Error('Request reference already exists.');
       profile.ledger.requests.push(...ledger.requests);
+      profile.ledger.multipleSelections = true;
       profile.ledger.inventoryDigest = ledger.inventoryDigest;
       decodeTransferLedger(JSON.stringify(profile.ledger));
     } else profile.ledger = ledger;
