@@ -1,3 +1,8 @@
+# 1.0.5 Dev
+
+- Use a fixed 1.4-second delay and continue to the selected target or end of the queue without a ten-card cooldown.
+- Previous Dev release source for rollback: `bf6b36a3980c3672a6c58b4f64557528ad49296e` (1.0.4).
+
 # 1.0.4 Dev
 
 - Remove the Check tab and passive clipboard request detection. Requests are pasted explicitly into Queue.
