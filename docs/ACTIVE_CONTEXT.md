@@ -13,7 +13,7 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
   is deployed at 100% as `6fe91b40-c301-44ea-9637-452598c8d20a`, retaining
   the unpaused activation state, bindings, routes and privacy settings. The
   matching frontend and Dev companion are delivered by the main Pages workflow.
-- PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal). The lean sync Worker from PR #241 is deployed as `062fca0a-95dc-4a8d-b49a-4fb4428724ef` at 100%, with activation false; its matching frontend is delivered by the main-branch Pages workflow.
+- PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal). The previous lean sync Worker from PR #241 was `062fca0a-95dc-4a8d-b49a-4fb4428724ef`; V0.4 replaced it with the deployed version above.
 - PR #239 released Batch reliability and synchronization visibility. PR #237
   published Companion 1.0.3 Dev through Pages; its release baseline is main
   `d6b8ccbc23f8667bdbfa7efd69ec9f1a08465a98`. Stable has not been promoted.
