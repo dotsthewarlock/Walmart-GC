@@ -117,6 +117,14 @@ test('date-only pending operations cannot erase precise remote verification meta
  assert.equal(fromOldBase.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
  assert.equal(fromOldBase.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
 });
+test('an old verification cannot overwrite newer precise metadata even when the balance is unchanged',()=>{
+ const old={...a,lastBalanceChecked:'2026-11-25'},remote={...old,lastBalanceCheckedAt:'2026-11-25T12:00:00.000Z'};
+ const after={...old,currentBalance:80},op=operation('legacy-check',old,after,'manual-verification',{checkedAt:'2026-11-25T10:00:00.000Z',observedBalance:80});
+ const result=merge([old],[after],[remote],[op],{now:'2026-11-25T12:01:00.000Z'});
+ assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(result.cards[0].currentBalance,remote.currentBalance);
+ assert.equal(result.cards[0].pendingReconciliation,true);
+});
 test('remote verification clears inherited uncertainty without an unchanged device reasserting it',()=>{
  const before={...a,pendingReconciliation:true},remote={...a,pendingReconciliation:false,lastBalanceChecked:'2026-11-25'};
  const evidence={cards:{[a.cardNumber]:{money:2,conflicts:[]}},tombstones:{}};

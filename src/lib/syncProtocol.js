@@ -147,7 +147,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       &&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(next.maintenanceAt||'1970-01-01'))
       &&Date.parse(observedAt)<=Date.parse(now)+60_000;
     const changedRemotely=ops.some(o=>o.requiresReconciliation===true)||next.maintenanceAt!==baseEvidence.maintenanceAt||ops.some(o=>o.kind==='unbound-recovery')||!prior||(entry.money??0)!==(baseEvidence.cards?.[number]?.money??0)
-      || (prior&&!equal(prior.currentBalance,saved.currentBalance));
+      || (prior&&(!equal(prior.currentBalance,saved.currentBalance)||!equal(prior.lastBalanceCheckedAt,saved.lastBalanceCheckedAt)));
     // The first conflict must share the same entry as its uncertainty marker.
     // Otherwise a new balance alternative could be replaced by the empty entry.
     if(localMoney||localUncertainty)next.cards[number]=entry;
@@ -159,7 +159,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       merged.currentBalance=card.currentBalance;merged.dateUpdated=card.dateUpdated;
       if (fresh && verify.after?.lastBalanceCheckedAt === undefined) {
         merged.lastBalanceChecked = observedAt.slice(0,10); merged.lastBalanceCheckedAt = observedAt;
-      } else if (saved.lastBalanceCheckedAt && !card.lastBalanceCheckedAt) {
+      } else if (saved.lastBalanceCheckedAt && (!card.lastBalanceCheckedAt || (verify && !verify.after?.lastBalanceCheckedAt && !fresh))) {
         assign('lastBalanceChecked',saved.lastBalanceChecked);assign('lastBalanceCheckedAt',saved.lastBalanceCheckedAt);
       } else {
         assign('lastBalanceChecked',card.lastBalanceChecked);assign('lastBalanceCheckedAt',card.lastBalanceCheckedAt);
