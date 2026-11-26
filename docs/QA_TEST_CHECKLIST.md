@@ -41,7 +41,7 @@ under test. Font requests are blocked and use local fallbacks. Browser contexts
 provide device isolation; tabs in one context share IndexedDB and notifications.
 
 The integrated scenarios cover migration/startup/reload; balance/notes/used saves;
-manual verification and date-only persistence; Batch v1 create/preview/partial
+manual verification and precise timestamp persistence; Batch v1 create/preview/partial
 apply/exact replay; independent devices and stale/obsolete tabs; offline inventory
 selection and CSV/recovery warnings; injected transaction abort with unchanged
 committed state; 412 × 923 and desktop navigation; protected explicit controls,

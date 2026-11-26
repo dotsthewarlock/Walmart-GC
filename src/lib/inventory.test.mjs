@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { migrateLegacy, openInventory, profileOf, reduceInventory, inventoryBytes, requireSafeSheetWrite, inventoryContext } from './inventory.js';
 import { bundledSampleGiftCards } from './cards.js';
-import { createTransferLedger, prepareTransferApplication } from './balanceTransferLedger.js';
+import { createTransferLedger, decodeTransferLedger, prepareTransferApplication } from './balanceTransferLedger.js';
 import { previewTransferResults, selectTransferCards } from './balanceTransfer.js';
 import { syntheticIndexedDB } from '../../tests/syntheticIndexedDB.mjs';
 
@@ -161,6 +161,14 @@ test('CSV recovery is atomic, retains missing records and rejects conflicting PI
   assert.deepEqual(profileOf(reduceInventory(state, command(state, 'csv-recovery', { revision: 0, cards: [] }))).cards, profileOf(state).cards);
 });
 
+test('historical CSV cannot erase or backdate precise verification metadata',()=>{
+ const precise={...first,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
+ const state=migrateLegacy(raw([precise]));
+ const updated=reduceInventory(state,command(state,'csv-recovery',{revision:0,cards:[{...first,notes:'backup'}]}));
+ assert.equal(profileOf(updated).cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
+ assert.throws(()=>reduceInventory(state,command(state,'csv-recovery',{revision:0,cards:[{...first,lastBalanceChecked:'2026-11-24'}]})),/different date/);
+});
+
 test('semantic operation replay is idempotent; changed payload with reused ID rejects', () => {
   const state = migrateLegacy(raw());
   const op = { ...patch(state, first.cardNumber, { notes: 'saved' }), action: 'set-notes' };
@@ -261,6 +269,73 @@ test('same-day unchanged manual verification invalidates only its outstanding re
     version: profileOf(state).versions[number], observation: { observedBalance: profileOf(state).cards.find(c => c.cardNumber === number).currentBalance, checkedAt: '2026-11-25T00:01:00.000Z' } }));
   assert.equal(profileOf(state).ledger.requests[0].state, 'invalidated');
   assert.equal(profileOf(state).ledger.requests[1].state, 'pending');
+});
+
+test('successive selections preserve references and accept later checks without erasing prior results', async () => {
+  let state = sheetState();
+  const one = await makeLedger(state);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger: one }));
+  const selected = selectTransferCards(profileOf(state).cards).selected;
+  const two = await createTransferLedger(one.context, selected, inventoryBytes(state), new Date('2026-11-25T00:00:10.000Z'), one.id);
+  assert.throws(() => decodeTransferLedger(JSON.stringify({...one, requests:[...one.requests,...two.requests]})), /damaged or unsupported/);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger: two }));
+  const apply = async (ref, balance, checkedAt) => {
+    const observations = [{ ref, balance, checkedAt }], now = Date.parse(checkedAt), profile = profileOf(state);
+    const preview = previewTransferResults(profile.ledger, profile.cards, observations, now);
+    assert.equal(preview.counts.accepted, 1);
+    const prepared = await prepareTransferApplication(profile.ledger, preview.candidate, preview.items);
+    state = reduceInventory(state, command(state, 'apply-batch', { revision: profile.revision, ledgerId: one.id,
+      observations, items: preview.items, now, inventoryDigest: prepared.finalized.inventoryDigest }));
+  };
+  const older = one.requests[0], later = two.requests.find(r => r.cardNumber === older.cardNumber);
+  const tie = ['2026-11-25T00:01:00.000Z', '2026-11-25T00:01:00.000Z'];
+  const conflicting = [{ ref: older.ref, balance: 80, checkedAt: tie[0] }, { ref: later.ref, balance: 70, checkedAt: tie[1] }];
+  assert.equal(previewTransferResults(profileOf(state).ledger, profileOf(state).cards, conflicting, Date.parse(tie[0])).counts.accepted, 0);
+  await apply(older.ref, 80, '2026-11-25T00:01:00.000Z');
+  await apply(later.ref, 70, '2026-11-25T00:02:00.000Z');
+  assert.equal(profileOf(state).cards.find(c => c.cardNumber === older.cardNumber).currentBalance, 70);
+  assert.equal(profileOf(state).ledger.requests.find(r => r.ref === older.ref).state, 'applied');
+  assert.equal(profileOf(state).ledger.requests.find(r => r.ref === later.ref).state, 'applied');
+});
+
+test('invalidating one obsolete reference preserves unrelated requests and later selections',async()=>{
+ let state=sheetState();const ledger=await makeLedger(state);
+ state=reduceInventory(state,command(state,'set-batch',{revision:profileOf(state).revision,ledger}));
+ state=reduceInventory(state,command(state,'invalidate-batch-refs',{revision:profileOf(state).revision,refs:[ledger.requests[0].ref],context:ledger.context}));
+ assert.equal(profileOf(state).ledger.requests[0].state,'invalidated');
+ assert.equal(profileOf(state).ledger.requests[1].state,'pending');
+ const next=await createTransferLedger(ledger.context,selectTransferCards(profileOf(state).cards).selected,inventoryBytes(state),new Date('2026-11-25T00:03:00.000Z'),ledger.id);
+ state=reduceInventory(state,command(state,'set-batch',{revision:profileOf(state).revision,ledger:next}));
+ assert.equal(profileOf(state).ledger.requests.length,ledger.requests.length+next.requests.length);
+});
+test('foreign historical requests are preserved for recovery and cannot cross inventories',async()=>{
+ let state=sheetState();const ledger=await makeLedger(state);ledger.context.sheetId='other-sheet';
+ profileOf(state).ledger=ledger;
+ state=reduceInventory(state,command(state,'archive-foreign-batch',{revision:profileOf(state).revision}));
+ assert.equal(profileOf(state).ledger,null);
+ assert.deepEqual(state.quarantine.at(-1).ledger,ledger);
+ assert.equal(state.quarantine.at(-1).kind,'foreign-batch');
+});
+
+test('an unbound local inventory can retain requests without transferring them to a Sheet compartment', async () => {
+  let state = migrateLegacy(raw());
+  const ledger = await createTransferLedger({sheetId:'local:unbound',sheetVersion:'local'}, selectTransferCards(profileOf(state).cards).selected, inventoryBytes(state));
+  state = reduceInventory(state, command(state, 'set-batch', {revision:profileOf(state).revision,ledger}));
+  state = reduceInventory(state, command(state, 'sheet-import', {revision:profileOf(state).revision,cards:[second],sheetId:'sheet-A',sheetVersion:'v1'}));
+  assert.equal(profileOf(state).ledger, null);
+  assert.equal(state.profiles.unbound.ledger.requests[0].state, 'pending');
+});
+
+test('leaving and reopening a compartment preserves its outstanding references while fencing old commands', async () => {
+  let state = sheetState();
+  const ledger = await makeLedger(state);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger }));
+  const oldContext = inventoryContext(state);
+  const originalProfile = state.active;
+  state = reduceInventory(state, command(state, 'use-unbound'));
+  state = reduceInventory(state, command(state, 'select-compartment', { target: originalProfile }));
+  assert.equal(profileOf(state).ledger.requests[0].state, 'pending');
+  assert.throws(() => reduceInventory(state, { id: crypto.randomUUID(), kind: 'discard-batch', ...oldContext, revision: profileOf(state).revision }), /context changed/);
 });
 
 test('Batch apply failure leaves all accepted observations and reference states together at previous commit', async () => {

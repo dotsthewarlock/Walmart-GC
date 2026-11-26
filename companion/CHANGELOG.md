@@ -1,3 +1,8 @@
+# 1.0.4 Dev
+
+- Remove the Check tab and passive clipboard request detection. Requests are pasted explicitly into Queue.
+- Preserve Batch v1 and existing foreground checking and pacing.
+
 # 1.0.1 candidate
 
 - Fix restart after ten-card rest: cleanup is idempotent.

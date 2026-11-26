@@ -56,6 +56,13 @@ test("13-field export round trips metadata, multiline notes, quotes and PINs", (
   assert.deepEqual(parseRawCardData(blank), { parsedCards: [historical], warnings: [] });
 });
 
+test("precise verification timestamps round trip and must match their date", () => {
+  const precise = { ...extended, lastBalanceCheckedAt: "2024-02-29T23:15:00.000Z" };
+  assert.deepEqual(parseRawCardData(cardsToCsv([precise])), { parsedCards: [precise], warnings: [] });
+  const invalid = cardsToCsv([{ ...precise, lastBalanceCheckedAt: "2024-03-01T00:00:00.000Z" }]);
+  assert.match(parseRawCardData(invalid).warnings.join(" "), /matching lastBalanceChecked/);
+});
+
 test("either optional CSV header works on its own and may be reordered", () => {
   const [header, row] = historicalFixtures[2];
   for (const [extra, text, value] of [

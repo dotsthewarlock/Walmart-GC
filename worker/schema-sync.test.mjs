@@ -238,6 +238,15 @@ test('empty optional values never eagerly backfill optional headers',async(t)=>{
  await write(adapter,before);assert.deepEqual(fixture.cards[0],requiredCardHeaders);
 });
 
+test('precise verification timestamp is appended and read through the coordinated adapter',async(t)=>{
+ const fixture=setupSheet(t),adapter=googleSheetAdapter('fixture-access',spreadsheetId),before=await adapter.read();
+ const timestamp='2024-02-29T23:15:00.000Z';
+ await write(adapter,before,[{...before.cards[0],lastBalanceChecked:'2024-02-29',lastBalanceCheckedAt:timestamp}]);
+ const after=await adapter.read();
+ assert.equal(after.cards[0].lastBalanceCheckedAt,timestamp);
+ assert.equal(fixture.cards[0].filter(h=>h==='lastBalanceCheckedAt').length,1);
+});
+
 test('fresh schema initialization is one atomic batch and preserves other tabs',async(t)=>{
  const fixture=setupSheet(t,{fresh:true,defaultTab:{values:[['private preserved']]}}),adapter=googleSheetAdapter('fixture-access',spreadsheetId),before=await adapter.read();
  await write(adapter,before);const after=await adapter.read();assert.deepEqual(after.cards,[]);assert.deepEqual(fixture.cards[0],requiredCardHeaders);

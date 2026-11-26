@@ -198,11 +198,11 @@ test("preview counts outcomes, applies only accepted exact identities and preser
     accepted: 5, changed: 2, unchanged: 3, unknown: 1, invalidated: 0, stale: 2, alreadyApplied: 0, rejected: 0,
   });
   assert.equal(preview.netCents, 512n);
-  assert.deepEqual(preview.candidate[0], { ...cards[0], currentBalance: 0, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01" });
-  assert.deepEqual(preview.candidate[1], { ...cards[1], lastBalanceChecked: "2026-06-01" });
-  assert.deepEqual(preview.candidate[2], { ...cards[2], currentBalance: 21.12, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01" });
+  assert.deepEqual(preview.candidate[0], { ...cards[0], currentBalance: 0, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01", lastBalanceCheckedAt: checked });
+  assert.deepEqual(preview.candidate[1], { ...cards[1], lastBalanceChecked: "2026-06-01", lastBalanceCheckedAt: checked });
+  assert.deepEqual(preview.candidate[2], { ...cards[2], currentBalance: 21.12, dateUpdated: "2026-06-01", lastBalanceChecked: "2026-06-01", lastBalanceCheckedAt: checked });
   assert.equal(preview.items[2].used, true);
-  assert.deepEqual(preview.candidate[3], cards[3]);
+  assert.deepEqual(preview.candidate[3], { ...cards[3], lastBalanceCheckedAt: checked });
   assert.equal(preview.outstanding, 7);
 });
 
@@ -211,6 +211,18 @@ test("missing, corrupt and unsupported ledgers fail closed", () => {
   for (const raw of ["{", "null", "[]", '{"version":2}']) {
     assert.throws(() => decodeTransferLedger(raw), /damaged or unsupported/);
   }
+});
+
+test('an ineligible later result cannot suppress an applicable result for the same card',async()=>{
+ const cards=[card(1)],ledger=await makeLedger(cards),first=ledger.requests[0];
+ const second={...first,ref:'20000000-0000-4000-8000-000000000002',createdAt:'2026-06-01T11:00:30.000Z'};
+ ledger.requests.push(second);
+ const valid=observation(first,6,checked),future=observation(second,5,'2026-06-01T12:00:00.000Z');
+ for(const entries of [[valid,future],[future,valid]]){
+  const result=previewTransferResults(ledger,cards,entries,now);
+  assert.equal(result.items.find(x=>x.ref===valid.ref).outcome,'accepted');
+  assert.equal(result.items.find(x=>x.ref===future.ref).outcome,'stale');
+ }
 });
 
 test("continuity invalidates requests after a PIN edit or version change", async (t) => {

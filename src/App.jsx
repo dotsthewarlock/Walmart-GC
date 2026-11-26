@@ -347,8 +347,7 @@ function App() {
     if (sheetMutation.current) return null;
     sheetMutation.current = true;
     try {
-      const state = await commitWallet({ kind: "begin-context", ...inventoryContext(walletSnapshot) });
-      return await commitWallet({ kind: "invalidate-batch", ...inventoryContext(state) });
+      return await commitWallet({ kind: "begin-context", ...inventoryContext(walletSnapshot) });
     } catch { sheetMutation.current = false; return null; }
   }
 
@@ -903,7 +902,6 @@ function App() {
 
     try {
       let state = await commitWallet({ kind: "begin-context", ...inventoryContext(walletSnapshot) });
-      state = await commitWallet({ kind: "invalidate-batch", ...inventoryContext(state) });
       if (state.active !== 'unbound') state = await commitWallet({ kind: "use-unbound", ...inventoryContext(state) });
       if (!await responseIsCurrent(inventoryContext(state))) return;
     } catch { return; }

@@ -36,7 +36,7 @@ export const legacyCsvHeaders = [
   "used",
 ];
 
-export const optionalCardHeaders = ["lastBalanceChecked", "pendingReconciliation"];
+export const optionalCardHeaders = ["lastBalanceChecked", "pendingReconciliation", "lastBalanceCheckedAt"];
 export const schemaCapability = "optional-card-metadata-v1";
 export const csvHeaders = [...requiredCardHeaders, ...optionalCardHeaders];
 export const expectedCardsHeaderRow = csvHeaders.join(", ");
@@ -72,6 +72,16 @@ export function readOptionalCardMetadata(card, { cellValues = false } = {}) {
       throw new Error("lastBalanceChecked must be a valid YYYY-MM-DD date or blank.");
     }
     metadata.lastBalanceChecked = date;
+  }
+
+  const timestamp = card.lastBalanceCheckedAt;
+  if (!isAbsentMetadata(timestamp, cellValues)) {
+    if (typeof timestamp !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(timestamp)
+        || !Number.isFinite(Date.parse(timestamp)) || new Date(timestamp).toISOString() !== timestamp
+        || metadata.lastBalanceChecked !== timestamp.slice(0, 10)) {
+      throw new Error("lastBalanceCheckedAt must be a UTC timestamp matching lastBalanceChecked.");
+    }
+    metadata.lastBalanceCheckedAt = timestamp;
   }
 
   const pending = card.pendingReconciliation;

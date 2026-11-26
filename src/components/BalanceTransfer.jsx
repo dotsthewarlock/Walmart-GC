@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { fetchWorkerJson } from "../lib/api";
 import { inventoryBytes, profileOf, inventoryContext, assertInventoryContext } from "../lib/inventory";
 import {
-  checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults, requireTransferContext,
+  checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults,
   sameTransferContext, selectTransferCards, transferRequestRows, readTransferPreferences, defaultTransferPreferences, transferPreferenceKey,
 } from "../lib/balanceTransfer";
 import { createTransferLedger, inventoryFingerprint, prepareTransferApplication } from "../lib/balanceTransferLedger";
@@ -103,33 +102,36 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!mounted.current) throw new Error("Batch was closed.");
   }
 
-  async function verifiedSession(fresh=true) {
+  async function verifiedSession() {
     getTransferWallet();
     const start = await readWallet();
     assertInventoryContext(start, inventoryContext(walletSnapshot));
-    let state=start,status;
-    if(fresh){
-      status=await fetchWorkerJson("/api/status", { cache: "no-store" });
-      ensureMounted();
-      assertInventoryContext(await readWallet(), inventoryContext(start));
-      state=await commitWallet({kind:"observe-session",...inventoryContext(start),status});
-    }
-    const profile=profileOf(state);
+    let state=start;
+    let profile=profileOf(state);
     if(profile.ledgerRecovery)throw new Error("Discard the preserved interrupted Batch before continuing.");
-    if(fresh&&status.syncProtocol&&(!profile.context.ownershipVerified||profile.context.principal!==status.principal))throw new Error("Open the matching verified account inventory before using Batch.");
-    // Preparation/preview only inspect the saved compartment. Export and apply
-    // still require live account and exact Sheet verification.
-    if(!fresh&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.sync?.status!=='connected'||profile.sheets?.status!=='ready'||profile.context.sheetId!==profile.sheets.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets.remoteSheetVersion))throw new Error("Load the matching verified Sheet before preparing a Batch.");
-    const context=fresh?requireTransferContext(status,{context:profile.context,remoteBase:profile.remoteBase,sheets:profile.sheets,sync:profile.sync}):{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
-    if (profile.context.kind !== "sheet" || profile.context.sheetId !== context.sheetId) throw new Error("Load matching Sheet context before using Batch.");
+    // The saved compartment, never a cached session, identifies local work.
+    // Synchronization independently verifies principal and Sheet ownership.
+    const localOnly = profile.context.kind === 'unbound';
+    if(!localOnly&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.context.sheetId!==profile.sheets?.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync?.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets?.remoteSheetVersion))throw new Error("Open a saved local inventory or the matching verified Sheet before preparing a Batch.");
+    const context=localOnly?{sheetId:'local:unbound',sheetVersion:'local'}:{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
     const inventoryRaw = inventoryBytes(state);
-    if (profile.ledger?.requests.some(r => r.state === "pending")) {
-      const invalid = profile.ledger.requests.filter(r=>r.state==='pending').some(r=> !profile.cards.some(c=>c.cardNumber===r.cardNumber));
-      const credentialsChanged = (await Promise.all(profile.ledger.requests.filter(r=>r.state==='pending'&&r.relevance).map(async r=>{
+    if(profile.ledger && profile.ledger.context.sheetId!==context.sheetId){
+      await assertSession({state,profile});
+      state=await commitWallet({kind:'archive-foreign-batch',...inventoryContext(state),revision:profile.revision});
+      profile=profileOf(state);
+    }
+    if (profile.ledger) {
+      const pendingRequests=profile.ledger.requests.filter(r=>r.state==='pending');
+      const legacyMatches = pendingRequests.some(r=>!r.relevance) && profile.ledger.inventoryDigest === await inventoryFingerprint(inventoryRaw,profile.ledger.id);
+      const invalid = (await Promise.all(pendingRequests.map(async r=>{
         const card=profile.cards.find(c=>c.cardNumber===r.cardNumber);
-        return !card || r.relevance.pinDigest!==await inventoryFingerprint(card.pin,profile.ledger.id);
-      }))).some(Boolean);
-      if(invalid||credentialsChanged||!sameTransferContext(profile.ledger.context,context))throw new Error("Requested credentials or Sheet context changed. Create a new Batch.");
+        return (!card || !sameTransferContext(profile.ledger.context,context) || (r.relevance ? r.relevance.pinDigest!==await inventoryFingerprint(card.pin,profile.ledger.id) : !legacyMatches)) ? r.ref : null;
+      }))).filter(Boolean);
+      if(invalid.length || !sameTransferContext(profile.ledger.context,context)){
+        await assertSession({state,profile});
+        state=await commitWallet({kind:'invalidate-batch-refs',...inventoryContext(state),revision:profile.revision,refs:invalid,context});
+        profile=profileOf(state);
+      }
     }
     const session = { state, profile, ledger: profile.ledger, context, inventoryRaw, previewCards: profile.cards };
     await assertSession(session);
@@ -147,11 +149,9 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }
 
   async function createBatch() {
-    const session = await verifiedSession(false);
-    const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
-    if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
+    const session = await verifiedSession();
     const { selected } = selectTransferCards(session.profile.cards, preferences);
-    const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw);
+    const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw, undefined, session.ledger?.id);
     await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
     setPacket("");
@@ -161,12 +161,12 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function copyRequest() {
     const session = await verifiedSession();
     if (!session.ledger) throw new Error("Create a batch before copying a request.");
-    const rows = transferRequestRows(session.ledger, session.profile.cards);
+    const rows = transferRequestRows(session.ledger, session.profile.cards, session.profile.batchSelection ?? null);
     await assertSession(session);
     const copied = await copyText(formatTransferRequest(rows));
     if (!mounted.current) return;
-    if (!copied) throw new Error("Clipboard access failed. Try Copy request again.");
-    setMessage(`Copied ${rows.length} requests. Paste them into the bookmarklet.`);
+    if (!copied) throw new Error("Clipboard access failed. Try Copy selected cards again.");
+    setMessage(`Copied ${rows.length} requests. Paste them into the Companion.`);
   }
 
   async function discardBatch() {
@@ -188,7 +188,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function importResults() {
     const results = parseTransferResults(packet);
-    const session = await verifiedSession(false);
+    const session = await verifiedSession();
     setPreview(buildPreview(session, results));
     setPacket("");
   }
@@ -217,11 +217,11 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const recovering = Boolean(batch.error || ledger?.application);
   return (
     <>
-      {(!pending || recovering) && <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
+      {<Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
-          <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Create batch</h2>
+          <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Select cards</h2>
             {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
-          <p className="text-sm text-m3-on-surface-variant">Batch requires a connected Google Sheet. Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
+          <p className="text-sm text-m3-on-surface-variant">Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
         </div>
         {recovering ? (
           <>
@@ -256,7 +256,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
               </SelectField>
             </label>
             <Segments label="Quantity" detail={`· ${selectionCounts.matching} matching`} value={preferences.quantity} disabled={busy} onChange={v => setPreference("quantity", v)} choices={[["1", "1"], ["5", "5"], ["20", "20"], ["50", "50"], ["all", "All"]]} />
-            <Button disabled={busy || !selectionCounts.selected.length} onClick={() => run(createBatch)}>Create batch ({selectionCounts.selected.length})</Button>
+            <Button disabled={busy || !selectionCounts.selected.length} onClick={() => run(createBatch)}>Select cards ({selectionCounts.selected.length})</Button>
           </>
         )}
       </Card>}
@@ -264,26 +264,25 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       {ledger && !recovering && (
         <>
           <Card as="section" aria-labelledby="active-batch-heading" className="flex flex-col gap-3 p-4">
-            <h3 id="active-batch-heading" tabIndex={-1} ref={pending ? heading : undefined} className="font-semibold">Saved batch</h3>
+            <h3 id="active-batch-heading" tabIndex={-1} ref={pending ? heading : undefined} className="font-semibold">Saved requests</h3>
             <p className="text-sm text-m3-on-surface-variant" role="status">
               {pending} outstanding · {invalidated} invalidated · {ledger.requests.length - pending - invalidated} applied
             </p>
             {pending > 0 && (
               <>
                 <p className="text-sm text-m3-on-surface-variant">The copied request contains card numbers and PINs. Clear your clipboard and clipboard history after use.</p>
-                <Button disabled={busy} onClick={() => run(copyRequest)}>Copy request</Button>
+                <Button disabled={busy} onClick={() => run(copyRequest)}>Copy selected cards</Button>
                 <Button variant="outlined" href={checkerUrl} target="_blank" rel="noopener noreferrer"
                   aria-label="Open Walmart checker (opens in a new tab)">Open Walmart checker <ArrowUpRight size={16} aria-hidden="true" /></Button>
               </>
             )}
-            <Button variant="text" className="self-start" disabled={busy} onClick={() => run(discardBatch)}>Discard batch</Button>
           </Card>
 
           <Card as="section" aria-labelledby="import-results-heading" className="flex flex-col gap-3 p-4">
             <h3 id="import-results-heading" className="font-semibold">Import results</h3>
             <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); run(importResults); }}>
               <label className="flex flex-col gap-1 text-sm font-medium">
-                Paste Wallet results
+                Paste results
                 <TextArea value={packet} onChange={(event) => { setPacket(event.target.value); setPreview(null); }}
                   disabled={busy} spellCheck={false} autoComplete="off" autoCapitalize="off" />
               </label>

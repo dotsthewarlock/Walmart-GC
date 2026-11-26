@@ -45,7 +45,8 @@ export function decodeTransferLedger(raw) {
   let ledger;
   try {
     ledger = JSON.parse(raw);
-    if (keysAre(ledger, ["version", "id", "context", "inventoryDigest", "requests", "application"])
+    if ((keysAre(ledger, ["version", "id", "context", "inventoryDigest", "requests", "application"])
+        || (keysAre(ledger, ["version", "id", "context", "inventoryDigest", "requests", "application", "multipleSelections"]) && ledger.multipleSelections === true))
         && ledger.version === transferVersion && isTransferReference(ledger.id)
         && keysAre(ledger.context, ["sheetId", "sheetVersion"])
         && text(ledger.context.sheetId) && text(ledger.context.sheetVersion)
@@ -56,7 +57,7 @@ export function decodeTransferLedger(raw) {
       const byRef = new Map(ledger.requests.map((request) => [request.ref, request]));
       const identities = new Set(ledger.requests.map(({ cardNumber }) => cardNumber));
       const marker = ledger.application;
-      if (byRef.size === ledger.requests.length && identities.size === byRef.size && (marker === null
+      if (byRef.size === ledger.requests.length && (ledger.multipleSelections === true || identities.size === byRef.size) && (marker === null
           || (Array.isArray(marker) && marker.length && new Set(marker.map((result) => result?.ref)).size === marker.length
             && marker.every((result) => validObservation(result) && byRef.get(result.ref)?.state === "pending"
               && result.checkedAt >= byRef.get(result.ref).createdAt)))) return ledger;
@@ -74,10 +75,10 @@ export async function inventoryFingerprint(raw, salt) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function createTransferLedger(context, selected, rawInventory, now) {
+export async function createTransferLedger(context, selected, rawInventory, now, existingId) {
   if (!selected.length) throw new Error("No cards match this batch selection.");
   if (!globalThis.crypto?.randomUUID) throw new Error("Batch requires a secure browser context.");
-  const id = globalThis.crypto.randomUUID();
+  const id = existingId ?? globalThis.crypto.randomUUID();
   const inventoryDigest = await inventoryFingerprint(rawInventory, id);
   const createdAt = (now ?? new Date()).toISOString();
   return {

@@ -67,16 +67,29 @@ export async function coordinate(storage,adapter,request) {
     candidate=reconcile({base:request.base.cards,local:materialize(request.base.cards,unseen),remote:remote.cards,operations:unseen,
       baseEvidence:request.base.evidence,evidence:remote.evidence});
   }else if(request.action==='pause'){
+    if(state.maintenance)throw failure('maintenance','Shared Sheet maintenance is already paused.');
     state.maintenance=true;state.maintenanceEvidenceHash=await fingerprint(candidate.evidence);
+    const proofs={};
+    for(const card of remote.cards) if(card.lastBalanceCheckedAt) proofs[await fingerprint(card.cardNumber)]=await fingerprint([card.lastBalanceChecked,card.lastBalanceCheckedAt]);
+    if(new TextEncoder().encode(JSON.stringify(proofs)).length>64000)throw failure('maintenance_proof_full','Too many precise verification records to safely pause maintenance.');
+    state.maintenanceVerificationProofs=proofs;
   }else if(request.action==='resume'){
     if(!state.maintenance)throw failure('maintenance_required','Pause shared maintenance before accepting direct edits.');
     if(state.maintenanceEvidenceHash&&await fingerprint(remote.evidence)!==state.maintenanceEvidenceHash)throw failure('evidence_changed','Managed recovery evidence changed during maintenance. Restore the preserved _META evidence before resuming.');
+    if(state.maintenanceVerificationProofs){
+      const actualProofs={};
+      for(const card of remote.cards) if(card.lastBalanceCheckedAt) actualProofs[await fingerprint(card.cardNumber)]=await fingerprint([card.lastBalanceChecked,card.lastBalanceCheckedAt]);
+      const deleted=new Set(await Promise.all((request.deletedIds??[]).map(number=>fingerprint(number))));
+      for(const [key,proof] of Object.entries(state.maintenanceVerificationProofs)) if(!deleted.has(key)&&actualProofs[key]!==proof)
+        throw failure('verification_changed','Precise verification details changed during maintenance. Restore them from a private backup before resuming.');
+    } else if(remote.cards.some(card=>card.lastBalanceCheckedAt)) throw failure('verification_unproven','Verification details cannot be confirmed for this older maintenance session. Preserve a private backup and use controlled recovery.');
     // Deletion is explicit and fenced; absence by itself never creates a tombstone.
     for(const number of request.deletedIds??[]){
       if(!/^63\d{14}$/.test(number)||remote.cards.some(c=>c.cardNumber===number))throw failure('invalid_deletion','Remove the exact row during maintenance before explicitly confirming its deletion.');
       candidate.evidence.tombstones[number]={id:request.id+':'+number,at:new Date().toISOString()};
     }
     candidate.evidence.maintenanceAt=new Date().toISOString();
+    delete state.maintenanceVerificationProofs;
     state.maintenance=false;
   }else if(request.action!=='ensure')throw failure('invalid','Unknown synchronization action.');
   if(request.action==='commit'&&equal(snapshotContent(candidate),snapshotContent(remote))){

@@ -2,7 +2,7 @@ import { reconcile, equal as syncEqual, syncProtocol, emptyEvidence, materialize
 import { bundledSampleGiftCards, normalizeCard, serializeReviewInventory, getEffectiveMerchant } from './cards.js';
 import { csvHeaders } from './csvSchema.js';
 import { applyBalanceObservation, createBalanceReviewQueue } from './balanceReview.js';
-import { previewTransferResults } from './balanceTransfer.js';
+import { previewTransferResults, transferCardSnapshot } from './balanceTransfer.js';
 import { decodeTransferLedger, invalidatedLedger } from './balanceTransferLedger.js';
 import { storageKeys } from './storage.js';
 
@@ -305,6 +305,22 @@ export function reduceInventory(input, command) {
   } else if (command.kind === 'invalidate-batch') {
     editable(profile);
     profile.ledger = invalidatedLedger(profile.ledger);
+  } else if (command.kind === 'archive-foreign-batch') {
+    editable(profile);
+    if (command.revision !== profile.revision || !profile.ledger) throw new Error(stale);
+    const expected = profile.context.kind === 'unbound' ? 'local:unbound' : profile.context.sheetId;
+    if (!expected || profile.ledger.context.sheetId === expected) throw new Error('Saved requests still match this inventory.');
+    state.quarantine.push({kind:'foreign-batch',reason:'Requests from another inventory were preserved without being reused.',ledger:profile.ledger});
+    profile.ledger=null;
+    profile.batchSelection=null;
+  } else if (command.kind === 'invalidate-batch-refs') {
+    editable(profile);
+    if (command.revision !== profile.revision || !profile.ledger || !Array.isArray(command.refs)
+        || command.context?.sheetId !== profile.ledger.context.sheetId) throw new Error(stale);
+    const refs = new Set(command.refs);
+    for (const request of profile.ledger.requests) if (request.state === 'pending' && refs.has(request.ref)) request.state = 'invalidated';
+    if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
+    profile.ledger.context = command.context;
   } else if (command.kind === 'patch' || command.kind === 'manual-verification') {
     editable(profile);
     const before = profile.cards.find(c => c.cardNumber === command.cardNumber);
@@ -339,7 +355,13 @@ export function reduceInventory(input, command) {
     for (const card of recovered) {
       const before = profile.cards.find(c => c.cardNumber === card.cardNumber);
       if (before && before.pin !== card.pin) throw new Error('CSV credentials conflict with a saved card. Original cards were preserved.');
-      if (!equal(before, card)) record(profile, { ...command, kind: command.recovery ? 'unbound-recovery' : command.kind, id: `${command.id}:${card.cardNumber}` }, before ?? null, card);
+      let after = card;
+      if (before?.lastBalanceCheckedAt && !card.lastBalanceCheckedAt) {
+        if (card.lastBalanceChecked && card.lastBalanceChecked !== before.lastBalanceChecked) throw new Error('The backup has an older verification format with a different date. Saved verification details were preserved.');
+        after = { ...card, lastBalanceChecked: before.lastBalanceChecked, lastBalanceCheckedAt: before.lastBalanceCheckedAt };
+      }
+      if (before?.lastBalanceCheckedAt && after.lastBalanceCheckedAt && after.lastBalanceCheckedAt < before.lastBalanceCheckedAt) throw new Error('The backup has an older verification time. Saved verification details were preserved.');
+      if (!equal(before, after)) record(profile, { ...command, kind: command.recovery ? 'unbound-recovery' : command.kind, id: `${command.id}:${card.cardNumber}` }, before ?? null, after);
     }
     // A recovery file is a set of explicit additions/updates, never a delete list.
   } else if (command.kind === 'sheet-import') {
@@ -371,7 +393,6 @@ export function reduceInventory(input, command) {
   } else if (command.kind === 'use-unbound') {
     state.contextGeneration++;
     editable(profile);
-    profile.ledger = invalidatedLedger(profile.ledger);
     state.active = 'unbound';
   } else if (command.kind === 'set-batch') {
     editable(profile);
@@ -379,9 +400,19 @@ export function reduceInventory(input, command) {
     const ledger = decodeTransferLedger(JSON.stringify(command.ledger));
     if (ledger.application || ledger.requests.some(r => r.state !== 'pending')) throw new Error('A new Batch must contain only pending requests.');
     if (ledger.requests.some(r => Object.hasOwn(state.observationReceipts, r.ref))) throw new Error('A Batch reference was already applied. Create a new Batch.');
-    if (profile.context.kind !== 'sheet' || ledger.context.sheetId !== profile.context.sheetId
-        || ledger.context.sheetVersion !== profile.sync?.lastKnownSheetVersion) throw new Error('Establish matching Sheet context before creating Batch.');
-    profile.ledger = ledger;
+    const localOnly = profile.context.kind === 'unbound' && ledger.context.sheetId === 'local:unbound' && ledger.context.sheetVersion === 'local';
+    if (!localOnly && (profile.context.kind !== 'sheet' || ledger.context.sheetId !== profile.context.sheetId
+        || ledger.context.sheetVersion !== profile.sync?.lastKnownSheetVersion)) throw new Error('Establish matching inventory context before creating Batch.');
+    if (profile.ledger) {
+      if (profile.ledger.id !== ledger.id || profile.ledger.application) throw new Error('Saved request context changed.');
+      const existing = new Set(profile.ledger.requests.map(r => r.ref));
+      if (ledger.requests.some(r => existing.has(r.ref))) throw new Error('Request reference already exists.');
+      profile.ledger.requests.push(...ledger.requests);
+      profile.ledger.multipleSelections = true;
+      profile.ledger.inventoryDigest = ledger.inventoryDigest;
+      decodeTransferLedger(JSON.stringify(profile.ledger));
+    } else profile.ledger = ledger;
+    profile.batchSelection = ledger.requests.map(r => r.ref);
   } else if (command.kind === 'apply-batch') {
     editable(profile);
     if (command.ledgerId !== profile.ledger?.id) throw new Error(stale);
@@ -398,6 +429,13 @@ export function reduceInventory(input, command) {
       request.state = 'applied';
       request.applied = { ref: item.ref, balance: item.balance, checkedAt: item.checkedAt };
       state.observationReceipts[item.ref] = { ...request.applied, profile: state.active };
+      // Only this known verification advances equivalent pending requests. Other
+      // monetary and credential changes retain their normal invalidation fence.
+      for (const other of profile.ledger.requests) if (other.state === 'pending' && other.cardNumber === item.cardNumber
+          && syncEqual(other.snapshot, transferCardSnapshot(before))) {
+        other.snapshot = transferCardSnapshot(after);
+        if (other.relevance) Object.assign(other.relevance, {currentBalance:after.currentBalance,lastBalanceChecked:after.lastBalanceChecked||'',pendingReconciliation:after.pendingReconciliation===true,used:after.used});
+      }
     }
     // Legacy aggregate digest is retained for decoding; current requests use per-card relevance.
     profile.ledger.inventoryDigest = command.inventoryDigest;

@@ -99,3 +99,16 @@ test('activation block permits verified identity/ownership checks but cannot rea
   assert.equal(sheet.reads,0);assert.equal(sheet.writes,0);
  }finally{await mf.dispose();await mock.close();}
 });
+
+test('SQLite maintenance verification proofs survive restart and block timestamp removal',async()=>{
+ const persist=await mkdtemp(join(tmpdir(),'gc-wallet-proof-')),{mock,sheet}=googleFixture();
+ const precise={...cardA,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
+ sheet.cards.push(csvHeaders.map(h=>precise[h]??''));let mf=runtime(mock,persist);
+ try{
+  let object=await stub(mf);assert.equal((await send(object,{action:'pause',id:crypto.randomUUID()})).status,200);
+  await mf.dispose();mf=runtime(mock,persist);object=await stub(mf);
+  sheet.cards[1][csvHeaders.indexOf('lastBalanceCheckedAt')]='';
+  const result=await send(object,{action:'resume',id:crypto.randomUUID(),deletedIds:[]});
+  assert.equal(result.code,'verification_changed');
+ }finally{await mf.dispose();await mock.close();await rm(persist,{recursive:true,force:true});}
+});

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {reconcile,emptyEvidence,fingerprint,canonical} from './syncProtocol.js';
+import {reconcile,emptyEvidence,fingerprint,canonical,materialize} from './syncProtocol.js';
 import {cardA as a,cardB as b,operation} from '../../tests/syncFixtures.mjs';
 const merge=(base,local,remote,operations=[],extra={})=>reconcile({base,local,remote,operations,...extra});
 test('independent additions, independent fields, exact equivalent notes and optional metadata survive',async()=>{
@@ -55,6 +55,15 @@ test('malformed or inapplicable verification cannot clear balance uncertainty',(
   assert.equal(result.cards[0].pendingReconciliation,true);
  }
 });
+test('a later monetary action cannot use an earlier verification to clear uncertainty',()=>{
+ const saved={...a,pendingReconciliation:true},evidence={cards:{[a.cardNumber]:{money:1,uncertainSince:'2026-11-25T00:00:00.000Z',conflicts:[]}},tombstones:{}};
+ const checked={...saved,currentBalance:80,lastBalanceChecked:'2026-11-25',pendingReconciliation:false};
+ const spent={...checked,currentBalance:60};
+ const ops=[operation('check',saved,checked,'manual-verification',{checkedAt:'2026-11-25T01:00:00.000Z',observedBalance:80}),operation('spend',checked,spent,'set-balance')];
+ const result=merge([saved],[spent],[saved],ops,{evidence,baseEvidence:evidence,now:'2026-11-25T01:00:01.000Z'});
+ assert.equal(result.cards[0].currentBalance,saved.currentBalance);
+ assert.equal(result.cards[0].pendingReconciliation,true);
+});
 test('explicit notes/PIN resolution consumes only a still-applicable conflict and preserves alternatives',()=>{
  for(const field of ['notes','pin']){
   const local={...a,[field]:field==='pin'?'9999':'local note'},remote={...a,[field]:field==='pin'?'1111':'remote note'};
@@ -83,6 +92,38 @@ test('CSV verification metadata updates persist even with an unchanged balance, 
  const result=merge([dated],[imported],[dated],[operation('csv-date',dated,imported,'csv-recovery')]);assert.equal(result.cards[0].lastBalanceChecked,'2026-11-25');
  const remote={...dated,currentBalance:80,lastBalanceChecked:'2026-11-24',dateUpdated:'2026-11-24'},local={...dated,currentBalance:70,lastBalanceChecked:'2026-11-25',dateUpdated:'2026-11-25'};
  const conflict=merge([dated],[local],[remote],[operation('csv-money',dated,local,'csv-recovery')]);assert.equal(conflict.cards[0].lastBalanceChecked,'2026-11-24');assert.equal(conflict.cards[0].dateUpdated,'2026-11-24');
+});
+test('independent CSV metadata edits never combine a date and timestamp from different versions',()=>{
+ const base={...a,lastBalanceChecked:'2026-11-24',lastBalanceCheckedAt:'2026-11-24T12:00:00.000Z'};
+ const local={...a,lastBalanceChecked:'2026-11-25'};
+ const remote={...base,lastBalanceCheckedAt:'2026-11-24T14:00:00.000Z'};
+ const result=merge([base],[local],[remote],[operation('csv-date',base,local,'csv-recovery')]);
+ assert.equal(result.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
+ assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.ok(result.evidence.cards[a.cardNumber].conflicts.length);
+});
+test('date-only pending operations cannot erase precise remote verification metadata',()=>{
+ const old={...a,lastBalanceChecked:'2026-11-24'},after={...old,lastBalanceChecked:'2026-11-25',notes:'old backup'};
+ const remote={...a,lastBalanceChecked:'2026-11-26',lastBalanceCheckedAt:'2026-11-26T10:00:00.000Z'};
+ const op=operation('legacy-csv',old,after,'csv-recovery');
+ const replay=materialize([remote],[op]);
+ assert.equal(replay[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(replay[0].lastBalanceChecked,remote.lastBalanceChecked);
+ const result=merge([old],replay,[remote],[op]);
+ assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(result.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
+ assert.ok(result.evidence.cards[a.cardNumber].conflicts.some(c=>c.kind==='field:lastBalanceChecked'));
+ const fromOldBase=merge([old],materialize([old],[op]),[remote],[op]);
+ assert.equal(fromOldBase.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(fromOldBase.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
+});
+test('an old verification cannot overwrite newer precise metadata even when the balance is unchanged',()=>{
+ const old={...a,lastBalanceChecked:'2026-11-25'},remote={...old,lastBalanceCheckedAt:'2026-11-25T12:00:00.000Z'};
+ const after={...old,currentBalance:80},op=operation('legacy-check',old,after,'manual-verification',{checkedAt:'2026-11-25T10:00:00.000Z',observedBalance:80});
+ const result=merge([old],[after],[remote],[op],{now:'2026-11-25T12:01:00.000Z'});
+ assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(result.cards[0].currentBalance,remote.currentBalance);
+ assert.equal(result.cards[0].pendingReconciliation,true);
 });
 test('remote verification clears inherited uncertainty without an unchanged device reasserting it',()=>{
  const before={...a,pendingReconciliation:true},remote={...a,pendingReconciliation:false,lastBalanceChecked:'2026-11-25'};

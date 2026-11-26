@@ -152,10 +152,10 @@ export function sameTransferContext(a, b) {
   return a.sheetId === b.sheetId && a.sheetVersion === b.sheetVersion;
 }
 
-export function transferRequestRows(ledger, cards) {
+export function transferRequestRows(ledger, cards, selectedRefs = null) {
   const eligible = new Map(transferEligibleCards(cards).map(({ card }) => [card.cardNumber, card]));
   if (ledger.application) throw new Error("Resolve the interrupted application before copying a request.");
-  return ledger.requests.filter(({ state }) => state === "pending").map(({ ref, cardNumber, snapshot }) => {
+  return ledger.requests.filter(({ state, ref }) => state === "pending" && (!selectedRefs || selectedRefs.includes(ref))).map(({ ref, cardNumber, snapshot }) => {
     const card = eligible.get(cardNumber);
     if (!card || JSON.stringify(transferCardSnapshot(card)) !== JSON.stringify(snapshot)) {
       throw new Error("The requested cards changed. Create a new batch.");
@@ -171,6 +171,28 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
   const items = [];
   let candidate = cards;
   let netCents = 0n;
+  const newest = new Map();
+  const ambiguous = new Set();
+  const ineligible = (request, card, entry, checkedAt) => {
+    if (!entry || JSON.stringify(request.snapshot) !== JSON.stringify(transferCardSnapshot(card))) return 'The requested card changed or is unavailable.';
+    if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) return 'Observation predates its request or is more than 60 seconds in the future.';
+    if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) return 'The observation predates the saved verification time.';
+    return null;
+  };
+  for (const observation of observations) {
+    const request = requests.get(observation.ref);
+    if (request?.state !== 'pending') continue;
+    const entry = eligible.get(request.cardNumber);
+    if (ineligible(request, entry?.card, entry, observation.checkedAt)) continue;
+    const previous = newest.get(request.cardNumber);
+    if (!previous || observation.checkedAt > previous.checkedAt) {
+      newest.set(request.cardNumber, observation);
+      ambiguous.delete(request.cardNumber);
+    } else if (observation.checkedAt === previous.checkedAt) {
+      if (observation.balance !== previous.balance) ambiguous.add(request.cardNumber);
+      if (observation.ref < previous.ref) newest.set(request.cardNumber, observation);
+    }
+  }
 
   for (const observation of observations) {
     const { ref, balance, checkedAt } = observation;
@@ -191,15 +213,14 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     } else if (ledger.application) {
       outcome = "rejected";
       reason = "Application outcome is uncertain.";
-    } else if (!entry || JSON.stringify(request.snapshot) !== JSON.stringify(transferCardSnapshot(card))) {
+    } else if ((reason = ineligible(request, card, entry, checkedAt))) {
       outcome = "stale";
-      reason = "The requested card changed or is unavailable.";
-    } else if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) {
+    } else if (ambiguous.has(request.cardNumber) && newest.get(request.cardNumber)?.checkedAt === checkedAt) {
+      outcome = "rejected";
+      reason = "Conflicting observations have the same timestamp.";
+    } else if (newest.get(request.cardNumber)?.ref !== ref) {
       outcome = "stale";
-      reason = "Observation predates its request or is more than 60 seconds in the future.";
-    } else if (card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) {
-      outcome = "stale";
-      reason = "The observation predates the saved verification date.";
+      reason = "A newer observation for this card is included.";
     } else {
       candidate = applyBalanceObservation(candidate, {
         cardNumber: request.cardNumber, observedBalance: balance, checkedAt, expected: entry,
