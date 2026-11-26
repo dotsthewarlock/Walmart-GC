@@ -263,6 +263,32 @@ test('same-day unchanged manual verification invalidates only its outstanding re
   assert.equal(profileOf(state).ledger.requests[1].state, 'pending');
 });
 
+test('successive selections preserve references and accept later checks without erasing prior results', async () => {
+  let state = sheetState();
+  const one = await makeLedger(state);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger: one }));
+  const selected = selectTransferCards(profileOf(state).cards).selected;
+  const two = await createTransferLedger(one.context, selected, inventoryBytes(state), new Date('2026-11-25T00:00:10.000Z'), one.id);
+  state = reduceInventory(state, command(state, 'set-batch', { revision: profileOf(state).revision, ledger: two }));
+  const apply = async (ref, balance, checkedAt) => {
+    const observations = [{ ref, balance, checkedAt }], now = Date.parse(checkedAt), profile = profileOf(state);
+    const preview = previewTransferResults(profile.ledger, profile.cards, observations, now);
+    assert.equal(preview.counts.accepted, 1);
+    const prepared = await prepareTransferApplication(profile.ledger, preview.candidate, preview.items);
+    state = reduceInventory(state, command(state, 'apply-batch', { revision: profile.revision, ledgerId: one.id,
+      observations, items: preview.items, now, inventoryDigest: prepared.finalized.inventoryDigest }));
+  };
+  const older = one.requests[0], later = two.requests.find(r => r.cardNumber === older.cardNumber);
+  const tie = ['2026-11-25T00:01:00.000Z', '2026-11-25T00:01:00.000Z'];
+  const conflicting = [{ ref: older.ref, balance: 80, checkedAt: tie[0] }, { ref: later.ref, balance: 70, checkedAt: tie[1] }];
+  assert.equal(previewTransferResults(profileOf(state).ledger, profileOf(state).cards, conflicting, Date.parse(tie[0])).counts.accepted, 0);
+  await apply(older.ref, 80, '2026-11-25T00:01:00.000Z');
+  await apply(later.ref, 70, '2026-11-25T00:02:00.000Z');
+  assert.equal(profileOf(state).cards.find(c => c.cardNumber === older.cardNumber).currentBalance, 70);
+  assert.equal(profileOf(state).ledger.requests.find(r => r.ref === older.ref).state, 'applied');
+  assert.equal(profileOf(state).ledger.requests.find(r => r.ref === later.ref).state, 'applied');
+});
+
 test('leaving and reopening a compartment preserves its outstanding references while fencing old commands', async () => {
   let state = sheetState();
   const ledger = await makeLedger(state);

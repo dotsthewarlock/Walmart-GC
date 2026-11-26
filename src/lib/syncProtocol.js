@@ -110,7 +110,10 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       &&verify.after?.lastBalanceChecked===observedAt.slice(0,10)&&verify.after?.pin===saved.pin
       &&verify.before?.pin===saved.pin&&(verify.after?.merchant||verify.after?.merchantInferred)==='walmart-ca'
       &&(saved.merchant||saved.merchantInferred)==='walmart-ca';
-    const fresh=applicable&&monetary.at(-1)===verify&&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(next.maintenanceAt||'1970-01-01'))
+    const fresh=applicable&&monetary.at(-1)===verify
+      &&(!saved.lastBalanceChecked||observedAt.slice(0,10)>=saved.lastBalanceChecked)
+      &&(!saved.lastBalanceCheckedAt||observedAt>saved.lastBalanceCheckedAt)
+      &&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(next.maintenanceAt||'1970-01-01'))
       &&Date.parse(observedAt)<=Date.parse(now)+60_000;
     const changedRemotely=ops.some(o=>o.requiresReconciliation===true)||next.maintenanceAt!==baseEvidence.maintenanceAt||ops.some(o=>o.kind==='unbound-recovery')||!prior||(entry.money??0)!==(baseEvidence.cards?.[number]?.money??0)
       || (prior&&!equal(prior.currentBalance,saved.currentBalance));

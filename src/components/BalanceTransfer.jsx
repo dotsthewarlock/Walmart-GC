@@ -140,10 +140,8 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function createBatch() {
     const session = await verifiedSession();
-    const outstanding = session.ledger?.requests.filter(r => r.state === "pending").length;
-    if (outstanding && !window.confirm(`Replace the batch and discard its ${outstanding} outstanding requests?`)) return;
     const { selected } = selectTransferCards(session.profile.cards, preferences);
-    const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw);
+    const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw, undefined, session.ledger?.id);
     await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
     setPacket("");
@@ -153,7 +151,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function copyRequest() {
     const session = await verifiedSession();
     if (!session.ledger) throw new Error("Create a batch before copying a request.");
-    const rows = transferRequestRows(session.ledger, session.profile.cards);
+    const rows = transferRequestRows(session.ledger, session.profile.cards, session.profile.batchSelection ?? null);
     await assertSession(session);
     const copied = await copyText(formatTransferRequest(rows));
     if (!mounted.current) return;
@@ -209,7 +207,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const recovering = Boolean(batch.error || ledger?.application);
   return (
     <>
-      {(!pending || recovering) && <Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
+      {<Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
         <div>
           <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Create batch</h2>
             {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
@@ -268,7 +266,6 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
                   aria-label="Open Walmart checker (opens in a new tab)">Open Walmart checker <ArrowUpRight size={16} aria-hidden="true" /></Button>
               </>
             )}
-            <Button variant="text" className="self-start" disabled={busy} onClick={() => run(discardBatch)}>Discard batch</Button>
           </Card>
 
           <Card as="section" aria-labelledby="import-results-heading" className="flex flex-col gap-3 p-4">
