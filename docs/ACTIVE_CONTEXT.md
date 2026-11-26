@@ -9,6 +9,10 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 - V0.4 / PR #243 adds offline balance checking, selection-independent request
   references, precise verification timestamps and Companion 1.0.4 Dev. Release
   evidence is recorded in the PR and deployment checks; Stable is not promoted.
+- The compatible V0.4 Worker from source `1653373b0cf523a4bed63f54da239015f7bc50f8`
+  is deployed at 100% as `6fe91b40-c301-44ea-9637-452598c8d20a`, retaining
+  the unpaused activation state, bindings, routes and privacy settings. The
+  matching frontend and Dev companion are delivered by the main Pages workflow.
 - PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal). The lean sync Worker from PR #241 is deployed as `062fca0a-95dc-4a8d-b49a-4fb4428724ef` at 100%, with activation false; its matching frontend is delivered by the main-branch Pages workflow.
 - PR #239 released Batch reliability and synchronization visibility. PR #237
   published Companion 1.0.3 Dev through Pages; its release baseline is main
