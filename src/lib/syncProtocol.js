@@ -101,6 +101,14 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       else if(!prior&&saved[field]===undefined)assign(field,card[field]);
       else conflict(number,'field:'+field,{local:card[field]??null,remote:saved[field]??null,base:fieldBase??null},ids);
     }
+    // Verification date and timestamp form one value. Independent CSV edits can
+    // otherwise produce a pair that neither side supplied and cannot be reloaded.
+    if (merged.lastBalanceCheckedAt && merged.lastBalanceCheckedAt.slice(0,10) !== merged.lastBalanceChecked) {
+      for (const field of ['lastBalanceChecked','lastBalanceCheckedAt']) {
+        if (!equal(card[field],saved[field])) conflict(number,'field:'+field,{local:card[field]??null,remote:saved[field]??null,base:prior?.[field]??null},ids);
+        assign(field,saved[field]);
+      }
+    }
     const entry=next.cards[number]??{money:0,conflicts:[]};
     const verify=monetary.filter(o=>['manual-verification','batch-verification'].includes(o.kind)).at(-1);
     const observedAt=verify?.observation?.checkedAt;

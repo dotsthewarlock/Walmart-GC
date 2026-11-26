@@ -93,6 +93,15 @@ test('CSV verification metadata updates persist even with an unchanged balance, 
  const remote={...dated,currentBalance:80,lastBalanceChecked:'2026-11-24',dateUpdated:'2026-11-24'},local={...dated,currentBalance:70,lastBalanceChecked:'2026-11-25',dateUpdated:'2026-11-25'};
  const conflict=merge([dated],[local],[remote],[operation('csv-money',dated,local,'csv-recovery')]);assert.equal(conflict.cards[0].lastBalanceChecked,'2026-11-24');assert.equal(conflict.cards[0].dateUpdated,'2026-11-24');
 });
+test('independent CSV metadata edits never combine a date and timestamp from different versions',()=>{
+ const base={...a,lastBalanceChecked:'2026-11-24',lastBalanceCheckedAt:'2026-11-24T12:00:00.000Z'};
+ const local={...a,lastBalanceChecked:'2026-11-25'};
+ const remote={...base,lastBalanceCheckedAt:'2026-11-24T14:00:00.000Z'};
+ const result=merge([base],[local],[remote],[operation('csv-date',base,local,'csv-recovery')]);
+ assert.equal(result.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
+ assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.ok(result.evidence.cards[a.cardNumber].conflicts.length);
+});
 test('remote verification clears inherited uncertainty without an unchanged device reasserting it',()=>{
  const before={...a,pendingReconciliation:true},remote={...a,pendingReconciliation:false,lastBalanceChecked:'2026-11-25'};
  const evidence={cards:{[a.cardNumber]:{money:2,conflicts:[]}},tombstones:{}};
