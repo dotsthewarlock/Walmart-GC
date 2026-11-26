@@ -55,6 +55,15 @@ test('malformed or inapplicable verification cannot clear balance uncertainty',(
   assert.equal(result.cards[0].pendingReconciliation,true);
  }
 });
+test('a later monetary action cannot use an earlier verification to clear uncertainty',()=>{
+ const saved={...a,pendingReconciliation:true},evidence={cards:{[a.cardNumber]:{money:1,uncertainSince:'2026-11-25T00:00:00.000Z',conflicts:[]}},tombstones:{}};
+ const checked={...saved,currentBalance:80,lastBalanceChecked:'2026-11-25',pendingReconciliation:false};
+ const spent={...checked,currentBalance:60};
+ const ops=[operation('check',saved,checked,'manual-verification',{checkedAt:'2026-11-25T01:00:00.000Z',observedBalance:80}),operation('spend',checked,spent,'set-balance')];
+ const result=merge([saved],[spent],[saved],ops,{evidence,baseEvidence:evidence,now:'2026-11-25T01:00:01.000Z'});
+ assert.equal(result.cards[0].currentBalance,saved.currentBalance);
+ assert.equal(result.cards[0].pendingReconciliation,true);
+});
 test('explicit notes/PIN resolution consumes only a still-applicable conflict and preserves alternatives',()=>{
  for(const field of ['notes','pin']){
   const local={...a,[field]:field==='pin'?'9999':'local note'},remote={...a,[field]:field==='pin'?'1111':'remote note'};
