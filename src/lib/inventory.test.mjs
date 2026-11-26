@@ -161,6 +161,14 @@ test('CSV recovery is atomic, retains missing records and rejects conflicting PI
   assert.deepEqual(profileOf(reduceInventory(state, command(state, 'csv-recovery', { revision: 0, cards: [] }))).cards, profileOf(state).cards);
 });
 
+test('historical CSV cannot erase or backdate precise verification metadata',()=>{
+ const precise={...first,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
+ const state=migrateLegacy(raw([precise]));
+ const updated=reduceInventory(state,command(state,'csv-recovery',{revision:0,cards:[{...first,notes:'backup'}]}));
+ assert.equal(profileOf(updated).cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
+ assert.throws(()=>reduceInventory(state,command(state,'csv-recovery',{revision:0,cards:[{...first,lastBalanceChecked:'2026-11-24'}]})),/different date/);
+});
+
 test('semantic operation replay is idempotent; changed payload with reused ID rejects', () => {
   const state = migrateLegacy(raw());
   const op = { ...patch(state, first.cardNumber, { notes: 'saved' }), action: 'set-notes' };
@@ -288,6 +296,25 @@ test('successive selections preserve references and accept later checks without 
   assert.equal(profileOf(state).cards.find(c => c.cardNumber === older.cardNumber).currentBalance, 70);
   assert.equal(profileOf(state).ledger.requests.find(r => r.ref === older.ref).state, 'applied');
   assert.equal(profileOf(state).ledger.requests.find(r => r.ref === later.ref).state, 'applied');
+});
+
+test('invalidating one obsolete reference preserves unrelated requests and later selections',async()=>{
+ let state=sheetState();const ledger=await makeLedger(state);
+ state=reduceInventory(state,command(state,'set-batch',{revision:profileOf(state).revision,ledger}));
+ state=reduceInventory(state,command(state,'invalidate-batch-refs',{revision:profileOf(state).revision,refs:[ledger.requests[0].ref],context:ledger.context}));
+ assert.equal(profileOf(state).ledger.requests[0].state,'invalidated');
+ assert.equal(profileOf(state).ledger.requests[1].state,'pending');
+ const next=await createTransferLedger(ledger.context,selectTransferCards(profileOf(state).cards).selected,inventoryBytes(state),new Date('2026-11-25T00:03:00.000Z'),ledger.id);
+ state=reduceInventory(state,command(state,'set-batch',{revision:profileOf(state).revision,ledger:next}));
+ assert.equal(profileOf(state).ledger.requests.length,ledger.requests.length+next.requests.length);
+});
+test('foreign historical requests are preserved for recovery and cannot cross inventories',async()=>{
+ let state=sheetState();const ledger=await makeLedger(state);ledger.context.sheetId='other-sheet';
+ profileOf(state).ledger=ledger;
+ state=reduceInventory(state,command(state,'archive-foreign-batch',{revision:profileOf(state).revision}));
+ assert.equal(profileOf(state).ledger,null);
+ assert.deepEqual(state.quarantine.at(-1).ledger,ledger);
+ assert.equal(state.quarantine.at(-1).kind,'foreign-batch');
 });
 
 test('an unbound local inventory can retain requests without transferring them to a Sheet compartment', async () => {

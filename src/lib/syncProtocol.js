@@ -18,6 +18,14 @@ export const isMonetaryOperation=op=>['set-balance','manual-verification','batch
   || op.before?.currentBalance!==op.after?.currentBalance;
 
 const moneyOp=isMonetaryOperation;
+const canonicalTime=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+const validLegacyVerification=(op,priorTime)=>{
+  const checked=op.observation?.checkedAt;
+  const amount=op.kind==='manual-verification'?op.observation?.observedBalance:op.observation?.balance;
+  return ['manual-verification','batch-verification'].includes(op.kind) && canonicalTime(checked) && checked>priorTime
+    && checked.slice(0,10)===op.after?.lastBalanceChecked && typeof amount==='number' && amount===op.after?.currentBalance
+    && op.before?.pin===op.after?.pin && (op.after?.merchant||op.after?.merchantInferred)==='walmart-ca';
+};
 
 // Absence is never a delete operation. Only controlled maintenance creates tombstones.
 // A monetary operation's identity matters even when two resulting values match.
@@ -33,7 +41,13 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
   for(const [number,workingCard] of working){
     let card={...workingCard};
     for(const op of operations.filter(o=>o.cardNumber===number)) {
+      const priorDate=card.lastBalanceChecked,priorTime=card.lastBalanceCheckedAt;
       for(const key of Object.keys(op.after??{}))if(!equal(op.before?.[key],op.after[key]))card[key]=op.after[key];
+      if(priorTime && !op.after?.lastBalanceCheckedAt) {
+        const checked=op.observation?.checkedAt;
+        if(validLegacyVerification(op,priorTime)) card.lastBalanceCheckedAt=checked;
+        else {card.lastBalanceChecked=priorDate;card.lastBalanceCheckedAt=priorTime;}
+      }
       if(moneyOp(op)&&op.after)card.currentBalance=op.after.currentBalance;
     }
     if(samples.has(number))throw Error('Bundled samples cannot synchronize.');
@@ -80,11 +94,19 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     }
     const merged={...saved};
     const monetary=ops.filter(moneyOp),localMoney=monetary.length>0||!equal(card.currentBalance,prior?.currentBalance);
+    for (const op of ops) if (saved.lastBalanceCheckedAt && !op.after?.lastBalanceCheckedAt && op.kind==='csv-recovery'
+        && op.after?.lastBalanceChecked && op.after.lastBalanceChecked!==saved.lastBalanceChecked)
+      conflict(number,'field:lastBalanceChecked',{local:op.after.lastBalanceChecked,remote:saved.lastBalanceChecked,base:op.before?.lastBalanceChecked??null},[op.id]);
     const localUncertainty=card.pendingReconciliation===true&&prior?.pendingReconciliation!==true;
     const assign=(field,value)=>{if(value===undefined)delete merged[field];else merged[field]=value;};
     for(const field of new Set([...Object.keys(card),...Object.keys(saved)])){
       if(['cardNumber','pin','currentBalance','pendingReconciliation'].includes(field))continue;
       if(localMoney&&['dateUpdated','lastBalanceChecked','lastBalanceCheckedAt'].includes(field))continue;
+      if(saved.lastBalanceCheckedAt && !card.lastBalanceCheckedAt && ['lastBalanceChecked','lastBalanceCheckedAt'].includes(field)) {
+        if(field==='lastBalanceChecked' && card.lastBalanceChecked && card.lastBalanceChecked!==saved.lastBalanceChecked)
+          conflict(number,'field:'+field,{local:card[field],remote:saved[field]??null,base:prior?.[field]??null},ids);
+        continue;
+      }
       const entry=next.cards[number];
       const resolution=ops.find(o=>{
         const c=entry?.conflicts?.find(c=>c.id===o.conflictId&&!c.resolution);
@@ -135,8 +157,13 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       assign('dateUpdated',saved.dateUpdated);assign('lastBalanceChecked',saved.lastBalanceChecked);assign('lastBalanceCheckedAt',saved.lastBalanceCheckedAt);
     }else if(localMoney){
       merged.currentBalance=card.currentBalance;merged.dateUpdated=card.dateUpdated;
-      if(card.lastBalanceChecked)merged.lastBalanceChecked=card.lastBalanceChecked;
-      assign('lastBalanceCheckedAt',card.lastBalanceCheckedAt);
+      if (fresh && verify.after?.lastBalanceCheckedAt === undefined) {
+        merged.lastBalanceChecked = observedAt.slice(0,10); merged.lastBalanceCheckedAt = observedAt;
+      } else if (saved.lastBalanceCheckedAt && !card.lastBalanceCheckedAt) {
+        assign('lastBalanceChecked',saved.lastBalanceChecked);assign('lastBalanceCheckedAt',saved.lastBalanceCheckedAt);
+      } else {
+        assign('lastBalanceChecked',card.lastBalanceChecked);assign('lastBalanceCheckedAt',card.lastBalanceCheckedAt);
+      }
       if(monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
       if(fresh){
         if(saved.pendingReconciliation!==undefined||card.pendingReconciliation!==undefined||entry.uncertainSince)merged.pendingReconciliation=false;
@@ -163,10 +190,16 @@ export function materialize(base,operations) {
   for(const op of operations){
     if(!op.after)continue;
     const current=cards.get(op.cardNumber)??structuredClone(op.before??op.after);
+    const priorDate=current.lastBalanceChecked,priorTime=current.lastBalanceCheckedAt;
     for(const key of new Set([...Object.keys(op.before??{}),...Object.keys(op.after)])){
       if(!equal(op.before?.[key],op.after[key])){
         if(op.after[key]===undefined)delete current[key];else current[key]=op.after[key];
       }
+    }
+    if(priorTime && !op.after.lastBalanceCheckedAt){
+      const checked=op.observation?.checkedAt;
+      if(validLegacyVerification(op,priorTime))current.lastBalanceCheckedAt=checked;
+      else {current.lastBalanceChecked=priorDate;current.lastBalanceCheckedAt=priorTime;}
     }
     if(moneyOp(op))current.currentBalance=op.after.currentBalance;
     cards.set(op.cardNumber,current);

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {reconcile,emptyEvidence,fingerprint,canonical} from './syncProtocol.js';
+import {reconcile,emptyEvidence,fingerprint,canonical,materialize} from './syncProtocol.js';
 import {cardA as a,cardB as b,operation} from '../../tests/syncFixtures.mjs';
 const merge=(base,local,remote,operations=[],extra={})=>reconcile({base,local,remote,operations,...extra});
 test('independent additions, independent fields, exact equivalent notes and optional metadata survive',async()=>{
@@ -101,6 +101,21 @@ test('independent CSV metadata edits never combine a date and timestamp from dif
  assert.equal(result.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
  assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
  assert.ok(result.evidence.cards[a.cardNumber].conflicts.length);
+});
+test('date-only pending operations cannot erase precise remote verification metadata',()=>{
+ const old={...a,lastBalanceChecked:'2026-11-24'},after={...old,lastBalanceChecked:'2026-11-25',notes:'old backup'};
+ const remote={...a,lastBalanceChecked:'2026-11-26',lastBalanceCheckedAt:'2026-11-26T10:00:00.000Z'};
+ const op=operation('legacy-csv',old,after,'csv-recovery');
+ const replay=materialize([remote],[op]);
+ assert.equal(replay[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(replay[0].lastBalanceChecked,remote.lastBalanceChecked);
+ const result=merge([old],replay,[remote],[op]);
+ assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(result.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
+ assert.ok(result.evidence.cards[a.cardNumber].conflicts.some(c=>c.kind==='field:lastBalanceChecked'));
+ const fromOldBase=merge([old],materialize([old],[op]),[remote],[op]);
+ assert.equal(fromOldBase.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
+ assert.equal(fromOldBase.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
 });
 test('remote verification clears inherited uncertainty without an unchanged device reasserting it',()=>{
  const before={...a,pendingReconciliation:true},remote={...a,pendingReconciliation:false,lastBalanceChecked:'2026-11-25'};

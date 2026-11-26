@@ -213,6 +213,18 @@ test("missing, corrupt and unsupported ledgers fail closed", () => {
   }
 });
 
+test('an ineligible later result cannot suppress an applicable result for the same card',async()=>{
+ const cards=[card(1)],ledger=await makeLedger(cards),first=ledger.requests[0];
+ const second={...first,ref:'20000000-0000-4000-8000-000000000002',createdAt:'2026-06-01T11:00:30.000Z'};
+ ledger.requests.push(second);
+ const valid=observation(first,6,checked),future=observation(second,5,'2026-06-01T12:00:00.000Z');
+ for(const entries of [[valid,future],[future,valid]]){
+  const result=previewTransferResults(ledger,cards,entries,now);
+  assert.equal(result.items.find(x=>x.ref===valid.ref).outcome,'accepted');
+  assert.equal(result.items.find(x=>x.ref===future.ref).outcome,'stale');
+ }
+});
+
 test("continuity invalidates requests after a PIN edit or version change", async (t) => {
   const { fixture, cards, ledger, raw } = await stage(t);
   const modified = JSON.stringify([{ ...cards[0], pin: "0008" }, cards[1]]);

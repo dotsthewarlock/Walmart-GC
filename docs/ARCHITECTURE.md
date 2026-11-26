@@ -129,6 +129,8 @@ evidence can be acknowledged after restoration; acknowledging it alone does not
 verify the balance. Later acknowledgments cannot erase the recovered row.
 Controlled explicit deletions create compact retained tombstones so
 stale devices cannot resurrect them. Restore is explicit and balance-uncertain.
+Date-only pending operations and historical CSV recovery cannot silently erase a
+precise verification timestamp. Conflicting date-only proposals remain recoverable.
 
 Monetary operations carry semantic identities and per-card monetary revisions.
 When independent monetary changes conflict, the remote recorded balance remains
@@ -155,6 +157,8 @@ and optionally confirms exact deleted identities already absent from Cards. A
 maintenance timestamp fences older monetary observations. Managed recovery
 evidence/tombstones must stay intact even during maintenance; the coordinator
 retains their hash and rejects external erasure.
+The coordinator also retains bounded hashes of precise verification metadata at
+pause; resume rejects changes or removal unless the card is explicitly deleted.
 Absence alone never creates tombstones. Fingerprinting detects direct edits even
 without a changed sheetVersion. Undeclared edits stop normal writes; an owner must
 pause/review/accept them. The app cannot prevent an external editor ignoring the
@@ -197,6 +201,10 @@ snapshots and salted PIN digests (no cleartext PIN). A selection identifies whic
 references to export; results resolve against the inventory ledger. Unrelated notes/other cards and compatible sync acknowledgments
 preserve outstanding requests. Relevant identity, balance, used or verification
 changes invalidate affected requests; context/account switches are fenced.
+Missing cards and changed credentials invalidate only their own references. A
+ledger found in the wrong inventory is quarantined intact rather than reused;
+it does not prevent a new selection in the current inventory. Result eligibility
+is determined before selecting the newest applicable observation for a card.
 An outstanding request captures the card state before its full UTC creation time.
 An observation at or after that time may be accepted on the same UTC day as a
 legacy date-only verification, provided the captured card state remains relevant.

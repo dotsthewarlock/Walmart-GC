@@ -173,9 +173,17 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
   let netCents = 0n;
   const newest = new Map();
   const ambiguous = new Set();
+  const ineligible = (request, card, entry, checkedAt) => {
+    if (!entry || JSON.stringify(request.snapshot) !== JSON.stringify(transferCardSnapshot(card))) return 'The requested card changed or is unavailable.';
+    if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) return 'Observation predates its request or is more than 60 seconds in the future.';
+    if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) return 'The observation predates the saved verification time.';
+    return null;
+  };
   for (const observation of observations) {
     const request = requests.get(observation.ref);
     if (request?.state !== 'pending') continue;
+    const entry = eligible.get(request.cardNumber);
+    if (ineligible(request, entry?.card, entry, observation.checkedAt)) continue;
     const previous = newest.get(request.cardNumber);
     if (!previous || observation.checkedAt > previous.checkedAt) {
       newest.set(request.cardNumber, observation);
@@ -205,22 +213,14 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     } else if (ledger.application) {
       outcome = "rejected";
       reason = "Application outcome is uncertain.";
+    } else if ((reason = ineligible(request, card, entry, checkedAt))) {
+      outcome = "stale";
     } else if (ambiguous.has(request.cardNumber) && newest.get(request.cardNumber)?.checkedAt === checkedAt) {
       outcome = "rejected";
       reason = "Conflicting observations have the same timestamp.";
     } else if (newest.get(request.cardNumber)?.ref !== ref) {
       outcome = "stale";
       reason = "A newer observation for this card is included.";
-    } else if (!entry || JSON.stringify(request.snapshot) !== JSON.stringify(transferCardSnapshot(card))) {
-      outcome = "stale";
-      reason = "The requested card changed or is unavailable.";
-    } else if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) {
-      outcome = "stale";
-      reason = "Observation predates its request or is more than 60 seconds in the future.";
-    } else if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked)
-        || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) {
-      outcome = "stale";
-      reason = "The observation predates the saved verification date.";
     } else {
       candidate = applyBalanceObservation(candidate, {
         cardNumber: request.cardNumber, observedBalance: balance, checkedAt, expected: entry,

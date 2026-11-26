@@ -84,3 +84,13 @@ test('shared maintenance cannot erase managed tombstones or recovery evidence',a
  remote.directEdit(s=>{s.evidence.tombstones[b.cardNumber]={id:'external-injection'};});
  await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-evidence'}),/recovery evidence changed|Managed recovery evidence changed/);
 });
+test('maintenance cannot erase or change a precise verification without an explicit deletion',async()=>{
+ const precise={...a,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
+ const remote=await syntheticRemote([precise]);await remote.coordinator.run({protocol:syncProtocol,action:'pause',id:'pause-precise'});
+ remote.directEdit(s=>{delete s.cards[0].lastBalanceCheckedAt;});
+ await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'pause',id:'pause-again'}),/already paused/i);
+ await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-precise'}),/verification details changed/i);
+ remote.directEdit(s=>{s.cards[0].lastBalanceCheckedAt=precise.lastBalanceCheckedAt;});
+ await remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-restored'});
+ assert.equal((await remote.read()).cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
+});

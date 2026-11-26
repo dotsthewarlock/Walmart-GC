@@ -305,6 +305,22 @@ export function reduceInventory(input, command) {
   } else if (command.kind === 'invalidate-batch') {
     editable(profile);
     profile.ledger = invalidatedLedger(profile.ledger);
+  } else if (command.kind === 'archive-foreign-batch') {
+    editable(profile);
+    if (command.revision !== profile.revision || !profile.ledger) throw new Error(stale);
+    const expected = profile.context.kind === 'unbound' ? 'local:unbound' : profile.context.sheetId;
+    if (!expected || profile.ledger.context.sheetId === expected) throw new Error('Saved requests still match this inventory.');
+    state.quarantine.push({kind:'foreign-batch',reason:'Requests from another inventory were preserved without being reused.',ledger:profile.ledger});
+    profile.ledger=null;
+    profile.batchSelection=null;
+  } else if (command.kind === 'invalidate-batch-refs') {
+    editable(profile);
+    if (command.revision !== profile.revision || !profile.ledger || !Array.isArray(command.refs)
+        || command.context?.sheetId !== profile.ledger.context.sheetId) throw new Error(stale);
+    const refs = new Set(command.refs);
+    for (const request of profile.ledger.requests) if (request.state === 'pending' && refs.has(request.ref)) request.state = 'invalidated';
+    if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
+    profile.ledger.context = command.context;
   } else if (command.kind === 'patch' || command.kind === 'manual-verification') {
     editable(profile);
     const before = profile.cards.find(c => c.cardNumber === command.cardNumber);
@@ -339,7 +355,13 @@ export function reduceInventory(input, command) {
     for (const card of recovered) {
       const before = profile.cards.find(c => c.cardNumber === card.cardNumber);
       if (before && before.pin !== card.pin) throw new Error('CSV credentials conflict with a saved card. Original cards were preserved.');
-      if (!equal(before, card)) record(profile, { ...command, kind: command.recovery ? 'unbound-recovery' : command.kind, id: `${command.id}:${card.cardNumber}` }, before ?? null, card);
+      let after = card;
+      if (before?.lastBalanceCheckedAt && !card.lastBalanceCheckedAt) {
+        if (card.lastBalanceChecked && card.lastBalanceChecked !== before.lastBalanceChecked) throw new Error('The backup has an older verification format with a different date. Saved verification details were preserved.');
+        after = { ...card, lastBalanceChecked: before.lastBalanceChecked, lastBalanceCheckedAt: before.lastBalanceCheckedAt };
+      }
+      if (before?.lastBalanceCheckedAt && after.lastBalanceCheckedAt && after.lastBalanceCheckedAt < before.lastBalanceCheckedAt) throw new Error('The backup has an older verification time. Saved verification details were preserved.');
+      if (!equal(before, after)) record(profile, { ...command, kind: command.recovery ? 'unbound-recovery' : command.kind, id: `${command.id}:${card.cardNumber}` }, before ?? null, after);
     }
     // A recovery file is a set of explicit additions/updates, never a delete list.
   } else if (command.kind === 'sheet-import') {

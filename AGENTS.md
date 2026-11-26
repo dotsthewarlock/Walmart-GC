@@ -30,8 +30,9 @@ Resolve ordinary implementation failures within the authorized scope autonomousl
   An uncertain external write stays fenced until positive commit/content proof.
 - No live OAuth/Sheet/merchant calls, provisioning, paid activation, deployment,
   protected-branch push or merge unless separately explicitly authorized.
-- Feature commits/pushes and draft PR updates require task authorization. Stop for
-  independent review. Humans remain the release/merge gate.
+- Feature commits, pushes, PR updates and release actions require task authorization.
+  Obtain independent review before production release; a user's explicit release
+  authorization governs merge and deployment without a repeated routine approval.
 
 ## Verification and communication
 
