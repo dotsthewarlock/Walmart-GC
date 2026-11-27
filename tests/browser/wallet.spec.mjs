@@ -247,3 +247,41 @@ test('Settings retains drafts, shares persistent preferences and exposes failure
  await advanced.click();await expect(page.getByLabel('Exact Sheet ID (optional)')).toHaveValue('');
  expect(qa.errors).toEqual([]);await context.close();
 });
+
+
+test('Cards preserves filters, sorting, totals, selection and empty-state commands across navigation',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:412,height:923}});
+ const remote=await syntheticRemote([{...cardA,used:true}, {...cardB,currentBalance:0}]);
+ const qa=await setup(context,remote,[]),page=await context.newPage();await start(page);
+ const rows=page.getByRole('main').getByRole('button').filter({hasText:/6300/});
+ const balance=amount=>page.getByRole('status',{name:new RegExp('Available Walmart balance: \\$'+amount)});
+ await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('0084');
+ await expect(balance('0.00')).toBeVisible();
+ await settings(page);await page.getByText('Hide $0 Cards',{exact:true}).click();await cards(page);
+ await expect(page.getByText('All registered cards are filtered out',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Go to Settings',exact:true}).click();
+ await expect(page.getByLabel('Hide $0 Cards')).toBeChecked();await cards(page);
+ await page.getByRole('button',{name:'Reset Filters',exact:true}).click();
+ await expect(rows).toHaveCount(2);await expect(rows.first()).toContainText('0084');
+ await expect(rows.last()).toContainText('Used');await expect(balance('100.00')).toBeVisible();
+ await settings(page);await page.getByLabel('Sort gift cards').selectOption('balance-desc');await cards(page);
+ await expect(rows.first()).toContainText('0042');await expect(rows.last()).toContainText('0084');
+ await rows.first().focus();await page.keyboard.press('Enter');
+ await expect(page.locator('#card-detail')).toBeVisible();await expect(page.locator('#card-detail')).toContainText('0042');
+ await expect(balance('100.00')).toBeVisible();await cards(page);
+ await expect(rows.first()).toHaveAttribute('aria-pressed','true');
+ await page.locator('#review-balances').click();await page.getByRole('button',{name:'Exit',exact:true}).click();
+ await expect(page.locator('#review-balances')).toBeFocused();await expect(rows.first()).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByText(/qa@example.invalid/)).toHaveCount(0);
+ await page.screenshot({path:test.info().outputPath('cards-mobile.png'),fullPage:true,animations:'disabled'});
+ await page.setViewportSize({width:1280,height:900});
+ await expect(rows.first()).toContainText('0042');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
+ await page.screenshot({path:test.info().outputPath('cards-desktop.png'),fullPage:true,animations:'disabled'});
+ await page.reload();await expect(rows.first()).toContainText('0042');await expect(rows).toHaveCount(2);
+ await settings(page);await page.locator('#saved-inventory').selectOption('unbound');await cards(page);
+ await expect(page.getByText('No gift cards yet',{exact:true})).toBeVisible();
+ await expect(page.locator('#empty-state-connect-google')).toHaveCount(0);
+ const choosing=page.waitForEvent('filechooser',{timeout:5000});await page.locator('#empty-state-import-csv').click();
+ const chooser=await choosing;expect(await chooser.element().getAttribute('id')).toBe('csv-file-input');
+ expect(qa.errors).toEqual([]);await context.close();
+});

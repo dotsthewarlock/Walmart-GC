@@ -40,6 +40,13 @@ modules. There is no second temporary launcher. Original sources remain the app
 under test. Font requests are blocked and use local fallbacks. Browser contexts
 provide device isolation; tabs in one context share IndexedDB and notifications.
 
+For the A2 Cards boundary, the focused browser regression covers fully filtered
+reset, sorting, visible-balance totals, used labels, keyboard selection, selection
+and review-focus survival across navigation, reload and the empty-state CSV file
+chooser. It captures 412 × 923 and desktop views. The Settings regression covers
+shared preference/draft lifetime; unaffected protocol/Worker suites run in required
+CI. The shared hidden CSV input stays mounted in App for both feature views.
+
 The integrated scenarios cover migration/startup/reload; balance/notes/used saves;
 manual verification and precise timestamp persistence; Batch v1 create/preview/partial
 apply/exact replay; independent devices and stale/obsolete tabs; offline inventory

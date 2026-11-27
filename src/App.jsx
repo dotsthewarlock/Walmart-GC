@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
 import { useSettings } from './features/settings/useSettings';
 import { SettingsPanel } from './features/settings/SettingsPanel';
+import { CardsPanel } from './features/cards/CardsPanel';
 import { ActionButton } from './components/ActionButton';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
@@ -11,15 +12,14 @@ import { Button } from './components/primitives/Button';
 import { IconButton } from './components/primitives/IconButton';
 import { Card } from './components/primitives/Card';
 import { Dialog } from './components/primitives/Dialog';
-import { ListItem } from './components/primitives/ListItem';
 import { NavigationBar, NavigationBarItem } from './components/primitives/NavigationBar';
 import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
 import { BalanceReview } from './components/BalanceReview';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
-import { ClipboardCheck, Settings2, X } from 'lucide-react';
-import { Chip, StatusChip } from './components/primitives/Chip';
+import { Settings2, X } from 'lucide-react';
+import { StatusChip } from './components/primitives/Chip';
 
 function isCardsHeaderError(message) {
   return /(?:Missing|Duplicate) required Cards header|Cards header row|Cards headers do not match|cards_header_schema/i.test(String(message || ""));
@@ -450,8 +450,6 @@ function App() {
     return visibleIndexes[0];
   };
 
-  const handleResetFilters = settingsController.resetFilters;
-
   // Handle used toggles on specific card items
   const handleToggleUsed = async (index) => {
     const card = cards[index];
@@ -876,6 +874,13 @@ function App() {
 
   return (
     <>
+      <input
+        id="csv-file-input"
+        type="file"
+        accept=".csv,text/csv"
+        onChange={handleImportCsvFile}
+        className="hidden"
+      />
       {/* Header Region */}
       <header className="bg-m3-primary text-m3-on-primary border-b border-m3-outline-variant/60 py-3 md:py-4 px-6 sm:px-8">
         <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
@@ -1011,113 +1016,18 @@ function App() {
         <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
           {(transferMutationError || inventoryNotice) && <p role="alert" className="px-4 pt-4 text-sm text-m3-error">{transferMutationError || inventoryNotice}</p>}
           {activePanel === 'list' ? (
-            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
-              <Button id="review-balances" onClick={() => setBalanceReviewOpen(true)} disabled={!cardsLoaded.current} className="self-start">
-                <ClipboardCheck size={20} aria-hidden="true" />
-                Review balances
-              </Button>
-
-              {/* Cards Inventory Ledger */}
-              <section className="flex flex-col gap-3">
-
-                <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
-                  {cards.length === 0 ? (
-                    <Surface as="div" variant="dashed" className="md:col-span-2 text-center py-10 px-6 flex flex-col items-center gap-4">
-                      <div className="flex flex-col gap-1.5 max-w-sm">
-                        <h4 className="text-sm font-bold text-m3-on-surface">No gift cards yet</h4>
-                        <p className="text-xs text-m3-on-surface-variant leading-relaxed">
-                          Add your Walmart gift cards to get started. Checkout and barcode scan views will become available once you have cards registered.
-                        </p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs sm:max-w-md justify-center mt-2">
-                        {oauthState.status !== googleOAuthStatuses.connected && (
-                          <button
-                            id="empty-state-connect-google"
-                            onClick={handleConnectGoogle}
-                            className="flex-1 bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-bold py-3 px-4 rounded-full transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                            type="button"
-                          >
-                            Connect Google
-                          </button>
-                        )}
-                        <button
-                          id="empty-state-import-csv"
-                          onClick={() => document.getElementById('csv-file-input').click()}
-                          className="flex-1 bg-m3-surface hover:bg-m3-surface-container text-m3-on-surface text-xs font-bold py-3 px-4 rounded-full border border-m3-outline transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2"
-                          type="button"
-                        >
-                          ↓ Import CSV
-                        </button>
-                      </div>
-                    </Surface>
-                  ) : visibleIndexes.length === 0 ? (
-                    <Surface as="div" variant="dashed" className="md:col-span-2 text-center py-10 px-6 flex flex-col items-center gap-4">
-                      <div className="flex flex-col gap-1.5 max-w-sm">
-                        <span className="text-sm font-bold text-m3-on-surface">All registered cards are filtered out</span>
-                        <p className="text-xs text-m3-on-surface-variant leading-relaxed">
-                          Your settings are currently hiding all {cards.length} card{cards.length === 1 ? "" : "s"}. Reset filters or adjust them in settings to show cards.
-                        </p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center mt-1">
-                        <Button
-                          onClick={handleResetFilters}
-                          variant="filled"
-                          density="standard"
-                          className="flex-1"
-                        >
-                          Reset Filters
-                        </Button>
-                        <Button
-                          onClick={() => setActivePanel('settings')}
-                          variant="outlined"
-                          density="standard"
-                          className="flex-1"
-                        >
-                          Go to Settings
-                        </Button>
-                      </div>
-                    </Surface>
-                  ) : (
-                    visibleIndexes.map((cardIndex) => {
-                      const card = cards[cardIndex];
-                      const isSelected = selectedCardIndex === cardIndex;
-                      return (
-                        <ListItem
-                          key={card.cardNumber}
-                          selected={isSelected}
-                          used={card.used}
-                          onClick={() => {
-                            setSelectedCardIndex(cardIndex);
-                            setActivePanel('detail');
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`text-sm font-medium ${card.used ? 'line-through decoration-m3-on-surface-variant/60' : ''}`}>
-                              {maskCardNumber(card.cardNumber)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {card.used && (
-                              <Chip
-                                variant="outlined"
-                                size="compact"
-                                className="uppercase tracking-wider"
-                              >
-                                Used
-                              </Chip>
-                            )}
-                            <span className="text-sm font-medium tabular-nums">
-                              ${card.currentBalance.toFixed(2)}
-                            </span>
-                          </div>
-                        </ListItem>
-                      );
-                    })
-                  )}
-                </div>
-              </section>
-            </main>
+            <CardsPanel
+              cards={cards}
+              visibleIndexes={visibleIndexes}
+              selectedCardIndex={selectedCardIndex}
+              loaded={cardsLoaded.current}
+              googleConnected={oauthState.status === googleOAuthStatuses.connected}
+              maskCardNumber={maskCardNumber}
+              commands={{ reviewBalances: () => setBalanceReviewOpen(true), connectGoogle: handleConnectGoogle,
+                importCsv: () => document.getElementById('csv-file-input').click(),
+                resetFilters: settingsController.resetFilters, openSettings: () => setActivePanel('settings'),
+                selectCard: index => { setSelectedCardIndex(index); setActivePanel('detail'); } }}
+            />
            ) : activePanel === 'settings' ? (
               <SettingsPanel
                 preferences={settingsController.panel}
@@ -1140,7 +1050,7 @@ function App() {
                     catch (error) { setTransferMutationError(error.message); }
                   }, recoverUnbound, resolveConflict, selectCompartment: handleSelectCompartment,
                   exportCsv: handleExportCsv, exportRecovery: handleExportRecovery,
-                  importCsvFile: handleImportCsvFile, openRawEditor: handleOpenRawEditor }}
+                  openRawEditor: handleOpenRawEditor }}
                 showRawCsvEditor={SHOW_RAW_CSV_EDITOR}
                 onBack={() => setActivePanel(previousPrimaryPanel)}
               />
