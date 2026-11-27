@@ -237,7 +237,7 @@ test('Settings retains drafts, shares persistent preferences and exposes failure
  expect(await snapshot(page)).toEqual(before);
  // A transport failure opens connection details and leaves committed cards intact.
  qa.mock.offline=true;await page.getByRole('button',{name:'Sync now',exact:true}).click();
- await expect(page.getByText('Review sync',{exact:true}).first()).toBeVisible();
+ await expect(page.getByText('Sync blocked',{exact:true}).first()).toBeVisible();
  await expect(connection).toHaveAttribute('open','');
  expect(active(await snapshot(page)).cards).toEqual(active(before).cards);
  qa.mock.offline=false;
@@ -389,6 +389,7 @@ test('621 persisted recovery cards show concise synchronized status and dedicate
  await page.getByRole('button',{name:'Batch',exact:true}).click();
  await expect(page.getByRole('button',{name:'Select cards (71)'})).toBeVisible();
  await page.getByRole('button',{name:'Select cards (71)'}).click();
+ await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length??0).toBe(71);
  state=await snapshot(page);expect(active(state).ledger.requests).toHaveLength(71);
  expect(active(state).ledger.requests.some(r=>r.cardNumber===fixture.cards[1].cardNumber)).toBe(true);
  await page.getByRole('button',{name:'Exit',exact:true}).click();
