@@ -357,8 +357,8 @@ settings/theme, contextual navigation and Balance Check return/focus, CSV editor
 wallet/sync lifetime, inventory authority, context fencing and protected commands.
 The shared clipboard writer also serves Balance Check. These intentional couplings
 remain; no global store or duplicate inventory is added. A4 shell/Balance Check
-convergence remains deferred. No core, protocol, schema, Worker, companion,
-transfer, PWA/service-worker, dependency or UX changes are included.
+convergence remains deferred. A3 included no core, protocol, schema, Worker, companion,
+transfer, PWA/service-worker, dependency or UX changes.
 
 ### Frontend module map after A3
 
@@ -372,3 +372,11 @@ transfer, PWA/service-worker, dependency or UX changes are included.
 | `src/lib/inventory.js`, `syncEngine.js` | Existing transactional inventory and synchronization authorities. |
 | `src/components/BalanceReview.jsx` | Existing Balance Check flow and captured command interfaces. |
 | `src/components/`, `primitives/` | Existing shared UI components and primitives. |
+
+## Installation and offline shell
+
+The manifest exposes a standalone install with 192 and 512 pixel application icons. A production build generates a content-versioned service worker and an explicit precache containing only the root document, manifest, icons, favicon and generated application assets. Requests outside that allowlist, including API and OAuth traffic and non-root navigations, pass directly to the network and are never stored by the worker. A missing cached shell asset fails closed rather than mixing network assets into a controlled release. Successful installation requires the entire shell to be cached and each file to match its build digest, preventing a mixed deployment from activating.
+
+A new worker waits until existing controlled tabs close before activation; it does not force a reload or interrupt in-flight work. On activation it removes obsolete shell caches. An open tab may therefore continue using the previous release until all tabs using it close. Inventory, pending operations and recovery remain in IndexedDB under the existing contracts; the shell cache is not an inventory authority. Offline launch requires a prior successful online shell installation.
+
+Post-A3 architectural audits by Codex and GPT independently found no material architectural blocker. GPT confirmed main `0985eca`, A3 CI and deployment, and the source boundaries. Dedicated A4 is deferred indefinitely; refine the broad Balance Check session/command interface, App projections and CSV ownership alongside relevant functional work.

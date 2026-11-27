@@ -45,11 +45,8 @@ between milestones; this is not a freeze until all four are complete.
 - **A3 — Checkout:** rendering, balance/notes drafts, reveal/copy feedback and
   passive wake-lock lifecycle are extracted. Shared selection, contextual return,
   inventory context and durable commands retain their owners. See the
-  [module contract](ARCHITECTURE.md#a3-checkout-feature-boundary). Full A3 review,
-  release, deployment verification and cleanup are authorized; release evidence
-  belongs in the PR. Stop after A3.
-- **A4 — Conditional application shell and Balance Check convergence:** planned;
-  implementation requires separate authority.
+  [module contract](ARCHITECTURE.md#a3-checkout-feature-boundary). Released in PR #249.
+- **A4 — Application shell and Balance Check convergence:** deferred indefinitely. Installation and offline-shell reliability are a separate, focused milestone and do not authorize A4 convergence.
 
 Preserve local-first integrity, protocol/schema, Worker, companion and transfer
 contracts at every milestone. No speculative store, new dependencies, mechanical
@@ -70,3 +67,5 @@ No speculative abstractions, navigation redesign or unrelated features.
 
 [Historical explicit-sync/phase requirements](archive/pre-v0.3-sync-governance.md)
 are superseded by the consolidated V0.3 authorization and are not active gates.
+
+Post-A3 architectural audits by Codex and GPT independently found no material architectural blocker. GPT confirmed main `0985eca`, A3 CI and deployment, and the source boundaries. Dedicated A4 is deferred indefinitely; refine the broad Balance Check session/command interface, App projections and CSV ownership alongside relevant functional work.

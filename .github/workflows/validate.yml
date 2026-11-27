@@ -41,6 +41,9 @@ jobs:
       - name: Build React app
         run: npm run build
 
+      - name: Offline application shell
+        run: npm run test:shell
+
       - name: Check Worker JavaScript
         run: node --input-type=module --check < worker/src/index.js
 

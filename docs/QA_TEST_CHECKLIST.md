@@ -112,3 +112,7 @@ readable; use a compatible read-only recovery client rather than an older writab
 frontend/Worker. [Architecture](ARCHITECTURE.md) is the protocol authority.
 Use the ordered [activation and recovery plan](V0.3_RELEASE_READINESS.md) for rollout;
 the external items above are not repeated development phase gates.
+
+## Installation and offline shell
+
+Run `npm run build` then `npm run test:shell` against the production preview. Verify manifest and icons, complete shell installation, offline reload, and that private routes are absent from Cache Storage. The integrated synthetic cycle remains responsible for local edits, pending operations and reconnect; The serial shell regression exercises an existing controlled tab, rejected mixed and incomplete installs, cache misses, offline activation, durable pending/in-flight work and eligible reconnect against synthetic services. Installation and offline launch depend on browser support and a successful initial online visit.
