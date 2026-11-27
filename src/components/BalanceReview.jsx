@@ -177,7 +177,7 @@ function ManualBalanceReview({ commitWallet, copyText, maskCardNumber, session }
               onSubmit={(event) => { event.preventDefault(); saveObservation(amount, true); }}>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Verified balance (CAD)
-                <TextField inputMode="decimal" autoComplete="off" spellCheck={false} value={amount}
+                <TextField disabled={session.busy} inputMode="decimal" autoComplete="off" spellCheck={false} value={amount}
                   invalid={Boolean(inputError)} aria-describedby={card.used ? "review-input-error review-used-warning" : "review-input-error"}
                   onChange={(event) => {
                     pendingObservation.current = null;
@@ -185,14 +185,14 @@ function ManualBalanceReview({ commitWallet, copyText, maskCardNumber, session }
                     setInputError("");
                   }} />
               </label>
-              <Button type="submit" onClick={(event) => {
+              <Button disabled={session.busy} type="submit" onClick={(event) => {
                 if (event.detail > 1) event.preventDefault();
               }}>Save &amp; next</Button>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outlined" className="max-[359px]:px-2" onClick={(event) => {
+                <Button disabled={session.busy} variant="outlined" className="max-[359px]:px-2" onClick={(event) => {
                   if (event.detail < 2) saveObservation(card.currentBalance);
                 }}>Confirm unchanged</Button>
-                <Button variant="text" onClick={(event) => {
+                <Button disabled={session.busy} variant="text" onClick={(event) => {
                   if (!session.busy && event.detail < 2 && cursor.current === position) advance();
                 }}>Skip</Button>
               </div>

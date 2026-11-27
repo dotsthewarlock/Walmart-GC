@@ -16,7 +16,7 @@ async function setup(context,remote,legacy=[cardA,cardB]){
   if(location.origin!=='http://127.0.0.1:5178')return;
   if(!localStorage.getItem('qa-seeded')){localStorage.setItem('walmartGc.cards',JSON.stringify(legacy));localStorage.setItem('qa-seeded','yes');}
   const native=indexedDB;
-  const wrap=db=>new Proxy(db,{get(target,key){if(key==='transaction')return(...args)=>{const tx=target.transaction(...args);return new Proxy(tx,{get(target,key){if(key==='objectStore')return(...args)=>{const store=target.objectStore(...args);return new Proxy(store,{get(target,key){if(key==='put')return(...args)=>{if(args[1]==='wallet'&&sessionStorage.getItem('qa-fail')==='yes'){sessionStorage.removeItem('qa-fail');throw Error('QA transaction failure');}return target.put(...args);};const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});};const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;},set(target,key,value){return Reflect.set(target,key,value,target);}});};const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;},set(target,key,value){return Reflect.set(target,key,value,target);}});
+  const wrap=db=>new Proxy(db,{get(target,key){if(key==='transaction')return(...args)=>{const tx=target.transaction(...args);return new Proxy(tx,{get(target,key){if(key==='objectStore')return(...args)=>{const store=target.objectStore(...args);return new Proxy(store,{get(target,key){if(key==='put')return(...args)=>{if(args[1]==='wallet'&&sessionStorage.getItem('qa-fail')==='yes'){sessionStorage.removeItem('qa-fail');throw Error('QA transaction failure');}return target.put(...args);};const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});};const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;},set(target,key,value){if(key==='oncomplete'&&args[1]==='readwrite'&&typeof value==='function'&&sessionStorage.getItem('qa-hold-selection')==='yes')return Reflect.set(target,key,event=>{window.qaCompleteSelection=()=>value.call(target,event);},target);return Reflect.set(target,key,value,target);}});};const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;},set(target,key,value){return Reflect.set(target,key,value,target);}});
   Object.defineProperty(window,'indexedDB',{value:{open(name,version){const req=native.open(name,version),wrapper={};req.onupgradeneeded=()=>{wrapper.result=wrap(req.result);wrapper.onupgradeneeded?.();};req.onsuccess=()=>{wrapper.result=wrap(req.result);wrapper.onsuccess?.();};req.onerror=()=>{wrapper.error=req.error;wrapper.onerror?.();};req.onblocked=()=>wrapper.onblocked?.();return wrapper;}}});
  },{legacy});
  const mock={principal:'qa-principal',sheetId:'synthetic-sheet',authenticated:true,offline:false,hold:null};
@@ -416,7 +416,13 @@ test('R2 unified selection retains drafts and progress; direct partial preview u
  });
  const page=await context.newPage();await start(page);await page.locator('#review-balances').click();
  await page.getByRole('group',{name:/Quantity/}).getByText('1',{exact:true}).click();
+ await page.evaluate(()=>sessionStorage.setItem('qa-hold-selection','yes'));
  await page.getByRole('button',{name:'Select cards (1)',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>typeof window.qaCompleteSelection)).toBe('function');
+ await expect(page.getByLabel('Verified balance (CAD)')).toBeDisabled();
+ for(const name of ['Save & next','Confirm unchanged','Skip'])await expect(page.getByRole('button',{name,exact:true})).toBeDisabled();
+ await page.evaluate(()=>{sessionStorage.removeItem('qa-hold-selection');window.qaCompleteSelection();delete window.qaCompleteSelection;});
+ await expect(page.getByText('Working selection: 1 cards · 0 verified',{exact:true})).toBeVisible();
  await page.getByLabel('Verified balance (CAD)').fill('44.00');
  await page.getByRole('button',{name:'Companion / Batch',exact:true}).click();
  await expect(page.getByText('Working selection: 1 cards · 0 verified',{exact:true})).toBeVisible();
