@@ -900,7 +900,7 @@ function App() {
                   recoverExpired: async () => {
                     try { await syncEngine.current?.recoverExpired(); }
                     catch (error) { setTransferMutationError(error.message); }
-                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>{if(!verificationSession.flaggedOnly){verificationSession.setSelection(null);verificationSession.setManual({position:0,saved:0,amount:'',completed:[]});}verificationSession.setFlaggedOnly(true);setBalanceReviewOpen(true);}, selectCompartment: handleSelectCompartment,
+                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>{verificationSession.startFlaggedReview();setBalanceReviewOpen(true);}, selectCompartment: handleSelectCompartment,
                   exportCsv: handleExportCsv, exportRecovery: handleExportRecovery,
                   openRawEditor: handleOpenRawEditor }}
                 showRawCsvEditor={SHOW_RAW_CSV_EDITOR}

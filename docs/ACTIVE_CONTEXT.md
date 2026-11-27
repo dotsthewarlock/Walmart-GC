@@ -20,7 +20,12 @@ Sheet remain. No new infrastructure or runtime dependencies are approved.
 
 ## R2 — unified verification and direct Companion integration
 
-Authorized as one development branch and PR: repository-first documentation
+R2 shipped at main `bf6aed0`, [PR #256](https://github.com/dotsthewarlock/Walmart-GC/pull/256).
+The authorized corrective release preserves `77c93ee` (Manual controls locked
+until asynchronous selection completes), isolates Manual reselection from damaged
+Batch state, refreshes flagged entry and completes source consolidation. One PR
+is the preferred release unit; necessary authorized corrections remain allowed.
+The R2 scope remains repository-first documentation
 consolidation, shared Manual/Companion selection and App-lifetime session state,
 and narrowly scoped explicit extension transport using Batch v1. Preserve flagged
 priority, eligible used cards, provisional zeros, drafts/progress/contextual return,
@@ -44,7 +49,14 @@ The user substituted the accepted repository/PR #255, explicit R1 acceptance,
 permanent Project instructions and five existing Project source documents for the
 unavailable separately named snapshot. Only actually accessed source input can
 establish migration completeness; preserve newer repository contracts over older
-source requirements. GPT retains architecture, roadmap and independent assessment;
+source requirements. All five source documents were read in full through the
+temporary ChatGPT Space Page supplied by the user: Project instructions,
+architect handoff, architecture, roadmap and transfer contract. The user reports
+GPT matched the original ZIP; Codex read the Page, not that ZIP. Their unique
+durable decisions are consolidated into the existing authorities, with deferred
+product/UX decisions restored in Roadmap/M3. The Page is historical input, not
+an ongoing authority. Exact coverage and release evidence belong in the corrective
+PR. GPT retains architecture, roadmap and independent assessment;
 Codex implements and verifies the authorized milestone.
 
 ## Production continuity and acceptance

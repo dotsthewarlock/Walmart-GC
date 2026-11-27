@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { parseVerifiedBalance } from "../lib/balanceReview";
-import { profileOf, inventoryContext, inventoryBytes } from "../lib/inventory";
+import { profileOf, inventoryContext, inventoryBytes, assertInventoryContext } from "../lib/inventory";
 import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { TextField } from "./primitives/TextField";
 import { BalanceTransfer } from "./BalanceTransfer";
-import { checkerUrl, selectTransferCards } from "../lib/balanceTransfer";
+import { checkerUrl, selectTransferCards, transferEligibleCards } from "../lib/balanceTransfer";
 import {createTransferLedger} from '../lib/balanceTransferLedger';
 import {openVerificationSession} from '../features/verification/verificationCommands';
 import {VerificationSelection} from '../features/verification/VerificationSelection';
@@ -19,16 +19,42 @@ export function BalanceReview({ onExit, session, ...props }) {
   const [error,setError]=useState('');
   const selecting=useRef(false);
   const counts=selectTransferCards(verificationCards(profileOf(props.walletSnapshot)),{...session.preferences,flaggedOnly:session.flaggedOnly});
-  function capture(state,selected){return {id:crypto.randomUUID(),queue:selected,versions:{...profileOf(state).versions},context:inventoryContext(state)};}
-  useEffect(()=>{if(!selection)setSelection(capture(props.walletSnapshot,counts.selected));},[selection]);
-  async function select(){
+  function capture(state,selected,refs=null){return {id:crypto.randomUUID(),queue:selected,versions:{...profileOf(state).versions},context:inventoryContext(state),refs};}
+  useEffect(()=>{
+    if(selection)return;
+    const state=props.walletSnapshot,profile=profileOf(state);
+    const savedRefs=new Set(profile.batchSelection??[]);
+    const requests=!session.flaggedOnly&&!profile.ledgerRecovery&&!profile.ledger?.application?
+      profile.ledger?.requests.filter(request=>savedRefs.has(request.ref)&&request.state==='pending')??[]:[];
+    const eligible=new Map(transferEligibleCards(verificationCards(profile)).map(entry=>[entry.card.cardNumber,entry]));
+    const restored=requests.map(request=>eligible.get(request.cardNumber)).filter(Boolean);
+    setSelection(restored.length?capture(state,restored,requests.map(request=>request.ref)):capture(state,counts.selected));
+  },[selection]);
+  async function select(prepare=false){
     if(selecting.current||busy)return;selecting.current=true;setBusy(true);setError('');
     try{
-      const {state,profile,context}=await openVerificationSession(props);
-      const selected=selectTransferCards(verificationCards(profile),{...session.preferences,flaggedOnly:session.flaggedOnly}).selected;
-      const ledger=await createTransferLedger(context,selected,inventoryBytes(state),undefined,profile.ledger?.id);
-      await props.commitWallet({kind:'set-batch',...inventoryContext(state),revision:profile.revision,ledger});
-      setSelection(capture(state,selected));setManual({position:0,saved:0,amount:'',completed:[]});session.setPreview(null);
+      // Manual selection needs only the saved inventory, even when optional
+      // Batch state is damaged. Preparing requests retains the Batch guards.
+      const batch=mode==='batch';
+      const opened=batch?await openVerificationSession(props):null;
+      const state=opened?.state??await props.readWallet();
+      assertInventoryContext(state,inventoryContext(props.walletSnapshot));
+      const profile=profileOf(state);
+      const selected=prepare?selection.queue.filter(entry=>!session.manual.completed.includes(entry.card.cardNumber)):
+        selectTransferCards(verificationCards(profile),{...session.preferences,flaggedOnly:session.flaggedOnly}).selected;
+      if(prepare){
+        assertInventoryContext(state,selection.context);
+        if(selected.some(entry=>profile.versions[entry.card.cardNumber]!==selection.versions[entry.card.cardNumber]))throw Error('Selected cards changed. Select cards again before preparing requests.');
+      }
+      let refs=null;
+      if(batch){
+        const ledger=await createTransferLedger(opened.context,selected,inventoryBytes(state),undefined,profile.ledger?.id);
+        await props.commitWallet({kind:'set-batch',...inventoryContext(state),revision:profile.revision,ledger});
+        refs=ledger.requests.map(request=>request.ref);
+      }
+      setSelection(prepare?{...selection,refs}:capture(state,selected,refs));
+      if(!prepare)setManual({position:0,saved:0,amount:'',completed:[]});
+      session.setPreview(null);
     }catch(e){setError(e.message);}finally{selecting.current=false;setBusy(false);}
   }
   return (
@@ -46,11 +72,14 @@ export function BalanceReview({ onExit, session, ...props }) {
           onClick={() => setMode("batch")}>Companion / Batch</Button>
       </div>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
-        <VerificationSelection session={session} selectionCounts={counts} busy={busy} onSelect={select}/>
+        <VerificationSelection session={session} selectionCounts={counts} busy={busy} onSelect={()=>select()}/>
         <p role="alert" className="text-sm text-m3-error">{error}</p>
         {selection&&<p className="text-sm" role="status">Working selection: {selection.queue.length} cards · {session.manual.saved} verified</p>}
         <div hidden={mode!=='manual'}>{selection&&<ManualBalanceReview key={selection.id} {...props} session={session}/>}</div>
-        <div hidden={mode!=='batch'}><BalanceTransfer {...props} session={session}/></div>
+        <div hidden={mode!=='batch'}>
+          {selection&&!selection.refs&&<Button disabled={busy||selection.queue.every(entry=>session.manual.completed.includes(entry.card.cardNumber))} onClick={()=>select(true)}>Prepare selected cards</Button>}
+          <BalanceTransfer {...props} session={session}/>
+        </div>
       </div>
     </main>
   );

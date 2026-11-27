@@ -8,6 +8,8 @@ and independent assessment responsibilities; Codex implements and verifies the
 authorized milestone. Consolidate unique decisions in the authorities below.
 Project sources and chat are migration input, not parallel ongoing authorities.
 Do not claim migration coverage for source documents that were not actually read.
+Verify essential external source access before expensive implementation; distinguish
+sources actually read from another reviewer's reported ZIP or provenance checks.
 
 ## Authorities
 
@@ -23,11 +25,18 @@ Complete authorized milestones autonomously through implementation, self-check,
 corrections, required independent review/CI, authorized merge, deployment
 verification and cleanup. Deliver focused, reviewable vertical slices using
 existing components; avoid speculative abstractions and wholesale rewrites.
+One branch and PR per milestone is an efficiency preference, not a prohibition on
+a necessary authorized corrective release. Reuse the existing session, branch,
+review evidence and completed work; checkpoint interrupted work before continuing.
 
 Prefer the least expensive sufficient approach. Before expensive or potentially
 low-yield work, assess necessity, benefit, existing evidence and cheaper
 alternatives; omit unnecessary work. Inspect affected code and contracts before
 changes. Do not repeat completed audits or unaffected manual tests.
+Use focused edits rather than brittle scripted replacements. Remember unavailable
+tools and use the available alternative without retries or repeated discovery.
+Read only relevant sections after initial source access; avoid full-document output
+and redundant validation. Keep private backups and unrelated work intact.
 Define lifecycle failure acceptance before implementation and reuse existing fixtures.
 Confirm reviewer availability before waiting; use an authorized alternative when
 unavailable. Bound asynchronous test and external-process waits. Prefer blocking CI watches;
@@ -50,6 +59,8 @@ Flag material user-data, authentication, uncertain-write or migration risks.
   transaction completion. Legacy storage is migration/recovery input only.
 - Worker-owned OAuth, drive.file only, same-origin requests, private owned Sheets.
   Never read/print secrets or introduce browser Google credentials.
+- Use synthetic fixtures only. Do not put real card records, credentials or tokens
+  into AI context, logs, tests, Git or developer-owned stores.
 - Durable Object storage holds noncredential coordination metadata, not cards.
   An uncertain external write stays fenced until positive commit/content proof.
 - No live OAuth/Sheet/merchant calls, provisioning, paid activation, deployment,

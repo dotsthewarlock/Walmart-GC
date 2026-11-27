@@ -14,10 +14,14 @@ export function useVerificationSession(wallet){
  const [preview,setPreview]=useState(null);
  const [transfer,setTransfer]=useState(null);
  const [busy,setBusy]=useState(false);
+ function startFlaggedReview(){
+  setMode('manual');setFlaggedOnly(true);setSelection(null);
+  setManual({position:0,saved:0,amount:'',completed:[]});setPreview(null);
+ }
  useEffect(()=>{
   setSelection(null);setManual({position:0,saved:0,amount:'',completed:[]});setPacket('');setPreview(null);
   setTransfer(current=>{if(current)void sendCompanion({type:'wallet-transfer-cancel',version:1,sessionId:current.sessionId}).catch(()=>{});return null;});
  },[wallet?.active,wallet?.contextGeneration]);
  useEffect(()=>{try{localStorage.setItem(transferPreferenceKey,JSON.stringify(preferences));}catch{}},[preferences]);
- return {preferences,setPreferences,mode,setMode,flaggedOnly,setFlaggedOnly,selection,setSelection,manual,setManual,packet,setPacket,preview,setPreview,transfer,setTransfer,busy,setBusy};
+ return {preferences,setPreferences,mode,setMode,flaggedOnly,setFlaggedOnly,selection,setSelection,manual,setManual,packet,setPacket,preview,setPreview,transfer,setTransfer,busy,setBusy,startFlaggedReview};
 }

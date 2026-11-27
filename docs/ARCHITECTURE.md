@@ -3,6 +3,12 @@
 This is the authority for data flow, persistence, APIs, session/account binding,
 synchronization and recovery. UI authority is [M3](M3_DESIGN_DECISIONS.md).
 
+The frontend is a modular monolith. Extract a cohesive responsibility when it
+improves authorized functional work; do not pursue file-size targets, speculative
+wrappers, a global store or wholesale rewrites. A module's public contract names
+inputs, outputs/commands, captured context, invariants, effects, failure behavior
+and meaningful tests. Use existing feature boundaries and complete vertical slices.
+
 ## Components and ownership
 
 React 19 / Vite / Tailwind uses existing Pages hosting and same-origin `/api/*`
@@ -29,6 +35,11 @@ writable local inventory authority. Inventory, semantic pending operations,
 per-card/profile revisions, context generations, baseline, in-flight identity and
 Batch observations/reference receipts commit atomically. Save success follows
 `transaction.oncomplete`; aborts preserve the previous state and show failure.
+
+Saved-compartment card operations, Manual verification and backup remain available
+offline or during authentication/quota failure. They need no live identity or
+cloud-version check. Synchronization confirms remote durability separately; a
+cached identity never establishes ownership or permits cross-account inheritance.
 
 Legacy localStorage is immutable migration input. A durable migration seed
 retains original bytes and a UUID namespace before migration. Retries cannot
@@ -289,6 +300,10 @@ Optional fields: UTC date-only `lastBalanceChecked` (`YYYY-MM-DD`), precise UTC
 `pendingReconciliation` (absent/false/true). Empty optional cells become absent.
 Merchant is explicit override; inferred merchant is derived from identity; runtime
 effectiveMerchant and barcode payload are never persisted.
+Money must be finite, nonnegative and accurate in safe integer cents; a refund
+may exceed the starting balance. Used state is independent of balance and
+verification. Walmart Canada barcode payload is `79936686504000` followed by
+the full card number; do not substitute a display mask or persist that payload.
 
 Historical 10-column Sheets omit only merchantInferred. Recognized 11–14-column
 headers may reorder fields. Unknown/duplicate/interior-blank headers and occupied
@@ -304,15 +319,23 @@ requires explicit backup-aware confirmation.
 R2 keeps shared verification UI state at App lifetime in
 `features/verification/useVerificationSession.js`. Manual and Companion / Batch
 use `selectTransferCards` and `VerificationSelection` for scope, status, balance,
-date, quantity and ordering. Explicit selection replaces the working queue and
-uses the existing `set-batch` command; outstanding historical references remain
-in the inventory ledger. Mode changes and contextual exits retain relevant drafts,
+date, quantity and ordering. Explicit selection replaces the working queue.
+Manual selection reads only saved inventory and context; damaged optional Batch
+state cannot block it. Companion selection uses the existing `set-batch` command;
+switching a Manual queue to Companion offers explicit Prepare selected cards,
+checks the captured context/per-card revisions and saves requests for remaining
+cards in the same order, without clearing the Manual draft/progress. UI-owned refs
+limit export to that prepared queue; historical results still resolve against the
+inventory ledger. Outstanding historical references remain saved.
+Mode changes and contextual exits retain relevant drafts,
 progress and preview. A changed inventory/context generation resets this ephemeral
 UI state and fences outstanding responses. Reload retains preferences and the
-saved ledger; it does not persist a credential-bearing UI session.
+saved ledger, restoring its pending selected refs and available cards for explicit
+export without issuing new refs. Explicit flagged entry instead uses current flags.
+No credential-bearing UI session is persisted.
 
 `verificationCommands.js` owns the cohesive local session checks, foreign-ledger
-isolation and affected reference validation shared by selection/export/preview.
+isolation and affected reference validation shared by Batch preparation/export/preview.
 Domain commands, R1 retirement and transaction ownership remain in inventory.
 Manual verification invalidates its affected outstanding references; applicable
 Batch observations contribute to the shared working-selection progress only after
@@ -344,10 +367,41 @@ Batch TSV remains `WMGC-REQUEST<TAB>1` / `WMGC-RESULT<TAB>1` with exact UUID ref
 CAD cents and ISO UTC checkedAt. New verifications persist their exact UTC time;
 historical date-only records remain valid without guessing a time.
 
+The exact TSV headers are `WMGC-REQUEST<TAB>1` then
+`ref<TAB>cardNumber<TAB>pin`, and `WMGC-RESULT<TAB>1` then
+`ref<TAB>balanceCAD<TAB>checkedAt`. Refs are lowercase canonical UUIDv4 strings,
+credentials are unconverted 16-digit card/4-digit PIN strings, and balances are
+plain CAD decimals with exactly two fractional digits. Use UTF-8 and LF/CRLF;
+an initial BOM and trailing blank lines are accepted. Headers/version are exact
+and case-sensitive; embedded tabs/newlines are invalid. Packet shape alone never
+establishes issuance. Reuse a ref only to resume/reimport the same request; a new
+check gets a fresh ref. Do not pass packets through spreadsheet coercion,
+formulas, quoting or thousands separators. Results contain only successful actual
+observations: ref, balance and canonical UTC timestamp, with no credentials,
+last-four/fingerprint/token, failed-check rows or invented balances. They are
+validated observations, not signed financial proof.
+
+Companion credentials stay in a memory-only queue; noncredential observation
+history supports explicit backup and legacy recovery. Salted linkage fingerprints
+are deduplication aids, not identity proof or a security boundary. Fresh refs may
+recheck a card without deleting saved results; never relabel old result history.
+Reject malformed/ambiguous packets or conflicting ref/identity mappings atomically;
+omit identical duplicates and retain one current ref per card. An unlinked pending
+row can link only by exact card/PIN match before observation. Completed replays
+remain exportable from history; unlinked legacy history is not Wallet results.
+Preserve skipped/unfinished rows, the existing `wmgc-helper:verified-results:v1`
+history where applicable, walletRef linkage, and slash/CSV/TSV fallback. Site-origin
+storage is not a security boundary; never silently discard or downgrade linkage.
+Clearing cards and clearing results are separate guarded actions while checking.
+No passive clipboard reads or focus-triggered import.
+
 Companion foreground checks require explicit start and a selected target of
 10, 25 or 50. They use a fixed 1,400 ms delay and continue to the target or
 queue exhaustion, without ten-card segmentation or rest. Foreground visibility,
-challenge, timeout and manual fallback safeguards remain in force.
+challenge, 30-second timeout and manual fallback safeguards remain in force.
+Stop on error/mismatch or merchant rejection; no unlimited/full-queue target,
+quantity/pacing expansion, automatic retry, inactive-tab checking or challenge
+bypass. These are product settings, not evidence of merchant permission.
 
 Ledger requests are retained per inventory across selections, with per-card relevance
 snapshots and salted PIN digests (no cleartext PIN). A selection identifies which
@@ -373,7 +427,9 @@ zero balances and recent verification dates, precede the normal default Batch
 filters; explicit used-card selection still applies in the normal selection.
 A dedicated Flagged only scope derives from current inventory and bypasses normal
 status/balance/date filters, including eligible used cards and provisional zeros.
-It shares Manual/Batch workflows and never reactivates used cards. Applicable new
+It shares Manual/Batch workflows and never reactivates used cards.
+Settings flagged entry always starts a fresh Manual queue from current flags;
+ordinary contextual return preserves the working session. Applicable new
 observations retire monetary and verification evidence in the same local
 transaction, then reconcile through the existing protected protocol. Monetary,
 uncertainty and scoped maintenance times bound applicability. Protected synchronization continues to reconcile
@@ -516,7 +572,7 @@ remain; no global store or duplicate inventory is added. A4 shell/Balance Check
 convergence remains deferred. A3 included no core, protocol, schema, Worker, companion,
 transfer, PWA/service-worker, dependency or UX changes.
 
-### Frontend module map after A3
+### Frontend and Companion module map after R2
 
 | Module | Owner / remaining coupling |
 | --- | --- |
@@ -526,7 +582,13 @@ transfer, PWA/service-worker, dependency or UX changes.
 | `src/features/settings/SettingsPanel.jsx`, `useSettings.js` | Settings view, shared preferences and app-lifetime Settings drafts/disclosure. |
 | `src/lib/cards.js` | Existing shared filtering, sorting, totals and card helpers. |
 | `src/lib/inventory.js`, `syncEngine.js` | Existing transactional inventory and synchronization authorities. |
-| `src/components/BalanceReview.jsx` | Existing Balance Check flow and captured command interfaces. |
+| `src/features/verification/useVerificationSession.js` | App-lifetime shared selection, filters/mode, Manual draft/progress, result draft/preview and ephemeral transfer correlation; clears/fences on inventory context change, refreshes explicit flagged entry. No second inventory authority. |
+| `src/features/verification/VerificationSelection.jsx` | Shared scope/filter/quantity/order controls; explicit reselection with asynchronous action locking. |
+| `src/components/BalanceReview.jsx` | Captures Manual queue/context/revisions independently of Batch; prepares selected requests through existing commands and owns Manual observation orchestration. |
+| `src/features/verification/verificationCommands.js` | Batch session/context checks, foreign-ledger isolation and affected-reference validation; no new persistence authority. |
+| `src/components/BalanceTransfer.jsx` | Existing Batch preview/apply/TSV workflow and explicit transport actions, using inventory commands and prepared selection refs. |
+| `src/lib/balanceTransfer.js`, `balanceTransferLedger.js`, `companionTransport.js` | Pure Batch v1 selection/validation/ledger model and bounded extension client; no merchant checking or persistent transport storage. |
+| `companion/src/core/wallet-transport.js`, extension adapter | In-memory correlated request/result broker with origin/sender/document/version validation; shared core remains the source for extension/bookmarklet builds. |
 | `src/components/`, `primitives/` | Existing shared UI components and primitives. |
 
 ## Installation and offline shell

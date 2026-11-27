@@ -93,7 +93,8 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function copyRequest() {
     const session = await verifiedSession();
     if (!session.ledger) throw new Error("Create a batch before copying a request.");
-    const rows = transferRequestRows(session.ledger, session.previewCards, session.profile.batchSelection ?? null);
+    if(!ui.selection?.refs)throw Error('Prepare selected cards before copying a request.');
+    const rows = transferRequestRows(session.ledger, session.previewCards, ui.selection.refs);
     await assertSession(session);
     const copied = await copyText(formatTransferRequest(rows));
     if (!mounted.current) return;
@@ -104,7 +105,8 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function sendRequest() {
     const session=await verifiedSession();
     if(!session.ledger)throw Error('Select cards before sending a request.');
-    const rows=transferRequestRows(session.ledger,session.previewCards,session.profile.batchSelection??null);
+    if(!ui.selection?.refs)throw Error('Prepare selected cards before sending a request.');
+    const rows=transferRequestRows(session.ledger,session.previewCards,ui.selection.refs);
     const sessionId=crypto.randomUUID();
     const target={sessionId,context:inventoryContext(session.state)};
     // Keep the correlation even if delivery is uncertain; cancel before resending.
@@ -201,8 +203,8 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
             {pending > 0 && (
               <>
                 <p className="text-sm text-m3-on-surface-variant">The copied request contains card numbers and PINs. Clear your clipboard and clipboard history after use.</p>
-                <Button disabled={busy} onClick={() => run(copyRequest)}>Copy selected cards</Button>
-                <Button disabled={busy||Boolean(transfer)} onClick={()=>run(sendRequest)}>Send to Companion</Button>
+                <Button disabled={busy||!ui.selection?.refs} onClick={() => run(copyRequest)}>Copy selected cards</Button>
+                <Button disabled={busy||!ui.selection?.refs||Boolean(transfer)} onClick={()=>run(sendRequest)}>Send to Companion</Button>
                 <Button variant="outlined" href={checkerUrl} target="_blank" rel="noopener noreferrer"
                   aria-label="Open Walmart checker (opens in a new tab)">Open Walmart checker <ArrowUpRight size={16} aria-hidden="true" /></Button>
               </>

@@ -19,6 +19,24 @@ It does not contact merchant services. Build shared artifacts before this browse
 scenario with `python3 companion/build.py`; CI performs that step. Existing R1
 integrity and offline-shell regressions remain in the required integrated cycle.
 
+Corrective R2 acceptance reuses these fixtures: Manual filter/quantity/reselection
+and save must work while damaged Batch bytes remain quarantined intact and Batch
+remains explicitly blocked. Settings flagged entry must return from Companion to
+a fresh Manual queue on every invocation, including consecutive flagged visits;
+eligible used/provisional-zero cards remain selectable and used state is preserved.
+Manual selection creates no Batch ledger. Preparing the same queue retains drafts,
+order and progress, excludes completed cards, and rejects stale context/revisions.
+Reload restores export of the original pending selected refs; copying must neither
+append requests nor generate fresh refs. A new Manual queue still requires preparation.
+Hold transaction-completion notification deterministically: Manual amount/save/
+confirm/skip, mode and selection controls stay disabled until preparation completes.
+The reviewed asynchronous-control correction remains a regression requirement.
+
+Define failure acceptance before implementation, run affected local scenarios,
+and leave unaffected suites to integrated CI. Reuse existing transport-security,
+replay, partial-result, interrupted-transfer, atomic-abort, offline/reconnect and
+R1 integrity coverage; do not repeat accepted live checks or broad audits.
+
 ```sh
 npm ci
 npm test
