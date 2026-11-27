@@ -1,28 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { inventoryBytes, profileOf, inventoryContext, assertInventoryContext } from "../lib/inventory";
+import { profileOf, inventoryContext, assertInventoryContext } from "../lib/inventory";
 import {
   checkerUrl, formatTransferRequest, parseTransferResults, previewTransferResults,
-  sameTransferContext, selectTransferCards, transferRequestRows, readTransferPreferences, defaultTransferPreferences, transferPreferenceKey,
+  transferRequestRows,
 } from "../lib/balanceTransfer";
-import { createTransferLedger, inventoryFingerprint, prepareTransferApplication } from "../lib/balanceTransferLedger";
+import { prepareTransferApplication } from "../lib/balanceTransferLedger";
 import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
-import { SelectField } from "./primitives/SelectField";
 import { TextArea } from "./primitives/TextArea";
-import { verificationCards, credentialAmbiguous } from '../lib/inventoryRecovery';
+import {openVerificationSession,assertVerificationSession} from '../features/verification/verificationCommands';
+import {sendCompanion} from '../lib/companionTransport';
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
-function Segments({ label, value, choices, onChange, disabled, detail }) {
-  return <fieldset disabled={disabled} className="min-w-0">
-    <legend className="mb-1 text-sm font-medium">{label} {detail && <span className="font-normal text-m3-on-surface-variant">{detail}</span>}</legend>
-    <div className="flex overflow-hidden rounded-full border border-m3-outline">
-      {choices.map(([option, text]) => <label key={option} className={`flex min-h-[48px] min-w-0 flex-1 cursor-pointer items-center justify-center border-r border-m3-outline px-1 text-sm last:border-r-0 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-m3-primary ${value === option ? "bg-m3-secondary-container text-m3-on-secondary-container" : "text-m3-on-surface"}`}>
-        <input className="sr-only" type="radio" name={label} value={option} checked={value === option} onChange={() => onChange(option)} />{text}
-      </label>)}
-    </div>
-  </fieldset>;
-}
 
 function savedBatch(state) {
   if (!state) return {};
@@ -37,17 +27,12 @@ function formatNet(cents) {
   return `${cents < 0n ? "−" : cents > 0n ? "+" : ""}$${(absolute / 100n).toLocaleString("en-CA")}.${String(absolute % 100n).padStart(2, "0")}`;
 }
 
-export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, flaggedOnly=false }) {
-  const [preferences, setPreferences] = useState(() => {
-    try { return readTransferPreferences(window.localStorage); } catch { return { ...defaultTransferPreferences }; }
-  });
-  const setPreference = (key, value) => setPreferences((current) => ({ ...current, [key]: value }));
-  const [batch, setBatch] = useState(() => savedBatch(walletSnapshot));
-  const [packet, setPacket] = useState("");
-  const [preview, setPreview] = useState(null);
+export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, session: ui }) {
+  const {packet,setPacket,preview,setPreview,transfer,setTransfer}=ui;
+  const [batch,setBatch]=useState(()=>savedBatch(walletSnapshot));
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
+  const {busy,setBusy}=ui;
   const locked = useRef(false);
   const mounted = useRef(false);
   const heading = useRef(null);
@@ -56,9 +41,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const ledger = batch.ledger;
   const pending = ledger?.requests.filter(({ state }) => state === "pending").length ?? 0;
   const invalidated = ledger?.requests.filter(({ state }) => state === "invalidated").length ?? 0;
-  const selectionCounts = selectTransferCards(verificationCards(profileOf(walletSnapshot)), {...preferences,flaggedOnly});
 
-  useEffect(() => { try { window.localStorage.setItem(transferPreferenceKey, JSON.stringify(preferences)); } catch { /* Preferences are optional. */ } }, [preferences]);
 
   useEffect(() => {
     mounted.current = true;
@@ -67,7 +50,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   }, []);
 
   useEffect(() => { setBatch(savedBatch(walletSnapshot)); }, [walletSnapshot]);
-  useEffect(() => { setPreview(null); setPacket(""); }, [walletSnapshot.active, walletSnapshot.contextGeneration]);
+
 
   useEffect(() => {
     if (preview) {
@@ -103,61 +86,9 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!mounted.current) throw new Error("Batch was closed.");
   }
 
-  async function verifiedSession() {
-    getTransferWallet();
-    const start = await readWallet();
-    assertInventoryContext(start, inventoryContext(walletSnapshot));
-    let state=start;
-    let profile=profileOf(state);
-    if(profile.ledgerRecovery)throw new Error("Discard the preserved interrupted Batch before continuing.");
-    // The saved compartment, never a cached session, identifies local work.
-    // Synchronization independently verifies principal and Sheet ownership.
-    const localOnly = profile.context.kind === 'unbound';
-    if(!localOnly&&(!profile.context.ownershipVerified||!profile.context.principal||profile.remoteBase?.protocol!=='gc-wallet-sync-v1'||profile.context.sheetId!==profile.sheets?.spreadsheetId||!profile.remoteBase?.version||profile.remoteBase.version!==profile.sync?.lastKnownSheetVersion||profile.remoteBase.version!==profile.sheets?.remoteSheetVersion))throw new Error("Open a saved local inventory or the matching verified Sheet before preparing a Batch.");
-    const context=localOnly?{sheetId:'local:unbound',sheetVersion:'local'}:{sheetId:profile.context.sheetId,sheetVersion:profile.remoteBase.version};
-    const inventoryRaw = inventoryBytes(state);
-    if(profile.ledger && profile.ledger.context.sheetId!==context.sheetId){
-      await assertSession({state,profile});
-      state=await commitWallet({kind:'archive-foreign-batch',...inventoryContext(state),revision:profile.revision});
-      profile=profileOf(state);
-    }
-    if (profile.ledger) {
-      const pendingRequests=profile.ledger.requests.filter(r=>r.state==='pending');
-      const legacyMatches = pendingRequests.some(r=>!r.relevance) && profile.ledger.inventoryDigest === await inventoryFingerprint(inventoryRaw,profile.ledger.id);
-      const invalid = (await Promise.all(pendingRequests.map(async r=>{
-        const card=profile.cards.find(c=>c.cardNumber===r.cardNumber);
-        return (!card || credentialAmbiguous(profile.recoveryEvidence,r.cardNumber) || !sameTransferContext(profile.ledger.context,context) || (r.relevance ? r.relevance.pinDigest!==await inventoryFingerprint(card.pin,profile.ledger.id) : !legacyMatches)) ? r.ref : null;
-      }))).filter(Boolean);
-      if(invalid.length || !sameTransferContext(profile.ledger.context,context)){
-        await assertSession({state,profile});
-        state=await commitWallet({kind:'invalidate-batch-refs',...inventoryContext(state),revision:profile.revision,refs:invalid,context});
-        profile=profileOf(state);
-      }
-    }
-    const session = { state, profile, ledger: profile.ledger, context, inventoryRaw, previewCards: verificationCards(profile) };
-    await assertSession(session);
-    return session;
-  }
-
-  async function assertSession(session) {
-    ensureMounted();
-    getTransferWallet();
-    const current = await readWallet();
-    assertInventoryContext(current, inventoryContext(session.state));
-    if (current.active !== session.state.active || profileOf(current).revision !== session.profile.revision) {
-      throw new Error("Inventory or Sheet context changed. Preview again.");
-    }
-  }
-
-  async function createBatch() {
-    const session = await verifiedSession();
-    const { selected } = selectTransferCards(session.previewCards, {...preferences,flaggedOnly});
-    const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw, undefined, session.ledger?.id);
-    await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
-    setPreview(null);
-    setPacket("");
-    setMessage(`Batch ready. ${selected.length} requests saved on this device.`);
-  }
+  const sessionOptions=()=>({walletSnapshot,readWallet,commitWallet,getTransferWallet,assertActive:ensureMounted});
+  const verifiedSession=()=>openVerificationSession(sessionOptions());
+  const assertSession=session=>assertVerificationSession(session,sessionOptions());
 
   async function copyRequest() {
     const session = await verifiedSession();
@@ -168,6 +99,38 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!mounted.current) return;
     if (!copied) throw new Error("Clipboard access failed. Try Copy selected cards again.");
     setMessage(`Copied ${rows.length} requests. Paste them into the Companion.`);
+  }
+
+  async function sendRequest() {
+    const session=await verifiedSession();
+    if(!session.ledger)throw Error('Select cards before sending a request.');
+    const rows=transferRequestRows(session.ledger,session.previewCards,session.profile.batchSelection??null);
+    const sessionId=crypto.randomUUID();
+    const target={sessionId,context:inventoryContext(session.state)};
+    // Keep the correlation even if delivery is uncertain; cancel before resending.
+    setTransfer(target);
+    await assertSession(session);
+    await sendCompanion({type:'wallet-transfer-request',version:1,sessionId,packet:formatTransferRequest(rows)});
+    await assertSession(session);
+    setMessage('Request sent. Open the Walmart checker, receive Wallet cards in the extension, then explicitly start checking.');
+  }
+
+  async function receiveResults() {
+    const target=transfer;
+    assertInventoryContext(await readWallet(),target.context);
+    const reply=await sendCompanion({type:'wallet-transfer-results',version:1,sessionId:target.sessionId});
+    assertInventoryContext(await readWallet(),target.context);
+    if(!reply.packet){setMessage('No results returned yet. Existing requests remain saved.');return;}
+    const results=parseTransferResults(reply.packet);
+    const session=await verifiedSession();
+    assertInventoryContext(session.state,target.context);
+    setPreview(buildPreview(session,results));
+    setMessage('Companion observations received. Review before applying.');
+  }
+
+  async function cancelTransfer() {
+    try{await sendCompanion({type:'wallet-transfer-cancel',version:1,sessionId:transfer.sessionId});}
+    finally{setTransfer(null);setMessage('Transfer ended. Saved requests and observations remain available for fallback.');}
   }
 
   async function discardBatch() {
@@ -211,6 +174,14 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     await commitWallet({ kind: "apply-batch", ...inventoryContext(session.state), revision: session.profile.revision,
       ledgerId: session.ledger.id, observations: fresh.results, items: fresh.items, now: fresh.now,
       inventoryDigest: prepared.finalized.inventoryDigest });
+    const queue=ui.selection?.queue??[];
+    const selected=new Set(queue.map(entry=>entry.snapshot.cardNumber));
+    ui.setManual(current=>{
+      const completed=[...new Set([...(current.completed??[]),...accepted.map(item=>item.cardNumber).filter(number=>selected.has(number))])];
+      let position=current.position;
+      while(queue[position]&&completed.includes(queue[position].snapshot.cardNumber))position++;
+      return {...current,completed,saved:completed.length,position,amount:position!==current.position?'':current.amount};
+    });
     setPreview(null);
     setMessage(`Applied ${accepted.length} locally (${fresh.counts.changed} balances changed, ${fresh.counts.unchanged} unchanged). Verification dates were recorded. ${fresh.outstanding - accepted.length} requests remain outstanding. Sheet synchronization is pending confirmation.`);
   }
@@ -218,51 +189,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const recovering = Boolean(batch.error || ledger?.application);
   return (
     <>
-      {<Card as="section" aria-labelledby="batch-heading" className="flex flex-col gap-3 p-4">
-        <div>
-          <div className="flex items-center justify-between gap-2"><h2 id="batch-heading" tabIndex={-1} className="text-lg font-semibold" ref={heading}>Select cards</h2>
-            {!recovering && <Button variant="text" disabled={busy} onClick={() => setPreferences({ ...defaultTransferPreferences })}>Reset</Button>}</div>
-          <p className="text-sm text-m3-on-surface-variant">Review saves stay on this device. Synchronization runs when connected; CSV backup is available.</p>
-        </div>
-        {recovering ? (
-          <>
-            <p role="alert" className="text-sm text-m3-error">
-              {batch.error || "A previous apply was interrupted."}
-            </p>
-            <p className="text-sm text-m3-on-surface-variant">
-              Displayed balances may be stale. Discarding requires the displayed inventory to match the persisted inventory.
-              If the check fails, reload the wallet to load the persisted balances, then return to Batch.
-            </p>
-            <Button variant="outlined" disabled={busy} onClick={() => run(discardBatch)}>Discard batch</Button>
-          </>
-        ) : (
-          <>
-            {!flaggedOnly&&<>
-            <Segments label="Status" value={preferences.status} disabled={busy} onChange={v => setPreference("status", v)} choices={[["active", "Active"], ["used", "Used"], ["all", "All"]]} />
-            <Segments label="Balance" value={preferences.balance} disabled={busy} onChange={v => setPreference("balance", v)} choices={[["yes", "Yes"], ["zero", "$0"], ["all", "All"]]} />
-            <div className="grid grid-cols-[2fr_1fr] gap-2">
-              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">Last checked
-                <SelectField disabled={busy} value={preferences.checked} onChange={event => setPreference("checked", event.target.value)}>
-                  <option value="any">Any time</option><option value="never">Never</option><option value="older">At least</option><option value="recent">Within</option>
-                </SelectField>
-              </label>
-              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">Days
-                <SelectField disabled={busy || !["older", "recent"].includes(preferences.checked)} value={preferences.days} onChange={event => setPreference("days", Number(event.target.value))}>
-                  {[1, 3, 7, 30, 90, 180].map(days => <option key={days} value={days}>{days} {days === 1 ? "day" : "days"}</option>)}
-                </SelectField>
-              </label>
-            </div>
-            </>}
-            <label className="flex flex-col gap-1 text-sm font-medium">Sort by
-              <SelectField disabled={busy} value={preferences.sort} onChange={event => setPreference("sort", event.target.value)}>
-                <option value="checked-oldest">Checked oldest</option><option value="checked-newest">Checked newest</option><option value="added-oldest">Added oldest</option><option value="added-newest">Added newest</option><option value="balance-highest">Balance highest</option><option value="balance-lowest">Balance lowest</option>
-              </SelectField>
-            </label>
-            <Segments label="Quantity" detail={`· ${selectionCounts.matching} matching`} value={preferences.quantity} disabled={busy} onChange={v => setPreference("quantity", v)} choices={[["1", "1"], ["5", "5"], ["20", "20"], ["50", "50"], ["all", "All"]]} />
-            <Button disabled={busy || !selectionCounts.selected.length} onClick={() => run(createBatch)}>Select cards ({selectionCounts.selected.length})</Button>
-          </>
-        )}
-      </Card>}
+      {recovering&&<Card as="section" className="p-4"><p role="alert">{batch.error||'A previous apply was interrupted.'}</p><Button disabled={busy} onClick={()=>run(discardBatch)}>Discard batch</Button></Card>}
 
       {ledger && !recovering && (
         <>
@@ -275,6 +202,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
               <>
                 <p className="text-sm text-m3-on-surface-variant">The copied request contains card numbers and PINs. Clear your clipboard and clipboard history after use.</p>
                 <Button disabled={busy} onClick={() => run(copyRequest)}>Copy selected cards</Button>
+                <Button disabled={busy||Boolean(transfer)} onClick={()=>run(sendRequest)}>Send to Companion</Button>
                 <Button variant="outlined" href={checkerUrl} target="_blank" rel="noopener noreferrer"
                   aria-label="Open Walmart checker (opens in a new tab)">Open Walmart checker <ArrowUpRight size={16} aria-hidden="true" /></Button>
               </>
@@ -294,6 +222,12 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
           </Card>
         </>
       )}
+
+      {transfer&&<Card as="section" className="flex flex-col gap-3 p-4" aria-label="Companion transfer">
+        <p className="text-sm">Transfer lasts only while this extension worker session remains available. Saved Batch requests support TSV fallback.</p>
+        <Button disabled={busy} onClick={()=>run(receiveResults)}>Receive Companion results</Button>
+        <Button disabled={busy} variant="outlined" onClick={()=>run(cancelTransfer)}>End transfer</Button>
+      </Card>}
 
       <div className="min-h-5 text-sm">
         <p role="alert" className="text-m3-error">{error}</p>

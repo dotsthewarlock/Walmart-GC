@@ -1,3 +1,5 @@
+> Historical Agy workflow only. Follow [agent rules](../../../AGENTS.md) and [Active Context](../../ACTIVE_CONTEXT.md). No instruction below is active.
+
 # Antigravity CLI Integration Dossier
 
 > [!NOTE]

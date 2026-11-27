@@ -1,10 +1,38 @@
 import {ForegroundBatch,batchDelay} from './batch-policy.js';
 import {runManualAcceptance} from './manual-acceptance.js';
 import {ManualSession,MANUAL_KEY,reviewProgress} from './manual-session.js';
+import {formatWireResults} from './wire.js';
 const uiRoot=document,companionRuntime=globalThis.chrome?.runtime,bookmarkletMode=false;
 const $=id=>uiRoot.getElementById(id);let panel='',minimized=false;
 const store={getItem:k=>localStorage.getItem(k),setItem:(k,v)=>localStorage.setItem(k,v),lock:fn=>{if(!navigator.locks)throw Error('Storage lock unavailable');return navigator.locks.request(MANUAL_KEY,fn);}};
 const q=new ManualSession(store);
+let walletTransfer=null;
+const directWallet=location.protocol==='chrome-extension:'&&window.parent!==window&&!!companionRuntime?.id;
+$('receiveWallet').hidden=!directWallet;$('returnWallet').hidden=!directWallet;
+$('receiveWallet').onclick=async e=>{
+ if(!e.isTrusted||document.hidden||!directWallet||q.busy||q.active!==null)return;
+ if(q.rows.length){say('Clear queue before receiving another Wallet selection. Saved observations remain.');return;}
+ try{
+  const r=await companionRuntime.sendMessage({type:'wallet-transfer-take',version:1});
+  if(!r?.ok||r.version!==1)throw Error('No Wallet transfer available. Use paste fallback.');
+  walletTransfer={sessionId:r.sessionId,refs:new Set()};
+  const imported=await q.import(r.packet);
+  for(const row of q.rows)if(row.walletRef)walletTransfer.refs.add(row.walletRef);
+  if(imported.historical||!imported.added)throw Error('No new requests imported. Use saved Wallet references or paste fallback.');
+  say('Wallet cards received. Choose a target and explicitly start checking.');show('',true);
+ }catch(e){say(e.message);}finally{render();}
+};
+$('returnWallet').onclick=async e=>{
+ if(!e.isTrusted||!directWallet||q.busy||!walletTransfer)return;
+ try{
+  const results=q.history.filter(r=>walletTransfer.refs.has(r.walletRef)).map(r=>({ref:r.walletRef,balanceCAD:r.balance,checkedAt:r.checkedAt}));
+  if(!results.length)throw Error('No verified Wallet observations to return.');
+  const packet=formatWireResults(results);
+  const r=await companionRuntime.sendMessage({type:'wallet-transfer-return',version:1,sessionId:walletTransfer.sessionId,packet});
+  if(!r?.ok||r.version!==1||r.sessionId!==walletTransfer.sessionId)throw Error('Transfer interrupted or expired. Copy Wallet results for fallback.');
+  say('Results returned. In Wallet choose Receive Companion results, review, then Apply.');
+ }catch(e){say(e.message);}
+};
 const assisted=bookmarkletMode||(location.protocol==='chrome-extension:'&&window.parent!==window&&!!companionRuntime?.id);let assistToken=null,assistTimer=null,assistBusy=false,checkReady=false,inFlight=false;
 const batch=new ForegroundBatch();let autoTimer=null;
 let lastPanelState=null;

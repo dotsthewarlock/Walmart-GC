@@ -35,6 +35,12 @@ jobs:
       - name: Install development browser
         run: npx playwright install --with-deps chromium
 
+      - name: Build shared Companion development artifacts
+        run: python3 companion/build.py
+
+      - name: Companion session, navigation and foreground safeguards
+        run: node --test --test-isolation=none companion/tests/batch-policy.mjs companion/tests/manual.mjs companion/tests/navigation.mjs companion/tests/clipboard.mjs
+
       - name: Integrated synthetic mobile and desktop acceptance
         run: npm run test:browser
 

@@ -1,3 +1,5 @@
+> Historical report; not an active authority or implementation instruction. Follow [Active Context](../../ACTIVE_CONTEXT.md).
+
 # Core Product & Design Decision Superseding Review
 
 **Date:** July 1, 2026  

@@ -1,3 +1,5 @@
+> Historical report; not an active authority or implementation instruction. Follow [Active Context](../../ACTIVE_CONTEXT.md).
+
 # Documentation, Branch, and Artifact Coherence Audit
 **Date:** July 1, 2026  
 **Repository:** `dotsthewarlock/Walmart-GC`  

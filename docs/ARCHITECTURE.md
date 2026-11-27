@@ -301,6 +301,43 @@ requires explicit backup-aware confirmation.
 
 ## Verification and Batch continuity
 
+R2 keeps shared verification UI state at App lifetime in
+`features/verification/useVerificationSession.js`. Manual and Companion / Batch
+use `selectTransferCards` and `VerificationSelection` for scope, status, balance,
+date, quantity and ordering. Explicit selection replaces the working queue and
+uses the existing `set-batch` command; outstanding historical references remain
+in the inventory ledger. Mode changes and contextual exits retain relevant drafts,
+progress and preview. A changed inventory/context generation resets this ephemeral
+UI state and fences outstanding responses. Reload retains preferences and the
+saved ledger; it does not persist a credential-bearing UI session.
+
+`verificationCommands.js` owns the cohesive local session checks, foreign-ledger
+isolation and affected reference validation shared by selection/export/preview.
+Domain commands, R1 retirement and transaction ownership remain in inventory.
+Manual verification invalidates its affected outstanding references; applicable
+Batch observations contribute to the shared working-selection progress only after
+the atomic application commits.
+
+The direct extension protocol uses explicit `wallet-transfer-*` messages, version
+1 and a fresh UUID session, carrying unchanged Batch v1 packets. Only the exact
+production HTTPS Wallet root, a top-level browser tab and its sender document ID
+can own an external session. Other extensions, subframes, unexpected fields/types,
+versions and uncorrelated sessions fail closed. Only an authorized extension-origin
+merchant overlay can receive credentials and return observations, bound to that
+receiver tab/frame/document. Requests are delivered once; results admit only the
+issued refs, valid amounts/timestamps and identical replays. A conflicting replay
+or malformed partial packet rejects atomically, retaining earlier observations.
+
+The extension broker holds one bounded transfer in worker memory for up to 30
+minutes. It writes no transport storage, logs or credential URLs, and clears the
+credential packet after delivery. Closing the Wallet tab, expiration or worker
+restart ends transport; no automatic retry/resume exists. Requests already saved
+in Wallet and noncredential Companion observation history support explicit TSV
+recovery. Opening/importing a request never starts a merchant check. Receive in
+Wallet creates the existing validated preview; only explicit Apply changes cards.
+No Worker/API, database schema, OAuth, infrastructure or Stable-channel change
+is part of this frontend/Companion boundary.
+
 Manual verification always updates lastBalanceChecked, even unchanged; dateUpdated
 changes only with the verified balance. Verification never reactivates used cards.
 Batch TSV remains `WMGC-REQUEST<TAB>1` / `WMGC-RESULT<TAB>1` with exact UUID refs,

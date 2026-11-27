@@ -12,38 +12,18 @@ production. Previously accepted Google and infrastructure checks and the synthet
 release cycle are recorded in [release readiness](V0.3_RELEASE_READINESS.md).
 Ordinary-use production acceptance remains pending.
 
-Batch uses explicit copy, paste, preview and application only. No passive clipboard
+Batch uses explicit extension transfer or copy/paste, preview and application. No passive clipboard
 reads, focus-triggered result detection or clipboard permission prompts.
 
-## R1 — resilient synchronization and recovery simplification
+## R1 — accepted
 
-Infrastructure baseline: main `bd7d8e6`, including released P0 / PR #251, followed
-by PRs #252–254 through `0ecb5c1`. The approved completion correction addresses
-failed practical recovery acceptance: 621 saved cards, zero pending operations,
-and 285 accumulated recovery entries. Deliver one cohesive correction with
-record-level MERGE / FLAG / QUARANTINE, automatic persisted metadata/missing-row
-repair, consolidated monetary uncertainty, dedicated flagged Manual/Batch selection
-including used/zero cards, fresh evidence retirement and accurate separate status.
-Retain deterministic duplicate consolidation, localized credential
-and monetary ambiguity, mixed unbound recovery, uncertainty-first verification,
-bounded evidence/receipt retention, repairable shared maintenance and damaged
-Batch isolation. Preserve transaction completion, credentials and original migration
-bytes, pending work, exact account/Sheet ownership, explicit deletions and uncertain
-external-write fences. Architecture owns the replacement safeguards and module map;
-QA owns synthetic acceptance and capacity measurements. The release PR records
-review, required CI, preserved production configuration and hosted verification.
-PRs #252/#253 shipped R1 infrastructure on `40dc926`; PR #254 corrected
-control-identity HTTP compatibility. Synthetic infrastructure acceptance did not
-establish usable private recovery. The completion correction uses a persisted
-621-card/285-entry fixture, interrupted local repair, lost acknowledgements,
-actual Worker HTTP and a focused mobile workflow; exact release evidence belongs
-in its PR. Private recovery acceptance remains pending the user's ordinary use.
+R1 is user-accepted at main `78175c7`, [PR #255](https://github.com/dotsthewarlock/Walmart-GC/pull/255). Preserve the released record-level MERGE / FLAG / QUARANTINE policy, conservative monetary verification, credentials, migration originals, pending work and uncertain-write fences. R1 is complete and is not reopened by R2. Architecture and QA retain the technical and regression contracts; release evidence stays in the PR.
 
-The user authorizes the compatible production release after independent review
-and required CI, with existing infrastructure, bindings, DO namespace, unpaused
-state and privacy retained. Private inventory recovery remains user-performed.
-R2 direct Companion integration, verification-session extraction and inactive-tab
-execution remain outside R1. A4 remains deferred.
+## R2 — authorized unified verification and direct Companion
+
+One branch/PR combines repository-first governance consolidation, shared Manual and Companion filters/quantity/order/session ownership, retained drafts/progress/navigation, and explicit extension request/result transport using Batch v1. Use the existing inventory commands, ledger, observation validation and R1 retirement. Preserve flagged used/zero selection, ephemeral credentials, strict origin/sender/version/session checks, explicit merchant initiation, foreground 10/25/50 targets and fixed 1,400 ms pacing. Results return to Wallet preview and explicit Apply; Manual and TSV/bookmarklet fallback remain recoverable.
+
+Independent review and required CI precede the user-authorized protected merge, Wallet release and Dev Companion publication. Verify public shell digests, descriptor revision, both artifact hashes and inert transport compatibility. Preserve infrastructure/configuration and leave an unaffected Worker deployed. No Stable promotion, standalone A4, schema change, runtime dependency, background merchant execution, automatic retry or challenge bypass.
 
 ## V0.3 maintenance: lean synchronization and quota recovery
 
@@ -82,12 +62,14 @@ Preserve local-first integrity, protocol/schema, Worker, companion and transfer
 contracts at every milestone. No speculative store, new dependencies, mechanical
 file reorganization or navigation redesign is included.
 
-## Near term, only after synchronization foundation
+## Deferred and future work
 
 Online-use reconciliation remains deferred. V0.4 adds precise UTC verification
 timestamps while retaining historical date-only compatibility.
 R1 supplies targeted recovery cleanup following the demonstrated capacity failures;
 unresolved alternatives, deletion fences and uncertain writes remain preserved.
+
+Merchant profiles, camera-initiated add-card scanning, schema vNext and optional native wrappers remain future possibilities, without implementation authorization. Existing merchant-aware card/CSV contracts remain authoritative.
 
 ## Unapproved expansion
 

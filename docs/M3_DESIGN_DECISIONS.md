@@ -11,7 +11,7 @@ This document serves as the durable repository documentation for locked design d
 
 1. **Role Division**:
    - **GPT** acts as the visual/design reviewer and decision framer.
-   - **Agy CLI** acts as the local repo-aware implementer/verifier.
+   - **Codex** implements and verifies authorized repository work. GPT retains architecture, roadmap and independent assessment. [Agent rules](../AGENTS.md) own execution policy.
 2. **Design Source of Truth**:
    - Agents must use [M3_DESIGN_DECISIONS.md](M3_DESIGN_DECISIONS.md) and [M3_Core_Guidelines.md](reference/M3_Core_Guidelines.md) as the absolute source of truth for UI decisions.
    - Current production UI styles are not the source of truth when they conflict with locked M3 decisions.
@@ -42,8 +42,8 @@ shadcn has been removed as a project component-system dependency and should not 
 
 ## Design Governance & Scope
 
-1. **Strategic Roadmap**: Refer to the 4 strategic roadmap lanes in [ROADMAP.md](ROADMAP.md) for future vision and unapproved boundaries.
-2. **Current Development Scope**: Recent UI work completed **PR 3: Focus Mode Removal Implementation** (refactoring `src/App.jsx` to completely remove Focus Mode states and transition the checkout screen to passive inline barcode rendering).
+1. **Strategic Roadmap**: [ROADMAP.md](ROADMAP.md) owns approved, deferred and unapproved work.
+2. **Current Development Scope**: [Active Context](ACTIVE_CONTEXT.md) and explicit user authorization govern current work. Passive inline checkout and the released A1–A3 boundaries remain accepted; A4 is deferred.
 3. **Approved Tailwind Config Exception**:
    - `tailwind.config.js` may map the existing `m3` color family to CSS custom properties referencing strict semantic M3 tokens.
    - This exception does not authorize new dependencies, broad Tailwind config changes, package/build config changes, or design-system expansion.
@@ -124,5 +124,13 @@ shadcn has been removed as a project component-system dependency and should not 
 > 2. Implementation requires brittle fixed offsets or viewport hacks.
 > 3. Privacy exposure would increase (such as showing account email on public Cards/Checkout views).
 > 4. Sync, OAuth, data, CSV, storage, or barcode behavior would be touched unintentionally.
-> 5. Visual changes exceed the authorized phase scope (e.g. editing elements outside of Phase 2A).
+> 5. Visual changes exceed the authorized phase scope (e.g. editing unrelated features).
 > 6. Screenshot QA shows the implementation is still visibly off despite passing build.
+
+## Preserved interaction decisions
+
+GC Wallet is the product name; Walmart-GC remains the repository/deployment identifier. Checkout Previous/Next and swipes stop at the visible collection boundaries without cycling. The balance dialog focuses Amount Used, supports bidirectional remaining-balance arithmetic, and saves or cancels explicitly (including Escape). The passive inline checkout replaces all historical focus/fullscreen scanner overlays.
+
+Manual and Companion / Batch share a working selection. Explicit reselection applies filter changes; changing mode or returning from the calling screen retains relevant drafts and progress. Account/context changes fence stale work. Direct transfer has explicit receive/start/return/preview/apply actions; it does not add automatic merchant execution or application.
+
+Browser inventory is stored in ordinary, unencrypted IndexedDB. Legacy localStorage is recovery input only; no stronger storage-encryption claim is made. Account details stay in Settings and credentials never enter transfer URLs, logs or persistent transport storage.

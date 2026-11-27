@@ -1,121 +1,83 @@
 # GC Wallet (Walmart-GC)
 
-Mobile-first, merchant-aware gift-card wallet (starting with Walmart optimization).
+GC Wallet is a mobile-first, merchant-aware gift-card wallet, optimized first for
+Walmart Canada. It provides passive checkout barcodes, PIN lookup, balance and
+used-state tracking, CSV backup/recovery, and optional private Google Sheets sync.
 
-**GC Wallet** (under repository and deployment identifier `Walmart-GC`) is an offline-first static web application that helps users manage large numbers of gift cards with passive inline checkout barcodes, PIN lookup, balance tracking, used-state tracking, CSV backup/recovery, and Google Sheets sync via serverless Worker.
+`main` builds the live React 19 / Vite / Tailwind application at
+https://walmart-gc.dotsthewarlock.com/. R1 is user-accepted at main
+`78175c7f542d1928217bad30a2a70711c2508b6e`, [PR #255](https://github.com/dotsthewarlock/Walmart-GC/pull/255).
+Read [Active Context](docs/ACTIVE_CONTEXT.md) first for current development.
 
-V0.3 automatic synchronization is a **release candidate on `feature/sync-foundation`
-(draft PR #231)**, not a deployed release. Accepted main remains
-`bbbc9334dd261b1a897b98a8012d9bb22fdf7e31`. See [Active Context](docs/ACTIVE_CONTEXT.md),
-[Architecture](docs/ARCHITECTURE.md) and [integrated QA](docs/QA_TEST_CHECKLIST.md)
-for current implementation and release prerequisites.
+## Data and privacy
 
-## Current Status
+IndexedDB is the sole writable local inventory authority. Local edits remain
+available offline and synchronize through the existing protected protocol when
+connected. Original migration inputs, pending work and unresolved recovery evidence
+are preserved. Browser storage is not encrypted by the application; do not claim
+otherwise. CSV backup and explicit recovery remain available.
 
-`main` is the active live deployment branch. Core application OAuth/session durability, Google Sheets access, and Material 3 design systems are fully functional.
+The private, owned Google Sheet is the sole cloud card inventory. Only the matching
+verified principal and exact owned Sheet can bind an inventory; shared/nonowned
+Sheets are rejected. Account details and exceptional diagnostics stay in Settings.
 
-## Features
+The same-origin Cloudflare Worker owns Google OAuth, refresh grants and the
+HttpOnly session cookie. Its only Google scope is `drive.file`. Frontend requests
+use `/auth/*` and `/api/*`; no Google credentials or direct Drive/Sheets calls exist
+in the browser. Existing KV stores session state; the Durable Object stores only
+noncredential coordination metadata. See [Architecture](docs/ARCHITECTURE.md).
 
-- View gift cards on desktop or mobile widths with clean, touch-friendly Material 3 layouts.
-- Display passive, inline checkout barcodes for in-store checkout (optimized for Walmart/Walmart Canada).
-- Display PINs securely.
-- Track remaining balances ("Available balance") and card counts ("Visible cards").
-- Synchronize completed actions with an automatically located or created `Walmart-GC Data` spreadsheet through Google OAuth and the Google Sheets API.
-- Offline-first: continue using local browser data when offline or disconnected.
-- Export/import CSV backups.
+## Verification and Companion
 
-## Architecture
+Manual and Companion / Batch share selection filters, quantity and ordering,
+including flagged-card priority, eligible used cards and provisional zero balances.
+Mode changes and contextual exits retain the current UI session, drafts and
+progress. Explicit selection replaces it; account/context changes fence it.
 
-Current active architecture:
+The extension supports explicit request/result transfer using Batch TSV v1.
+Send selected requests from Wallet, receive them in the extension on the official
+checker, then explicitly start checking. Return observations and receive them in
+Wallet for preview and explicit application. Transport credentials remain in memory;
+worker restart or interrupted transfer may require the saved TSV fallback. Manual
+verification and the bookmarklet remain available. See the
+[Companion guide](companion/README.md) and [distribution contract](companion/DISTRIBUTION.md).
+Dev publication does not promote Stable.
 
-```text
-User Google Account
-        ↕
-Google OAuth
-        ↕
-Cloudflare Worker
-        ↕
-Google Drive API / Google Sheets API
-        ↕
-Walmart-GC Web App
+## Development and release
+
+```sh
+npm ci
+npm run dev
+npm test
+npm run test:browser
+npm run build
+npm run test:shell
+git diff --check
 ```
 
-Frontend:
+Build the shared Companion artifacts before browser acceptance with
+`python3 companion/build.py`. The integrated CI also runs the existing real
+Worker/SQLite tests. Synthetic tests use invented data and intercepted services;
+they do not establish native production merchant acceptance.
 
-```text
-GitHub Pages static website at https://walmart-gc.dotsthewarlock.com/
-- main: React 19 + Vite + Tailwind CSS production app
-- Live GitHub Pages: serves the built React/Vite artifact; GitHub Pages API may still report legacy `phase-12 / /` metadata, so verify live HTML before changing Pages settings
-```
+GitHub Actions builds and publishes Wallet and Dev Companion on authorized merges
+to `main`. Preserve existing production routes, bindings, privacy and unpaused
+activation. Do not redeploy an unaffected Worker. Rollback must preserve the
+protected protocol, local inventory and recovery contracts; the old writable
+Phase 12 client is not a safe rollback.
 
-Backend Worker:
+## Repository authorities
 
-```text
-Cloudflare Worker on same-origin /auth/* and /api/* routes at https://walmart-gc.dotsthewarlock.com
-Workers KV
-Legacy Worker subdomain https://walmart-gc-oauth.dotsthewarlock.com may remain fallback/legacy only
-```
+GitHub is the sole durable project authority. Consolidate decisions in their
+existing owner; chat, Project source documents and historical reports are input,
+not parallel live authorities.
 
-GC Wallet uses native IndexedDB locally and minimal noncredential Durable Object coordination. The private user-owned Sheet remains the sole cloud card inventory; no central card database or app-managed account platform is introduced. The React 19 / Vite frontend on `main` is compiled to static files for deployment. The Cloudflare Worker owns OAuth, refresh tokens, the HttpOnly session cookie, and server-side Drive/Sheets calls.
-
-
-## Runtime Debugging Priority
-
-Worker-backed OAuth and sync are the current `main` architecture. When debugging a live failure, however, evidence wins over architecture notes. Use this priority order:
-
-1. Exact live error string / observed behavior
-2. Current workspace/repo files
-3. Active deployment/config
-4. Repo docs / intended architecture
-5. Prior assumptions
-
-If an exact live error string exists only in `apps-script/Code.gs`, inspect and debug the Apps Script path first until the active runtime is disproven. Do not treat Apps Script as the active default architecture without that live evidence.
-
-## OAuth and Session Contract
-
-- Authentication is Worker-managed Google OAuth.
-- The only OAuth scope is `https://www.googleapis.com/auth/drive.file`.
-- The frontend never stores access tokens, refresh tokens, session IDs, or OAuth secrets.
-- Frontend auth state comes from `GET /api/status`.
-- Logout uses `POST /api/logout`.
-- Worker API calls from the frontend use same-origin `/api/*` paths with `credentials: "include"`.
-- Session cookies are HttpOnly, Secure, SameSite=Lax, host-only cookies.
-
-## URLs and Testing
-
-Production and development/testing use the same cloud URL:
-
-```text
-https://walmart-gc.dotsthewarlock.com
-```
-
-Active Worker routing:
-
-```text
-https://walmart-gc.dotsthewarlock.com/auth/*
-https://walmart-gc.dotsthewarlock.com/api/*
-```
-
-Cloudflare must route `walmart-gc.dotsthewarlock.com/auth/*` and `walmart-gc.dotsthewarlock.com/api/*` to the Worker. The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain fallback/legacy only.
-
-Production OAuth testing is cloud-only. Do not use localhost OAuth or alternate OAuth origins for production deployment testing. For local development under the React setup (which utilizes a Vite dev proxy to a local Worker), refer to the configuration details in the [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) and historical [AGY Migration Runbook](docs/archive/AGY_MIGRATION_RUNBOOK.md).
-
-## Documentation
-
-Start with the [Active Context](docs/ACTIVE_CONTEXT.md) for the compact, first-read current context. Archived docs are historical references only and are not current setup guidance.
-
-- [Active Context](docs/ACTIVE_CONTEXT.md) — Compact current-state summary (read this first).
-- [Project Roadmap](docs/ROADMAP.md) — Canonical 4-lane roadmap (approved, near-term, future, and boundaries).
-- [Material 3 Design Decisions](docs/M3_DESIGN_DECISIONS.md) — Durable repository documentation for locked design decisions and the strict Material 3 overhaul.
-- [Architecture](docs/ARCHITECTURE.md) — Main system architecture and data models.
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) — Frontend build and Worker deployment instructions.
-- [Google Sheet Setup](docs/GOOGLE_SHEET_SETUP.md) — Dedicated sheet setup and schema rules.
-- [QA Test Checklist](docs/QA_TEST_CHECKLIST.md) — Combined manual QA and troubleshooting guide.
-- [Maintenance Log](docs/MAINTENANCE_LOG.md) — Open tracking for non-blocking cleanup.
-- [Documentation Archive](docs/archive/README.md) — Retained historical references.
-
-## Sheet Sharing
-
-Walmart-GC operates against a Google Sheet. It does not manage users, roles, or permissions; Google Sheets controls sharing and access. Shared Sheets are allowed when the relevant users have Google Sheet access.
-
-V0.3 supports conservative automatic synchronization across personal devices while the wallet is open. It does not add presence, collaboration tooling or activity history. Independent edits combine; balances and credential conflicts retain targeted recovery evidence. See the architecture authority for maintenance, uncertain-commit and rollback limits.
+- [Agent rules](AGENTS.md) — execution, ownership and release boundaries.
+- [Active Context](docs/ACTIVE_CONTEXT.md) — accepted baseline and current work.
+- [Architecture](docs/ARCHITECTURE.md) — data, API, persistence, transfer and recovery contracts.
+- [M3 decisions](docs/M3_DESIGN_DECISIONS.md) — navigation, privacy and visual intent.
+- [Roadmap](docs/ROADMAP.md) — approved work and deferred scope.
+- [QA](docs/QA_TEST_CHECKLIST.md) — integrated acceptance and release prerequisites.
+- [Deployment](docs/DEPLOYMENT_GUIDE.md) — existing hosting and release operation.
+- [Sheet setup](docs/GOOGLE_SHEET_SETUP.md) — schema and owned-Sheet setup.
+- [Archive](docs/archive/README.md) — historical evidence, not active instructions.

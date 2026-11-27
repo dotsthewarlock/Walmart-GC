@@ -8,3 +8,13 @@
 4. Only after integrated acceptance and separate authorization, `python3 promote_release.py --accepted-version VERSION --accepted-source-revision FULL_SHA --authorize-stable` copies the exact accepted Dev bytes to staging Stable without rebuilding. Deployment remains separate.
 
 The extension-origin frame provides isolation from the merchant page. The bookmarklet's closed shadow root is a UI boundary within the merchant page, not a security boundary against page scripts. Neither distribution writes directly to the wallet; Batch v1 is unchanged. The staged descriptor's `hostedLoaderVerified` and `sharedEngineParity` flags remain conservative until independent acceptance.
+
+Dev 1.0.6 adds explicit extension-only Wallet transport. The extension ID remains
+unchanged. The worker accepts only the production Wallet root and validated
+top-level sender documents; an authorized merchant overlay explicitly receives
+requests and returns observations. Credentials exist only in memory. Worker
+restart or expiry interrupts transfer without resuming it; saved Wallet Batch
+references and Companion result history retain TSV fallback. The bookmarklet
+shares the existing session/UI/merchant engine and keeps explicit TSV transfer.
+The native synthetic transport test instruments only a copied launcher shadow
+root for inspection; release sources and both packaged artifacts keep isolation.

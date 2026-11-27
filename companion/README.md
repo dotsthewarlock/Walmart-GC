@@ -6,4 +6,11 @@ Importing a request never submits a check. Auto proceed defaults to Off; choosin
 
 Paste requests explicitly into Queue. In Results, optional automatic copy exports verified linked results after a completed batch. If clipboard writing fails, the packet is selected for manual copy. Queue and results have separate clear actions. The bookmarklet offers explicit restoration of original bookmarklet history into an unused companion history; the original storage is retained. Extension users can restore an exported original history backup in an unused companion history.
 
+For direct extension transfer, select and **Send to Companion** in Wallet. Open
+the official checker and the extension overlay, open Queue, then choose **Receive
+Wallet cards**. Choose a target and explicitly start. In Results choose **Send
+results to Wallet**; return to Wallet, **Receive Companion results**, review the
+preview and explicitly Apply. Partial results are supported. Expired/interrupted
+transport retains the existing copy/paste fallback; it never resumes checks.
+
 Build with `python3 build.py`; `stage_release.py` creates a Dev pair from a clean committed source revision. See [distribution policy](DISTRIBUTION.md). The included original bookmarklet is retained as a recovery and parity benchmark. Never include real credentials in tests, logs, reports or backups. Hosted loading, native clipboard behavior and ordinary-use acceptance depend on the target browser and site policy and must be verified separately.
