@@ -58,13 +58,10 @@ export function BalanceReview({ onExit, session, ...props }) {
     }catch(e){setError(e.message);}finally{selecting.current=false;setBusy(false);}
   }
   return (
-    <main className="min-h-screen bg-m3-surface text-m3-on-surface">
-      <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">
-        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
-          <h1 className="text-lg font-semibold">Review balances</h1>
+    <main aria-labelledby="wallet-section-heading" className="bg-m3-surface text-m3-on-surface">
+        <div className="mx-auto flex w-full max-w-xl justify-end px-4 sm:px-6">
           <Button variant="text" disabled={busy} onClick={onExit}>Exit</Button>
         </div>
-      </header>
       <div role="group" aria-label="Review mode" className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2 px-4 pt-4 sm:px-6">
         <Button disabled={busy} variant={mode === "manual" ? "tonal" : "outlined"} aria-pressed={mode === "manual"}
           onClick={() => setMode("manual")}>Manual</Button>
@@ -99,11 +96,13 @@ function ManualBalanceReview({ commitWallet, copyText, maskCardNumber, session }
   const saving = useRef(false);
   const pendingObservation = useRef(null);
   const taskHeading = useRef(null);
+  const previousPosition = useRef(position);
   const entry = queue[position];
   const card = entry?.snapshot;
 
   useEffect(() => {
-    taskHeading.current?.focus();
+    if (previousPosition.current !== position) taskHeading.current?.focus({ preventScroll: true });
+    previousPosition.current = position;
   }, [position]);
 
   function advance() {

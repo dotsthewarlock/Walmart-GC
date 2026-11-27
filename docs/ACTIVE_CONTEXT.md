@@ -4,6 +4,25 @@ Read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.md),
 [M3 decisions](M3_DESIGN_DECISIONS.md), [roadmap](ROADMAP.md) and
 [QA](QA_TEST_CHECKLIST.md). GitHub is the sole durable project authority.
 
+## P1.1 — Unified Wallet Navigation
+
+Authorized from main `3366acf` ([R2 correction #257](https://github.com/dotsthewarlock/Walmart-GC/pull/257)):
+integrate Cards, Checkout and Balance Check in the shared M3 shell using existing
+components and App-lifetime controllers. Preserve merchant totals, private sync
+status/Settings, selection/filters/scroll, drafts/progress, contextual return,
+explicit flagged entry, account fencing, offline operation and passive checkout.
+Lifecycle failure acceptance is recorded in [QA](QA_TEST_CHECKLIST.md).
+
+Implementation, independent review, required CI, commit/push/PR, normal protected
+merge, Wallet production publication, hosted verification and safe cleanup are
+explicitly authorized. Keep existing production configuration and the unaffected
+Worker deployed; no Companion Stable promotion. Standalone A4, single-card check
+enhancements, Checkout Undo, new stores/dependencies, schema/protocol/infrastructure
+changes and unrelated redesign remain excluded. Exact candidate/release evidence
+belongs in the milestone PR. Master Architecture assessment and native acceptance
+remain separate from Codex's technical closure; see the
+[stream handoff protocol](ARCHITECTURE.md#master-and-subordinate-architecture-streams).
+
 ## Accepted baseline
 
 R1 is user-accepted at main `78175c7f542d1928217bad30a2a70711c2508b6e`,

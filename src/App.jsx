@@ -1,5 +1,5 @@
 import { createSyncEngine } from './lib/syncEngine';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { calculateVisibleCards, calculateCardSummary } from './lib/cards';
 import { useSettings } from './features/settings/useSettings';
 import { SettingsPanel } from './features/settings/SettingsPanel';
@@ -20,7 +20,7 @@ import { TextArea } from './components/primitives/TextArea';
 import { BalanceReview } from './components/BalanceReview';
 import {useVerificationSession} from './features/verification/useVerificationSession';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
-import { Settings2 } from 'lucide-react';
+import { Settings2, ClipboardCheck } from 'lucide-react';
 import { StatusChip } from './components/primitives/Chip';
 
 function isCardsHeaderError(message) {
@@ -98,8 +98,9 @@ function App() {
   const [syncUi,setSyncUi] = useState({phase:'local',message:'Saved on this device.'});
   const csvTarget = useRef(null);
   const recoveryReloadRequired = useRef(false);
-  const restoreReviewFocus = useRef(false);
-  const [balanceReviewOpen, setBalanceReviewOpen] = useState(false);
+  const panelScroll = useRef({});
+  const pendingPanelFocus = useRef(null);
+  const reviewReturn = useRef({ panel: 'list', focusId: 'review-balances' });
   const verificationSession=useVerificationSession(walletSnapshot);
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
@@ -108,7 +109,7 @@ function App() {
   const [transferMutationError, setTransferMutationError] = useState("");
   const sheetMutation = useRef(false);
   const transferWallet = useRef(null);
-  const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
+  const [activePanel, setActivePanel] = useState('list'); // list, detail, review, settings
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   // Raw CSV Editor Modal and backup states
@@ -165,7 +166,7 @@ function App() {
   const selectedCard = cards[selectedCardIndex];
   const credentialBlocked=walletSnapshot&&credentialAmbiguous(profileOf(walletSnapshot).recoveryEvidence,selectedCard?.cardNumber);
   const checkout = useCheckout({
-    active: activePanel === 'detail' && !balanceReviewOpen,
+    active: activePanel === 'detail',
     selectedCard, copyText: writeClipboardText,
     commands: {
       captureTarget: cardTarget,
@@ -352,12 +353,47 @@ function App() {
     return () => { cancelled = true; syncEngine.current?.stop();window.removeEventListener("online",reconnect);document.removeEventListener("visibilitychange",foreground);window.removeEventListener("focus",reconnect); window.removeEventListener("focus", reload); window.removeEventListener("storage", legacyChanged); channel?.close(); store.close().catch(() => {}); };
   }, []);
 
-  useEffect(() => {
-    if (!balanceReviewOpen && restoreReviewFocus.current) {
-      restoreReviewFocus.current = false;
-      document.getElementById('review-balances')?.focus();
+  // UI-only destination continuity. Inventory and credential-bearing workflows
+  // keep their existing owners; nothing here is persisted.
+  useLayoutEffect(() => {
+    const target = document.getElementById(pendingPanelFocus.current)
+      ?? document.getElementById('wallet-section-heading');
+    pendingPanelFocus.current = null;
+    target?.focus({ preventScroll: true });
+    window.scrollTo(0, panelScroll.current[activePanel] ?? 0);
+  }, [activePanel]);
+
+  function navigate(panel, focusId = null) {
+    if (verificationSession.busy || panel === activePanel) return;
+    panelScroll.current[activePanel] = window.scrollY;
+    pendingPanelFocus.current = focusId;
+    setActivePanel(panel);
+  }
+
+  function openSettings() {
+    if (activePanel === 'settings') navigate(previousPrimaryPanel, 'open-settings');
+    else {
+      setPreviousPrimaryPanel(activePanel);
+      navigate('settings');
     }
-  }, [balanceReviewOpen]);
+  }
+
+  function openBalanceReview(flagged = false) {
+    if (verificationSession.busy || activePanel === 'review') return;
+    if (flagged || activePanel !== 'settings' || previousPrimaryPanel !== 'review') {
+      reviewReturn.current = { panel: activePanel,
+        focusId: flagged ? 'review-flagged' : activePanel === 'list' ? 'review-balances' : 'nav-review' };
+    }
+    if (flagged) verificationSession.startFlaggedReview();
+    navigate('review');
+  }
+
+  function openCheckout() {
+    const nextIndex = ensureVisibleSelection();
+    if (nextIndex === -1 || verificationSession.busy) return;
+    setSelectedCardIndex(nextIndex);
+    navigate('detail');
+  }
 
 
   // Compute card summaries based on state
@@ -463,12 +499,12 @@ function App() {
     if (deltaX < 0) {
       // Swipe left: Cards (list) -> Checkout (detail)
       if (activePanel === 'list') {
-        setActivePanel('detail');
+        openCheckout();
       }
     } else if (deltaX > 0) {
       // Swipe right: Checkout (detail) -> Cards (list)
       if (activePanel === 'detail') {
-        setActivePanel('list');
+        navigate('list');
       }
     }
   };
@@ -703,26 +739,6 @@ function App() {
     return <p role="status" className="p-4 text-m3-on-surface">Opening saved cards…</p>;
   }
 
-  if (balanceReviewOpen) {
-    return (
-      <BalanceReview
-        session={verificationSession}
-        cards={cards}
-        walletSnapshot={walletSnapshot}
-        readWallet={readWallet}
-        commitWallet={commitWallet}
-        getTransferWallet={getTransferWallet}
-        onExit={() => {
-          restoreReviewFocus.current = true;
-          setTransferMutationError("");
-          setBalanceReviewOpen(false);
-        }}
-        copyText={writeClipboardText}
-        maskCardNumber={maskCardNumber}
-      />
-    );
-  }
-
   return (
     <>
       <input
@@ -733,31 +749,21 @@ function App() {
         className="hidden"
       />
       {/* Header Region */}
-      <header className="bg-m3-primary text-m3-on-primary border-b border-m3-outline-variant/60 py-3 md:py-4 px-6 sm:px-8">
+      <header className="bg-m3-primary-container text-m3-on-primary-container border-b border-m3-outline-variant/60 py-3 md:py-4 px-4 sm:px-8">
         <div className="max-w-[60rem] mx-auto flex justify-between items-center gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-m3-on-primary">
+            <h1 className="text-xl md:text-2xl font-black tracking-tight">
               Gift Card Manager
             </h1>
           </div>
           <div className="flex items-center gap-3">
             <IconButton
               id="open-settings"
-              onClick={() => {
-                if (activePanel === 'settings') {
-                  setActivePanel(previousPrimaryPanel);
-                } else {
-                  setPreviousPrimaryPanel(activePanel);
-                  setActivePanel('settings');
-                }
-              }}
+              onClick={openSettings}
+              disabled={verificationSession.busy}
               variant={activePanel === 'settings' ? 'tonal' : 'standard'}
-              size="compact"
-              className={`md:text-xl ${
-                activePanel === 'settings'
-                  ? 'bg-m3-on-primary text-m3-primary border-m3-on-primary'
-                  : 'bg-m3-primary-container text-m3-on-primary-container border-m3-on-primary-container/20 opacity-50 hover:opacity-100'
-              }`}
+              size="standard"
+              className="text-m3-on-primary-container"
               title={activePanel === 'settings' ? "Close settings and return" : "Open settings"}
               aria-label="Open settings"
               aria-expanded={activePanel === 'settings'}
@@ -769,7 +775,7 @@ function App() {
       </header>
 
       {/* Persistent Merchant Balance Strip */}
-      {(activePanel === 'list' || activePanel === 'detail') && (() => {
+      {(() => {
         const summary = getAppSyncSummaryState();
         const syncLabel = summary.label;
 
@@ -777,24 +783,26 @@ function App() {
 
         return (
           <div
-            className="w-full bg-m3-surface-container border-b border-m3-outline-variant/30 h-10 grid grid-cols-3 items-center px-6 select-none"
+            className="w-full bg-m3-surface-container border-b border-m3-outline-variant/30 select-none"
             role="status"
             aria-live="polite"
             aria-label={`Available Walmart balance: $${activeBalance.toFixed(2)}. Sync status: ${syncLabel}.`}
           >
+            <div className="max-w-[60rem] mx-auto h-12 grid grid-cols-[1fr_auto_1fr] gap-2 items-center px-4 sm:px-8">
             <span className="text-[15px] font-semibold text-m3-on-surface text-left">Walmart</span>
 
             <div className="flex justify-center min-w-0">
               {isInteractive ? (
                 <StatusChip
                   id="checkout-feedback-btn"
-                  onClick={handleConnectGoogle}
+                  onClick={openSettings}
+                  disabled={verificationSession.busy}
                   size="compact"
                   status={getSyncChipStatus(summary.key)}
                   indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
                   className="max-w-full min-w-0 cursor-pointer"
                   data-sync-summary={summary.key}
-                  title="Google connection and backup"
+                  title="Review synchronization in Settings"
                 >
                   {syncLabel}
                 </StatusChip>
@@ -812,7 +820,8 @@ function App() {
               )}
             </div>
 
-            <span className="text-[15px] font-semibold text-m3-on-surface text-right">${activeBalance.toFixed(2)}</span>
+            <span className="text-[15px] font-semibold tabular-nums text-m3-on-surface text-right">${activeBalance.toFixed(2)}</span>
+            </div>
           </div>
         );
       })()}
@@ -822,10 +831,8 @@ function App() {
         <div className="max-w-[60rem] mx-auto w-full flex h-full">
           <NavigationBarItem
             id="nav-list"
-            onClick={() => {
-              setActivePanel('list');
-              setPreviousPrimaryPanel('list');
-            }}
+            onClick={() => navigate('list')}
+            disabled={verificationSession.busy}
             selected={activePanel === 'list'}
             label="Cards"
             icon={
@@ -838,15 +845,8 @@ function App() {
           </NavigationBarItem>
           <NavigationBarItem
             id="nav-detail"
-            onClick={() => {
-              const nextIndex = ensureVisibleSelection();
-              if (nextIndex !== -1) {
-                setSelectedCardIndex(nextIndex);
-                setActivePanel('detail');
-                setPreviousPrimaryPanel('detail');
-              }
-            }}
-            disabled={visibleIndexes.length === 0}
+            onClick={openCheckout}
+            disabled={verificationSession.busy || visibleIndexes.length === 0}
             selected={activePanel === 'detail'}
             label="Checkout"
             icon={
@@ -856,16 +856,23 @@ function App() {
             }
           >
           </NavigationBarItem>
+          <NavigationBarItem id="nav-review" onClick={() => openBalanceReview()}
+            disabled={verificationSession.busy} selected={activePanel === 'review'}
+            label="Balance Check" icon={<ClipboardCheck className="size-6" aria-hidden="true" />} />
         </div>
       </NavigationBar>
 
       <div 
-        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pb-24 md:pb-12 antialiased font-sans relative"
+        className="bg-m3-surface flex flex-col items-center px-0 sm:px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-12 antialiased font-sans relative"
         onTouchStart={handleMainTouchStart}
         onTouchEnd={handleMainTouchEnd}
       >
         <div className="w-full bg-m3-surface overflow-hidden transition-all duration-300 max-w-[60rem]">
-          {(transferMutationError || inventoryNotice) && <p role="alert" className="px-4 pt-4 text-sm text-m3-error">{transferMutationError || inventoryNotice}</p>}
+          <h2 id="wallet-section-heading" tabIndex={-1}
+            className="px-4 sm:px-6 md:px-8 pt-4 text-lg font-semibold focus:outline-none">
+            {{ list: 'Cards', detail: 'Checkout', review: 'Balance Check', settings: 'Settings' }[activePanel]}
+          </h2>
+          {((activePanel !== 'review' && transferMutationError) || inventoryNotice) && <p role="alert" className="px-4 pt-4 text-sm text-m3-error">{(activePanel !== 'review' && transferMutationError) || inventoryNotice}</p>}
           {activePanel === 'list' ? (
             <CardsPanel
               cards={cards}
@@ -874,10 +881,10 @@ function App() {
               loaded={cardsLoaded.current}
               googleConnected={oauthState.status === googleOAuthStatuses.connected}
               maskCardNumber={maskCardNumber}
-              commands={{ reviewBalances: () => {setBalanceReviewOpen(true);}, connectGoogle: handleConnectGoogle,
+              commands={{ reviewBalances: () => openBalanceReview(), connectGoogle: handleConnectGoogle,
                 importCsv: () => document.getElementById('csv-file-input').click(),
-                resetFilters: settingsController.resetFilters, openSettings: () => setActivePanel('settings'),
-                selectCard: index => { setSelectedCardIndex(index); setActivePanel('detail'); } }}
+                resetFilters: settingsController.resetFilters, openSettings,
+                selectCard: index => { setSelectedCardIndex(index); navigate('detail'); } }}
             />
            ) : activePanel === 'settings' ? (
               <SettingsPanel
@@ -900,26 +907,31 @@ function App() {
                   recoverExpired: async () => {
                     try { await syncEngine.current?.recoverExpired(); }
                     catch (error) { setTransferMutationError(error.message); }
-                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>{verificationSession.startFlaggedReview();setBalanceReviewOpen(true);}, selectCompartment: handleSelectCompartment,
+                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>openBalanceReview(true), selectCompartment: handleSelectCompartment,
                   exportCsv: handleExportCsv, exportRecovery: handleExportRecovery,
                   openRawEditor: handleOpenRawEditor }}
                 showRawCsvEditor={SHOW_RAW_CSV_EDITOR}
-                onBack={() => setActivePanel(previousPrimaryPanel)}
+                onBack={() => navigate(previousPrimaryPanel, 'open-settings')}
               />
+          ) : activePanel === 'review' ? (
+            <BalanceReview session={verificationSession} cards={cards} walletSnapshot={walletSnapshot}
+              readWallet={readWallet} commitWallet={commitWallet} getTransferWallet={getTransferWallet}
+              onExit={() => { setTransferMutationError(''); navigate(reviewReturn.current.panel, reviewReturn.current.focusId); }}
+              copyText={writeClipboardText} maskCardNumber={maskCardNumber} />
           ) : (
             <CheckoutPanel selectedCard={selectedCard} visiblePosition={visiblePosition}
-              credentialBlocked={credentialBlocked} onReviewCredentials={()=>setActivePanel('settings')}
+              credentialBlocked={credentialBlocked} onReviewCredentials={openSettings}
               visibleCount={visibleIndexes.length} workflow={checkout}
               onPrevious={handlePrevCard} onNext={handleNextCard}
               onToggleUsed={() => handleToggleUsed(selectedCardIndex)}
-              onBack={() => setActivePanel('list')} />
+              onBack={() => navigate('list')} />
           )}
         </div>
       </div>
 
 
 
-      {!credentialBlocked&&<CheckoutOverlays selectedCard={selectedCard} workflow={checkout} />}
+      {activePanel === 'detail'&&!credentialBlocked&&<CheckoutOverlays selectedCard={selectedCard} workflow={checkout} />}
 
       {/* Raw CSV Editor Modal */}
       {isRawDataModalOpen && (

@@ -210,7 +210,7 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
         <p role="status" className="text-sm">{synchronization.message}</p>
         <p className="text-sm">Balance confidence: {inventory.recoverySummary?.uncertain??0} uncertain · Record integrity: {inventory.recoverySummary?.quarantined??0} quarantined</p>
         <p className="text-xs text-m3-on-surface-variant">Uncertain balances and quarantined exceptions do not prevent other cards from synchronizing.</p>
-        {(inventory.recoverySummary?.flaggedEligible??0)>0&&<Button variant="outlined" onClick={commands.reviewFlagged}>Verify flagged cards ({inventory.recoverySummary.flaggedEligible})</Button>}
+        {(inventory.recoverySummary?.flaggedEligible??0)>0&&<Button id="review-flagged" variant="outlined" onClick={commands.reviewFlagged}>Verify flagged cards ({inventory.recoverySummary.flaggedEligible})</Button>}
         {synchronization.diagnostics?.length>0&&<div className="text-sm border border-m3-outline-variant rounded-xl p-3">
           <p>Sheet row diagnostics:</p>
           <ul>{synchronization.diagnostics.map((item,index)=><li key={index}>Card ending {item.last4}: rows {item.rows.join(' and ')}</li>)}</ul>

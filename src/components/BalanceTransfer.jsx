@@ -35,7 +35,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const {busy,setBusy}=ui;
   const locked = useRef(false);
   const mounted = useRef(false);
-  const heading = useRef(null);
+  const previousPreview = useRef(preview);
   const previewHeading = useRef(null);
   const messageRegion = useRef(null);
   const ledger = batch.ledger;
@@ -45,7 +45,6 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   useEffect(() => {
     mounted.current = true;
-    heading.current?.focus();
     return () => { mounted.current = false; };
   }, []);
 
@@ -53,10 +52,11 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
 
   useEffect(() => {
-    if (preview) {
+    if (preview && preview !== previousPreview.current) {
       previewHeading.current?.focus({ preventScroll: true });
       previewHeading.current?.scrollIntoView({ block: "start" });
     }
+    previousPreview.current = preview;
   }, [preview]);
 
   async function run(action) {
@@ -196,7 +196,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       {ledger && !recovering && (
         <>
           <Card as="section" aria-labelledby="active-batch-heading" className="flex flex-col gap-3 p-4">
-            <h3 id="active-batch-heading" tabIndex={-1} ref={pending ? heading : undefined} className="font-semibold">Saved requests</h3>
+            <h3 id="active-batch-heading" tabIndex={-1} className="font-semibold">Saved requests</h3>
             <p className="text-sm text-m3-on-surface-variant" role="status">
               {pending} outstanding · {invalidated} invalidated · {ledger.requests.length - pending - invalidated} applied
             </p>

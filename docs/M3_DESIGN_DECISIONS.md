@@ -57,7 +57,7 @@ shadcn has been removed as a project component-system dependency and should not 
 
 ### 1. Persistent Merchant Balance Strip
 * **Branding and Placement**: Branding header text is strictly `Gift Card Manager`. A persistent merchant balance strip resides directly under the branding header.
-* **Persistence and Content**: The balance strip persists across the Cards and Checkout screens (above checkout content) showing the merchant name left (`Walmart`) and the total available balance right (e.g., `$123.45` formatted with tabular numbers). No visible helper/explainer text is shown.
+* **Persistence and Content**: The balance strip persists across Cards, Checkout, Balance Check and Settings, showing the merchant name left (`Walmart`) and the shared total available balance right (e.g., `$123.45` formatted with tabular numbers). No visible helper/explainer text is shown.
 * **Accessibility**: Preserve accessibility semantics/ARIA, e.g. screen-reader meaning like `Available Walmart balance: $123.45`.
 * **Anti-Clutter Guardrail**: Remove the old top summary metric card. Avoid legacy dashboard jargon like `Total Wallet Assets`, `Card Counts`, `displayed / registered` denominator, or `Vault Inventory`.
 
@@ -68,7 +68,7 @@ shadcn has been removed as a project component-system dependency and should not 
 * **Primary Viewport (412 x 923)**: Implementation is strictly mobile-first. The primary mobile QA viewport is browser CSS viewport **412 x 923**. Designs must be verified against this exact viewport before desktop polish is considered complete. Avoid desktop-first spacing, padding, or panels that squeeze or degrade this viewport. Screenshot QA at 412 x 923 overrides optimistic implementation claims.
 
 ### 3. Bottom Navigation and Header Visual Identity
-* **M3 Navigation Bar**: Overhaul to implement a strict M3 Navigation Bar layout. Bottom nav active state is styled with a subtle border highlight (`border border-m3-primary/20`) over the `m3-primary-container` fill. Standard destinations are flat, stable, and thumb-accessible: **Cards** (index/ledger) and **Checkout** (scanner panel). Settings is accessed via an IconButton in the top-right of the Header.
+* **M3 Navigation Bar**: Bottom nav active state uses a subtle border highlight (`border border-m3-primary/20`) over `m3-primary-container`. P1.1 destinations are flat, stable and thumb-accessible: **Cards** (index/ledger), **Checkout** (passive scanner panel) and **Balance Check** (existing Manual/Companion workflow). Mobile navigation respects the safe-area inset; desktop navigation stays bounded below the header. Settings uses the top-right 48px Header IconButton and returns to its calling destination.
 * **Top Header Visual Identity**: Header carries the primary container fill (`bg-m3-primary-container` and `text-m3-on-primary-container`) with custom properties referencing a production-inspired Walmart blue seed (#0071dc) to restore color identity while satisfying strict M3 semantic color roles.
 * **Product Identity**: Target user-facing product branding is **GC Wallet**, while retaining `Walmart-GC` as the repository and deployment identifier.
 
@@ -141,15 +141,23 @@ cards; ordinary return to review retains the existing session.
 
 Browser inventory is stored in ordinary, unencrypted IndexedDB. Legacy localStorage is recovery input only; no stronger storage-encryption claim is made. Account details stay in Settings and credentials never enter transfer URLs, logs or persistent transport storage.
 
+## P1.1 unified navigation
+
+P1.1 authorizes the shared M3 shell with Cards, Checkout and Balance Check,
+merchant total, compact sync status and private Settings. Preserve selection,
+filters, per-destination scroll, Checkout/Settings drafts, Manual/Batch progress,
+result drafts/preview and contextual return. Ordinary entry resumes verification;
+explicit flagged entry refreshes current flags. Disable navigation during
+verification commands until completion. Interactive sync status opens private
+Settings without starting authentication. No credential-bearing navigation state
+is persisted. Desktop remains centered within 60rem; mobile has no outer panel.
+
 ## Deferred product interactions
 
 The [roadmap](ROADMAP.md#product-priorities-and-deferred-work) preserves these
-future UX decisions. They require separate authorization and do not change the
-released Cards/Checkout navigation or authorize standalone A4.
+future UX decisions. They require separate authorization and do not authorize
+standalone A4.
 
-- A shared M3 shell with Cards, Checkout and Balance Check destinations, merchant
-  total, compact sync status and private Settings. Keep card/filter/scroll state,
-  Manual/Batch drafts and progress, and contextual return across navigation.
 - Cards retains Active/Used/All, balance filters and sorting. Checkout remains
   barcode-first with bounded Previous/Next/swipes; balance, used and verification
   are distinct actions and notes remain secondary.
