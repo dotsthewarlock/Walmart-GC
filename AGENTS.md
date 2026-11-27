@@ -22,7 +22,9 @@ Prefer the least expensive sufficient approach. Before expensive or potentially
 low-yield work, assess necessity, benefit, existing evidence and cheaper
 alternatives; omit unnecessary work. Inspect affected code and contracts before
 changes. Do not repeat completed audits or unaffected manual tests.
-Bound asynchronous test and external-process waits. Prefer blocking CI watches;
+Define lifecycle failure acceptance before implementation and reuse existing fixtures.
+Confirm reviewer availability before waiting; use an authorized alternative when
+unavailable. Bound asynchronous test and external-process waits. Prefer blocking CI watches;
 avoid repeated unchanged status or log inspections. Finalize affected documentation
 before submitting the release candidate; record subsequent release evidence in
 the PR.

@@ -1,6 +1,6 @@
 import {test, expect} from '@playwright/test';
 
-test('installed shell reloads offline without caching private responses', async ({browser}) => {
+test('installed shell reloads offline without caching private responses', async ({browser, request}) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto('/');
@@ -16,6 +16,19 @@ test('installed shell reloads offline without caching private responses', async 
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('button', {name: 'Open settings'})).toBeVisible();
+  const removed = await page.evaluate(async () => {
+    const name = (await caches.keys()).find(key => key.startsWith('gc-shell-'));
+    const cache = await caches.open(name), asset = (await cache.keys()).find(request => new URL(request.url).pathname.endsWith('.js'));
+    const response = await cache.match(asset), body = await response.text();
+    await cache.delete(asset); return {name, url:asset.url, body};
+  });
+  await request.get('/__test/release?value=unavailable');
+  expect((await page.reload()).status()).toBe(503);
+  await expect(page.getByRole('heading', {name:'Wallet temporarily unavailable'})).toBeVisible();
+  await request.get('/__test/release?value=old');
+  await page.evaluate(async ({name,url,body}) => (await caches.open(name)).put(url, new Response(body, {headers:{'content-type':'text/javascript'}})), removed);
+  await page.reload();
+  await expect(page.getByRole('button', {name:'Open settings'})).toBeVisible();
   await context.setOffline(false);
   await context.close();
 });
@@ -68,15 +81,16 @@ test('updates preserve controlled releases and durable sync through offline acti
   const oldCache = await old.evaluate(async () => (await caches.keys()).find(k => k.endsWith('-old')));
   const asset = await old.evaluate(async key => (await (await caches.open(key)).keys()).map(r => new URL(r.url).pathname).find(p => p.endsWith('.js')), oldCache);
   const oldBytes = await old.evaluate(async asset => await (await fetch(asset)).text(), asset);
-  // A missing cached asset must not silently come from a different network release.
-  expect(await old.evaluate(async ({key, asset}) => {
-    const cache = await caches.open(key), saved = await cache.match(asset);
-    await cache.delete(asset);
-    let failed = false;
-    try { await fetch(asset); } catch { failed = true; }
-    await cache.put(asset, saved);
-    return failed;
-  }, {key:oldCache, asset})).toBe(true);
+  // Missing and corrupted entries are repaired only from matching public bytes.
+  for (const corrupt of [false, true]) {
+    expect(await old.evaluate(async ({key, asset, corrupt}) => {
+      const cache = await caches.open(key);
+      if (corrupt) await cache.put(asset, new Response('corrupt'));
+      else await cache.delete(asset);
+      const response = await fetch(asset);
+      return {body:await response.text(), stored:await (await cache.match(asset)).text()};
+    }, {key:oldCache, asset, corrupt})).toEqual({body:oldBytes, stored:oldBytes});
+  }
   for (const bad of ['mixed','missing']) {
     await request.get(`/__test/release?value=${bad}`);
     await old.evaluate(async () => { try { await (await navigator.serviceWorker.ready).update(); } catch {} });
@@ -88,6 +102,41 @@ test('updates preserve controlled releases and durable sync through offline acti
   await old.evaluate(async () => (await navigator.serviceWorker.ready).update());
   await expect.poll(() => old.evaluate(async () => (await navigator.serviceWorker.ready).waiting?.state), {timeout:10000}).toBe('installed');
   expect(await old.evaluate(async asset => await (await fetch(asset)).text(), asset)).toBe(oldBytes);
+  // A newer release has genuinely different HTML and JS; neither may repair an old tab.
+  expect(await old.evaluate(async ({key, asset}) => {
+    const cache = await caches.open(key), saved = await cache.match(asset);
+    await cache.delete(asset);
+    let failed = false;
+    try { await fetch(asset); } catch { failed = true; }
+    await cache.put(asset, saved);
+    return failed;
+  }, {key:oldCache, asset})).toBe(true);
+  const query = await context.newPage();
+  const queryResponse = await query.goto('/?auth=connected');
+  expect(query.url()).toContain('?auth=connected');
+  expect(await queryResponse.text()).not.toContain('synthetic new release');
+  await expect(query.getByRole('button',{name:'Open settings'})).toBeVisible();
+  await query.close();
+  const savedAsset = await old.evaluate(async ({key, asset}) => {
+    const cache = await caches.open(key), response = await cache.match(asset);
+    const text = await response.text(); await cache.delete(asset); return text;
+  }, {key:oldCache, asset});
+  const brokenStartup = await context.newPage();
+  expect((await brokenStartup.goto('/')).status()).toBe(503);
+  await expect(brokenStartup.getByRole('heading',{name:'Wallet temporarily unavailable'})).toBeVisible();
+  await brokenStartup.close();
+  await old.evaluate(async ({key, asset, text}) => (await caches.open(key)).put(asset, new Response(text, {headers:{'content-type':'text/javascript'}})), {key:oldCache, asset, text:savedAsset});
+  const savedRoot = await old.evaluate(async key => {
+    const cache = await caches.open(key), root = await cache.match('/');
+    const text = await root.text(); await cache.delete('/'); return text;
+  }, oldCache);
+  const recovery = await context.newPage();
+  const unavailable = await recovery.goto('/?auth=connected');
+  expect(unavailable.status()).toBe(503);
+  await expect(recovery.getByRole('heading',{name:'Wallet temporarily unavailable'})).toBeVisible();
+  expect(profile(await state(old)).pending).toEqual(before.pending);
+  await recovery.close();
+  await old.evaluate(async ({key, html}) => (await caches.open(key)).put('/', new Response(html, {headers:{'content-type':'text/html'}})), {key:oldCache, html:savedRoot});
   const auth = await context.newPage();
   await auth.goto('/auth/test');
   await expect(auth.locator('body')).toHaveText('private-network');
@@ -98,9 +147,13 @@ test('updates preserve controlled releases and durable sync through offline acti
   await context.setOffline(true);
   hold = false; releaseHeld();
   await old.close();
+  // Allow the waiting worker to activate after its last controlled client closes.
+  await new Promise(resolve => setTimeout(resolve, 500));
   const next = await context.newPage();
-  await next.goto('/');
+  const nextResponse = await next.goto('/');
   await expect(next.getByRole('button',{name:'Open settings'})).toBeVisible();
+  expect(await nextResponse.text()).toContain('synthetic new release');
+  expect(await next.evaluate(async asset => (await (await fetch(asset)).text()).includes('synthetic new release'), asset)).toBe(true);
   await expect.poll(() => next.evaluate(() => navigator.serviceWorker.controller?.state)).toBe('activated');
   const after = profile(await state(next));
   expect(after.pending).toEqual(before.pending);
