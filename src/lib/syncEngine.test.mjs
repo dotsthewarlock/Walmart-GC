@@ -185,3 +185,65 @@ test('an edit scheduled during a stale pull is pushed after that pull is rejecte
  await clock.advance(3000);assert.equal(profileOf(await f.store.read()).pending.length,0);
  assert.equal((await f.remote.read()).cards[0].notes,'saved during pull');engine.stop();
 });
+
+test('failed initial binding retries through ordinary manual sync and preserves 621 unbound operations',async()=>{
+ const cards=Array.from({length:621},(_,i)=>({...a,cardNumber:'63'+String(i+100000).padStart(14,'0')}));
+ const store=openInventory({indexedDB:syntheticIndexedDB(),name:'retry-binding',storage:{getItem:key=>key==='walmartGc.cards'?JSON.stringify(cards):null}});await store.initialize();
+ const remote=await syntheticRemote([a]),clock=testClock();let blocked=true;
+ const status={authenticated:true,principal:'synthetic-principal',sheetId:'synthetic-sheet',ownershipVerified:true,syncProtocol,coordinationAvailable:true};
+ const engine=createSyncEngine({store,timers:clock.timers,now:clock.now,request:async(path,options)=>{
+  if(path==='/api/status')return status;
+  if(blocked)throw Object.assign(Error('Duplicate rows'),{payload:{code:'duplicate_cards',diagnostics:[{kind:'duplicate_card',rows:[2,551],last4:'0042'}]}});
+  return {...await remote.coordinator.run(JSON.parse(options.body)),principal:status.principal,sheetId:status.sheetId};
+ }});
+ await engine.start();let state=await store.read();assert.equal(state.active,'unbound');assert.equal(profileOf(state).pending.length,621);
+ blocked=false;await engine.manual();state=await store.read();assert.equal(profileOf(state).context.ownershipVerified,true);assert.equal(state.profiles.unbound.pending.length,621);assert.deepEqual(state.profiles.unbound.cards,cards);
+});
+
+test('exact durable control rejection retires only its request; uncertain control retries survive restart',async()=>{
+ const f=await fixture(),context=inventoryContext(await f.store.read());
+ await f.engine.control('pause');
+ await assert.rejects(f.engine.control('pause'),/already paused/);
+ // Synthetic transport exposes the same structured proof as the Worker boundary.
+ const request=async(...args)=>{try{return await f.request(...args);}catch(error){error.payload={...error.body,code:error.code,notDispatched:error.notDispatched,rejection:error.rejection,principal:f.status.principal,sheetId:f.status.sheetId};throw error;}};
+ const engine=createSyncEngine({store:f.store,request,timers});await engine.sync();
+ let state=await f.store.read();assert.equal(state.controlFlights[f.status.principal],undefined);assert.equal(state.quarantine.at(-1).kind,'rejected-control');
+ await engine.control('resume');assert.equal((await f.remote.read()).maintenance,false);
+ f.remote.fail='after';await assert.rejects(engine.control('pause'),/uncertain/);
+ state=await f.store.read();const id=state.controlFlights[f.status.principal].request.id;assert.ok(id);
+ const restarted=createSyncEngine({store:f.store,request,timers});await restarted.sync();state=await f.store.read();assert.equal(state.controlFlights[f.status.principal],undefined);assert.equal(f.remote.writes,3);
+ assert.equal(state.profiles.unbound.cards[0].pin,b.pin);assert.equal(context.profile,state.active);
+});
+
+test('mismatched non-dispatch proof and ambiguous control errors preserve the exact saved request',async()=>{
+ const f=await fixture();let proof=false;
+ const engine=createSyncEngine({store:f.store,timers,request:async(path,options)=>{
+  if(path==='/api/status')return f.status;
+  const payload=JSON.parse(options.body);throw Object.assign(Error('Not confirmed'),{payload:proof?{notDispatched:true,rejection:{id:payload.id,requestHash:'wrong'}}:{notDispatched:true}});
+ }});
+ await assert.rejects(engine.control('pause'));const saved=(await f.store.read()).controlFlights[f.status.principal];
+ proof=true;await engine.sync();assert.deepEqual((await f.store.read()).controlFlights[f.status.principal],saved);
+});
+
+test('unbound recovery binds a verified destination first and retains source cards and operation identities',async()=>{
+ const f=await fixture();let state=await f.store.read();const source=structuredClone(state.profiles.unbound);
+ await f.store.commit({id:crypto.randomUUID(),kind:'select-compartment',...inventoryContext(state),target:'unbound'});
+ const engine=createSyncEngine({store:f.store,request:f.request,timers,automatic:()=>false});await engine.recoverUnbound();state=await f.store.read();
+ assert.equal(profileOf(state).context.ownershipVerified,true);assert.deepEqual(state.profiles.unbound.cards,source.cards);assert.deepEqual(state.profiles.unbound.pending,source.pending);assert.ok(profileOf(state).pending.some(op=>op.kind==='unbound-recovery'&&op.cardNumber===b.cardNumber));
+});
+
+test('lost targetless setup cannot redirect to another Sheet or retire using its rejection proof',async()=>{
+ const f=await fixture();f.status.sheetId='';let posts=0;
+ const {fingerprint}=await import('./syncProtocol.js');
+ const request=async(path,options)=>{
+  if(path==='/api/status')return f.status;
+  posts++;const payload=JSON.parse(options.body);
+  if(posts===1)throw new TypeError('Response lost after possible dispatch to Sheet A');
+  throw Object.assign(Error('Sheet B rejects'),{payload:{sheetId:'sheet-B',notDispatched:true,rejection:{id:payload.id,requestHash:await fingerprint({...payload,sheetId:'sheet-B'})}}});
+ };
+ const engine=createSyncEngine({store:f.store,request,timers});await assert.rejects(engine.control('ensure'),/Response lost/);
+ const saved=(await f.store.read()).controlFlights[f.status.principal];assert.equal(saved.request.sheetId,'');
+ f.status.sheetId='sheet-B';const restarted=createSyncEngine({store:f.store,request,timers});await restarted.sync();
+ assert.deepEqual((await f.store.read()).controlFlights[f.status.principal],saved);assert.equal(posts,1);
+ await assert.rejects(restarted.control('ensure',{sheetId:'sheet-B'}),/operator recovery/);assert.equal(posts,1);
+});

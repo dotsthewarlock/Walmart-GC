@@ -30,7 +30,7 @@ async function setup(context,remote,legacy=[cardA,cardB]){
   const body=request.postDataJSON();
   if(url.pathname!=='/api/sync'&&url.pathname!=='/api/sheet/ensure'){blocked.push(url.pathname);return route.fulfill({status:403,json:{error:'Unsupported synthetic API'}});}
   if(mock.hold)await mock.hold;
-  try{const result=await remote.coordinator.run(body);return route.fulfill({json:{...result,principal:mock.principal,sheetId:mock.sheetId}});}catch(error){return route.fulfill({status:error.code==='uncertain'?503:409,json:{error:error.message,code:error.code}});}
+  try{const result=await remote.coordinator.run(body);return route.fulfill({json:{...result,principal:mock.principal,sheetId:mock.sheetId}});}catch(error){return route.fulfill({status:error.code==='uncertain'?503:409,json:{...error.body,error:error.message,code:error.code,notDispatched:error.notDispatched,rejection:error.rejection,principal:mock.principal,sheetId:mock.sheetId}});}
  });
  context.on('page',page=>{page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>{dialogs.push(dialog.message());return mock.dismissRecovery&&dialog.message().includes('Recovery exports contain')?dialog.dismiss():dialog.accept();});});
  return {errors,blocked,requests,mock,dialogs};
@@ -324,5 +324,18 @@ test('Checkout retains workflow drafts and selection while copy, barcode, naviga
  await expect(page.getByText('Code/PIN copied',{exact:true})).toBeVisible();
  await page.screenshot({path:test.info().outputPath('checkout-desktop.png'),fullPage:true,animations:'disabled'});
  await expect(page.getByText(/qa@example.invalid/)).toHaveCount(0);expect(qa.errors).toEqual([]);
+ await context.close();
+});
+
+test('Settings masks duplicate diagnostics and Sync now retries initial binding after private repair',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:412,height:923}}),remote=await syntheticRemote([cardA]),qa=await setup(context,remote);let invalid=true;
+ const read=remote.adapter.read;remote.adapter.read=async()=>{if(invalid)throw Object.assign(Error('Duplicate Sheet rows block synchronization. Pause shared maintenance and back up the Sheet before private review.'),{body:{code:'duplicate_cards',diagnostics:[{kind:'duplicate_card',rows:[2,551],last4:'0042'}],sheetId:'synthetic-sheet'}});return read();};
+ const page=await context.newPage();await page.goto('/');await page.getByRole('button',{name:'Open settings'}).click();
+ await expect(page.getByText('Card ending 0042: rows 2 and 551')).toBeVisible();await expect(page.getByRole('link',{name:'Open Sheet for recovery'})).toBeVisible();
+ const recovery=page.getByRole('region',{name:'Synchronization recovery'});await expect(recovery).not.toContainText(cardA.cardNumber);
+ let state=await snapshot(page);expect(state.active).toBe('unbound');const original=state.profiles.unbound.pending;
+ await page.screenshot({path:'test-results/p0-duplicate-settings-mobile.png',fullPage:true});
+ invalid=false;await page.getByRole('button',{name:'Sync now',exact:true}).click();await expect.poll(async()=>active(await snapshot(page)).context.ownershipVerified).toBe(true);
+ state=await snapshot(page);expect(state.profiles.unbound.pending).toEqual(original);expect(state.profiles.unbound.cards).toHaveLength(2);expect(qa.errors).toEqual([]);
  await context.close();
 });

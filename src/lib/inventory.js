@@ -160,9 +160,13 @@ export function reduceInventory(input, command) {
     if(!command.request.principal)throw new Error('Verified account required.');
     if(state.controlFlights[command.request.principal])return input;
     state.controlFlights[command.request.principal]={request:command.request};
-  } else if (command.kind === 'control-ack') {
+  } else if (command.kind === 'control-ack' || command.kind === 'control-rejected') {
     const flight=state.controlFlights?.[command.principal];
     if(!flight||flight.request.id!==command.commitId)throw new Error('Saved control request changed.');
+    if(command.kind==='control-rejected'){
+      if(!command.rejection||command.rejection.id!==flight.request.id||command.rejection.requestHash!==command.requestHash)throw new Error('Exact non-dispatch proof required.');
+      state.quarantine.push({kind:'rejected-control',request:flight.request,rejection:command.rejection,reason:command.reason});
+    }
     delete state.controlFlights[command.principal];
   } else if (command.kind === 'bind-remote') {
     if (!command.principal || !command.sheetId || command.snapshot.protocol !== syncProtocol) throw new Error('Verified account and Sheet context required.');

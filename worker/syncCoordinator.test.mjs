@@ -94,3 +94,24 @@ test('maintenance cannot erase or change a precise verification without an expli
  await remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-restored'});
  assert.equal((await remote.read()).cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
 });
+
+test('control validation rejection is durably fenced by exact identity across restart',async()=>{
+ const remote=await syntheticRemote([a]),storage=memoryStorage();let invalid=true;
+ remote.adapter.prepare=async()=>{if(invalid)throw Error('Synthetic invalid layout');};
+ const request={protocol:syncProtocol,action:'pause',id:crypto.randomUUID(),principal:'synthetic-principal',sheetId:'synthetic-sheet'};
+ let proof;await assert.rejects(coordinate(storage,remote.adapter,request),error=>{assert.equal(error.notDispatched,true);proof=error.rejection;return true;});
+ assert.equal(remote.writes,0);assert.ok(proof.requestHash);invalid=false;
+ await assert.rejects(new SerialCoordinator(storage,remote.adapter).run(request),error=>{assert.equal(error.code,'control_rejected');assert.deepEqual(error.rejection,proof);return true;});
+ await assert.rejects(coordinate(storage,remote.adapter,{...request,action:'resume'}),error=>{assert.notEqual(error.notDispatched,true);return true;});
+ await coordinate(storage,remote.adapter,{...request,id:crypto.randomUUID()});assert.equal(remote.writes,1);
+});
+
+test('an uncertain control cannot gain non-dispatch proof even when later validation fails',async()=>{
+ const remote=await syntheticRemote([a]),storage=memoryStorage();remote.fail='before';
+ const request={protocol:syncProtocol,action:'pause',id:crypto.randomUUID()};
+ await assert.rejects(coordinate(storage,remote.adapter,request),error=>{assert.equal(error.code,'uncertain');assert.notEqual(error.notDispatched,true);return true;});
+ const saved=await storage.get('coordination');
+ remote.adapter.read=async()=>{throw Error('Synthetic malformed rows');};
+ await assert.rejects(coordinate(storage,remote.adapter,request),error=>{assert.notEqual(error.notDispatched,true);return true;});
+ assert.deepEqual(await storage.get('coordination'),saved);assert.equal(remote.writes,1);
+});

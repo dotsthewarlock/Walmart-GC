@@ -279,3 +279,21 @@ test('failed Sheets batch leaves headers, cards and metadata at the previous val
  await assert.rejects(write(adapter,before,[{...before.cards[0],pendingReconciliation:true}]),/Google API/);
  assert.deepEqual({cards:fixture.cards,meta:fixture.meta},original);
 });
+
+test('duplicate row 551 yields masked diagnostics; explicit pause preserves every Cards cell and metadata evidence',async(t)=>{
+ const headers=[...requiredCardHeaders,'lastBalanceChecked','lastBalanceCheckedAt'];
+ const precise={...cardA,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
+ const rows=Array.from({length:621},(_,i)=>rowFor(headers,{...(i===0?precise:cardA),cardNumber:'63'+String(i+100000).padStart(14,'0')}));rows[549]=[...rows[0]];
+ const sheet=setupSheet(t,{headers,rows}),before=structuredClone(sheet.cards),adapter=googleSheetAdapter('fixture-access',spreadsheetId),storage=memoryStorage(),coordinator=new SerialCoordinator(storage,adapter);
+ await assert.rejects(adapter.read(),error=>{
+  assert.equal(error.body.code,'duplicate_cards');assert.deepEqual(error.body.diagnostics[0],{kind:'duplicate_card',rows:[2,551],last4:'0000'});
+  assert.ok(!JSON.stringify(error.body).includes('6300000000100000'));return true;
+ });
+ const request={protocol:syncProtocol,action:'pause',id:crypto.randomUUID(),principal:'synthetic-principal',sheetId:spreadsheetId};
+ const result=await coordinator.run(request);assert.equal(result.snapshot.maintenance,true);assert.equal(result.snapshot.diagnostics.length,1);assert.deepEqual(sheet.cards,before);
+ assert.ok(sheet.meta.some(row=>row[0]==='fixtureExtra'&&row[1]==='preserve me'));
+ assert.ok(sheet.mutations.flat().filter(r=>r.updateCells).every(r=>r.updateCells.start?.sheetId===20));
+ sheet.cards.splice(550,1);
+ await coordinator.run({...request,action:'resume',id:crypto.randomUUID()});
+ const valid=await adapter.read();assert.equal(valid.cards.length,620);assert.equal(valid.cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
+});

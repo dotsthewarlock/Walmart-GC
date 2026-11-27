@@ -4,7 +4,7 @@ import {syncProtocol,fingerprint,snapshotContent,materialize,validateEvidence} f
 // All local write commands finish before the coalesced push. No work is promised
 // after the page closes. In-flight request bytes/identity survive a process exit.
 export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},onAuth=()=>{},timers=globalThis,automatic=()=>true,visible=()=>typeof document==='undefined'||document.visibilityState==='visible',now=()=>Date.now()}) {
-  let running=false,again=false,stopped=false,timer,retryTimer,queuedAt=null,attempts=0,lastPrincipal,lastAttempt=-Infinity,lastManual=-Infinity,lastCheck=-Infinity,lastContext='',retryNotBefore=0,initialBind=false;
+  let running=false,again=false,stopped=false,timer,retryTimer,queuedAt=null,attempts=0,lastPrincipal,lastAttempt=-Infinity,lastManual=-Infinity,lastCheck=-Infinity,lastContext='',retryNotBefore=0,initialBind=true;
   const autoAllowed=()=>!stopped&&automatic()&&visible();
   const pending=state=>{const p=profileOf(state);return p.context.ownershipVerified===true&&Boolean(p.inFlight||p.pending.length||state.controlFlights?.[p.context.principal]);};
   const commit=async command=>{const state=await store.commit({id:operationId(),...command});onState(state);return state;};
@@ -22,16 +22,32 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
   async function performControl(state,status,action,details={}) {
     const context=inventoryContext(state);
     if(!status.authenticated||!status.principal||!status.ownershipVerified||status.syncProtocol!==syncProtocol||!status.coordinationAvailable)throw Error('Verified Google access and protected coordination are required.');
+    const saved=state.controlFlights?.[status.principal]?.request;
+    if(saved&&!saved.sheetId)throw Error('Saved setup has no confirmed Sheet destination. Its outcome may be uncertain; preserve a private recovery backup and use operator recovery. It cannot be redirected to another Sheet.');
+    if(saved&&action&&(saved.action!==action||(details.sheetId&&details.sheetId!==saved.sheetId)))throw Error('A previous control request still needs confirmation. Select Sync now to check it before choosing a different action or Sheet.');
     if(!state.controlFlights?.[status.principal]){
       const payload={...details,id:operationId(),protocol:syncProtocol,action,principal:status.principal,sheetId:details.sheetId||status.sheetId||''};
       state=await commit({kind:'control-begin',...context,request:payload});
     }
     const payload=state.controlFlights[status.principal].request;
-    const result=await request(payload.action==='ensure'?'/api/sheet/ensure':'/api/sync',{method:'POST',body:JSON.stringify(payload)});
+    let result;
+    try{result=await request(payload.action==='ensure'?'/api/sheet/ensure':'/api/sync',{method:'POST',body:JSON.stringify(payload)});}
+    catch(error){
+      const proof=error.payload?.rejection;
+      const requestHash=await fingerprint(payload);
+      if(payload.sheetId&&error.payload?.notDispatched===true&&proof?.id===payload.id&&proof.requestHash===requestHash){
+        await commit({kind:'control-rejected',...context,principal:status.principal,commitId:payload.id,requestHash,rejection:proof,reason:error.message});
+      }
+      throw error;
+    }
     await verifySnapshot(result,status.principal,payload.sheetId||result.sheetId);
     const normalized={...payload,sheetId:result.sheetId};
     if(result.receipt?.id!==payload.id||result.receipt.requestHash!==await fingerprint(normalized))throw Error('Protected control commit could not be confirmed.');
     state=await commit({kind:'control-ack',...context,principal:status.principal,commitId:payload.id});
+    if(result.snapshot.diagnostics?.length){
+      onStatus({phase:'maintenance',message:'Shared maintenance is paused. Back up the Sheet and resolve the listed duplicate rows before accepting maintenance.',diagnostics:result.snapshot.diagnostics,sheetId:result.sheetId});
+      return state;
+    }
     return commit({kind:'bind-remote',...inventoryContext(state),principal:status.principal,sheetId:result.sheetId,snapshot:result.snapshot});
   }
   async function control(action,details={}) {
@@ -41,7 +57,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
       let state=await store.read();const context=inventoryContext(state);
       const status=await request('/api/status',{cache:'no-store'});assertInventoryContext(await store.read(),context);state=await observeIdentity(state,status);onAuth(status);
       const result=await performControl(state,status,action,details);completed=true;return result;
-    }catch(error){onStatus({phase:'error',message:error.message});throw error;}
+    }catch(error){onStatus({phase:'error',message:error.message,diagnostics:error.payload?.diagnostics,sheetId:error.payload?.sheetId});throw error;}
     finally{running=false;if(completed)schedule();}
   }
   async function sync({bind=false,bindOnly=false,source='manual'}={}) {
@@ -58,7 +74,6 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
       if(isAuto&&now()<Math.max(lastAttempt+15000,retryNotBefore)){if(hasPending)again=true;return;}
       timers.clearTimeout(timer);timer=undefined;queuedAt=null;
       timers.clearTimeout(retryTimer);retryTimer=undefined;
-      if(bind)initialBind=false;
       lastAttempt=lastCheck=now();lastContext=key;
       onStatus({phase:'checking',message:'Checking saved changes…'});
       const status=await request('/api/status',{cache:'no-store'});
@@ -79,7 +94,8 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         state=await commit({kind:'bind-remote',...context,principal:status.principal,sheetId:status.sheetId,snapshot:result.snapshot});
         context=inventoryContext(state);profile=profileOf(state);bound=true;
       }
-      if(bindOnly){onStatus({phase:'local',message:'Connected. Select Sync now to synchronize saved changes.'});return;}
+      initialBind=false;
+      if(bindOnly){onStatus({phase:'local',message:'Connected. Select Sync now to synchronize saved changes.'});return state;}
       state=await store.read();assertInventoryContext(state,context);profile=profileOf(state);
       if(profile.inFlight||profile.pending.length){
         if(!profile.inFlight){
@@ -108,7 +124,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         const state=await store.read();
         try{assertInventoryContext(state,context);if(profileOf(state).inFlight)await commit({kind:'sync-blocked',...context,commitId:profileOf(state).inFlight.request.id,reason:'baseline_expired'});}catch{/* preserve original pending work */}
       }
-      onStatus({phase:'error',message:error.message});
+      onStatus({phase:'error',message:error.message,diagnostics:error.payload?.diagnostics,sheetId:error.payload?.sheetId});
       // Only transport failures receive bounded retries of the SAME durable ID.
       // An uncertain response never authorizes a new request identity.
       if((error instanceof TypeError||error.name==='TimeoutError')&&autoAllowed()){
@@ -128,7 +144,22 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
     timers.clearTimeout(timer);timer=timers.setTimeout(()=>{timer=undefined;queuedAt=null;return sync({source:'change'});},Math.max(0,due-time));
   }
   function foreground(){if(autoAllowed())return sync({bind:initialBind,source:'foreground'});}
-  function manual(options={}){if(stopped||running||now()-lastManual<5000)return;lastManual=now();return sync(options);}
+  function manual(options={}){if(stopped||running||now()-lastManual<5000)return;lastManual=now();return sync({...options,bind:options.bind||initialBind});}
+  async function recoverUnbound(){
+    if(running||stopped)throw Error('Wait for the current synchronization check.');
+    // Binding is a read-only prerequisite; failure leaves the source untouched.
+    if(!await sync({bind:true,bindOnly:true}))throw Error('A valid verified Sheet is required before recovering unbound cards. Resolve the synchronization problem and retry.');
+    if(running||stopped)throw Error('Wait for the current synchronization check.');
+    running=true;
+    try{
+      const state=await store.read(),context=inventoryContext(state),profile=profileOf(state);
+      const status=await request('/api/status',{cache:'no-store'});
+      assertInventoryContext(await store.read(),context);
+      if(!status.authenticated||!status.ownershipVerified||profile.context.ownershipVerified!==true||status.principal!==profile.context.principal||status.sheetId!==profile.context.sheetId)throw Error('Connect the matching Google account and establish a valid Sheet before recovering unbound cards.');
+      await commit({kind:'csv-recovery',...context,revision:profile.revision,cards:state.profiles.unbound.cards,recovery:true});
+    }finally{running=false;}
+    schedule();
+  }
   async function recoverExpired(){
     if(running||stopped)throw Error('Wait for the current synchronization check.');
     running=true;lastAttempt=now();
@@ -140,5 +171,5 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
     await commit({kind:'recover-expired',...context,revision:profile.revision,snapshot:result.snapshot});schedule();
     }finally{running=false;}
   }
-  return {sync,manual,foreground,control,recoverExpired,schedule,start({authReturn=false}={}){if(automatic()){initialBind=true;return foreground();}if(authReturn)return manual({bind:true,bindOnly:true});},stop(){stopped=true;timers.clearTimeout(timer);timers.clearTimeout(retryTimer);}};
+  return {sync,manual,foreground,control,recoverExpired,recoverUnbound,schedule,start({authReturn=false}={}){if(automatic()){initialBind=true;return foreground();}if(authReturn)return manual({bind:true,bindOnly:true});},stop(){stopped=true;timers.clearTimeout(timer);timers.clearTimeout(retryTimer);}};
 }

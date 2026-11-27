@@ -1,14 +1,40 @@
 import {syncProtocol,fingerprint,snapshotContent,reconcile,emptyEvidence,equal,materialize} from '../../src/lib/syncProtocol.js';
 const failure=(code,message)=>Object.assign(Error(message),{code});
-const publicSnapshot=s=>({cards:s.cards,evidence:s.evidence??emptyEvidence(),version:s.version,fingerprint:s.fingerprint,commitId:s.commitId||'',protocol:syncProtocol,maintenance:s.maintenance===true});
+const publicSnapshot=s=>({cards:s.cards,evidence:s.evidence??emptyEvidence(),version:s.version,fingerprint:s.fingerprint,commitId:s.commitId||'',protocol:syncProtocol,maintenance:s.maintenance===true,...(s.diagnostics?{diagnostics:s.diagnostics}: {})});
 
 // Called only within the DO's explicit promise queue, including every API await.
 // Durable storage contains hashes, commit IDs and receipts; never cards or tokens.
 export async function coordinate(storage,adapter,request) {
+  try{return await coordinateRequest(storage,adapter,request);}
+  catch(error){
+    // Only a durable, exact rejection permits retiring a local control identity.
+    // Any possible dispatch or confirmed receipt takes precedence over rejection.
+    if(['ensure','pause','resume'].includes(request.action)&&request.id&&request.protocol===syncProtocol){
+      const state=await storage.get('coordination')??{receipts:[],versions:[],maintenance:false};
+      const requestHash=await fingerprint(request),known=state.controlRejections?.find(r=>r.id===request.id);
+      if(!state.flight&&!state.receipts.some(r=>r.id===request.id)&&(!known||known.requestHash===requestHash)){
+        if(!known){
+          state.controlRejections??=[];
+          // Never evict a rejection and accidentally permit a stale tab to dispatch it.
+          if(state.controlRejections.length>=64)throw failure('recovery_full','Control recovery capacity reached. Preserve a private backup and use operator recovery.');
+          state.controlRejections.push({id:request.id,requestHash});
+          await storage.put('coordination',state);
+        }
+        error.notDispatched=true;error.rejection={id:request.id,requestHash};
+      }
+    }
+    throw error;
+  }
+}
+
+async function coordinateRequest(storage,adapter,request) {
   if(request.protocol!==syncProtocol)throw failure('upgrade_required','Reload the updated wallet before syncing.');
   const persisted=await storage.get('coordination');
   let state=persisted??{receipts:[],versions:[],maintenance:false};
-  let remote=await adapter.read();
+  const rejected=state.controlRejections?.find(r=>r.id===request.id);
+  if(rejected)throw failure('control_rejected',rejected.requestHash===await fingerprint(request)?'This control request was rejected before dispatch. Review the problem and submit the intended action again.':'Control identity was reused with different content.');
+  const read=()=>adapter.read({allowDuplicates:request.action==='pause'||state.flight?.maintenance===true});
+  let remote=await read();
   if(!persisted)state.maintenance=remote.maintenance===true;
   const recover=async()=>{
     if(!state.flight)return;
@@ -31,6 +57,7 @@ export async function coordinate(storage,adapter,request) {
     });
   };
   await recover();
+  if(remote.diagnostics?.length&&request.action!=='pause')throw failure('duplicate_cards','Resolve duplicate Sheet rows during shared maintenance before continuing.');
   if(remote.maintenance!==state.maintenance && !['pause','resume'].includes(request.action))throw failure('direct_edit','Maintenance metadata changed outside the coordinator. Preserve a backup and review it.');
   if(remote.protocol&&remote.protocol!==syncProtocol)throw failure('upgrade_required','The Sheet uses an incompatible synchronization protocol.');
   if(state.receipts.length&&(!remote.protocol||!remote.fingerprint||!remote.commitId)&&!['pause','resume'].includes(request.action))throw failure('direct_edit','Commit metadata was removed outside shared maintenance.');
@@ -70,7 +97,11 @@ export async function coordinate(storage,adapter,request) {
     if(state.maintenance)throw failure('maintenance','Shared Sheet maintenance is already paused.');
     state.maintenance=true;state.maintenanceEvidenceHash=await fingerprint(candidate.evidence);
     const proofs={};
-    for(const card of remote.cards) if(card.lastBalanceCheckedAt) proofs[await fingerprint(card.cardNumber)]=await fingerprint([card.lastBalanceChecked,card.lastBalanceCheckedAt]);
+    for(const card of remote.cards) if(card.lastBalanceCheckedAt){
+      const key=await fingerprint(card.cardNumber),proof=await fingerprint([card.lastBalanceChecked,card.lastBalanceCheckedAt]);
+      if(proofs[key]&&proofs[key]!==proof)throw failure('verification_ambiguous','Duplicate rows contain different precise verification details. Preserve both rows in a private backup and use operator recovery.');
+      proofs[key]=proof;
+    }
     if(new TextEncoder().encode(JSON.stringify(proofs)).length>64000)throw failure('maintenance_proof_full','Too many precise verification records to safely pause maintenance.');
     state.maintenanceVerificationProofs=proofs;
   }else if(request.action==='resume'){
@@ -95,8 +126,8 @@ export async function coordinate(storage,adapter,request) {
   if(request.action==='commit'&&equal(snapshotContent(candidate),snapshotContent(remote))){
     // Still write commit evidence so even no-op acknowledgments have durable proof.
   }
-  await adapter.prepare?.(candidate,remote);
-  const checked=await adapter.read();
+  await adapter.prepare?.({...candidate,maintenance:state.maintenance},remote);
+  const checked=await read();
   if(checked.version!==remote.version||!equal(snapshotContent(checked),snapshotContent(remote))||!equal(checked.internal,remote.internal)||checked.maintenance!==remote.maintenance)throw failure('remote_changed','Sheet changed before dispatch. Recheck synchronization.');
   const contentFingerprint=await fingerprint(snapshotContent(candidate));
   const id=request.id;
@@ -108,7 +139,7 @@ export async function coordinate(storage,adapter,request) {
   try{await adapter.write({...candidate,maintenance:state.maintenance},id,contentFingerprint,remote);}catch{
     throw failure('uncertain','Sheet write outcome is uncertain. Local work is preserved; use Sync now to check commit evidence.');
   }
-  remote=await adapter.read();
+  remote=await read();
   await recover();
   if(remote.commitId!==id||remote.fingerprint!==contentFingerprint||await fingerprint(snapshotContent(remote))!==contentFingerprint)throw failure('uncertain','Sheet commit content could not be confirmed.');
   return {snapshot:publicSnapshot(remote),acknowledged:request.operations?.map(o=>o.id)??[],receipt:state.receipts.at(-1)};

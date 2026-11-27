@@ -112,3 +112,17 @@ test('SQLite maintenance verification proofs survive restart and block timestamp
   assert.equal(result.code,'verification_changed');
  }finally{await mf.dispose();await mock.close();await rm(persist,{recursive:true,force:true});}
 });
+
+test('SQLite control rejection proof and duplicate maintenance survive HTTP boundaries and restart',async()=>{
+ const {mock,sheet}=googleFixture(),persist=await mkdtemp(join(tmpdir(),'gc-p0-'));let mf=runtime(mock,persist);
+ const row=csvHeaders.map(key=>key==='used'?'FALSE':cardA[key]??'');sheet.cards.push(row,[...row]);
+ try{
+  await seedSession(mf);
+  const request={protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',action:'ensure',id:crypto.randomUUID()};
+  const http=body=>mf.dispatchFetch('https://wallet.example/api/sheet/ensure',{method:'POST',headers:{Cookie:'walmart_gc_session=synthetic-session','Content-Type':'application/json'},body:JSON.stringify(body)});
+  let response=await http(request),result=await response.json();assert.equal(response.status,409);assert.equal(result.code,'duplicate_cards');assert.equal(result.notDispatched,true);assert.equal(result.rejection.id,request.id);assert.equal(result.rejection.requestHash,await fingerprint(request));assert.deepEqual(result.diagnostics[0].rows,[2,3]);assert.ok(!JSON.stringify(result).includes(cardA.cardNumber));
+  await mf.dispose();mf=runtime(mock,persist);await seedSession(mf);response=await http(request);result=await response.json();assert.equal(result.code,'control_rejected');assert.equal(result.notDispatched,true);
+  const before=structuredClone(sheet.cards),object=await stub(mf),paused=await send(object,{action:'pause',id:crypto.randomUUID()});
+  assert.equal(paused.status,200);assert.equal(paused.snapshot.maintenance,true);assert.deepEqual(sheet.cards,before);assert.equal(sheet.writes,1);
+ }finally{await mf.dispose();mock.close();await rm(persist,{recursive:true,force:true});}
+});
