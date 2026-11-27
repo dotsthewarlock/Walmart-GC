@@ -1,6 +1,11 @@
-import {syncProtocol,fingerprint,snapshotContent,reconcile,emptyEvidence,equal,materialize} from '../../src/lib/syncProtocol.js';
+import {syncProtocol,fingerprint,snapshotContent,reconcile,emptyEvidence,equal,materialize,validateEvidence} from '../../src/lib/syncProtocol.js';
+import {reconcileDuplicates,projectSheetChanges,resumeMaintenance} from '../../src/lib/inventoryRecovery.js';
+import {compactEvidence} from '../../src/lib/syncEvidence.js';
 const failure=(code,message)=>Object.assign(Error(message),{code});
-const publicSnapshot=s=>({cards:s.cards,evidence:s.evidence??emptyEvidence(),version:s.version,fingerprint:s.fingerprint,commitId:s.commitId||'',protocol:syncProtocol,maintenance:s.maintenance===true,...(s.diagnostics?{diagnostics:s.diagnostics}: {})});
+const publicSnapshot=s=>({cards:s.cards,evidence:s.evidence??emptyEvidence(),version:s.version,fingerprint:s.fingerprint,commitId:s.commitId||'',protocol:syncProtocol,maintenance:s.maintenance===true,...(s.needsRepair?{needsRepair:true}:{}),...(s.diagnostics?{diagnostics:s.diagnostics}: {})});
+const controlTime=id=>/^control:(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z):/.exec(id??'')?.[1];
+const monetaryContent=cards=>cards.map(card=>[card.cardNumber,card.pin,card.currentBalance,card.lastBalanceChecked||'',card.lastBalanceCheckedAt||'',card.pendingReconciliation===true,card.used])
+  .sort(([a],[b])=>a.localeCompare(b));
 
 // Called only within the DO's explicit promise queue, including every API await.
 // Durable storage contains hashes, commit IDs and receipts; never cards or tokens.
@@ -9,15 +14,19 @@ export async function coordinate(storage,adapter,request) {
   catch(error){
     // Only a durable, exact rejection permits retiring a local control identity.
     // Any possible dispatch or confirmed receipt takes precedence over rejection.
-    if(['ensure','pause','resume'].includes(request.action)&&request.id&&request.protocol===syncProtocol){
+    if(['ensure','pause','resume'].includes(request.action)&&request.id&&request.protocol===syncProtocol
+      &&(!controlTime(request.id)||Date.parse(controlTime(request.id))<=Date.now()+60000)){
       const state=await storage.get('coordination')??{receipts:[],versions:[],maintenance:false};
       const requestHash=await fingerprint(request),known=state.controlRejections?.find(r=>r.id===request.id);
       if(!state.flight&&!state.receipts.some(r=>r.id===request.id)&&(!known||known.requestHash===requestHash)){
-        if(!known){
+        const at=controlTime(request.id);
+        if(!known&&!(at&&at<=state.controlRejectionCutoff)){
           state.controlRejections??=[];
-          // Never evict a rejection and accidentally permit a stale tab to dispatch it.
-          if(state.controlRejections.length>=64)throw failure('recovery_full','Control recovery capacity reached. Preserve a private backup and use operator recovery.');
+          if(!at&&state.controlRejections.filter(r=>!controlTime(r.id)).length>=64)throw failure('upgrade_required','Reload the updated wallet before submitting another control.');
           state.controlRejections.push({id:request.id,requestHash});
+          const dated=state.controlRejections.filter(r=>controlTime(r.id)).sort((a,b)=>controlTime(a.id).localeCompare(controlTime(b.id)));
+          for(const old of dated.slice(0,-64))state.controlRejectionCutoff=[state.controlRejectionCutoff??'',controlTime(old.id)].sort().at(-1);
+          state.controlRejections=state.controlRejections.filter(r=>!controlTime(r.id)||!state.controlRejectionCutoff||controlTime(r.id)>state.controlRejectionCutoff);
           await storage.put('coordination',state);
         }
         error.notDispatched=true;error.rejection={id:request.id,requestHash};
@@ -33,7 +42,8 @@ async function coordinateRequest(storage,adapter,request) {
   let state=persisted??{receipts:[],versions:[],maintenance:false};
   const rejected=state.controlRejections?.find(r=>r.id===request.id);
   if(rejected)throw failure('control_rejected',rejected.requestHash===await fingerprint(request)?'This control request was rejected before dispatch. Review the problem and submit the intended action again.':'Control identity was reused with different content.');
-  const read=()=>adapter.read({allowDuplicates:request.action==='pause'||state.flight?.maintenance===true});
+  const createdAt=controlTime(request.id);
+  const read=()=>adapter.read();
   let remote=await read();
   if(!persisted)state.maintenance=remote.maintenance===true;
   const recover=async()=>{
@@ -46,6 +56,8 @@ async function coordinateRequest(storage,adapter,request) {
     const pruned=state.receipts.slice(0,-64);state.receipts=state.receipts.slice(-64);
     state.versions.push({version:remote.version,fingerprint:remote.fingerprint});state.versions=state.versions.slice(-64);
     state.maintenance=remote.maintenance===true;state.evidenceHash=flight.evidenceHash;
+    state.monetaryHash=flight.monetaryHash??await fingerprint(monetaryContent(remote.cards));
+    delete state.repair;
     const operationHashes=flight.operationHashes??{};
     delete state.flight;
     // Keep each noncredential storage value comfortably below 128 KiB.
@@ -57,14 +69,45 @@ async function coordinateRequest(storage,adapter,request) {
     });
   };
   await recover();
-  if(remote.diagnostics?.length&&request.action!=='pause')throw failure('duplicate_cards','Resolve duplicate Sheet rows during shared maintenance before continuing.');
   if(remote.maintenance!==state.maintenance && !['pause','resume'].includes(request.action))throw failure('direct_edit','Maintenance metadata changed outside the coordinator. Preserve a backup and review it.');
   if(remote.protocol&&remote.protocol!==syncProtocol)throw failure('upgrade_required','The Sheet uses an incompatible synchronization protocol.');
   if(state.receipts.length&&(!remote.protocol||!remote.fingerprint||!remote.commitId)&&!['pause','resume'].includes(request.action))throw failure('direct_edit','Commit metadata was removed outside shared maintenance.');
   if(state.evidenceHash&&await fingerprint(remote.evidence)!==state.evidenceHash)throw failure('evidence_changed','Managed recovery evidence changed outside the coordinator. Restore the preserved _META evidence.');
-  const actual=await fingerprint(snapshotContent(remote));
-  if(remote.fingerprint&&actual!==remote.fingerprint&&!state.maintenance&&request.action!=='pause')throw failure('direct_edit','Sheet contents changed outside the wallet. Pause maintenance before accepting direct edits.');
-  remote.fingerprint=actual;
+  const original=remote,actual=await fingerprint(snapshotContent(remote));
+  const drift=Boolean(remote.fingerprint&&actual!==remote.fingerprint);
+  if(!state.monetaryHash&&!drift&&state.receipts.length){
+    state.monetaryHash=await fingerprint(monetaryContent(remote.cards));await storage.put('coordination',state);
+  }
+  const knownBase=request.base&&await fingerprint(snapshotContent(request.base))===request.base.fingerprint
+    &&((request.base.version===remote.version&&request.base.fingerprint===remote.fingerprint)
+      ||state.versions.some(v=>v.version===request.base.version&&v.fingerprint===request.base.fingerprint));
+  const repairBase=knownBase&&request.base.version===remote.version&&state.versions.some(v=>v.version===request.base.version&&v.fingerprint===request.base.fingerprint&&v.repair);
+  const sameProjection=repairBase&&state.repair?.fingerprint===actual&&state.repair.projectionFingerprint===request.base.fingerprint;
+  const hasDuplicates=new Set(remote.cards.map(card=>card.cardNumber)).size!==remote.cards.length;
+  if((drift||hasDuplicates)&&state.repair?.fingerprint!==actual){
+    state.repair={fingerprint:actual,at:new Date().toISOString(),id:crypto.randomUUID()};await storage.put('coordination',state);
+  }
+  let projected=reconcileDuplicates(remote.cards,repairBase?request.base.evidence:remote.evidence,state.repair?.at,state.repair?.id);
+  const monetaryUnchanged=state.monetaryHash&&state.monetaryHash===await fingerprint(monetaryContent(projected.cards));
+  if(drift&&!knownBase&&!monetaryUnchanged&&!state.maintenance&&!['pause','resume'].includes(request.action)
+    &&await fingerprint(snapshotContent(projected))!==remote.fingerprint)
+    throw failure('direct_edit','Sheet contents changed without a retained baseline. Pause maintenance to accept the changes.');
+  if(sameProjection)projected={...projected,cards:structuredClone(request.base.cards),evidence:structuredClone(request.base.evidence)};
+  else if(drift&&knownBase&&!monetaryUnchanged&&!state.maintenance){
+    if(!repairBase&&(request.base.version!==remote.version||request.base.fingerprint!==remote.fingerprint))
+      throw failure('direct_edit','Current monetary changes cannot be classified from this stale baseline. Pause maintenance to preserve and accept them.');
+    // A registered repair baseline may contain alternatives not written yet.
+    // Preserve that exact, independently hashed plan across another direct edit.
+    projected=projectSheetChanges(projected,request.base,state.repair.at,actual);
+  }
+  remote={...remote,cards:projected.cards,evidence:projected.evidence};
+  remote.fingerprint=await fingerprint(snapshotContent(remote));
+  remote.needsRepair=drift||!equal(snapshotContent(original),snapshotContent(remote));
+  if(remote.needsRepair&&!state.versions.some(v=>v.version===remote.version&&v.fingerprint===remote.fingerprint)){
+    state.versions.push({version:remote.version,fingerprint:remote.fingerprint,repair:true});state.versions=state.versions.slice(-64);
+    state.repair={...state.repair,projectionFingerprint:remote.fingerprint};
+    await storage.put('coordination',state);
+  }
   if(request.action==='pull')return {snapshot:publicSnapshot(remote)};
   if(!request.id)throw failure('invalid','Missing durable commit identity.');
   const requestHash=await fingerprint(request);
@@ -74,6 +117,7 @@ async function coordinateRequest(storage,adapter,request) {
     // Never acknowledge an old receipt with a newer, unrelated snapshot.
     return {snapshot:publicSnapshot(remote),acknowledged:request.operations?.map(o=>o.id)??[],receipt:previous};
   }
+  if(createdAt&&(createdAt<=state.controlRejectionCutoff||Date.parse(createdAt)>Date.now()+60000))throw failure('control_rejected','This control is outside the retained recovery window. Review and submit the intended action again.');
   if(state.maintenance&&!['resume','pause'].includes(request.action))throw failure('maintenance','Shared Sheet maintenance is paused. Local changes remain saved.');
   let candidate={cards:remote.cards,evidence:structuredClone(remote.evidence??emptyEvidence())};
   const operationHashes={};
@@ -96,44 +140,46 @@ async function coordinateRequest(storage,adapter,request) {
   }else if(request.action==='pause'){
     if(state.maintenance)throw failure('maintenance','Shared Sheet maintenance is already paused.');
     state.maintenance=true;state.maintenanceEvidenceHash=await fingerprint(candidate.evidence);
-    const proofs={};
-    for(const card of remote.cards) if(card.lastBalanceCheckedAt){
-      const key=await fingerprint(card.cardNumber),proof=await fingerprint([card.lastBalanceChecked,card.lastBalanceCheckedAt]);
-      if(proofs[key]&&proofs[key]!==proof)throw failure('verification_ambiguous','Duplicate rows contain different precise verification details. Preserve both rows in a private backup and use operator recovery.');
-      proofs[key]=proof;
-    }
-    if(new TextEncoder().encode(JSON.stringify(proofs)).length>64000)throw failure('maintenance_proof_full','Too many precise verification records to safely pause maintenance.');
-    state.maintenanceVerificationProofs=proofs;
+    // The private Sheet retains original timestamps in the same bounded evidence
+    // representation as recovery. The DO needs only their aggregate evidence hash.
+    candidate.evidence.maintenanceCards=Object.fromEntries(remote.cards.map(c=>[c.cardNumber,{...c}]));
+    state.maintenanceEvidenceHash=await fingerprint(candidate.evidence);
   }else if(request.action==='resume'){
     if(!state.maintenance)throw failure('maintenance_required','Pause shared maintenance before accepting direct edits.');
     if(state.maintenanceEvidenceHash&&await fingerprint(remote.evidence)!==state.maintenanceEvidenceHash)throw failure('evidence_changed','Managed recovery evidence changed during maintenance. Restore the preserved _META evidence before resuming.');
-    if(state.maintenanceVerificationProofs){
+    const resumedAt=new Date().toISOString();
+    if(candidate.evidence.maintenanceCards){
+      resumeMaintenance(candidate,{deletedIds:request.deletedIds,id:request.id,now:resumedAt});
+    }else if(state.maintenanceVerificationProofs){
       const actualProofs={};
       for(const card of remote.cards) if(card.lastBalanceCheckedAt) actualProofs[await fingerprint(card.cardNumber)]=await fingerprint([card.lastBalanceChecked,card.lastBalanceCheckedAt]);
       const deleted=new Set(await Promise.all((request.deletedIds??[]).map(number=>fingerprint(number))));
       for(const [key,proof] of Object.entries(state.maintenanceVerificationProofs)) if(!deleted.has(key)&&actualProofs[key]!==proof)
         throw failure('verification_changed','Precise verification details changed during maintenance. Restore them from a private backup before resuming.');
-    } else if(remote.cards.some(card=>card.lastBalanceCheckedAt)) throw failure('verification_unproven','Verification details cannot be confirmed for this older maintenance session. Preserve a private backup and use controlled recovery.');
+    }
     // Deletion is explicit and fenced; absence by itself never creates a tombstone.
     for(const number of request.deletedIds??[]){
       if(!/^63\d{14}$/.test(number)||remote.cards.some(c=>c.cardNumber===number))throw failure('invalid_deletion','Remove the exact row during maintenance before explicitly confirming its deletion.');
       candidate.evidence.tombstones[number]={id:request.id+':'+number,at:new Date().toISOString()};
     }
-    candidate.evidence.maintenanceAt=new Date().toISOString();
+    candidate.evidence.maintenanceAt=resumedAt;
     delete state.maintenanceVerificationProofs;
     state.maintenance=false;
   }else if(request.action!=='ensure')throw failure('invalid','Unknown synchronization action.');
+  candidate.cards.sort((a,b)=>a.cardNumber.localeCompare(b.cardNumber));
+  candidate.evidence=compactEvidence(candidate.evidence);
+  validateEvidence(candidate.evidence);
   if(request.action==='commit'&&equal(snapshotContent(candidate),snapshotContent(remote))){
     // Still write commit evidence so even no-op acknowledgments have durable proof.
   }
   await adapter.prepare?.({...candidate,maintenance:state.maintenance},remote);
   const checked=await read();
-  if(checked.version!==remote.version||!equal(snapshotContent(checked),snapshotContent(remote))||!equal(checked.internal,remote.internal)||checked.maintenance!==remote.maintenance)throw failure('remote_changed','Sheet changed before dispatch. Recheck synchronization.');
+  if(checked.version!==original.version||!equal(snapshotContent(checked),snapshotContent(original))||!equal(checked.internal,original.internal)||checked.maintenance!==original.maintenance)throw failure('remote_changed','Sheet changed before dispatch. Recheck synchronization.');
   const contentFingerprint=await fingerprint(snapshotContent(candidate));
   const id=request.id;
   if(!state.versions.some(v=>v.version===remote.version&&v.fingerprint===remote.fingerprint))state.versions.push({version:remote.version,fingerprint:remote.fingerprint});
   state.versions=state.versions.slice(-64);
-  state.flight={id,requestHash,operationHashes,evidenceHash:await fingerprint(candidate.evidence),fingerprint:contentFingerprint,phase:'possible-dispatch',maintenance:state.maintenance};
+  state.flight={id,requestHash,operationHashes,evidenceHash:await fingerprint(candidate.evidence),monetaryHash:await fingerprint(monetaryContent(candidate.cards)),fingerprint:contentFingerprint,phase:'possible-dispatch',maintenance:state.maintenance};
   // Persist BEFORE calling an external write. A restart cannot permit a blind retry.
   await storage.put('coordination',state);
   try{await adapter.write({...candidate,maintenance:state.maintenance},id,contentFingerprint,remote);}catch{

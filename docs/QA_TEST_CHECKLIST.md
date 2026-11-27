@@ -72,17 +72,45 @@ covered by the coordinated Google adapter fixtures, not by a legacy write bypass
 
 ## Minimal independent review cycle
 
-P0 recovery acceptance uses the existing synthetic fixtures: initial binding
-failure followed by ordinary Sync now with 621 original cards/operations intact;
-masked duplicate row 551 diagnostics; metadata-only pause preserving every Cards
-cell and unrelated `_META`; explicit repaired resume with precise verification
-intact; exact rejected-control archival; restart and stale-ID fencing; uncertain
-control preservation with no extra dispatch; wrong proof rejection; verified
-destination acquisition before unbound recovery. The real workerd/SQLite HTTP
-fixture checks error serialization and rejection persistence across restart.
-The mobile Settings regression verifies masked instructions, private Sheet link
-and ordinary retry after synthetic repair. Existing Batch/account/late-write tests
-remain acceptance evidence; production private inventory is not test input.
+R1 reuses the existing fixtures and adds focused recovery/capacity cases in
+`src/lib/r1Recovery.test.mjs`. Acceptance covers 621 cards and 80 duplicate pairs,
+row-order-independent repair, preserved credential alternatives, mixed unbound
+recovery and original pending identities, uncertainty-first verification including
+provisional zero, applicable fresh clearance and later-conflict fencing. Sixteen
+full-inventory verification cycles retain monetary revisions without retaining
+resolved conflict history. Exact rejected-control proofs, 140 rejected controls,
+cutoff fencing after eviction/restart, retained success before rejection cutoffs,
+genuine verification under stale-baseline notes drift, distinct conflict identities
+across compaction, newest legacy dates, stale baselines, simultaneous edits, lost
+responses and late writes retain their existing protocol tests.
+
+The real workerd/SQLite HTTP fixture pauses 621 precisely verified cards, restarts
+the runtime and restores an edited genuine timestamp with uncertainty confined to
+that card. Temporary originals live only in protected private Sheet evidence;
+resume removes them. Adapter tests cover multi-part encoding, legacy evidence,
+unrelated `_META`, duplicate repair, occupied headers and atomic write confirmation.
+Notes-only maintenance preserves unaffected Batch requests and applicable older
+observations. Existing Batch partial-apply, exact replay, account and offline tests
+remain acceptance evidence. The mobile R1 scenario verifies credential disclosure,
+affected-card checkout blocking, explicit resolution and successful unrelated edits
+and manual review after injected Batch damage. Production private inventory is
+never test input.
+
+Synthetic capacity baseline and R1 measurements (UTF-8 bytes):
+
+| Workload | Before | R1 |
+| --- | ---: | ---: |
+| 621 ordinary monetary revision entries | 51,570 in one cell; rejected | 31,129 encoded, one 38,000-byte-bounded part plus manifest |
+| After 16 complete verification cycles | Ordinary history already exceeded the old limit | 31,750 encoded; only counter digit growth, zero retained resolved alternatives |
+| 621 precise maintenance records | 83,215-byte DO proof; rejected at 64,000 | 722-byte DO metadata; 211,241 bytes of temporary private evidence across bounded cells |
+| 80 duplicate pairs plus same-ID replay | Ordinary read rejected duplicates | One repair write; five snapshot reads total (pull + three commit reads + replay), zero replay writes |
+
+The 128-part final evidence bound preserves all unresolved alternatives and
+tombstones; it does not silently truncate to fit. Pending Batch work is retained;
+completed references are bounded to 128 and receipts follow retained ledgers.
+Unknown-baseline external edits and damaged managed metadata still require
+explicit recovery. These are synthetic capacity measurements, not production
+inventory inspection, cost projections or private recovery acceptance.
 
 After automated tests, review the same synthetic browser scenario in headed mode:
 

@@ -339,3 +339,29 @@ test('Settings masks duplicate diagnostics and Sync now retries initial binding 
  state=await snapshot(page);expect(state.profiles.unbound.pending).toEqual(original);expect(state.profiles.unbound.cards).toHaveLength(2);expect(qa.errors).toEqual([]);
  await context.close();
 });
+
+test('R1 duplicate recovery isolates credentials while damaged Batch leaves unrelated cards editable',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:412,height:923}});
+ const remote=await syntheticRemote([cardA,cardB,{...cardA,pin:'9999',currentBalance:0}]),qa=await setup(context,remote);
+ const page=await context.newPage();await start(page);
+ await syncPoll(async()=>active(await snapshot(page)).remoteBase.needsRepair??false).toBe(false);
+ expect(active(await snapshot(page)).cards).toHaveLength(2);expect(remote.writes).toBe(1);
+ await checkoutA(page);await expect(page.getByText(/This card has conflicting credentials/)).toBeVisible();
+ await expect(page.locator('#detail-barcode-caption')).toHaveCount(0);
+ await page.getByRole('button',{name:'Review card credentials'}).click();
+ const advanced=page.locator('summary').filter({hasText:'Advanced synchronization and recovery'});
+ if(!await advanced.evaluate(node=>node.parentElement.open))await advanced.click();
+ await expect(page.getByText('Card ending 0042: credentials')).toBeVisible();
+ await page.screenshot({path:test.info().outputPath('r1-recovery-mobile.png'),fullPage:true});
+ await page.getByRole('button',{name:'Keep Sheet values',exact:true}).click();
+ await syncPoll(async()=>active(await snapshot(page)).recoveryEvidence.cards[cardA.cardNumber].conflicts.filter(c=>c.kind==='credentials'&&!c.resolution).length).toBe(0);
+ // Inject damaged optional workflow state; reload must still open and save Cards.
+ await page.evaluate(()=>new Promise((resolve,reject)=>{const req=indexedDB.open('walmartGc.inventory',1);req.onsuccess=()=>{const db=req.result,tx=db.transaction('state','readwrite'),store=tx.objectStore('state'),read=store.get('wallet');read.onsuccess=()=>{const state=read.result;state.profiles[state.active].ledger={damaged:true};store.put(state,'wallet');};tx.oncomplete=()=>{db.close();resolve();};tx.onabort=()=>reject(tx.error);};}));
+ await page.reload();await page.getByText(/0084/).first().click();await page.getByRole('button',{name:'Edit',exact:true}).click();
+ await page.getByPlaceholder('Add card notes...').fill('Available despite damaged Batch');await page.getByRole('button',{name:'Save Notes'}).click();
+ await expect.poll(async()=>active(await snapshot(page)).cards.find(c=>c.cardNumber===cardB.cardNumber).notes).toBe('Available despite damaged Batch');
+ let state=await snapshot(page);expect(active(state).ledgerRecovery).toBe(true);expect(state.quarantine.some(q=>q.kind==='isolated-batch')).toBe(true);
+ await cards(page);await page.locator('#review-balances').click();await expect(page.getByLabel('Verified balance (CAD)')).toBeVisible();
+ await page.getByRole('button',{name:'Batch',exact:true}).click();await expect(page.getByText(/A damaged or interrupted legacy Batch was preserved/)).toBeVisible();
+ expect(qa.errors).toEqual([]);await context.close();
+});

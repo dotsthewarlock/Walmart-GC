@@ -1,6 +1,7 @@
 import { validateInventory } from '../../src/lib/inventory.js';
 import { syncProtocol, fingerprint, snapshotContent, emptyEvidence, validateEvidence, equal } from '../../src/lib/syncProtocol.js';
 import { coordinate } from './syncCoordinator.js';
+import { evidenceMetadata, readEvidenceMetadata } from '../../src/lib/syncEvidence.js';
 import {
   requiredCardHeaders as CARD_HEADERS, oldApprovedCsvHeaders as OLD_CARD_HEADERS,
   optionalCardHeaders, csvHeaders as APPROVED_CARD_HEADERS, readOptionalCardMetadata, schemaCapability,
@@ -72,7 +73,6 @@ async function routeRequest(request, env, pathname) {
 
   return jsonResponse({ error: "not_found" }, 404);
 }
-
 function routeHealthRequest(request) {
   if (request.method !== "GET") {
     return methodNotAllowed(["GET"]);
@@ -986,11 +986,12 @@ async function handleProtectedSync(request,env,pathname) {
 
 export function googleSheetAdapter(token,sheetId) {
   return {
-    async read({allowDuplicates=false}={}){
+    async read(){
       const metadata=await getSpreadsheetMetadata(token,sheetId);
       const cardsProperties=getSheetProperties(metadata,CARDS_TAB),metaProperties=getSheetProperties(metadata,META_TAB);
       const metaRows=metaProperties?await readSheetValues(token,sheetId,'_META!A:B'):[];
-      for(const key of ['schemaVersion','appName','lastUpdated','sheetVersion','syncProtocol','commitId','contentFingerprint','syncEvidence','maintenance'])if(findMetaRows(metaRows,key).length>1)throw sheetSetupRequired();
+      const managedKeys=new Set(['schemaVersion','appName','lastUpdated','sheetVersion','syncProtocol','commitId','contentFingerprint','syncEvidence','maintenance',...metaRows.map(row=>row[0]).filter(key=>/^syncEvidence:\d+$/.test(key))]);
+      for(const key of managedKeys)if(findMetaRows(metaRows,key).length>1)throw sheetSetupRequired();
       if(metaRows.length && (metaRows[0]?.[0]!=='key'||metaRows[0]?.[1]!=='value'))throw sheetSetupRequired();
       const meta=parseSheetMeta(metaRows);
       const cells=cardsProperties?await readSheetValues(token,sheetId,CARDS_RANGE):[];
@@ -999,24 +1000,21 @@ export function googleSheetAdapter(token,sheetId) {
       const parsed=header.length?cardsFromSheetRows(cells.slice(1),validateCardHeaders(header),duplicates):[];
       // Validate every row even when duplicate identities prevent a valid inventory.
       const cards=duplicates.length?parsed.map(card=>validateInventory([card])[0]):validateInventory(parsed);
-      if(duplicates.length&&!allowDuplicates)throw duplicateCardsError(duplicates);
       if(!duplicates.length)validateCards(cards);
       const after=metaProperties?await readSheetMeta(token,sheetId):meta;
       if(meta.sheetVersion!==after.sheetVersion)throw new HttpError(409,{error:'Sheet changed during read.'});
       let evidence;
-      try{evidence=validateEvidence(meta.syncEvidence?JSON.parse(meta.syncEvidence):emptyEvidence());}catch{throw new HttpError(409,{error:'Synchronization recovery evidence is damaged. Preserve a Sheet backup.'});}
+      try{evidence=validateEvidence(readEvidenceMetadata(meta));}catch{throw new HttpError(409,{error:'Synchronization recovery evidence is damaged. Preserve a Sheet backup.'});}
       return {cards,evidence,version:meta.sheetVersion||'',protocol:meta.syncProtocol||'',commitId:meta.commitId||'',fingerprint:meta.contentFingerprint||'',maintenance:meta.maintenance==='paused',
         ...(duplicates.length?{diagnostics:duplicates}:{}),internal:{metadata,cardsProperties,metaProperties,metaRows,header,...(duplicates.length?{cells}: {})}};
     },
     async prepare(snapshot,previous){
-      if(previous.diagnostics?.length&&snapshot.maintenance===true)return;
       const cards=validateCards(snapshot.cards),data=previous.internal,header=normalizeHeaderRow(data.header).filter(Boolean);
       const appended=[...CARD_HEADERS.filter(h=>!header.includes(h)),...optionalCardHeaders.filter(h=>!header.includes(h)&&cards.some(c=>c[h]!==undefined))];
       if(data.cardsProperties&&appended.length)checkAppendTargets(await readSheetValues(token,sheetId,CARDS_RANGE,'FORMULA'),header.length,appended.length);
     },
     async write(snapshot,id,hash,previous){
-      const preserveCards=Boolean(previous.diagnostics?.length&&snapshot.maintenance===true);
-      const cards=preserveCards?previous.cards:validateCards(snapshot.cards),data=previous.internal;
+      const cards=validateCards(snapshot.cards),data=previous.internal;
       const taken=new Set(data.metadata.sheets?.map(s=>s.properties.sheetId));
       const properties=title=>{let id=1;while(taken.has(id))id++;taken.add(id);return {title,sheetId:id,gridProperties:{rowCount:1000,columnCount:26},...(title===META_TAB?{hidden:true}:{})};};
       const sheet={sheetId,cardsProperties:data.cardsProperties??properties(CARDS_TAB),metaProperties:data.metaProperties??properties(META_TAB),pendingRequests:[]};
@@ -1026,7 +1024,11 @@ export function googleSheetAdapter(token,sheetId) {
       if(!data.metaRows.length)sheet.pendingRequests.push({updateCells:{start:{sheetId:sheet.metaProperties.sheetId,rowIndex:0,columnIndex:0},rows:[sheetCellData(['key','value'])],fields:'userEnteredValue'}});
       const header=normalizeHeaderRow(data.header).filter(Boolean);
       const appended=[...CARD_HEADERS.filter(h=>!header.includes(h)),...optionalCardHeaders.filter(h=>!header.includes(h)&&cards.some(c=>c[h]!==undefined))];
-      await writeCardsSnapshot(token,sheet,cards,header,appended,rows,{schemaVersion:SCHEMA_VERSION,appName:APP_NAME,sheetVersion:generateSheetVersion(),lastUpdated:new Date().toISOString(),syncProtocol,commitId:id,contentFingerprint:hash,syncEvidence:JSON.stringify(snapshot.evidence),maintenance:snapshot.maintenance?'paused':'active'},preserveCards);
+      const evidence=evidenceMetadata(snapshot.evidence);
+      // Clear obsolete part values in the same batch. Reuse their fixed keys on
+      // later growth instead of accumulating append-only metadata rows.
+      for(const [key] of rows)if(/^syncEvidence:\d+$/.test(key)&&!(key in evidence))evidence[key]='';
+      await writeCardsSnapshot(token,sheet,cards,header,appended,rows,{schemaVersion:SCHEMA_VERSION,appName:APP_NAME,sheetVersion:generateSheetVersion(),lastUpdated:new Date().toISOString(),syncProtocol,commitId:id,contentFingerprint:hash,...evidence,maintenance:snapshot.maintenance?'paused':'active'});
     }
   };
 }
@@ -1069,8 +1071,4 @@ export class SheetCoordinator {
       return jsonResponse(await coordinate(this.ctx.storage,googleSheetAdapter(token,body.sheetId),body));
     }catch(error){return jsonResponse({...error.body,error:error.message,code:error.code||error.body?.code||'sync_error',notDispatched:error.notDispatched===true||error.code==='baseline_expired',...(error.rejection?{rejection:error.rejection}: {})},error.code==='uncertain'?503:409);}
   }
-}
-
-function duplicateCardsError(diagnostics){
-  return new HttpError(409,{code:'duplicate_cards',diagnostics,error:'Duplicate Sheet rows block synchronization. Pause shared maintenance, back up the Sheet, compare the listed rows privately, then resolve duplicate identities and accept maintenance. No rows were removed.'});
 }

@@ -8,9 +8,14 @@ import { TextArea } from '../../components/primitives/TextArea';
 import { isDesktopCopyTarget } from './useCheckout';
 
 export function CheckoutPanel({ selectedCard, visiblePosition, visibleCount, workflow,
-  onPrevious: handlePrevCard, onNext: handleNextCard, onToggleUsed, onBack }) {
+  credentialBlocked, onReviewCredentials, onPrevious: handlePrevCard, onNext: handleNextCard, onToggleUsed, onBack }) {
   const { revealNumber, setRevealNumber, isEditingNotes, newNotesValue, setNewNotesValue,
     setIsEditingNotes, handleCopyCodePin, handleOpenBalanceEdit, handleOpenNotes, handleSaveNotes } = workflow;
+  if(credentialBlocked)return <main className="p-4 flex flex-col gap-4">
+    <p>This card has conflicting credentials. Review the preserved alternatives in Settings before using it.</p>
+    <Button variant="filled" onClick={onReviewCredentials}>Review card credentials</Button>
+    <Button variant="text" onClick={onBack}>Back to cards</Button>
+  </main>;
   return (
     <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
       {selectedCard ? (

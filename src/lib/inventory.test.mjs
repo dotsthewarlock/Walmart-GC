@@ -55,7 +55,9 @@ test('corrupt source and damaged/interrupted ledgers are archived, not guessed o
   ledger.application = [{ ref: request.ref, balance: 90, checkedAt: '2026-11-25T00:01:00.000Z' }];
   const interrupted = migrateLegacy(raw([first, second], JSON.stringify(ledger)));
   assert.equal(profileOf(interrupted).ledgerRecovery, true);
-  assert.throws(() => reduceInventory(interrupted, patch(interrupted, first.cardNumber, { notes: 'blocked' })), /interrupted|damaged/);
+  const edited=reduceInventory(interrupted, patch(interrupted, first.cardNumber, { notes: 'available' }));
+  assert.equal(profileOf(edited).cards[0].notes,'available');
+  assert.equal(profileOf(edited).ledgerRecovery,true);
   const before = structuredClone(interrupted);
   assert.throws(() => reduceInventory(interrupted, command(interrupted, 'discard-batch', { revision: -1 })), /changed/);
   assert.deepEqual(interrupted, before);
@@ -257,7 +259,8 @@ test('Batch partial application atomically records exact refs, inventory/outbox 
   assert.equal(profileOf(edited).ledger.requests[1].state, 'pending');
   assert.deepEqual(profileOf(edited).ledger.requests[0].applied, observation);
   const discarded = reduceInventory(applied, command(applied, 'discard-batch', { revision: p.revision }));
-  assert.ok(discarded.observationReceipts[observation.ref]);
+  assert.equal(discarded.observationReceipts[observation.ref],undefined);
+  assert.equal(previewTransferResults(ledger,profileOf(discarded).cards,[observation],now).counts.accepted,0);
 });
 
 test('same-day unchanged manual verification invalidates only its outstanding request', async () => {

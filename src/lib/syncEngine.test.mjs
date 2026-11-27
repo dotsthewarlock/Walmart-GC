@@ -41,6 +41,16 @@ test('verified binding preserves unbound inventory/outbox and never infers owner
  const f=await fixture(),state=await f.store.read();assert.equal(state.profiles.unbound.cards[0].pin,b.pin);assert.equal(state.profiles.unbound.pending.length,1);
  assert.equal(profileOf(state).context.principal,'synthetic-principal');assert.equal(profileOf(state).context.ownershipVerified,true);assert.equal(profileOf(state).remoteBase.cards[0].cardNumber,a.cardNumber);
 });
+test('reopening a clean saved binding and accepting maintenance adopt the newly verified snapshot',async()=>{
+ const f=await fixture();
+ await f.engine.control('pause');assert.equal(profileOf(await f.store.read()).remoteBase.maintenance,true);
+ f.remote.directEdit(s=>{s.cards[0].notes='accepted maintenance note';});
+ await f.engine.control('resume');let state=await f.store.read();
+ assert.equal(profileOf(state).remoteBase.maintenance,false);assert.equal(profileOf(state).cards[0].notes,'accepted maintenance note');
+ await f.store.commit({id:crypto.randomUUID(),kind:'select-compartment',...inventoryContext(state),target:'unbound'});
+ await f.engine.sync({bind:true});state=await f.store.read();
+ assert.equal(profileOf(state).cards[0].notes,'accepted maintenance note');assert.equal(state.profiles.unbound.pending.length,1);
+});
 test('acknowledgment removes only submitted operations and preserves edits made during external await',async()=>{
  const f=await fixture();await edit(f.store,'first');let release;f.remote.delay=new Promise(resolve=>{release=resolve;});
  const syncing=f.engine.sync();while(!(await f.store.read()).profiles[(await f.store.read()).active].inFlight)await new Promise(resolve=>setTimeout(resolve,1));
@@ -113,16 +123,12 @@ test('ACK rebasing retains competing later notes durably and the next commit can
  assert.equal(remote.cards[0].notes,'other device');assert.ok(remote.evidence.cards[a.cardNumber].conflicts.some(c=>c.local==='later competing note'&&c.remote==='other device'&&c.base==='submitted note'));
  assert.equal(profileOf(await f.store.read()).pending.length,0);
 });
-test('a missing remote card gets durable recovery intent, stays uncertain and survives later acknowledgments',async()=>{
+test('maintenance restores a missing card without inferring deletion, and later acknowledgments preserve it',async()=>{
  const f=await fixture();await f.remote.coordinator.run({protocol:syncProtocol,action:'pause',id:crypto.randomUUID()});
  f.remote.directEdit(s=>{s.cards=[];});await f.remote.coordinator.run({protocol:syncProtocol,action:'resume',id:crypto.randomUUID()});
  await f.engine.sync();let state=await f.store.read(),profile=profileOf(state);
- assert.equal(profile.cards[0].pin,a.pin);assert.equal(profile.cards[0].pendingReconciliation,true);assert.equal(profile.pending[0].kind,'unbound-recovery');
- assert.equal(profile.recoveryEvidence.cards[a.cardNumber].conflicts[0].kind,'missing-remote');
+ assert.equal(profile.cards[0].pin,a.pin);assert.equal(profile.cards[0].pendingReconciliation,true);assert.equal(profile.pending.length,0);
  await f.engine.sync();state=await f.store.read();profile=profileOf(state);assert.equal(profile.pending.length,0);assert.equal((await f.remote.read()).cards[0].pin,a.pin);
- const conflict=profile.recoveryEvidence.cards[a.cardNumber].conflicts.find(c=>c.kind==='missing-remote'&&!c.resolution);
- await f.store.commit({id:crypto.randomUUID(),kind:'resolve-conflict',...inventoryContext(state),cardNumber:a.cardNumber,version:profile.versions[a.cardNumber],conflictId:conflict.id,choice:'local'});
- await f.engine.sync();assert.ok((await f.remote.read()).evidence.cards[a.cardNumber].conflicts.find(c=>c.id===conflict.id).resolution);
  await edit(f.store,'still retained');await f.engine.sync();assert.equal(profileOf(await f.store.read()).cards[0].pin,a.pin);assert.equal((await f.remote.read()).cards[0].notes,'still retained');
 });
 

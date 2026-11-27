@@ -1,4 +1,5 @@
 import { bundledSampleGiftCards } from './cards.js';
+import { compactEvidence, evidenceMetadata } from './syncEvidence.js';
 export const syncProtocol = 'gc-wallet-sync-v1';
 export const equal = (a,b) => canonical(a) === canonical(b);
 export function canonical(value) {
@@ -11,10 +12,12 @@ export async function fingerprint(value) {
   return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 export const emptyEvidence = () => ({ cards:{}, tombstones:{} });
+export const maintenanceRevision=(evidence,number)=>evidence?.cards?.[number]?.maintenanceAt
+  ??(evidence?.maintenanceScoped?evidence.legacyMaintenanceAt:evidence?.maintenanceAt);
 export const snapshotContent = snapshot => ({ cards:snapshot.cards,evidence:snapshot.evidence??emptyEvidence() });
 const samples=new Set(bundledSampleGiftCards.map(c=>c.cardNumber));
 const mapCards=cards=>new Map(cards.map(c=>[c.cardNumber,c]));
-export const isMonetaryOperation=op=>['set-balance','manual-verification','batch-verification','unbound-recovery'].includes(op.kind)
+export const isMonetaryOperation=op=>['set-balance','manual-verification','batch-verification'].includes(op.kind)
   || op.before?.currentBalance!==op.after?.currentBalance;
 
 const moneyOp=isMonetaryOperation;
@@ -31,16 +34,22 @@ const validLegacyVerification=(op,priorTime)=>{
 // A monetary operation's identity matters even when two resulting values match.
 export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvidence(),evidence=emptyEvidence(),now=new Date().toISOString()}) {
   const result=mapCards(remote), old=mapCards(base), working=mapCards(local);
+  const operationsByCard=new Map();
+  for(const op of operations){if(!operationsByCard.has(op.cardNumber))operationsByCard.set(op.cardNumber,[]);operationsByCard.get(op.cardNumber).push(op);}
   const next=structuredClone(evidence);next.cards??={};next.tombstones??={};
   const conflict=(number,kind,values,ids=[])=>{
     const entry=next.cards[number]??={money:0,conflicts:[]};entry.conflicts??=[];
     const id=kind+':'+number+':'+ids.join(',');
-    if(!entry.conflicts.some(c=>c.id===id))entry.conflicts.push({id,kind,...values,operationIds:ids,at:now});
+    if(!entry.conflicts.some(c=>c.id===id)){
+      entry.conflicts.push({id,kind,...values,operationIds:ids,at:now});
+      if(kind==='balance')entry.uncertainSince=now;
+    }
     return entry;
   };
   for(const [number,workingCard] of working){
     let card={...workingCard};
-    for(const op of operations.filter(o=>o.cardNumber===number)) {
+    const cardOperations=operationsByCard.get(number)??[];
+    for(const op of cardOperations) {
       const priorDate=card.lastBalanceChecked,priorTime=card.lastBalanceCheckedAt;
       for(const key of Object.keys(op.after??{}))if(!equal(op.before?.[key],op.after[key]))card[key]=op.after[key];
       if(priorTime && !op.after?.lastBalanceCheckedAt) {
@@ -51,7 +60,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       if(moneyOp(op)&&op.after)card.currentBalance=op.after.currentBalance;
     }
     if(samples.has(number))throw Error('Bundled samples cannot synchronize.');
-    const prior=old.get(number),saved=result.get(number),ops=operations.filter(o=>o.cardNumber===number);
+    const prior=old.get(number),saved=result.get(number),ops=cardOperations;
     const ids=ops.map(o=>o.id);
     if(next.tombstones[number]){
       if(ops.some(o=>o.kind==='resolve-conflict'&&o.choice==='restore'&&o.conflictId===next.tombstones[number].id)){
@@ -102,6 +111,8 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     for(const field of new Set([...Object.keys(card),...Object.keys(saved)])){
       if(['cardNumber','pin','currentBalance','pendingReconciliation'].includes(field))continue;
       if(localMoney&&['dateUpdated','lastBalanceChecked','lastBalanceCheckedAt'].includes(field))continue;
+      if(ops.some(o=>o.kind==='unbound-recovery')&&['lastBalanceChecked','lastBalanceCheckedAt'].includes(field)
+        &&saved.lastBalanceCheckedAt&&(!card.lastBalanceCheckedAt||card.lastBalanceCheckedAt<=saved.lastBalanceCheckedAt))continue;
       if(saved.lastBalanceCheckedAt && !card.lastBalanceCheckedAt && ['lastBalanceChecked','lastBalanceCheckedAt'].includes(field)) {
         if(field==='lastBalanceChecked' && card.lastBalanceChecked && card.lastBalanceChecked!==saved.lastBalanceChecked)
           conflict(number,'field:'+field,{local:card[field],remote:saved[field]??null,base:prior?.[field]??null},ids);
@@ -136,6 +147,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     const observedAt=verify?.observation?.checkedAt;
     const observedValue=verify?.kind==='manual-verification'?verify.observation?.observedBalance:verify?.observation?.balance;
     const applicable=typeof observedAt==='string'&&Number.isFinite(Date.parse(observedAt))&&new Date(observedAt).toISOString()===observedAt
+      &&!entry.conflicts?.some(conflict=>conflict.kind==='credentials'&&!conflict.resolution)
       &&typeof observedValue==='number'&&verify.after?.currentBalance===observedValue
       &&verify.after?.lastBalanceChecked===observedAt.slice(0,10)
       &&(!verify.after?.lastBalanceCheckedAt||verify.after.lastBalanceCheckedAt===observedAt)&&verify.after?.pin===saved.pin
@@ -144,9 +156,9 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     const fresh=applicable&&monetary.at(-1)===verify
       &&(!saved.lastBalanceChecked||observedAt.slice(0,10)>=saved.lastBalanceChecked)
       &&(!saved.lastBalanceCheckedAt||observedAt>saved.lastBalanceCheckedAt)
-      &&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(next.maintenanceAt||'1970-01-01'))
+      &&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(maintenanceRevision(next,number)||'1970-01-01'))
       &&Date.parse(observedAt)<=Date.parse(now)+60_000;
-    const changedRemotely=ops.some(o=>o.requiresReconciliation===true)||next.maintenanceAt!==baseEvidence.maintenanceAt||ops.some(o=>o.kind==='unbound-recovery')||!prior||(entry.money??0)!==(baseEvidence.cards?.[number]?.money??0)
+    const changedRemotely=ops.some(o=>o.requiresReconciliation===true)||maintenanceRevision(next,number)!==maintenanceRevision(baseEvidence,number)||ops.some(o=>o.kind==='unbound-recovery')||!prior||(entry.money??0)!==(baseEvidence.cards?.[number]?.money??0)
       || (prior&&(!equal(prior.currentBalance,saved.currentBalance)||!equal(prior.lastBalanceCheckedAt,saved.lastBalanceCheckedAt)));
     // The first conflict must share the same entry as its uncertainty marker.
     // Otherwise a new balance alternative could be replaced by the empty entry.
@@ -164,23 +176,24 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       } else {
         assign('lastBalanceChecked',card.lastBalanceChecked);assign('lastBalanceCheckedAt',card.lastBalanceCheckedAt);
       }
-      if(monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
       if(fresh){
         if(saved.pendingReconciliation!==undefined||card.pendingReconciliation!==undefined||entry.uncertainSince)merged.pendingReconciliation=false;
         delete entry.uncertainSince;
+        delete entry.previousVerification;
         for(const c of entry.conflicts??[])if(c.kind==='balance'&&!c.resolution)c.resolution='verified:'+verify.id;
       }
     }
-    if(localUncertainty){merged.pendingReconciliation=true;entry.uncertainSince??=now;}
+    if(localMoney&&monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
+    if(localUncertainty&&!fresh){merged.pendingReconciliation=true;entry.uncertainSince??=now;}
     if(localMoney||localUncertainty)next.cards[number]=entry;
     if(saved.pendingReconciliation&&!fresh)merged.pendingReconciliation=true;
     if(entry.uncertainSince)merged.pendingReconciliation=true;
     result.set(number,merged);
   }
   const cards=[...result.values()].sort((a,b)=>a.cardNumber.localeCompare(b.cardNumber));
-  // Google Sheets cells are bounded. Never discard evidence to fit a write.
-  if(new TextEncoder().encode(JSON.stringify(next)).length>38000)throw Error('Recovery evidence is full. Export a private backup; controlled operator recovery is required before further Sheet writes.');
-  return {cards,evidence:next};
+  const compact=compactEvidence(next);
+  evidenceMetadata(compact); // Check actual bounded Sheet representation before dispatch.
+  return {cards,evidence:compact};
 }
 
 // Replay semantic differences against the acknowledged inventory, never a stale
@@ -215,6 +228,6 @@ export function validateEvidence(evidence) {
       ||entry.conflicts.some(c=>!map(c)||typeof c.id!=='string'||typeof c.kind!=='string'))throw Error('Invalid per-card recovery evidence.');
   }
   for(const [number,tombstone] of Object.entries(evidence.tombstones))if(!/^63\d{14}$/.test(number)||!map(tombstone)||typeof tombstone.id!=='string')throw Error('Invalid deletion recovery evidence.');
-  if(new TextEncoder().encode(JSON.stringify(evidence)).length>38000)throw Error('Recovery evidence is full. Preserve a backup before more writes.');
+  evidenceMetadata(evidence);
   return evidence;
 }

@@ -5,15 +5,21 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 ## Current development
 
-- Authorized P0 synchronization recoverability starts from main `3ead6e4` (PR
-  #250 offline shell). It addresses retryable initial binding, masked duplicate
-  row diagnostics, explicit metadata-only duplicate maintenance pause, verified
-  unbound recovery orchestration and exact durable control-rejection recovery.
-  Acceptance preserves 621 synthetic unbound cards/pending operations, both
-  inventories, verification and `_META` evidence, Batch identities and all
-  uncertain dispatch fences. No live private-data inspection or automatic repair.
-  Independent GPT review of the exact candidate and required CI precede the
-  authorized compatible Worker/frontend release; stop after verification/cleanup.
+- R1 — resilient synchronization and recovery simplification — starts from
+  accepted main `bd7d8e6` (PR #251). It consolidates compatible duplicate rows,
+  isolates conflicting credentials and provisional balances, compacts and
+  partitions evidence, replaces inventory-sized DO maintenance proofs, bounds
+  completed recovery history and isolates damaged Batch state. Genuine fresh
+  observations clear uncertainty; uncertain zero balances receive priority.
+  One IndexedDB authority and one sync engine remain. Required independent review
+  and CI precede the authorized compatible Worker/frontend release; exact release
+  evidence belongs in its PR. Stop after hosted verification and cleanup.
+  Actual private inventory recovery is a separate user-performed acceptance step.
+  R2 Companion integration, session extraction and inactive-tab execution are excluded.
+- P0 recovery shipped in PR #251, merge `bd7d8e6`, with Worker
+  `84ed0c21-923c-4ea3-a33d-6f5a7f9f1ea6` at 100%, the existing DO namespace,
+  unpaused activation and privacy configuration preserved. That PR records
+  independent review, CI, Pages deployment and hosted byte verification.
 
 - A1 released in PR #247 (main `db83092`): Settings rendering and its app-lifetime
   preference/draft/disclosure controller live in `src/features/settings/`.
@@ -30,10 +36,8 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
   Foreground checks use a fixed 1,400 ms delay and continue to the selected
   target of 10, 25 or 50, or until the queue is empty, without ten-card
   segmentation or rest. Stable remains unpromoted.
-- The compatible V0.4 Worker from source `1653373b0cf523a4bed63f54da239015f7bc50f8`
-  is deployed at 100% as `6fe91b40-c301-44ea-9637-452598c8d20a`, retaining
-  the unpaused activation state, bindings, routes and privacy settings. The
-  matching frontend and Dev companion are delivered by the main Pages workflow.
+- V0.4 used Worker `6fe91b40-c301-44ea-9637-452598c8d20a` before P0 replaced it.
+  The matching frontend and Dev companion are delivered by the main Pages workflow.
 - PR #240 merged as `dc67a0092d099e5f7e4d128583a79f1b581d5532` (KV write suppression and passive clipboard removal). The previous lean sync Worker from PR #241 was `062fca0a-95dc-4a8d-b49a-4fb4428724ef`; V0.4 replaced it with the deployed version above.
 - PR #239 released Batch reliability and synchronization visibility. PR #237
   published Companion 1.0.3 Dev through Pages; its release baseline is main

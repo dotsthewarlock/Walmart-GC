@@ -32,7 +32,7 @@ test('reused IDs reject changed content; older confirmed retries cannot duplicat
 });
 test('direct Sheet edits without sheetVersion change are detected; maintenance is shared and explicit deletions tombstoned',async()=>{
  const remote=await syntheticRemote([a,b]);remote.directEdit(s=>{s.cards[0].notes='direct';});
- await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'pull'}),/outside/);
+ await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'pull'}),/without a retained baseline/);
  await remote.coordinator.run({protocol:syncProtocol,action:'pause',id:'pause'});
  await assert.rejects(remote.coordinator.run(await commitRequest(remote,[a,b],[])),/maintenance/);
  remote.directEdit(s=>{s.cards=s.cards.filter(c=>c.cardNumber!==a.cardNumber);});
@@ -84,15 +84,14 @@ test('shared maintenance cannot erase managed tombstones or recovery evidence',a
  remote.directEdit(s=>{s.evidence.tombstones[b.cardNumber]={id:'external-injection'};});
  await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-evidence'}),/recovery evidence changed|Managed recovery evidence changed/);
 });
-test('maintenance cannot erase or change a precise verification without an explicit deletion',async()=>{
+test('maintenance restores genuine precise verification and localizes uncertainty when it was edited',async()=>{
  const precise={...a,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
  const remote=await syntheticRemote([precise]);await remote.coordinator.run({protocol:syncProtocol,action:'pause',id:'pause-precise'});
  remote.directEdit(s=>{delete s.cards[0].lastBalanceCheckedAt;});
  await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'pause',id:'pause-again'}),/already paused/i);
- await assert.rejects(remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-precise'}),/verification details changed/i);
- remote.directEdit(s=>{s.cards[0].lastBalanceCheckedAt=precise.lastBalanceCheckedAt;});
- await remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-restored'});
+ await remote.coordinator.run({protocol:syncProtocol,action:'resume',id:'resume-precise'});
  assert.equal((await remote.read()).cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
+ assert.equal((await remote.read()).cards[0].pendingReconciliation,true);
 });
 
 test('control validation rejection is durably fenced by exact identity across restart',async()=>{

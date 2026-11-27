@@ -1,186 +1,75 @@
-# Walmart-GC OAuth Worker
+# GC Wallet synchronization Worker
 
-Cloudflare Worker backend (`walmart-gc-oauth`) for the active Phase 11 durable OAuth/session and Sheets sync contract. The custom-domain GitHub Pages frontend stays at `https://walmart-gc.dotsthewarlock.com`; Cloudflare routes same-origin `/auth/*` and `/api/*` paths on that host to this Worker. The Worker owns Google OAuth, stores refresh tokens server-side in KV, and exposes cookie-authenticated session status/logout and Sheet sync endpoints.
+The existing `walmart-gc-oauth` Worker owns Google OAuth/session handling and
+same-origin `/auth/*` and `/api/*` on `https://walmart-gc.dotsthewarlock.com`.
+GitHub Pages serves the static frontend. [Architecture](../docs/ARCHITECTURE.md)
+is the authority for account binding, schema, protocol, recovery and rollback;
+[QA](../docs/QA_TEST_CHECKLIST.md) owns acceptance and capacity workloads.
 
-## Active Contract
+## Runtime contract
 
-- Authentication is Worker-managed Google OAuth.
-- OAuth scope is exactly `https://www.googleapis.com/auth/drive.file`.
-- The frontend never stores access tokens, refresh tokens, session IDs, OAuth secrets, or Google API credentials.
-- Frontend auth state comes from `/api/status`.
-- Logout uses `/api/logout`.
-- Frontend Worker API calls use same-origin `/auth/*` and `/api/*` paths with `credentials: "include"`.
-- Session cookie is HttpOnly, Secure, SameSite=Lax, and host-only.
-- Production and development/testing both use `https://walmart-gc.dotsthewarlock.com`.
-- No localhost OAuth or alternate OAuth origin is supported.
+- OAuth uses only `https://www.googleapis.com/auth/drive.file`. Access/refresh
+  tokens remain server-side. The frontend never receives browser Google credentials.
+- The host-only session cookie is HttpOnly, Secure and SameSite=Lax. Session keys
+  are HMAC-derived. Existing signing continuity and KV write suppression remain.
+- Protected operations require the verified Google principal and exact private
+  owned Sheet. Cached Sheet IDs, shared/nonowned files and email identity do not
+  establish ownership.
+- `GET /api/status` reports authentication, principal, binding/capabilities and
+  coordination availability without tokens. `POST /api/logout` ends the session.
+- `POST /api/sync` uses `gc-wallet-sync-v1` for pull, semantic commit and explicit
+  shared maintenance. `POST /api/sheet/ensure` performs protected setup. Historical
+  `/api/cards/save` cannot bypass protocol fencing; old writers receive 426.
+- One SQLite Durable Object per Sheet serializes external reads/writes. Setup
+  creation has a separate principal-scoped fence. DO persistence contains only
+  coordination IDs, hashes, versions and bounded receipts, never card credentials.
+- Possible external dispatch is persisted before writing. Only positive matching
+  commit/content proof can confirm an uncertain write. Missing markers and timeouts
+  never authorize redispatch or a new request identity.
 
-## Endpoints
+## R1 recovery and evidence
 
-- `GET /` — health response.
-- `GET /auth/init` — creates OAuth state plus PKCE verifier in `OAUTH_STATE` for 5 minutes and redirects to Google with `drive.file`.
-- `GET /auth/callback` — validates state, exchanges the authorization code, stores the refresh token server-side in `SESSIONS`, sets the `walmart_gc_session` cookie, and redirects to the custom-domain app root with `?auth=connected`.
-- `GET /api/status` — returns `{ "authenticated": false }` without a valid cookie/session, clears a stale session cookie when the KV session is missing or unusable, validates or refreshes the server-side Google access token when needed, renews the session cookie for valid sessions, and returns authenticated account/session metadata without tokens.
-- `POST /api/logout` — deletes the KV session when present, clears the cookie, and returns `{ "ok": true }`.
-- `POST /api/sheet/ensure` — finds or creates `Walmart-GC Data`, initializes `Cards` and `_META`, and returns Sheet metadata.
-- `GET /api/cards/load` — loads approved-schema cards plus `_META.sheetVersion`.
-- `POST /api/cards/save` — saves completed local actions only when the submitted base `sheetVersion` matches the remote `_META.sheetVersion`.
-- `OPTIONS *` — returns a clean CORS preflight response for the approved frontend origin as a defensive fallback for legacy Worker-domain calls.
+Valid duplicate rows are projected deterministically. Matching credentials and
+compatible fields consolidate; provisional conflicting balances are never summed.
+Unresolved credential alternatives remain private recovery evidence and affect only
+that card's checkout/verification. Compatible external edits use a retained hashed
+baseline; otherwise explicit shared maintenance is required.
 
-## Source-of-Truth Rule
+Logical v1 evidence and historical single-cell `_META.syncEvidence` remain readable.
+New Sheet writes pack ordinary revisions into bounded `syncEvidence:N` cells with a
+manifest in `syncEvidence`. Inventory, evidence parts and commit marker share one
+Sheets batch. Missing/corrupt parts fail closed. Resolved alternatives compact;
+monetary revisions, uncertainty/applicability fences and explicit deletion
+identities remain. See Architecture for retention and final capacity bounds.
 
-`worker/src/index.js` in this repository is the source of truth for the live Worker. Avoid Cloudflare Web IDE edits except emergency fixes; if an emergency edit is unavoidable, backport it into this repository before the next deploy.
+Shared maintenance temporarily preserves original cards in protected private Sheet
+evidence. Resume restores accidentally missing records unless exact deletion was
+explicitly confirmed, restores genuine verification times and marks only changed
+monetary/credential/verification contexts uncertain. Temporary originals are removed
+in the confirmed resume write. The DO retains only an aggregate evidence hash;
+legacy in-progress maintenance proofs remain readable.
 
-## Required Cloudflare Configuration
+## Existing production configuration
 
-KV bindings:
+[wrangler.toml](./wrangler.toml) records the existing account, two KV namespaces,
+`SHEET_COORDINATOR` binding, original SQLite migration, compatibility date and
+same-origin routes. Preserve all of them. The migration history is permanent.
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SESSION_SECRET` remain Worker secret
+bindings; never read or print their values.
 
-- `SESSIONS` — stores durable server-side sessions and refresh tokens.
-- `OAUTH_STATE` — stores short-lived OAuth state and PKCE verifier records.
+The checked-in activation flag is paused; the accepted production deployment is
+unpaused. An authorized compatible deployment must preserve
+`SYNC_ACTIVATION_BLOCKED=false`, existing bindings/namespace, session continuity,
+query-string redaction and disabled invocation logs, traces, issues and Logpush.
+Do not provision replacement resources or change privacy configuration.
 
-`worker/wrangler.toml` keeps placeholder KV namespace IDs on purpose because real namespace IDs are Cloudflare account/environment configuration, not application code. Before deploying with Wrangler, replace `REPLACE_WITH_SESSIONS_KV_NAMESPACE_ID` and `REPLACE_WITH_OAUTH_STATE_KV_NAMESPACE_ID` with the real namespace IDs for the target Cloudflare account, or ensure the Cloudflare dashboard/deployment pipeline supplies equivalent bindings with these exact names. Deploying the checked-in placeholders unchanged is a configuration error.
+Release only after independent review, required CI and explicit user release
+scope. Deploy the compatible Worker before the frontend through the existing
+release process. Record exact source, bundle/version/deployment identity and
+configuration comparison in the PR. Verify the unauthenticated same-origin status
+route and public hosted assets without cookies or private inventory. Actual private
+inventory recovery remains a separate user-performed acceptance step.
 
-Secrets:
-
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `SESSION_SECRET`
-
-Vars:
-
-- `FRONTEND_ORIGIN=https://walmart-gc.dotsthewarlock.com`
-- `REDIRECT_URI=https://walmart-gc.dotsthewarlock.com/auth/callback`
-
-Required Cloudflare route rules for Worker `walmart-gc-oauth`:
-
-```text
-walmart-gc.dotsthewarlock.com/api/*
-walmart-gc.dotsthewarlock.com/auth/*
-```
-
-Do not route `walmart-gc.dotsthewarlock.com/*` to the Worker because GitHub Pages serves the static frontend at the custom-domain root. The frontend can deploy successfully even when `/api/*` and `/auth/*` are not routed to the Worker, so route configuration must be checked independently from static frontend deployment.
-
-The legacy Worker subdomain `https://walmart-gc-oauth.dotsthewarlock.com` may remain available only as fallback/legacy routing; normal frontend calls do not depend on it.
-
-Google OAuth settings:
-
-```text
-Authorized JavaScript origin:
-https://walmart-gc.dotsthewarlock.com
-
-Authorized redirect URI:
-https://walmart-gc.dotsthewarlock.com/auth/callback
-```
-
-The Worker requests only this scope:
-
-```text
-https://www.googleapis.com/auth/drive.file
-```
-
-The Worker callback returns to:
-
-```text
-https://walmart-gc.dotsthewarlock.com/?auth=connected
-```
-
-Do not use `/Walmart-GC/`, `session_id` query parameters, localhost OAuth, or alternate OAuth origins.
-
-## Cookie Contract
-
-Successful OAuth callback sets:
-
-```text
-walmart_gc_session=<sessionId>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000
-```
-
-The cookie contains only an opaque random session ID. The KV key is HMAC-derived with `SESSION_SECRET`; refresh tokens remain server-side only and are never returned by API responses. `/api/status` clears the cookie when a browser presents a stale session whose KV record is missing, expired, invalid, or otherwise unusable, and renews the cookie for valid sessions so refreshes and browser restarts remain durable while the session is valid. The frontend must not store tokens or session IDs.
-
-## CORS Fallback Contract
-
-Normal app calls are same-origin and do not depend on CORS. For legacy Worker-domain fallback calls, credentialed CORS headers are returned only when the request `Origin` is exactly:
-
-```text
-https://walmart-gc.dotsthewarlock.com
-```
-
-Allowed CORS response headers:
-
-```text
-Access-Control-Allow-Origin: https://walmart-gc.dotsthewarlock.com
-Access-Control-Allow-Credentials: true
-Access-Control-Allow-Methods: GET,POST,OPTIONS
-Access-Control-Allow-Headers: Content-Type
-Vary: Origin
-```
-
-## Sheet and Sync Contract
-
-Spreadsheet:
-
-```text
-Walmart-GC Data
-```
-
-Tabs:
-
-```text
-Cards
-_META
-```
-
-Approved `Cards` schema:
-
-```text
-cardNumber
-pin
-startingBalance
-currentBalance
-merchant
-merchantInferred
-dateAdded
-dateUpdated
-dateUsed
-used
-notes
-```
-
-The Worker reads exact historical 10-column Sheets by deriving
-`merchantInferred` from `cardNumber`. It appends that header on the next valid
-inventory save and preserves the existing header order.
-
-V0.1 also supports the optional `lastBalanceChecked` and `pendingReconciliation`
-columns. Their addition is triggered by the first save that needs a missing
-column. Date values must be valid `YYYY-MM-DD` and the flag can be blank or
-`false`. Loads do not migrate rows. Extended Sheets require the
-`optional-card-metadata-v1` capability for writes. See [Architecture](../docs/ARCHITECTURE.md)
-for the save contract, CSV compatibility and rollback limits.
-
-## Deployment Verification
-
-After deploying the Worker source of truth from `worker/src/index.js`, verify the
-same-origin API path that the live app uses:
-
-```sh
-curl -sS https://walmart-gc.dotsthewarlock.com/api/status
-```
-
-The response should include the current `workerVersion` and
-`schemaMode: "header-name"`. If the live app shows the current frontend
-fingerprint but reports Worker version or schema mode as unavailable, the static
-frontend has updated but `/api/*` is stale, unavailable, or not routed to Worker
-`walmart-gc-oauth`. Check the Cloudflare Worker routes before changing app code.
-Then re-deploy the Worker through the confirmed Cloudflare deployment path if
-needed, ensuring the real `SESSIONS` and `OAUTH_STATE` KV bindings are used
-instead of the placeholder IDs in `worker/wrangler.toml`, then run **Set up /
-check Sheet** in the app to trigger safe header migration.
-
-Completed-action sync only:
-
-- Balance save.
-- Used state change.
-- Notes save.
-- Merchant change.
-- New card save.
-- Accepted CSV import.
-
-Conflict detection uses `_META.sheetVersion`; there is no silent overwrite or automatic merge.
+Use a compatible forward fix or fenced recovery build for rollback. An older Worker
+cannot read the new evidence manifest; never erase evidence, clear IndexedDB or
+replace the coordination namespace to make an old writable build run.

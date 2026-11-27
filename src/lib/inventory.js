@@ -1,10 +1,11 @@
-import { reconcile, equal as syncEqual, syncProtocol, emptyEvidence, materialize, validateEvidence, isMonetaryOperation } from './syncProtocol.js';
+import { reconcile, equal as syncEqual, syncProtocol, emptyEvidence, materialize, validateEvidence, isMonetaryOperation, fingerprint, maintenanceRevision } from './syncProtocol.js';
 import { bundledSampleGiftCards, normalizeCard, serializeReviewInventory, getEffectiveMerchant } from './cards.js';
 import { csvHeaders } from './csvSchema.js';
 import { applyBalanceObservation, createBalanceReviewQueue } from './balanceReview.js';
 import { previewTransferResults, transferCardSnapshot } from './balanceTransfer.js';
 import { decodeTransferLedger, invalidatedLedger } from './balanceTransferLedger.js';
 import { storageKeys } from './storage.js';
+import { isolateBatch, pruneObservationReceipts, credentialAmbiguous, verificationCards, planInventoryRecovery } from './inventoryRecovery.js';
 
 export const inventoryDatabase = 'walmartGc.inventory';
 const stale = 'Saved cards changed. Reload the wallet or reopen this editor before saving.';
@@ -109,9 +110,9 @@ export function relevantLedger(ledger,cards) {
 }
 
 function editable(profile) {
-  if (profile.ledgerRecovery || profile.ledger?.application) {
-    throw new Error('An interrupted or damaged Batch was preserved. Open Batch and discard it after reloading the saved inventory.');
-  }
+  // Cards and pending operations already commit atomically. A broken transfer
+  // ledger is recovery input, never a reason to suspend unrelated inventory work.
+  if (profile.ledger?.application) throw new Error('Open Batch to recover the interrupted transfer.');
 }
 
 function record(profile, op, before, after) {
@@ -121,21 +122,23 @@ function record(profile, op, before, after) {
   const position = profile.cards.findIndex(c => c.cardNumber === number);
   if (position < 0) profile.cards.push(after);
   else profile.cards[position] = after;
-  if(before&&after&&before.pin!==after.pin&&profile.ledger)for(const request of profile.ledger.requests)if(request.cardNumber===number&&request.state==='pending')request.state='invalidated';
+  if(before&&after&&(before.pin!==after.pin||(op.kind!=='batch-verification'&&before.lastBalanceCheckedAt!==after.lastBalanceCheckedAt))&&profile.ledger)
+    for(const request of profile.ledger.requests)if(request.cardNumber===number&&request.state==='pending')request.state='invalidated';
   profile.pending.push({ id: op.id, kind: op.kind, cardNumber: number, before, after,
     revision, ...(op.observation ? { observation: op.observation } : {}), ...(op.kind === 'resolve-conflict' ? {conflictId:op.conflictId,choice:op.choice}: {}) });
 }
 
 // Pure reducer: the native adapter invokes it only after reading inside the
 // readwrite transaction. Every command is immutable and independently retryable.
-export function reduceInventory(input, command) {
+export function reduceInventory(input, command, commandHash) {
   if (input.schema !== 1) throw new Error('Unsupported local inventory schema.');
   const state = structuredClone(input);
   const profile = profileOf(state);
+  isolateBatch(state, profile);
   if (!command.id || !command.profile) throw new Error('Missing operation identity or context.');
-  const digest = JSON.stringify(command);
+  const digest = commandHash ?? JSON.stringify(command);
   if (Object.hasOwn(state.receipts, command.id)) {
-    if (state.receipts[command.id] !== digest) throw new Error('Operation ID was reused with different content.');
+    if (state.receipts[command.id] !== digest && state.receipts[command.id] !== JSON.stringify(command)) throw new Error('Operation ID was reused with different content.');
     return input;
   }
   assertInventoryContext(state, command);
@@ -166,6 +169,9 @@ export function reduceInventory(input, command) {
     if(command.kind==='control-rejected'){
       if(!command.rejection||command.rejection.id!==flight.request.id||command.rejection.requestHash!==command.requestHash)throw new Error('Exact non-dispatch proof required.');
       state.quarantine.push({kind:'rejected-control',request:flight.request,rejection:command.rejection,reason:command.reason});
+      const rejected=state.quarantine.filter(item=>item.kind==='rejected-control');
+      const retired=new Set(rejected.slice(0,-64));
+      state.quarantine=state.quarantine.filter(item=>!retired.has(item));
     }
     delete state.controlFlights[command.principal];
   } else if (command.kind === 'bind-remote') {
@@ -202,7 +208,7 @@ export function reduceInventory(input, command) {
         const before = profile.remoteBase.evidence?.cards?.[number]?.money ?? 0;
         const after = remote.evidence?.cards?.[number]?.money ?? 0;
         const own = submitted.filter(op => op.cardNumber === number && isMonetaryOperation(op)).length;
-        if (after !== before + own || remote.evidence?.maintenanceAt !== profile.remoteBase.evidence?.maintenanceAt) request.state = 'invalidated';
+        if (after !== before + own || maintenanceRevision(remote.evidence,number)!==maintenanceRevision(profile.remoteBase.evidence,number)) request.state = 'invalidated';
       }
       if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
     }
@@ -225,7 +231,7 @@ export function reduceInventory(input, command) {
           &&(hadBase||['set-balance','manual-verification','batch-verification'].includes(sent.kind))).length;
         if(!remoteCard||op.before?.currentBalance!==expected.get(number)||op.before?.pin!==remoteCard.pin
           ||newMoney-oldMoney!==submitted||remoteCard.pendingReconciliation
-          ||flight.request.base.evidence.maintenanceAt!==remote.evidence.maintenanceAt)op.requiresReconciliation=true;
+          ||maintenanceRevision(flight.request.base.evidence,number)!==maintenanceRevision(remote.evidence,number))op.requiresReconciliation=true;
         expected.set(number,op.after?.currentBalance);
       }
       base=flight.request.cards;
@@ -245,7 +251,8 @@ export function reduceInventory(input, command) {
     for(const op of profile.pending.filter(op=>op.requiresReconciliation)) {const card=merged.cards.find(c=>c.cardNumber===op.cardNumber);if(card)card.pendingReconciliation=true;}
     for(const card of merged.cards) {
       const previous=profile.cards.find(c=>c.cardNumber===card.cardNumber);
-      if(previous&&previous.pin!==card.pin&&profile.ledger)for(const r of profile.ledger.requests)if(r.cardNumber===card.cardNumber&&r.state==='pending')r.state='invalidated';
+      if(previous&&(previous.pin!==card.pin||previous.lastBalanceCheckedAt!==card.lastBalanceCheckedAt)&&profile.ledger)
+        for(const r of profile.ledger.requests)if(r.cardNumber===card.cardNumber&&r.state==='pending')r.state='invalidated';
       if(!syncEqual(previous,card))profile.versions[card.cardNumber]=(profile.versions[card.cardNumber]??0)+1;
     }
     for(const old of profile.cards)if(!merged.cards.some(c=>c.cardNumber===old.cardNumber))state.quarantine.push({kind:'tombstoned-local',record:old,reason:'Explicit remote deletion retained for recovery.'});
@@ -327,10 +334,13 @@ export function reduceInventory(input, command) {
     profile.ledger.context = command.context;
   } else if (command.kind === 'patch' || command.kind === 'manual-verification') {
     editable(profile);
+    if((command.kind==='manual-verification'||command.action==='set-balance')&&credentialAmbiguous(profile.recoveryEvidence,command.cardNumber))throw new Error('Resolve this card’s conflicting credentials in Settings before verifying or changing its balance.');
     const before = profile.cards.find(c => c.cardNumber === command.cardNumber);
     if (!before || profile.versions[command.cardNumber] !== command.version) throw new Error(stale);
     let after;
     if (command.kind === 'manual-verification') {
+      const evidence=profile.recoveryEvidence?.cards?.[command.cardNumber],time=command.observation?.checkedAt;
+      if(time<(evidence?.uncertainSince||'')||time<(evidence?.moneyAt||''))throw new Error('Verify this card again after its latest monetary change or uncertainty.');
       const entry = createBalanceReviewQueue(profile.cards).find(e => e.card.cardNumber === command.cardNumber);
       after = applyBalanceObservation(profile.cards, { ...command.observation, cardNumber: command.cardNumber, expected: entry })
         .find(c => c.cardNumber === command.cardNumber);
@@ -356,6 +366,11 @@ export function reduceInventory(input, command) {
     if (command.revision !== profile.revision) throw new Error(stale);
     const recovered = validateInventory(command.cards);
     if (recovered.some(c => samples.has(c.cardNumber))) throw new Error('Bundled sample identities cannot be imported into the real inventory.');
+    if(command.recovery){
+      const merged=planInventoryRecovery(profile,recovered,command.id);
+      for(const op of merged.operations)record(profile,op,op.before,op.after);
+      profile.cards=merged.cards;profile.recoveryEvidence=merged.evidence;
+    }else{
     for (const card of recovered) {
       const before = profile.cards.find(c => c.cardNumber === card.cardNumber);
       if (before && before.pin !== card.pin) throw new Error('CSV credentials conflict with a saved card. Original cards were preserved.');
@@ -366,6 +381,7 @@ export function reduceInventory(input, command) {
       }
       if (before?.lastBalanceCheckedAt && after.lastBalanceCheckedAt && after.lastBalanceCheckedAt < before.lastBalanceCheckedAt) throw new Error('The backup has an older verification time. Saved verification details were preserved.');
       if (!equal(before, after)) record(profile, { ...command, kind: command.recovery ? 'unbound-recovery' : command.kind, id: `${command.id}:${card.cardNumber}` }, before ?? null, after);
+    }
     }
     // A recovery file is a set of explicit additions/updates, never a delete list.
   } else if (command.kind === 'sheet-import') {
@@ -400,8 +416,10 @@ export function reduceInventory(input, command) {
     state.active = 'unbound';
   } else if (command.kind === 'set-batch') {
     editable(profile);
+    if(profile.ledgerRecovery)throw new Error('Discard the preserved damaged Batch before creating another.');
     if (command.revision !== profile.revision) throw new Error(stale);
     const ledger = decodeTransferLedger(JSON.stringify(command.ledger));
+    if(ledger.requests.some(r=>credentialAmbiguous(profile.recoveryEvidence,r.cardNumber)))throw new Error('Resolve conflicting card credentials before creating verification requests.');
     if (ledger.application || ledger.requests.some(r => r.state !== 'pending')) throw new Error('A new Batch must contain only pending requests.');
     if (ledger.requests.some(r => Object.hasOwn(state.observationReceipts, r.ref))) throw new Error('A Batch reference was already applied. Create a new Batch.');
     const localOnly = profile.context.kind === 'unbound' && ledger.context.sheetId === 'local:unbound' && ledger.context.sheetVersion === 'local';
@@ -417,10 +435,14 @@ export function reduceInventory(input, command) {
       decodeTransferLedger(JSON.stringify(profile.ledger));
     } else profile.ledger = ledger;
     profile.batchSelection = ledger.requests.map(r => r.ref);
+    const history=profile.ledger.requests.filter(r=>r.state!=='pending');
+    const expired=new Set(history.slice(0,-128).map(r=>r.ref));
+    profile.ledger.requests=profile.ledger.requests.filter(r=>!expired.has(r.ref));
   } else if (command.kind === 'apply-batch') {
     editable(profile);
+    if(profile.ledgerRecovery)throw new Error('Discard the preserved damaged Batch before applying results.');
     if (command.ledgerId !== profile.ledger?.id) throw new Error(stale);
-    const result = previewTransferResults(profile.ledger, profile.cards, command.observations, command.now);
+    const result = previewTransferResults(profile.ledger, verificationCards(profile), command.observations, command.now,profile.recoveryEvidence);
     if (!equal(result.items, command.items)) throw new Error('Batch preview changed. Preview again.');
     if (!result.counts.accepted) return input;
     for (const item of result.items.filter(i => i.outcome === 'accepted')) {
@@ -456,6 +478,7 @@ export function reduceInventory(input, command) {
   if (['patch','manual-verification','csv-recovery','resolve-conflict'].includes(command.kind)) profile.ledger=relevantLedger(profile.ledger,profile.cards);
   if(!command.kind.startsWith('sync-')&&!command.kind.startsWith('control-')&&command.kind!=='bind-remote')state.receipts[command.id] = digest;
   const receiptIds=Object.keys(state.receipts);for(const id of receiptIds.slice(0,-128))delete state.receipts[id];
+  pruneObservationReceipts(state);
   if (state.active !== input.active) profile.revision++;
   profileOf(state).revision++;
   state.revision++;
@@ -567,9 +590,10 @@ export function openInventory({ indexedDB, storage,
     },
     async commit(command) {
       let changed=false;
+      const commandHash=await fingerprint(command);
       const state = await transaction('readwrite', current => {
         if (!current) throw new Error('Initialize local inventory first.');
-        const next=reduceInventory(current, command);changed=next!==current;return next;
+        const next=reduceInventory(current, command,commandHash);changed=next!==current;return next;
       });
       // Notification failures cannot turn a completed commit into a failed save.
       if(changed)try { notify(); } catch { /* tab focus also reloads committed state */ }
@@ -596,7 +620,11 @@ function validateSnapshot(state) {
       if(!/^[a-f0-9]{64}$/.test(flight.requestHash)||flight.request?.protocol!==syncProtocol||flight.request.principal!==profile.context.principal||flight.request.sheetId!==profile.context.sheetId||!Array.isArray(flight.request.operations))throw new Error('Damaged saved commit identity. Original work was preserved.');
       validateInventory(flight.request.cards);validateInventory(flight.request.base.cards);validateEvidence(flight.request.base.evidence);
     }
-    if (profile.ledger) decodeTransferLedger(JSON.stringify(profile.ledger));
+    if (profile.ledger) {
+      try { decodeTransferLedger(JSON.stringify(profile.ledger)); }
+      catch { profile.ledgerRecovery=true; }
+      isolateBatch(state,profile);
+    }
   }
 }
 
