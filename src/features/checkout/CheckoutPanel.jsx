@@ -12,7 +12,7 @@ export function CheckoutPanel({ selectedCard, visiblePosition, visibleCount, wor
   const { revealNumber, setRevealNumber, isEditingNotes, newNotesValue, setNewNotesValue,
     setIsEditingNotes, handleCopyCodePin, handleOpenBalanceEdit, handleOpenNotes, handleSaveNotes } = workflow;
   if(credentialBlocked)return <main className="p-4 flex flex-col gap-4">
-    <p>This card has conflicting credentials. Review the preserved alternatives in Settings before using it.</p>
+    <p>This card has conflicting credentials or identity evidence. Review the preserved alternatives in Settings before using it.</p>
     <Button variant="filled" onClick={onReviewCredentials}>Review card credentials</Button>
     <Button variant="text" onClick={onBack}>Back to cards</Button>
   </main>;

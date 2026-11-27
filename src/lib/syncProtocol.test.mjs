@@ -24,10 +24,10 @@ test('different balances preserve remote and unrelated additions; later applicab
  const verified=merge([remote],[observed],disputed.cards,[operation('verified',remote,observed,'manual-verification',{checkedAt:'2026-11-26T12:00:00.000Z',observedBalance:75})],{evidence:disputed.evidence,now:'2026-11-26T12:00:01.000Z'});
  assert.equal(verified.cards.find(c=>c.cardNumber===a.cardNumber).pendingReconciliation,false);
 });
-test('conflicting notes and PINs retain both alternatives; missing rows never imply deletion',()=>{
- const notes=merge([a],[{...a,notes:'local'}],[{...a,notes:'remote'}]);assert.equal(notes.cards[0].notes,'remote');assert.equal(notes.evidence.cards[a.cardNumber].conflicts[0].local,'local');
+test('conflicting notes combine without decisions; PIN alternatives survive and missing rows never imply deletion',()=>{
+ const notes=merge([a],[{...a,notes:'local'}],[{...a,notes:'remote'}]);assert.equal(notes.cards[0].notes,'local\nremote');assert.equal(notes.evidence.cards[a.cardNumber],undefined);
  const pin=merge([a],[{...a,pin:'9999'}],[a]);assert.equal(pin.cards[0].pin,a.pin);assert.equal(pin.evidence.cards[a.cardNumber].conflicts[0].local.pin,'9999');
- const missing=merge([a],[a],[]);assert.equal(missing.cards.length,1);assert.equal(missing.evidence.cards[a.cardNumber].conflicts[0].kind,'missing-remote');
+ const missing=merge([a],[a],[]);assert.equal(missing.cards.length,1);assert.equal(missing.evidence.cards[a.cardNumber].conflicts.length,0);assert.equal(missing.cards[0].pendingReconciliation,true);
 });
 test('explicit tombstones block stale resurrection while preserving targeted credentials',()=>{
  const evidence={cards:{},tombstones:{[a.cardNumber]:{id:'delete-a'}}};
@@ -64,8 +64,8 @@ test('a later monetary action cannot use an earlier verification to clear uncert
  assert.equal(result.cards[0].currentBalance,saved.currentBalance);
  assert.equal(result.cards[0].pendingReconciliation,true);
 });
-test('explicit notes/PIN resolution compacts resolved alternatives and rejects stale resolution',()=>{
- for(const field of ['notes','pin']){
+test('explicit PIN resolution compacts resolved alternatives and rejects stale resolution',()=>{
+ for(const field of ['pin']){
   const local={...a,[field]:field==='pin'?'9999':'local note'},remote={...a,[field]:field==='pin'?'1111':'remote note'};
   const disputed=merge([a],[local],[remote],[operation('original',a,local)],{now:'2026-11-25T00:00:00.000Z'});
   const conflict=disputed.evidence.cards[a.cardNumber].conflicts[0];
@@ -112,7 +112,7 @@ test('date-only pending operations cannot erase precise remote verification meta
  const result=merge([old],replay,[remote],[op]);
  assert.equal(result.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
  assert.equal(result.cards[0].lastBalanceChecked,remote.lastBalanceChecked);
- assert.ok(result.evidence.cards[a.cardNumber].conflicts.some(c=>c.kind==='field:lastBalanceChecked'));
+ assert.ok(result.evidence.cards[a.cardNumber].conflicts.some(c=>c.kind==='verification'));
  const fromOldBase=merge([old],materialize([old],[op]),[remote],[op]);
  assert.equal(fromOldBase.cards[0].lastBalanceCheckedAt,remote.lastBalanceCheckedAt);
  assert.equal(fromOldBase.cards[0].lastBalanceChecked,remote.lastBalanceChecked);

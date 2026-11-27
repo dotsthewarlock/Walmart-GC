@@ -6,6 +6,7 @@ import { previewTransferResults, transferCardSnapshot } from './balanceTransfer.
 import { decodeTransferLedger, invalidatedLedger } from './balanceTransferLedger.js';
 import { storageKeys } from './storage.js';
 import { isolateBatch, pruneObservationReceipts, credentialAmbiguous, verificationCards, planInventoryRecovery } from './inventoryRecovery.js';
+import { repairRecovery, retireVerificationEvidence, flaggedConflict } from './reconciliationPolicy.js';
 
 export const inventoryDatabase = 'walmartGc.inventory';
 const stale = 'Saved cards changed. Reload the wallet or reopen this editor before saving.';
@@ -96,13 +97,13 @@ export function migrateLegacy(raw, migrationId = operationId()) {
   return state;
 }
 
-export function relevantLedger(ledger,cards) {
+export function relevantLedger(ledger,cards,evidence) {
   if(!ledger || ledger.application)return ledger;
   const next=structuredClone(ledger);
   for(const request of next.requests) {
     if(request.state!=='pending')continue;
     const card=cards.find(c=>c.cardNumber===request.cardNumber);
-    if(!card || getEffectiveMerchant(card)!=='walmart-ca' || (request.relevance && !syncEqual(request.relevance,{pinDigest:request.relevance.pinDigest,currentBalance:card.currentBalance,lastBalanceChecked:card.lastBalanceChecked||'',pendingReconciliation:card.pendingReconciliation===true,used:card.used})))request.state='invalidated';
+    if(!card || credentialAmbiguous(evidence,request.cardNumber) || getEffectiveMerchant(card)!=='walmart-ca' || (request.relevance && !syncEqual(request.relevance,{pinDigest:request.relevance.pinDigest,currentBalance:card.currentBalance,lastBalanceChecked:card.lastBalanceChecked||'',pendingReconciliation:card.pendingReconciliation===true,used:card.used})))request.state='invalidated';
     else if(!request.relevance && !syncEqual(request.snapshot,{currentBalance:card.currentBalance,lastBalanceChecked:card.lastBalanceChecked||'',dateUpdated:card.dateUpdated,used:card.used}))request.state='invalidated';
   }
   if(!next.requests.some(r=>r.state==='pending'))next.inventoryDigest=null;
@@ -259,7 +260,7 @@ export function reduceInventory(input, command, commandHash) {
     profile.cards=merged.cards;profile.recoveryEvidence=merged.evidence;profile.remoteBase=remote;
     profile.sheets={spreadsheetId:profile.context.sheetId,remoteSheetVersion:remote.version,status:'ready'};
     profile.sync={status:'connected',lastKnownSheetVersion:remote.version,...(command.confirmedAt ? {lastConfirmedAt:command.confirmedAt} : {})};
-    profile.ledger=relevantLedger(profile.ledger,profile.cards);
+    profile.ledger=relevantLedger(profile.ledger,profile.cards,profile.recoveryEvidence);
     if(profile.ledger)profile.ledger.context.sheetVersion=remote.version;
   } else if (command.kind === 'sync-rejected') {
     if (!profile.inFlight || command.commitId!==profile.inFlight.request.id || !command.notDispatched) throw new Error('Uncertain commits must remain preserved.');
@@ -270,7 +271,7 @@ export function reduceInventory(input, command, commandHash) {
     const conflict=entry?.conflicts?.find(c=>c.id===command.conflictId&&!c.resolution);
     const tombstone=profile.recoveryEvidence?.tombstones?.[command.cardNumber];
     if(!conflict&&!tombstone)throw new Error('This recovery item changed.');
-    if(conflict?.kind==='balance')throw new Error('Verify this balance with the merchant to clear uncertainty.');
+    if(conflict&&flaggedConflict(conflict.kind))throw new Error('Verify this balance with the merchant to clear uncertainty.');
     const before=profile.cards.find(c=>c.cardNumber===command.cardNumber)??null;
     if(before&&profile.versions[command.cardNumber]!==command.version)throw new Error(stale);
     let after=before;
@@ -340,7 +341,8 @@ export function reduceInventory(input, command, commandHash) {
     let after;
     if (command.kind === 'manual-verification') {
       const evidence=profile.recoveryEvidence?.cards?.[command.cardNumber],time=command.observation?.checkedAt;
-      if(time<(evidence?.uncertainSince||'')||time<(evidence?.moneyAt||''))throw new Error('Verify this card again after its latest monetary change or uncertainty.');
+      if(time<(evidence?.uncertainSince||'')||time<(evidence?.moneyAt||'')||time<(maintenanceRevision(profile.recoveryEvidence,command.cardNumber)||'')
+        ||Date.parse(time)>Date.now()+60_000)throw new Error('Verify this card again after its latest monetary change or uncertainty.');
       const entry = createBalanceReviewQueue(profile.cards).find(e => e.card.cardNumber === command.cardNumber);
       after = applyBalanceObservation(profile.cards, { ...command.observation, cardNumber: command.cardNumber, expected: entry })
         .find(c => c.cardNumber === command.cardNumber);
@@ -352,6 +354,7 @@ export function reduceInventory(input, command, commandHash) {
       if(syncEqual(before,after))return input;
     }
     record(profile, { ...command, kind: command.action ?? command.kind }, before, after);
+    if(command.kind==='manual-verification')retireVerificationEvidence(profile.recoveryEvidence?.cards?.[command.cardNumber]);
   } else if (command.kind === 'mark-zero-used') {
     editable(profile);
     for (const target of command.targets) {
@@ -360,7 +363,7 @@ export function reduceInventory(input, command, commandHash) {
       record(profile, { ...command, id: `${command.id}:${before.cardNumber}` }, before,
         { ...before, used: true, dateUsed: command.date });
     }
-    profile.ledger = relevantLedger(profile.ledger, profile.cards);
+    profile.ledger = relevantLedger(profile.ledger, profile.cards,profile.recoveryEvidence);
   } else if (command.kind === 'csv-recovery') {
     editable(profile);
     if (command.revision !== profile.revision) throw new Error(stale);
@@ -451,6 +454,7 @@ export function reduceInventory(input, command, commandHash) {
       const after = result.candidate.find(c => c.cardNumber === item.cardNumber);
       record(profile, { id: `observation:${item.ref}`, kind: 'batch-verification', observation: { ref: item.ref,
         balance: item.balance, checkedAt: item.checkedAt } }, before, after);
+      retireVerificationEvidence(profile.recoveryEvidence?.cards?.[item.cardNumber]);
       const request = profile.ledger.requests.find(r => r.ref === item.ref);
       request.state = 'applied';
       request.applied = { ref: item.ref, balance: item.balance, checkedAt: item.checkedAt };
@@ -475,7 +479,7 @@ export function reduceInventory(input, command, commandHash) {
     for (const request of profile.ledger.requests) if (request.state === 'pending' && request.cardNumber === command.cardNumber) request.state = 'invalidated';
     if (!profile.ledger.requests.some(request => request.state === 'pending')) profile.ledger.inventoryDigest = null;
   }
-  if (['patch','manual-verification','csv-recovery','resolve-conflict'].includes(command.kind)) profile.ledger=relevantLedger(profile.ledger,profile.cards);
+  if (['patch','manual-verification','csv-recovery','resolve-conflict'].includes(command.kind)) profile.ledger=relevantLedger(profile.ledger,profile.cards,profile.recoveryEvidence);
   if(!command.kind.startsWith('sync-')&&!command.kind.startsWith('control-')&&command.kind!=='bind-remote')state.receipts[command.id] = digest;
   const receiptIds=Object.keys(state.receipts);for(const id of receiptIds.slice(0,-128))delete state.receipts[id];
   pruneObservationReceipts(state);
@@ -556,16 +560,25 @@ export function openInventory({ indexedDB, storage,
         await transaction('readwrite', current => {
           const needsUpgrade = Object.values(current.profiles).some(profile =>
             profile.pending.some(op => op.kind === 'legacy-recovery' && /^migration:\d+$/.test(op.id)));
-          if (!needsUpgrade) return current;
           const next = structuredClone(current);
-          next.migrationOperationNamespace ??= operationId();
+          if(needsUpgrade)next.migrationOperationNamespace ??= operationId();
+          let changed=needsUpgrade;
           for (const profile of Object.values(next.profiles)) {
             for (const op of profile.pending) {
               if (op.kind === 'legacy-recovery' && /^migration:\d+$/.test(op.id)) {
                 op.id = `migration:${next.migrationOperationNamespace}:${op.id.slice('migration:'.length)}`;
               }
             }
+            const repaired=repairRecovery(profile.cards,profile.recoveryEvidence,undefined,profile.pending);
+            const ledger=relevantLedger(profile.ledger,repaired.cards,repaired.evidence);
+            if(!syncEqual(profile.cards,repaired.cards)||!syncEqual(profile.recoveryEvidence,repaired.evidence)||!syncEqual(profile.ledger,ledger)){
+              for(const card of repaired.cards)if(!syncEqual(card,profile.cards.find(c=>c.cardNumber===card.cardNumber)))
+                profile.versions[card.cardNumber]=(profile.versions[card.cardNumber]??0)+1;
+              profile.cards=repaired.cards;profile.recoveryEvidence=repaired.evidence;
+              profile.ledger=ledger;profile.revision++;changed=true;
+            }
           }
+          if(!changed)return current;
           next.revision++;
           return next;
         });

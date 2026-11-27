@@ -1,5 +1,6 @@
 import {inventoryContext,assertInventoryContext,profileOf,operationId} from './inventory.js';
 import {syncProtocol,fingerprint,snapshotContent,materialize,validateEvidence,equal} from './syncProtocol.js';
+import { recoverySummary } from './reconciliationPolicy.js';
 
 // All local write commands finish before the coalesced push. No work is promised
 // after the page closes. In-flight request bytes/identity survive a process exit.
@@ -119,9 +120,10 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         state=await commit({kind:'sync-pull',...context,revision:profile.revision,snapshot:result.snapshot,confirmedAt:new Date().toISOString()});
       }
       attempts=0;retryNotBefore=0;lastCheck=now();lastContext=JSON.stringify(inventoryContext(state));
-      const evidence=profileOf(state).recoveryEvidence;
-      const conflicts=Object.values(evidence?.cards??{}).flatMap(e=>e.conflicts??[]).filter(c=>!c.resolution).length;
-      onStatus({phase:profileOf(state).remoteBase?.maintenance?'maintenance':conflicts?'review':'saved',message:profileOf(state).remoteBase?.maintenance?'Shared maintenance is paused. Local work remains saved.':conflicts?'Saved with recovery evidence. Review uncertain cards.':'Changes saved to your private Sheet.'});
+      const current=profileOf(state),recovery=recoverySummary(current),hasWork=Boolean(current.pending.length||current.inFlight||current.remoteBase?.needsRepair);
+      onStatus({phase:current.remoteBase?.maintenance?'maintenance':hasWork?'local':'saved',
+        message:current.remoteBase?.maintenance?'Shared maintenance is paused. Local work remains saved.':hasWork?'Saved locally. Synchronization pending.':'Synchronized with your private Sheet.',
+        balanceConfidence:recovery.uncertain?'uncertain':'verified',recordIntegrity:recovery.quarantined?'quarantined':'accepted',...recovery});
       if(profileOf(state).pending.length||profileOf(state).remoteBase?.needsRepair)again=true;
     }catch(error){
       if(error.payload?.code==='baseline_expired'&&error.payload.notDispatched&&context){

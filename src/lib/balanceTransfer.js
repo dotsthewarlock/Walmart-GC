@@ -1,5 +1,6 @@
 import { applyBalanceObservation, createBalanceReviewQueue, parseVerifiedBalance } from "./balanceReview.js";
 import { isCalendarDate, schemaCapability } from "./csvSchema.js";
+import { maintenanceRevision } from './syncProtocol.js';
 
 export const checkerUrl = "https://www.walmart.ca/en/account/giftcards/balance";
 export const transferVersion = 1;
@@ -47,12 +48,14 @@ export function readTransferPreferences(storage) {
 }
 
 export function selectTransferCards(cards, preferences = defaultTransferPreferences, now = new Date()) {
+  preferences={...defaultTransferPreferences,...preferences};
   const allEligible = transferEligibleCards(cards);
   const usedCount = allEligible.filter(({ card }) => card.used === true).length;
   const zeroCount = allEligible.filter(({ card }) => card.currentBalance === 0).length;
   const today = now.toISOString().slice(0, 10);
   const cutoff = new Date(Date.parse(`${today}T00:00:00.000Z`) - preferences.days * 86400000).toISOString().slice(0, 10);
   const matching = allEligible.filter(({ card }) => {
+    if(preferences.flaggedOnly===true)return card.pendingReconciliation===true;
     const checked = card.lastBalanceChecked || "";
     return (preferences.status === "all" || (preferences.status === "used" ? card.used === true : card.used !== true))
       && (card.pendingReconciliation===true || preferences.balance === "all" || (preferences.balance === "zero" ? card.currentBalance === 0 : card.currentBalance > 0))
@@ -180,7 +183,7 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) return 'Observation predates its request or is more than 60 seconds in the future.';
     if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) return 'The observation predates the saved verification time.';
     const recovery=evidence?.cards?.[card.cardNumber];
-    if(checkedAt<(recovery?.uncertainSince||'')||checkedAt<(recovery?.moneyAt||''))return 'The observation predates the latest monetary change or uncertainty.';
+    if(checkedAt<(recovery?.uncertainSince||'')||checkedAt<(recovery?.moneyAt||'')||checkedAt<(maintenanceRevision(evidence,card.cardNumber)||''))return 'The observation predates the latest monetary change or uncertainty.';
     return null;
   };
   for (const observation of observations) {

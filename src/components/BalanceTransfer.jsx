@@ -10,7 +10,7 @@ import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { SelectField } from "./primitives/SelectField";
 import { TextArea } from "./primitives/TextArea";
-import { verificationCards } from '../lib/inventoryRecovery';
+import { verificationCards, credentialAmbiguous } from '../lib/inventoryRecovery';
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 function Segments({ label, value, choices, onChange, disabled, detail }) {
@@ -37,7 +37,7 @@ function formatNet(cents) {
   return `${cents < 0n ? "−" : cents > 0n ? "+" : ""}$${(absolute / 100n).toLocaleString("en-CA")}.${String(absolute % 100n).padStart(2, "0")}`;
 }
 
-export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet }) {
+export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWallet, walletSnapshot, readWallet, commitWallet, flaggedOnly=false }) {
   const [preferences, setPreferences] = useState(() => {
     try { return readTransferPreferences(window.localStorage); } catch { return { ...defaultTransferPreferences }; }
   });
@@ -56,7 +56,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const ledger = batch.ledger;
   const pending = ledger?.requests.filter(({ state }) => state === "pending").length ?? 0;
   const invalidated = ledger?.requests.filter(({ state }) => state === "invalidated").length ?? 0;
-  const selectionCounts = selectTransferCards(verificationCards(profileOf(walletSnapshot)), preferences);
+  const selectionCounts = selectTransferCards(verificationCards(profileOf(walletSnapshot)), {...preferences,flaggedOnly});
 
   useEffect(() => { try { window.localStorage.setItem(transferPreferenceKey, JSON.stringify(preferences)); } catch { /* Preferences are optional. */ } }, [preferences]);
 
@@ -126,7 +126,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
       const legacyMatches = pendingRequests.some(r=>!r.relevance) && profile.ledger.inventoryDigest === await inventoryFingerprint(inventoryRaw,profile.ledger.id);
       const invalid = (await Promise.all(pendingRequests.map(async r=>{
         const card=profile.cards.find(c=>c.cardNumber===r.cardNumber);
-        return (!card || !sameTransferContext(profile.ledger.context,context) || (r.relevance ? r.relevance.pinDigest!==await inventoryFingerprint(card.pin,profile.ledger.id) : !legacyMatches)) ? r.ref : null;
+        return (!card || credentialAmbiguous(profile.recoveryEvidence,r.cardNumber) || !sameTransferContext(profile.ledger.context,context) || (r.relevance ? r.relevance.pinDigest!==await inventoryFingerprint(card.pin,profile.ledger.id) : !legacyMatches)) ? r.ref : null;
       }))).filter(Boolean);
       if(invalid.length || !sameTransferContext(profile.ledger.context,context)){
         await assertSession({state,profile});
@@ -151,7 +151,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function createBatch() {
     const session = await verifiedSession();
-    const { selected } = selectTransferCards(session.previewCards, preferences);
+    const { selected } = selectTransferCards(session.previewCards, {...preferences,flaggedOnly});
     const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw, undefined, session.ledger?.id);
     await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
@@ -237,6 +237,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
           </>
         ) : (
           <>
+            {!flaggedOnly&&<>
             <Segments label="Status" value={preferences.status} disabled={busy} onChange={v => setPreference("status", v)} choices={[["active", "Active"], ["used", "Used"], ["all", "All"]]} />
             <Segments label="Balance" value={preferences.balance} disabled={busy} onChange={v => setPreference("balance", v)} choices={[["yes", "Yes"], ["zero", "$0"], ["all", "All"]]} />
             <div className="grid grid-cols-[2fr_1fr] gap-2">
@@ -251,6 +252,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
                 </SelectField>
               </label>
             </div>
+            </>}
             <label className="flex flex-col gap-1 text-sm font-medium">Sort by
               <SelectField disabled={busy} value={preferences.sort} onChange={event => setPreference("sort", event.target.value)}>
                 <option value="checked-oldest">Checked oldest</option><option value="checked-newest">Checked newest</option><option value="added-oldest">Added oldest</option><option value="added-newest">Added newest</option><option value="balance-highest">Balance highest</option><option value="balance-lowest">Balance lowest</option>
