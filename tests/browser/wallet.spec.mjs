@@ -68,6 +68,7 @@ test('P1.1 shared shell retains destination scroll, selection, drafts and contex
  await expect(page.getByText('Working selection: 20 cards · 1 verified',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Companion / Batch',exact:true}).click();
  await page.getByRole('button',{name:'Prepare selected cards',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Send to Companion',exact:true})).toBeEnabled();
  const prepared=active(await snapshot(page));
  const ref=prepared.batchSelection[0];
  const packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t12.34\t'+new Date().toISOString()].join('\n');
