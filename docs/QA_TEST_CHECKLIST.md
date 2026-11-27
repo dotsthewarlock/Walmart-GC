@@ -24,9 +24,14 @@ LD_LIBRARY_PATH; this does not change the product or deployment. No normal app
 flow depends on Playwright or any test fixture.
 
 `test:worker` uses development-only Miniflare/workerd, the production Worker module
-graph and SQLite-backed coordinator storage. Three local-runtime scenarios cover
+graph and SQLite-backed coordinator storage. Local-runtime scenarios cover
 protocol/account fencing, concurrent writes across external awaits and actual
 runtime restart after uncertain dispatch and the fail-closed activation pause.
+Frontend-generated control requests also traverse authenticated Worker HTTP routes:
+setup creation/ensure, pause/resume, durable rejection/replay, historical UUID
+controls and commits, saved pre-dispatch controls, and restart/late-write recovery
+without redispatch. Invalid timestamp/UUID/action combinations are rejected, while
+targetless saved setup remains fenced for operator recovery.
 All Google responses are synthetic;
 unmatched outbound network connections are denied. This is stronger than an
 in-memory storage fake, but does not validate production bindings or live Google.

@@ -26,6 +26,8 @@ bytes, pending work, exact account/Sheet ownership, explicit deletions and uncer
 external-write fences. Architecture owns the replacement safeguards and module map;
 QA owns synthetic acceptance and capacity measurements. The release PR records
 review, required CI, preserved production configuration and hosted verification.
+PRs #252/#253 shipped R1 on `40dc926`; the focused control-identity HTTP compatibility
+correction remains within this release's recovery contract and authority.
 
 The user authorizes the compatible production release after independent review
 and required CI, with existing infrastructure, bindings, DO namespace, unpaused

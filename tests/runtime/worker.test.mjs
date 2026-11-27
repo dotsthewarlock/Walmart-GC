@@ -7,13 +7,17 @@ import {Miniflare,createFetchMock} from 'miniflare';
 import {cardA,cardB,operation} from '../syncFixtures.mjs';
 import {csvHeaders} from '../../src/lib/csvSchema.js';
 import {syncProtocol,fingerprint,snapshotContent} from '../../src/lib/syncProtocol.js';
+import {createSyncEngine} from '../../src/lib/syncEngine.js';
+import {openInventory,inventoryContext} from '../../src/lib/inventory.js';
+import {syntheticIndexedDB} from '../syntheticIndexedDB.mjs';
 
 // Real workerd + SQLite, production Worker module graph and HTTP DO class.
 // All outbound requests are denied unless fulfilled by these synthetic adapters.
 // https://developers.cloudflare.com/workers/testing/miniflare/core/standards/
 function googleFixture(){
  const mock=createFetchMock();mock.disableNetConnect();
- const sheet={cards:[csvHeaders],meta:[['key','value'],['sheetVersion','initial']],reads:0,writes:0,mode:null,principal:'qa-principal'};
+ const sheet={cards:[csvHeaders],meta:[['key','value'],['sheetVersion','initial']],reads:0,writes:0,creates:0,exists:true,mode:null,principal:'qa-principal'};
+ const ownedFile=()=>({id:'synthetic-sheet',name:'Walmart-GC Data',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:true,owners:[{permissionId:'qa-principal'}],appProperties:{gcWalletCreationId:sheet.creationId}});
  const apply=requests=>{
   for(const {updateCells} of requests){
    assert.ok(updateCells,'Fixture must explicitly support every dispatched mutation');
@@ -26,9 +30,13 @@ function googleFixture(){
  const google=mock.get('https://www.googleapis.com');
  google.intercept({method:'GET',path:/.*/}).reply(({path})=>{
   if(path.startsWith('/drive/v3/about'))return {statusCode:200,data:JSON.stringify({user:{permissionId:sheet.principal,emailAddress:'qa@example.invalid'}})};
+  if(path.startsWith('/drive/v3/files?'))return {statusCode:200,data:JSON.stringify({files:sheet.exists?[ownedFile()]:[]})};
   if(path.startsWith('/drive/v3/files/synthetic-sheet'))return {statusCode:200,data:JSON.stringify({id:'synthetic-sheet',name:'Walmart-GC Data',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:true,owners:[{permissionId:'qa-principal'}]})};
   if(path.startsWith('/drive/v3/files/nonowned-sheet'))return {statusCode:200,data:JSON.stringify({id:'nonowned-sheet',mimeType:'application/vnd.google-apps.spreadsheet',ownedByMe:false,owners:[{permissionId:'another-principal'}]})};
   throw Error('Unmocked Drive request: '+path);
+ }).persist();
+ google.intercept({method:'POST',path:/^\/drive\/v3\/files\?/}).reply(({body})=>{
+  return {statusCode:200,data:async()=>{sheet.exists=true;sheet.creates++;sheet.creationId=(await new Response(body).json()).appProperties.gcWalletCreationId;return JSON.stringify(ownedFile());}};
  }).persist();
  const sheets=mock.get('https://sheets.googleapis.com');
  sheets.intercept({method:'GET',path:/.*/}).reply(({path})=>{
@@ -54,11 +62,89 @@ function runtime(mock,persist,bindings={}){return new Miniflare({modules:true,sc
 async function stub(mf,name='sheet:synthetic-sheet'){const ns=await mf.getDurableObjectNamespace('SHEET_COORDINATOR');return ns.get(ns.idFromName(name));}
 async function send(target,body){const response=await target.fetch('https://internal/sync',{method:'POST',headers:{Authorization:'Bearer synthetic-token','Content-Type':'application/json'},body:JSON.stringify({protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',...body})});return {status:response.status,...await response.json()};}
 const commit=(base,operations)=>({action:'commit',id:crypto.randomUUID(),base,cards:operations.map(op=>op.after),operations});
-async function seedSession(mf){
+async function seedSession(mf,sheetId='synthetic-sheet'){
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode('synthetic-secret'),{name:'HMAC',hash:'SHA-256'},false,['sign']);
  const digest=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode('synthetic-session'));
- const kv=await mf.getKVNamespace('SESSIONS');await kv.put('session:'+Buffer.from(digest).toString('base64url'),JSON.stringify({principal:'qa-principal',sheetId:'synthetic-sheet',refreshToken:'synthetic-refresh',accessToken:'synthetic-token',expiresAt:'2099-01-01T00:00:00Z'}));
+ const kv=await mf.getKVNamespace('SESSIONS');await kv.put('session:'+Buffer.from(digest).toString('base64url'),JSON.stringify({principal:'qa-principal',sheetId,refreshToken:'synthetic-refresh',accessToken:'synthetic-token',expiresAt:'2099-01-01T00:00:00Z'}));
 }
+
+test('frontend control identities cross Worker HTTP, retain rejection proofs and recover persisted original flights without redispatch',async()=>{
+ const {mock,sheet}=googleFixture(),persist=await mkdtemp(join(tmpdir(),'gc-control-http-'));
+ const indexedDB=syntheticIndexedDB(),local=()=>openInventory({indexedDB,name:'http-controls',storage:{getItem:key=>key==='walmartGc.cards'?'[]':null}});
+ let mf=runtime(mock,persist),store=local(),oldBoundary=false;const sent=[];
+ const http=async(path,options={})=>{
+  const response=await mf.dispatchFetch('https://wallet.example'+path,{...options,headers:{Origin:'https://wallet.example',Cookie:'walmart_gc_session=synthetic-session','Content-Type':'application/json'}});
+  const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error),{payload:result,status:response.status});return result;
+ };
+ const request=async(path,options)=>{
+  if(options?.body){sent.push(JSON.parse(options.body));
+   // Model an already persisted flight after the former HTTP boundary's 400.
+   if(oldBoundary)throw Object.assign(Error('A UUID commit identity is required.'),{status:400,payload:{error:'A UUID commit identity is required.'}});
+  }
+  return http(path,options);
+ };
+ const timers={setTimeout(){return 1;},clearTimeout(){}};
+ const engine=()=>createSyncEngine({store,request,timers});let client=engine();
+ try{
+  await seedSession(mf);await store.initialize();await client.sync({bind:true});
+  await client.control('ensure');assert.match(sent.at(-1).id,/^control:\d{4}-.*Z:[a-f0-9-]{36}$/);assert.equal(sheet.writes,1);
+  await client.control('pause');assert.equal(sheet.writes,2);
+  await assert.rejects(client.control('pause'),error=>error.payload.notDispatched===true&&error.payload.rejection.requestHash.length===64);
+  const rejected=sent.at(-1);assert.equal((await store.read()).controlFlights['qa-principal'],undefined);
+  await assert.rejects(http('/api/sync',{method:'POST',body:JSON.stringify(rejected)}),error=>error.payload.code==='control_rejected'&&error.payload.rejection.id===rejected.id);
+  await assert.rejects(http('/api/sync',{method:'POST',body:JSON.stringify({...rejected,action:'resume'})}),error=>error.payload.code==='control_rejected'&&!error.payload.rejection);
+  assert.equal(sheet.writes,2);
+  // Historical standalone UUID controls remain readable from local persistence.
+  const legacy={protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',action:'resume',id:crypto.randomUUID()};
+  await store.commit({id:crypto.randomUUID(),kind:'control-begin',...inventoryContext(await store.read()),request:legacy});
+  store=local();await store.initialize();client=engine();await client.sync();
+  assert.deepEqual(sent.find(body=>body.id===legacy.id),legacy);assert.equal((await store.read()).controlFlights['qa-principal'],undefined);assert.equal(sheet.writes,3);
+  oldBoundary=true;await assert.rejects(client.control('pause'),/UUID commit/);
+  const saved=structuredClone((await store.read()).controlFlights['qa-principal'].request);assert.equal(sheet.writes,3);
+  oldBoundary=false;store=local();await store.initialize();client=engine();await client.sync();
+  assert.deepEqual(sent.findLast(body=>body.id),saved);assert.equal((await store.read()).controlFlights['qa-principal'],undefined);assert.equal(sheet.writes,4);
+  sheet.mode='before';await assert.rejects(client.control('resume'),error=>error.payload.code==='uncertain'&&!error.payload.rejection);
+  const uncertain=structuredClone((await store.read()).controlFlights['qa-principal'].request);assert.equal(sheet.writes,5);
+  await mf.dispose();mf=runtime(mock,persist);await seedSession(mf);store=local();await store.initialize();client=engine();
+  await client.sync();assert.deepEqual((await store.read()).controlFlights['qa-principal'].request,uncertain);assert.equal(sheet.writes,5);
+  sheet.late();sheet.mode=null;await client.sync();
+  assert.deepEqual(sent.findLast(body=>body.id),uncertain);assert.equal((await store.read()).controlFlights['qa-principal'],undefined);assert.equal(sheet.writes,5);
+  await assert.rejects(http('/api/sync',{method:'POST',body:JSON.stringify(rejected)}),error=>error.payload.code==='control_rejected');
+  const base=(await http('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',action:'pull'})})).snapshot;
+  const ordinary=commit(base,[]);const result=await http('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',...ordinary})});
+  assert.equal(result.receipt.id,ordinary.id);assert.equal(sheet.writes,6);
+ }finally{await mf.dispose();await mock.close();await rm(persist,{recursive:true,force:true});}
+});
+
+test('Worker HTTP validates timestamped control identities by action, canonical UTC time and complete UUID; frontend setup uses the same identity',async()=>{
+ const {mock,sheet}=googleFixture();sheet.exists=false;const mf=runtime(mock),store=openInventory({indexedDB:syntheticIndexedDB(),name:'http-setup',storage:{getItem:key=>key==='walmartGc.cards'?'[]':null}});
+ const sent=[];
+ const request=async(path,options={})=>{
+  if(options.body)sent.push(JSON.parse(options.body));
+  const response=await mf.dispatchFetch('https://wallet.example'+path,{...options,headers:{Origin:'https://wallet.example',Cookie:'walmart_gc_session=synthetic-session','Content-Type':'application/json'}});
+  const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error),{status:response.status,payload:result});return result;
+ };
+ const client=createSyncEngine({store,request,timers:{setTimeout(){return 1;},clearTimeout(){}}});
+ try{
+  await seedSession(mf,'');await store.initialize();await client.control('ensure');
+  const generated=sent[0];assert.equal(sheet.creationId,generated.id);assert.equal(sheet.creates,1);assert.equal(sheet.writes,1);
+  assert.equal((await store.read()).controlFlights['qa-principal'],undefined);
+  const control={...generated,sheetId:'synthetic-sheet',action:'pause'};
+  for(const id of [generated.id+'suffix',generated.id+'\n',generated.id.replace(/:[^:]+$/,':not-a-uuid'),generated.id.replace(/-4([0-9a-f]{3}-)/,'-5$1'),generated.id.replace(/control:.*Z:/,'control:2026-02-30T00:00:00.000Z:'),generated.id.replace(/\.\d{3}Z:/, 'Z:'),crypto.randomUUID()+'\n']){
+   await assert.rejects(request('/api/sync',{method:'POST',body:JSON.stringify({...control,id})}),error=>error.status===400);
+  }
+  for(const action of ['commit','create','unknown']){
+   await assert.rejects(request('/api/sync',{method:'POST',body:JSON.stringify({...control,action})}),error=>error.status===400);
+  }
+  const future={...control,id:'control:'+new Date(Date.now()+120000).toISOString()+':'+crypto.randomUUID()};
+  await assert.rejects(request('/api/sync',{method:'POST',body:JSON.stringify(future)}),error=>error.status===409&&error.payload.code==='control_rejected'&&!error.payload.rejection);
+  assert.equal(sheet.writes,1);assert.equal(sheet.creates,1);
+  // A targetless saved setup cannot be safely redirected using a later status.
+  await store.commit({id:crypto.randomUUID(),kind:'control-begin',...inventoryContext(await store.read()),request:generated});
+  const before=sent.length;await client.sync();
+  assert.equal(sent.length,before);assert.deepEqual((await store.read()).controlFlights['qa-principal'].request,generated);
+ }finally{await mf.dispose();await mock.close();}
+});
 test('production Worker and SQLite coordinator fence legacy clients and serialize independent writers across external awaits',async()=>{
  const {mock,sheet}=googleFixture(),mf=runtime(mock);try{
   const legacy=await mf.dispatchFetch('https://wallet.example/api/cards/save',{method:'POST',headers:{Origin:'https://wallet.example'},body:'{}'});assert.equal(legacy.status,426);assert.equal(sheet.writes,0);
