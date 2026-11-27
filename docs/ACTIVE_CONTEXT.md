@@ -14,6 +14,9 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
   One IndexedDB authority and one sync engine remain. Required independent review
   and CI precede the authorized compatible Worker/frontend release; exact release
   evidence belongs in its PR. Stop after hosted verification and cleanup.
+  Hosted R1 verification also corrects shell installation against CDN-transformed
+  root HTML by caching verified canonical `/index.html`, preserving digest checks
+  and existing Cloudflare privacy settings.
   Actual private inventory recovery is a separate user-performed acceptance step.
   R2 Companion integration, session extraction and inactive-tab execution are excluded.
 - P0 recovery shipped in PR #251, merge `bd7d8e6`, with Worker

@@ -28,6 +28,9 @@ http.createServer(async (req, res) => {
       data = Buffer.from(worker);
     } else if (release === 'new' && changed[name]) data = changed[name];
     else if (release === 'mixed' && name === '/index.html') data = Buffer.concat([data, Buffer.from('mixed')]);
+    // Model the existing CDN's browser-only root HTML transformation. The
+    // canonical public document remains the exact build artifact.
+    if (url.pathname === '/') data = Buffer.concat([data, Buffer.from('\n<!-- CDN root transformation -->')]);
     res.writeHead(200, {'content-type':types[path.extname(name)] || 'application/octet-stream', 'cache-control':'no-store'}); res.end(data);
   } catch { res.writeHead(404); res.end(); }
 }).listen(5179, '127.0.0.1');
