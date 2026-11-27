@@ -5,14 +5,24 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 ## Current development
 
-- Architecture milestone A1 extracts Settings rendering and its app-lifetime
-  preference/draft/disclosure controller into `src/features/settings/`. App keeps
-  navigation, active inventory context, theme application and all domain commands.
-  No inventory, sync, Worker, schema, companion or transfer contract changes.
+- A1 released in PR #247 (main `db83092`): Settings rendering and its app-lifetime
+  preference/draft/disclosure controller live in `src/features/settings/`.
+- A2 extracts the stateless Cards view into `src/features/cards/CardsPanel.jsx`.
+  Shared selection, derived inventory views, navigation, active inventory context,
+  theme application and protected commands retain their existing owners. No
+  inventory, sync, Worker, schema, companion or transfer contract changes.
+  The permanent agent execution policy now calls for autonomous authorized
+  completion and the least expensive sufficient validation/review approach.
+  [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248) records review,
+  CI and release evidence. Local checks passed: 13 focused Node tests, two serial
+  Cards/Settings browser scenarios, mobile/desktop visual inspection, build,
+  JavaScript syntax and whitespace. The shared CSV input now stays mounted in App
+  so the Cards empty-state import works while Settings is unmounted.
 - Approved sequence: A1 Settings/pattern → A2 Cards/Inventory → A3 Checkout → A4
   conditional shell/Balance Check convergence. Each is independently releasable;
-  functional work may happen between milestones. Only A1 is authorized in this run.
-  See [ownership and interfaces](ARCHITECTURE.md#a1-feature-module-boundary) and
+  functional work may happen between milestones. This run authorizes full A2
+  execution and release only; stop after A2. See
+  [ownership, interfaces and module map](ARCHITECTURE.md#a2-cards--inventory-feature-boundary) and
   [roadmap](ROADMAP.md#incremental-architecture-a1a4).
 
 - Repository: dotsthewarlock/Walmart-GC.

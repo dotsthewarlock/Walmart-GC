@@ -11,11 +11,23 @@ supersedes historical requirements. Keep work focused, evolutionary and reviewab
 - [Roadmap](docs/ROADMAP.md): approved work and explicitly deferred features.
 - [QA](docs/QA_TEST_CHECKLIST.md): integrated acceptance and release prerequisites.
 
-Inspect actual code before changes. Do not repeat completed audits or unaffected
-manual tests. Deliver complete vertical slices using existing components; avoid
-speculative abstractions, wholesale rewrites and repeated approval/handoff gates.
+## Execution policy
+
+Complete authorized milestones autonomously through implementation, self-check,
+corrections, required independent review/CI, authorized merge, deployment
+verification and cleanup. Deliver focused, reviewable vertical slices using
+existing components; avoid speculative abstractions and wholesale rewrites.
+
+Prefer the least expensive sufficient approach. Before expensive or potentially
+low-yield work, assess necessity, benefit, existing evidence and cheaper
+alternatives; omit unnecessary work. Inspect affected code and contracts before
+changes. Do not repeat completed audits or unaffected manual tests.
+
+Seek authorization only for materially beneficial but costly discretionary work
+or substantial scope expansion, briefly explaining cost, benefit and alternatives.
+Reassess diminishing returns after failed attempts. Required safety checks,
+mandated review, CI and routine corrections remain preauthorized within the task.
 Flag material user-data, authentication, uncertain-write or migration risks.
-Resolve ordinary implementation failures within the authorized scope autonomously.
 
 ## Safety and release boundaries
 
@@ -36,9 +48,11 @@ Resolve ordinary implementation failures within the authorized scope autonomousl
 
 ## Verification and communication
 
-Run relevant regressions, meaningful focused tests, build, JavaScript syntax and
-`git diff --check`. Use `npm test` and `npm run test:browser` for the integrated
-synthetic cycle. Report actual results separately from unexecuted prerequisites.
+Run meaningful affected local tests, build, JavaScript syntax and `git diff --check`.
+Reuse existing coverage, avoid concurrent timing-sensitive tests and redundant
+validation, and leave unaffected suites to required CI. `npm test` and
+`npm run test:browser` own the integrated synthetic cycle. Report actual results
+separately from unexecuted prerequisites.
 Development-only testing dependencies may be added when authorized and justified;
 review lockfile impact. No new runtime dependencies without explicit approval.
 

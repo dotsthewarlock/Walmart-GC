@@ -291,5 +291,47 @@ commands, error presentation, navigation/active context and theme application.
 CSV editor transactions remain in App because they share captured inventory
 context with import and save. Settings has no inventory store, engine or network
 client. This is a local feature pattern, with no global store or new runtime
-boundary for the protected protocol. Cards, Checkout and the conditional shell
-remain in App until separately authorized milestones.
+boundary for the protected protocol. Checkout and the conditional shell remain
+in App until separately authorized milestones.
+
+## A2 Cards / Inventory feature boundary
+
+`src/features/cards/CardsPanel.jsx` owns Cards rendering: the balance-review
+entry, empty inventory and fully filtered states, masked rows, selection styling,
+used labels and amounts. It reuses existing primitives and receives read-only
+`cards`, `visibleIndexes`, `selectedCardIndex`, `loaded`, `googleConnected` and
+the shared `maskCardNumber` formatter. Its `commands` callbacks request balance
+review, Google connection, CSV import, filter reset, Settings and card selection.
+App adapts these to the existing handlers; the panel has no store or network client.
+DOM structure, labels, focus behavior and styling are preserved.
+
+There is no Cards-exclusive mutable state to extract. Shared selection and its
+identity ref stay in App, including context-change reconciliation, Checkout
+navigation and advance-on-used behavior. Filtering/sorting preferences remain in
+`useSettings`; App uses existing `lib/cards.js` selectors for both Cards and
+Checkout and for the persistent balance strip. No duplicate derived inventory,
+feature controller or state initialization is introduced. Conditional Cards
+unmounts during Settings, Checkout and Balance Check do not reset shared state.
+
+The hidden CSV file input is mounted in App alongside its existing import handler,
+so Cards' empty-state import and Settings share it across conditional panels.
+Previously it was inside Settings and unavailable to Cards. The handler still
+captures inventory context and opens the same protected recovery editor.
+
+Inventory authority, snapshots, active context, domain commands and all captured
+transaction/context fences remain with App and the existing inventory/sync
+modules. CSV input ownership and connection commands remain shared with Settings;
+the view only invokes callbacks. No protocol, schema, Worker, companion, transfer
+or storage contract changes are part of A2.
+
+### Frontend module map after A2
+
+| Module | Owner / remaining coupling |
+| --- | --- |
+| `src/App.jsx` | Shell/navigation, active inventory context, shared selection and derived inventory views, theme, wallet/sync lifetime and protected commands; Checkout and CSV editor rendering remain here. |
+| `src/features/cards/CardsPanel.jsx` | Stateless Cards view consuming shared inventory views and command callbacks. |
+| `src/features/settings/SettingsPanel.jsx`, `useSettings.js` | Settings view, shared preferences and app-lifetime Settings drafts/disclosure. |
+| `src/lib/cards.js` | Existing shared filtering, sorting, totals and card helpers. |
+| `src/lib/inventory.js`, `syncEngine.js` | Existing transactional inventory and synchronization authorities. |
+| `src/components/BalanceReview.jsx` | Existing Balance Check flow and captured command interfaces. |
+| `src/components/`, `primitives/` | Existing shared UI components and primitives. |

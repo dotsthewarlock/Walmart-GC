@@ -34,9 +34,15 @@ between milestones; this is not a freeze until all four are complete.
 - **A1 — Settings and modularization pattern:** Settings rendering and its
   preference/draft/disclosure controller are extracted. App retains domain
   commands, navigation, theme application and inventory/sync lifetime. See the
-  [module contract](ARCHITECTURE.md#a1-feature-module-boundary). This run implements
-  A1 only, with regression and release evidence in its PR.
-- **A2 — Cards / Inventory:** planned; implementation requires separate authority.
+  [module contract](ARCHITECTURE.md#a1-feature-module-boundary). Released in PR #247.
+- **A2 — Cards / Inventory:** Cards rendering is extracted behind read-only views
+  and existing command callbacks. No exclusively owned mutable state was present;
+  shared preferences, selection, totals and inventory authority keep their owners.
+  See the [contract and module map](ARCHITECTURE.md#a2-cards--inventory-feature-boundary).
+  Implemented and independently reviewed in
+  [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248), which records
+  regression, CI and release verification evidence. A2 release and cleanup are
+  authorized; A3/A4 require separate authority.
 - **A3 — Checkout:** planned; implementation requires separate authority.
 - **A4 — Conditional application shell and Balance Check convergence:** planned;
   implementation requires separate authority.

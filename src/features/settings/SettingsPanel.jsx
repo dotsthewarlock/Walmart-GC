@@ -265,13 +265,6 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
           </summary>
           <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-m3-outline-variant/20 px-2 pb-1">
             <div className="flex gap-2">
-              <input
-                id="csv-file-input"
-                type="file"
-                accept=".csv,text/csv"
-                onChange={commands.importCsvFile}
-                className="hidden"
-              />
               <ActionButton
                 id="import-csv"
                 onClick={() => {
