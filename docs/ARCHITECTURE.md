@@ -196,6 +196,11 @@ Batch TSV remains `WMGC-REQUEST<TAB>1` / `WMGC-RESULT<TAB>1` with exact UUID ref
 CAD cents and ISO UTC checkedAt. New verifications persist their exact UTC time;
 historical date-only records remain valid without guessing a time.
 
+Companion foreground checks require explicit start and a selected target of
+10, 25 or 50. They use a fixed 1,400 ms delay and continue to the target or
+queue exhaustion, without ten-card segmentation or rest. Foreground visibility,
+challenge, timeout and manual fallback safeguards remain in force.
+
 Ledger requests are retained per inventory across selections, with per-card relevance
 snapshots and salted PIN digests (no cleartext PIN). A selection identifies which
 references to export; results resolve against the inventory ledger. Unrelated notes/other cards and compatible sync acknowledgments

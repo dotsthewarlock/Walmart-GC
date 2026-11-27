@@ -21,9 +21,10 @@ reads, focus-triggered result detection or clipboard permission prompts.
 2. The matching Worker was deployed before Pages as version `062fca0a-95dc-4a8d-b49a-4fb4428724ef`, retaining the unpaused flag, existing secrets and bindings, migration and privacy configuration. The protected content read and durable commit evidence remain; no protocol or schema change, cache, leader election or added infrastructure is introduced.
 3. Verify real KV usage over an ordinary-use day and comparable development test. Acceptance: zero redundant writes in steady state, no quota warnings, target under 50 writes/day for one development user, checkout and Batch unchanged. 50 daily users is a planning target (10 necessary writes/user/day with 50% headroom), not measured capacity. No further work without demonstrated need.
 
-PR #239 released Batch reliability and synchronization visibility. PR #237
-published Companion 1.0.3 Dev; Stable remains unpromoted. Ordinary-use companion
-and native clipboard acceptance remain pending.
+PR #239 released Batch reliability and synchronization visibility. PR #245
+released Companion 1.0.5 Dev with a fixed 1,400 ms delay, selected targets of
+10, 25 or 50, and no ten-card segmentation or rest. Stable remains unpromoted.
+Ordinary-use companion and native clipboard acceptance remain pending.
 
 ## Near term, only after synchronization foundation
 
