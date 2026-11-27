@@ -285,3 +285,44 @@ test('Cards preserves filters, sorting, totals, selection and empty-state comman
  const chooser=await choosing;expect(await chooser.element().getAttribute('id')).toBe('csv-file-input');
  expect(qa.errors).toEqual([]);await context.close();
 });
+
+test('Checkout retains workflow drafts and selection while copy, barcode, navigation and wake locks stay scoped',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);
+ const qa=await setup(context,remote,[]);
+ await context.addInitScript(()=>{
+  window.qaCopies=[];window.qaWakeRequests=[];window.qaWakeReleased=[];window.qaFinePointer=false;
+  const match=window.matchMedia.bind(window);
+  window.matchMedia=query=>query==='(hover: hover) and (pointer: fine)'?{matches:window.qaFinePointer}:match(query);
+  Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.qaCopies.push(text);}}});
+  Object.defineProperty(navigator,'wakeLock',{value:{request:()=>new Promise(resolve=>{
+   const id=window.qaWakeRequests.length;window.qaWakeRequests.push(()=>resolve({release:async()=>{window.qaWakeReleased.push(id);}}));
+  })}});
+ });
+ const page=await context.newPage();await start(page);
+ await settings(page);await page.getByLabel('Sort gift cards').selectOption('balance-desc');await page.locator('#settings-back').click();await checkoutA(page);
+ await expect(page.getByRole('img',{name:'Code 128 checkout barcode'})).toBeVisible();
+ await expect(page.locator('#prev-card')).toBeDisabled();await expect(page.locator('#next-card')).toBeEnabled();
+ await page.locator('#detail-barcode-caption').click();await expect(page.locator('#detail-barcode-caption')).toHaveText(cardA.cardNumber);
+ await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByPlaceholder('Add card notes...').fill('  Checkout draft  ');
+ await settings(page);await page.locator('#settings-back').click();await expect(page.getByPlaceholder('Add card notes...')).toHaveValue('  Checkout draft  ');
+ await page.getByRole('button',{name:'Save Notes'}).click();await expect(page.locator('#detail-notes')).toHaveText('Checkout draft');
+ // Resolve an already abandoned wake-lock request as well as the current grant.
+ await page.evaluate(()=>{window.qaWakeRequests.forEach(resolve=>resolve());});
+ await expect.poll(()=>page.evaluate(()=>window.qaWakeReleased.length)).toBe(1);
+ await cards(page);await expect.poll(()=>page.evaluate(()=>window.qaWakeReleased.length)).toBe(2);
+ await page.locator('#review-balances').click();await page.getByRole('button',{name:'Exit',exact:true}).click();
+ await page.locator('#nav-detail').click();await expect(page.locator('#detail-barcode-caption')).toHaveText(cardA.cardNumber);
+ await page.locator('#open-balance-modal').click();await page.locator('#amount-used-input').fill('12.34');await expect(page.locator('#balance-input')).toHaveValue('87.66');
+ await page.keyboard.press('Escape');await expect(page.locator('#balance-modal')).toHaveCount(0);
+ await page.locator('#next-card').click();await expect(page.locator('#card-position')).toHaveText('Card 2 of 2');
+ await expect(page.locator('#detail-barcode-caption')).not.toHaveText(cardB.cardNumber);
+ await page.locator('#prev-card').click();await expect(page.locator('#card-position')).toHaveText('Card 1 of 2');
+ await page.screenshot({path:test.info().outputPath('checkout-mobile.png'),fullPage:true,animations:'disabled'});
+ await page.setViewportSize({width:1280,height:900});await page.evaluate(()=>{window.qaFinePointer=true;});
+ await page.locator('#detail-barcode-caption').click();await page.locator('#detail-barcode-pin').click();
+ expect(await page.evaluate(()=>window.qaCopies)).toEqual([`${cardA.cardNumber}/${cardA.pin}`,`${cardA.cardNumber}/${cardA.pin}`]);
+ await expect(page.getByText('Code/PIN copied',{exact:true})).toBeVisible();
+ await page.screenshot({path:test.info().outputPath('checkout-desktop.png'),fullPage:true,animations:'disabled'});
+ await expect(page.getByText(/qa@example.invalid/)).toHaveCount(0);expect(qa.errors).toEqual([]);
+ await context.close();
+});

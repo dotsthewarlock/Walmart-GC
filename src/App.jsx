@@ -1,11 +1,12 @@
 import { createSyncEngine } from './lib/syncEngine';
 import React, { useState, useEffect, useRef } from 'react';
-import { calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
+import { calculateVisibleCards, calculateCardSummary } from './lib/cards';
 import { useSettings } from './features/settings/useSettings';
 import { SettingsPanel } from './features/settings/SettingsPanel';
 import { CardsPanel } from './features/cards/CardsPanel';
-import { ActionButton } from './components/ActionButton';
-import { getCode128BarcodeBars } from './lib/barcode';
+import { CheckoutPanel } from './features/checkout/CheckoutPanel';
+import { CheckoutOverlays } from './features/checkout/CheckoutOverlays';
+import { useCheckout } from './features/checkout/useCheckout';
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
 import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
 import { Button } from './components/primitives/Button';
@@ -13,12 +14,10 @@ import { IconButton } from './components/primitives/IconButton';
 import { Card } from './components/primitives/Card';
 import { Dialog } from './components/primitives/Dialog';
 import { NavigationBar, NavigationBarItem } from './components/primitives/NavigationBar';
-import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
-import { TextField } from './components/primitives/TextField';
 import { BalanceReview } from './components/BalanceReview';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
-import { Settings2, X } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { StatusChip } from './components/primitives/Chip';
 
 function isCardsHeaderError(message) {
@@ -38,22 +37,6 @@ function maskCardNumber(cardNumber) {
   const middleMaskLength = digits.length - 8;
   const maskedDigits = `${firstFour}${"•".repeat(middleMaskLength)}${lastFour}`;
   return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
-}
-
-function getCardCode(card) {
-  return String(card?.cardNumber ?? "").replace(/\D/g, "");
-}
-
-function formatCodePin(card) {
-  const code = getCardCode(card);
-  const pin = String(card?.pin ?? "").trim();
-  return `${code}/${pin}`;
-}
-
-function isDesktopCopyTarget() {
-  return typeof window !== "undefined"
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 function getSyncChipStatus(summaryKey) {
@@ -110,14 +93,11 @@ function App() {
   const [walletSnapshot, setWalletSnapshot] = useState(null);
   const syncEngine = useRef(null);
   const [syncUi,setSyncUi] = useState({phase:'local',message:'Saved on this device.'});
-  const balanceTarget = useRef(null);
-  const notesTarget = useRef(null);
   const csvTarget = useRef(null);
   const recoveryReloadRequired = useRef(false);
   const restoreReviewFocus = useRef(false);
   const [balanceReviewOpen, setBalanceReviewOpen] = useState(false);
   const mainTouchStart = useRef(null);
-  const copyFeedbackTimer = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
   const [inventoryNotice, setInventoryNotice] = useState("");
@@ -127,24 +107,6 @@ function App() {
   const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
-  const [revealNumber, setRevealNumber] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState("");
-  // Balance Editor Form State
-  const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [newBalanceValue, setNewBalanceValue] = useState("");
-  const [amountUsedValue, setAmountUsedValue] = useState("");
-  const [balanceError, setBalanceError] = useState("");
-
-  const handleCancelBalanceEdit = () => {
-    setIsEditingBalance(false);
-  };
-
-  // Notes Editor Form State
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [newNotesValue, setNewNotesValue] = useState("");
-
-  const [wakeLock, setWakeLock] = useState(null);
-
   // Raw CSV Editor Modal and backup states
   const SHOW_RAW_CSV_EDITOR = false;
   const [isRawDataModalOpen, setIsRawDataModalOpen] = useState(false);
@@ -195,6 +157,18 @@ function App() {
     onAutomaticEnabled: () => syncEngine.current?.foreground(),
   });
   const { settings, current: preferences } = settingsController;
+
+  const selectedCard = cards[selectedCardIndex];
+  const checkout = useCheckout({
+    active: activePanel === 'detail' && !balanceReviewOpen,
+    selectedCard, copyText: writeClipboardText,
+    commands: {
+      captureTarget: cardTarget,
+      saveBalance: (target, value) => commitWallet({ kind: "patch", action: "set-balance", ...target,
+        patch: { currentBalance: value, dateUpdated: new Date().toISOString().slice(0, 10) } }),
+      saveNotes: (target, notes) => commitWallet({ kind: "patch", action: "set-notes", ...target, patch: { notes } }),
+    },
+  });
 
   transferWallet.current = { cards, sheets: directSheetsState, sync: syncState };
   selectionIdentity.current = cards[selectedCardIndex]?.cardNumber ?? null;
@@ -286,14 +260,6 @@ function App() {
     return {key:'local-only',label:pending?'Saved locally':'Local inventory',help:syncUi.message};
   }
 
-  useEffect(() => {
-    return () => {
-      if (copyFeedbackTimer.current) {
-        clearTimeout(copyFeedbackTimer.current);
-      }
-    };
-  }, []);
-
   // Handle theme mode changes dynamically
   useEffect(() => {
     const applyTheme = () => {
@@ -329,53 +295,6 @@ function App() {
       mediaQuery.removeEventListener("change", handleChange);
     };
   }, [settings.themeMode, settings.checkoutDark, activePanel]);
-
-  // Handle escape key listener for balance modal
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        handleCancelBalanceEdit();
-      }
-    };
-
-    if (isEditingBalance) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isEditingBalance]);
-
-  // Handle screen wake lock passively for Checkout scanning
-  useEffect(() => {
-    let activeLock = null;
-    async function requestLock() {
-      if ("wakeLock" in navigator && activePanel === 'detail') {
-        try {
-          activeLock = await navigator.wakeLock.request("screen");
-          setWakeLock(activeLock);
-        } catch {
-          // ignore
-        }
-      }
-    }
-    
-    if (activePanel === 'detail') {
-      requestLock();
-    } else {
-      if (wakeLock) {
-        wakeLock.release().catch(() => {});
-        setWakeLock(null);
-      }
-    }
-
-    return () => {
-      if (activeLock) {
-        activeLock.release().catch(() => {});
-      }
-    };
-  }, [activePanel]);
 
   // Inventory and Batch state have one transaction boundary. Legacy values are
   // migration inputs only; cached Sheet context is never restored as ownership.
@@ -482,15 +401,15 @@ function App() {
 
   const zeroBalanceCount = cards.filter(card => card.currentBalance === 0 && !card.used).length;
 
-  // Checkout Navigation Controls
+  const visiblePosition = visibleIndexes.indexOf(selectedCardIndex);
+
+  // Shared selection; Checkout resets its own editors on previous/next.
   const handlePrevCard = () => {
     if (visibleIndexes.length === 0) return;
     const currentPosition = visibleIndexes.indexOf(selectedCardIndex);
     const nextPosition = (currentPosition - 1 + visibleIndexes.length) % visibleIndexes.length;
     setSelectedCardIndex(visibleIndexes[nextPosition]);
-    setRevealNumber(false);
-    setIsEditingBalance(false);
-    setIsEditingNotes(false);
+    checkout.resetForCardNavigation();
   };
 
   const handleNextCard = () => {
@@ -498,14 +417,12 @@ function App() {
     const currentPosition = visibleIndexes.indexOf(selectedCardIndex);
     const nextPosition = (currentPosition + 1) % visibleIndexes.length;
     setSelectedCardIndex(visibleIndexes[nextPosition]);
-    setRevealNumber(false);
-    setIsEditingBalance(false);
-    setIsEditingNotes(false);
+    checkout.resetForCardNavigation();
   };
 
   // Touch Swiping for Page Navigation (Cards <-> Checkout)
   const handleMainTouchStart = (event) => {
-    if (isRawDataModalOpen || isEditingBalance || isEditingNotes) {
+    if (isRawDataModalOpen || checkout.isEditingBalance || checkout.isEditingNotes) {
       mainTouchStart.current = null;
       return;
     }
@@ -550,71 +467,6 @@ function App() {
   };
 
 
-
-  const handleCopyCodePin = async (event, card) => {
-    event?.stopPropagation();
-    if (!isDesktopCopyTarget()) {
-      return false;
-    }
-
-    const copied = await writeClipboardText(formatCodePin(card));
-    if (copyFeedbackTimer.current) {
-      clearTimeout(copyFeedbackTimer.current);
-    }
-    setCopyFeedback(copied ? "Code/PIN copied" : "Copy unavailable");
-    copyFeedbackTimer.current = setTimeout(() => {
-      setCopyFeedback("");
-      copyFeedbackTimer.current = null;
-    }, 2500);
-    return copied;
-  };
-
-  // Balance Update Action
-  const handleAmountUsedChange = (e) => {
-    const val = e.target.value;
-    setAmountUsedValue(val);
-    const parsedUsed = parseFloat(val);
-    if (!isNaN(parsedUsed) && selectedCard) {
-      setNewBalanceValue((selectedCard.currentBalance - parsedUsed).toFixed(2));
-    } else if (selectedCard) {
-      setNewBalanceValue(selectedCard.currentBalance.toString());
-    }
-  };
-
-  const handleRemainingBalanceChange = (e) => {
-    const val = e.target.value;
-    setNewBalanceValue(val);
-    const parsedRemaining = parseFloat(val);
-    if (!isNaN(parsedRemaining) && selectedCard) {
-      setAmountUsedValue((selectedCard.currentBalance - parsedRemaining).toFixed(2));
-    } else {
-      setAmountUsedValue("");
-    }
-  };
-
-  const handleOpenBalanceEdit = (currentVal) => {
-    balanceTarget.current = cardTarget(cards[selectedCardIndex]);
-    setNewBalanceValue(currentVal.toString());
-    setAmountUsedValue("");
-    setBalanceError("");
-    setIsEditingBalance(true);
-  };
-
-  const handleSaveBalance = async () => {
-    const value = Number(newBalanceValue);
-    if (!newBalanceValue.trim() || !Number.isFinite(value) || value < 0) {
-      setBalanceError("Enter a valid non-negative balance value");
-      return;
-    }
-    try {
-      await commitWallet({ kind: "patch", action: "set-balance", ...balanceTarget.current, patch: {
-        currentBalance: Math.round(value * 100) / 100, dateUpdated: new Date().toISOString().slice(0, 10) } });
-      setIsEditingBalance(false);
-    } catch (error) { setBalanceError(error.message); }
-  };
-
-  const selectedCard = cards[selectedCardIndex];
-  const visiblePosition = visibleIndexes.indexOf(selectedCardIndex);
 
   // CSV Export Action
   const handleExportCsv = async (filename = "walmart-gift-cards-export.csv", key = walletSnapshot.active) => {
@@ -1055,301 +907,18 @@ function App() {
                 onBack={() => setActivePanel(previousPrimaryPanel)}
               />
           ) : (
-            /* Checkout Detail Panel Layout */
-            <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
-              {selectedCard ? (
-                <div id="card-detail" className="w-full flex flex-col gap-6">
-                  
-                  {/* Detail Card Navigation Header */}
-                  <div className="flex justify-between items-center px-1">
-                    <button
-                      id="prev-card"
-                      onClick={handlePrevCard}
-                      disabled={visiblePosition <= 0}
-                      className="text-xs font-bold text-m3-primary hover:text-m3-primary/80 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-md px-1 flex items-center gap-1"
-                    >
-                      ← Prev
-                    </button>
-                    <span id="card-position" className="text-xs font-bold text-m3-on-surface-variant">
-                      Card {visiblePosition + 1} of {visibleIndexes.length}
-                    </span>
-                    <button
-                      id="next-card"
-                      onClick={handleNextCard}
-                      disabled={visiblePosition === visibleIndexes.length - 1}
-                      className="text-xs font-bold text-m3-primary hover:text-m3-primary/80 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-md px-1 flex items-center gap-1"
-                    >
-                      Next →
-                    </button>
-                  </div>
-
-                  {/* Large Barcode Frame */}
-                  {(() => {
-                    const payload = getBarcodePayload(selectedCard);
-                    const barcodeData = payload ? getCode128BarcodeBars(payload, { quietZone: 0 }) : null;
-                    
-                    return (
-                      <div className="rounded-xl p-3.5 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-none min-h-[140px] w-full text-left bg-m3-surface-container-low border border-m3-outline-variant">
-                        <div className="flex w-full flex-col items-center justify-center gap-3 rounded-xl text-left">
-                          <div className="flex justify-between items-center w-full border-b border-m3-outline-variant pb-2">
-                            <span id="detail-barcode-status" className="text-sm font-bold text-m3-on-surface-variant">
-                              {selectedCard.merchant === 'walmart-ca' ? 'Walmart Canada' : 'Barcode Preview'}
-                            </span>
-                            <strong id="detail-barcode-balance" className="text-sm font-bold text-m3-on-surface">
-                              ${selectedCard.currentBalance.toFixed(2)}
-                            </strong>
-                          </div>
-
-                          {barcodeData ? (
-                             <div className="w-full pt-2">
-                               <div className="bg-white flex items-center justify-center w-full h-32 sm:h-48 rounded-xl p-2 border border-m3-outline-variant/50 shadow-inner">
-                                 <svg
-                                   viewBox={`0 0 ${barcodeData.width} ${barcodeData.height}`}
-                                   preserveAspectRatio="none"
-                                   role="img"
-                                   aria-label="Code 128 checkout barcode"
-                                   className="w-full h-full"
-                                 >
-                                   <rect width={barcodeData.width} height={barcodeData.height} fill="#ffffff" />
-                                   {barcodeData.rects.map((r, i) => (
-                                     <rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} fill="#000000" />
-                                   ))}
-                                 </svg>
-                               </div>
-                             </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-1 border border-m3-outline-variant bg-m3-surface-container-low rounded-xl p-4 w-full text-center">
-                              <span className="text-sm text-m3-error font-bold">
-                                {getBarcodeFallbackMessage(selectedCard)}
-                              </span>
-                              <span className="text-[10px] text-m3-on-surface-variant">
-                                Card number and PIN remain available below.
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap justify-between items-center gap-2 w-full border-t border-m3-outline-variant pt-2 text-xs font-bold text-m3-on-surface-variant">
-                          <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <button
-                              id="detail-barcode-caption"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (isDesktopCopyTarget()) {
-                                  await handleCopyCodePin(e, selectedCard);
-                                  return;
-                                }
-                                setRevealNumber(!revealNumber);
-                              }}
-                              className="tabular-nums cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
-                              title="Copy code and PIN"
-                              aria-label="Copy code and PIN"
-                              type="button"
-                            >
-                              {revealNumber
-                                ? selectedCard.cardNumber
-                                : `${selectedCard.cardNumber.slice(0, 4)} •••• •••• ${selectedCard.cardNumber.slice(-4)}`
-                              }
-                            </button>
-                          </div>
-                          <button
-                            id="detail-barcode-pin"
-                            onClick={(e) => handleCopyCodePin(e, selectedCard)}
-                            className="tabular-nums cursor-pointer hover:text-m3-primary rounded px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-1"
-                            title="Copy code and PIN"
-                            aria-label="Copy code and PIN"
-                            type="button"
-                          >
-                            {selectedCard.pin || "—"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {selectedCard.pendingReconciliation && <p role="status" className="p-3 rounded-xl bg-m3-warning-container text-m3-on-warning-container text-sm">Balance needs verification. The recorded balance is provisional; verify it with Walmart before relying on the amount.</p>}
-                  {/* Update and Mark used side-by-side */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
-                    <ActionButton
-                      id="open-balance-modal"
-                      onClick={() => {
-                        handleOpenBalanceEdit(selectedCard.currentBalance);
-                      }}
-                      label="Update Balance"
-                      variant="tonal"
-                    />
-
-                    <ActionButton
-                      id="mark-used"
-                      onClick={() => handleToggleUsed(selectedCardIndex)}
-                      label={selectedCard.used ? "Mark Active" : "Mark Used"}
-                      variant={selectedCard.used ? "outlined" : "primary"}
-                    />
-                  </div>
-
-                  {/* Add note row */}
-                  <div className="p-1 flex flex-col gap-2">
-                    <div className="flex justify-between items-center border-b border-m3-outline-variant/20 pb-1">
-                      <span className="text-[10px] sm:text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Notes</span>
-                      {!isEditingNotes && (
-                        <Button
-                          onClick={() => {
-                            notesTarget.current = cardTarget(selectedCard);
-                            setNewNotesValue(selectedCard.notes || "");
-                            setIsEditingNotes(true);
-                          }}
-                          variant="text"
-                          density="compact"
-                        >
-                          {selectedCard.notes ? "Edit" : "Add Note"}
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {isEditingNotes ? (
-                      <div className="flex flex-col gap-2 mt-1">
-                        <TextArea
-                          value={newNotesValue}
-                          onChange={e => setNewNotesValue(e.target.value)}
-                          className="w-full text-sm bg-m3-surface border border-m3-outline-variant hover:border-m3-outline focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3.5 focus:outline-none transition-all duration-200 min-h-[80px]"
-                          placeholder="Add card notes..."
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            onClick={async () => {
-                              try {
-                                await commitWallet({ kind: "patch", action: "set-notes", ...notesTarget.current, patch: { notes: newNotesValue.trim() } });
-                                setIsEditingNotes(false);
-                              } catch { /* save error displayed */ }
-                            }}
-                            variant="filled"
-                            density="compact"
-                          >
-                            Save Notes
-                          </Button>
-                          <Button
-                            onClick={() => setIsEditingNotes(false)}
-                            variant="outlined"
-                            density="compact"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p id="detail-notes" className="text-xs text-m3-on-surface-variant leading-relaxed">
-                        {selectedCard.notes || <span className="italic opacity-60">No notes added to this card.</span>}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Back Button */}
-                  <ActionButton
-                    id="checkout-back"
-                    onClick={() => setActivePanel('list')}
-                    label="Back"
-                    variant="outlined"
-                  />
-
-                </div>
-              ) : (
-                <Surface variant="dashed" shape="xl" className="text-center py-12 text-m3-on-surface-variant font-semibold w-full">
-                  No card selected. Select a card from the inventory list first.
-                </Surface>
-              )}
-            </main>
+            <CheckoutPanel selectedCard={selectedCard} visiblePosition={visiblePosition}
+              visibleCount={visibleIndexes.length} workflow={checkout}
+              onPrevious={handlePrevCard} onNext={handleNextCard}
+              onToggleUsed={() => handleToggleUsed(selectedCardIndex)}
+              onBack={() => setActivePanel('list')} />
           )}
         </div>
       </div>
 
 
 
-      {/* Update Balance Modal */}
-      {isEditingBalance && selectedCard && (
-        <Dialog
-          id="balance-modal"
-          className="max-w-sm w-full p-6 rounded-3xl"
-          titleId="balance-modal-title"
-        >
-            {/* Close Button */}
-            <IconButton
-              onClick={handleCancelBalanceEdit}
-              variant="standard"
-              size="standard"
-              className="absolute top-2 right-2"
-              aria-label="Close update balance modal"
-            >
-              <X className="size-5" aria-hidden="true" />
-            </IconButton>
-
-            <h2 id="balance-modal-title" className="text-lg font-bold text-m3-on-surface border-b border-m3-outline-variant/20 pb-2">
-              Update Balance
-            </h2>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center text-sm font-semibold text-m3-on-surface">
-                <span>Current Balance</span>
-                <span>${selectedCard.currentBalance.toFixed(2)}</span>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="amount-used-input" className="text-xs font-bold text-m3-outline uppercase tracking-wider">
-                  Amount Used
-                </label>
-                <TextField
-                  id="amount-used-input"
-                  type="number"
-                  step="0.01"
-                  value={amountUsedValue}
-                  onChange={handleAmountUsedChange}
-                  className="w-full text-sm bg-m3-surface-container border border-m3-outline-variant focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3 focus:bg-m3-surface-container-lowest focus:outline-none transition-all duration-200"
-                  placeholder="0.00"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="balance-input" className="text-xs font-bold text-m3-outline uppercase tracking-wider">
-                  Remaining Balance
-                </label>
-                <TextField
-                  id="balance-input"
-                  type="number"
-                  step="0.01"
-                  value={newBalanceValue}
-                  onChange={handleRemainingBalanceChange}
-                  className="w-full text-sm bg-m3-surface-container border border-m3-outline-variant focus:border-m3-primary focus:ring-2 focus:ring-m3-primary/20 rounded-xl p-3 focus:bg-m3-surface-container-lowest focus:outline-none transition-all duration-200"
-                  placeholder="0.00"
-                />
-              </div>
-
-              {balanceError && (
-                <span id="balance-error" className="text-[10px] text-m3-error font-semibold mt-1">
-                  {balanceError}
-                </span>
-              )}
-            </div>
-
-            <div className="flex gap-2 justify-end border-t border-m3-outline-variant/20 pt-4 mt-2">
-              <Button
-                id="cancel-balance-update"
-                onClick={handleCancelBalanceEdit}
-                variant="outlined"
-                density="standard"
-              >
-                Cancel
-              </Button>
-              <Button
-                id="save-balance-update"
-                onClick={handleSaveBalance}
-                variant="filled"
-                density="standard"
-              >
-                Save
-              </Button>
-            </div>
-        </Dialog>
-      )}
+      <CheckoutOverlays selectedCard={selectedCard} workflow={checkout} />
 
       {/* Raw CSV Editor Modal */}
       {isRawDataModalOpen && (
@@ -1446,12 +1015,6 @@ function App() {
         </Dialog>
       )}
 
-      {/* M3 Snackbar Toast */}
-      {copyFeedback && (
-        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-m3-on-surface text-m3-surface text-xs font-bold px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4 min-w-[288px] max-w-sm pointer-events-none animate-snackbar">
-          <span className="w-full text-center">{copyFeedback}</span>
-        </div>
-      )}
     </>
   );
 }

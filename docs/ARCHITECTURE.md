@@ -291,8 +291,7 @@ commands, error presentation, navigation/active context and theme application.
 CSV editor transactions remain in App because they share captured inventory
 context with import and save. Settings has no inventory store, engine or network
 client. This is a local feature pattern, with no global store or new runtime
-boundary for the protected protocol. Checkout and the conditional shell remain
-in App until separately authorized milestones.
+boundary for the protected protocol. Checkout is extracted in A3 below; the conditional shell remains in App.
 
 ## A2 Cards / Inventory feature boundary
 
@@ -324,11 +323,49 @@ modules. CSV input ownership and connection commands remain shared with Settings
 the view only invokes callbacks. No protocol, schema, Worker, companion, transfer
 or storage contract changes are part of A2.
 
-### Frontend module map after A2
+## A3 Checkout feature boundary
+
+`src/features/checkout/CheckoutPanel.jsx` owns the existing Checkout markup,
+barcode presentation, credential controls, card navigation controls, balance/used
+actions and notes UI. `CheckoutOverlays.jsx` owns the balance dialog and copy
+feedback. Existing primitives, labels, layout and barcode helpers are reused.
+
+App calls `useCheckout` unconditionally, preserving app-lifetime reveal state,
+copy feedback/timer, balance/amount-used/error and notes drafts, editor visibility
+and captured edit targets through conditional Settings and Balance Check views.
+Previous/next still changes shared selection in App and explicitly resets
+Checkout reveal/edit visibility. Other navigation retains the prior lifetime.
+The shell reads editor visibility only to suppress swipe navigation during edits.
+
+The controller receives the selected card, active Checkout visibility, the shared
+clipboard writer and three commands: `captureTarget(card)`,
+`saveBalance(target, value)` and `saveNotes(target, notes)`. Targets capture the
+original inventory context/generation, card identity and version at editor open;
+saves never recapture the current selection. App constructs the existing semantic
+patches, dates and commit operations. Success closes editors only after the
+transaction resolves; failed saves retain drafts and existing error presentation.
+Used/active actions and advance-on-used remain App-owned shared commands.
+
+The controller owns best-effort wake-lock acquisition and cleanup while Checkout
+is active, including immediate release of grants arriving after navigation.
+Desktop/fine-pointer clicks still copy full digits-only CODE/trimmed PIN through
+the existing clipboard writer; mobile code clicks toggle reveal. No clipboard
+reads or camera requests are introduced. Barcode payload/generation is unchanged.
+
+App retains shared selection/identity reconciliation, filtering/sorting and totals,
+settings/theme, contextual navigation and Balance Check return/focus, CSV editor,
+wallet/sync lifetime, inventory authority, context fencing and protected commands.
+The shared clipboard writer also serves Balance Check. These intentional couplings
+remain; no global store or duplicate inventory is added. A4 shell/Balance Check
+convergence remains deferred. No core, protocol, schema, Worker, companion,
+transfer, PWA/service-worker, dependency or UX changes are included.
+
+### Frontend module map after A3
 
 | Module | Owner / remaining coupling |
 | --- | --- |
-| `src/App.jsx` | Shell/navigation, active inventory context, shared selection and derived inventory views, theme, wallet/sync lifetime and protected commands; Checkout and CSV editor rendering remain here. |
+| `src/App.jsx` | Shell/navigation, active inventory context, shared selection and derived inventory views, theme, wallet/sync lifetime and protected commands, shared clipboard writer and CSV editor rendering. |
+| `src/features/checkout/CheckoutPanel.jsx`, `CheckoutOverlays.jsx`, `useCheckout.js` | Checkout rendering, app-lifetime exclusive workflow state, captured targets and passive wake lock; consumes shared selection and App-owned commands. |
 | `src/features/cards/CardsPanel.jsx` | Stateless Cards view consuming shared inventory views and command callbacks. |
 | `src/features/settings/SettingsPanel.jsx`, `useSettings.js` | Settings view, shared preferences and app-lifetime Settings drafts/disclosure. |
 | `src/lib/cards.js` | Existing shared filtering, sorting, totals and card helpers. |
