@@ -1033,6 +1033,18 @@ export function googleSheetAdapter(token,sheetId) {
   };
 }
 
+const uuidIdentityPattern='[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const uuidIdentity=new RegExp('^'+uuidIdentityPattern+'$');
+const controlIdentity=new RegExp('^control:(\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z):'+uuidIdentityPattern+'$');
+function validRequestIdentity(body,pathname){
+  if(typeof body.id!=='string')return false;
+  if(body.id.length===36&&uuidIdentity.test(body.id))return true; // Persisted legacy controls and ordinary commits.
+  if(!['ensure','pause','resume'].includes(body.action)&&!(body.action==='create'&&pathname==='/create'))return false;
+  const matched=controlIdentity.exec(body.id),at=matched?.[1];
+  // Age/cutoff checks belong after possible-dispatch and receipt recovery.
+  return Boolean(matched?.[0]===body.id&&at&&Number.isFinite(Date.parse(at))&&new Date(at).toISOString()===at);
+}
+
 export class SheetCoordinator {
   constructor(ctx){this.ctx=ctx;this.tail=Promise.resolve();}
   fetch(request){const next=this.tail.then(()=>this.handle(request));this.tail=next.then(()=>undefined,()=>undefined);return next;}
@@ -1040,7 +1052,7 @@ export class SheetCoordinator {
     try{
       const body=await request.json();
       const token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
-      if(!['pull','inspect-setup'].includes(body.action)&&!/^([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/.test(body.id||''))return jsonResponse({error:'A UUID commit identity is required.'},400);
+      if(!['pull','inspect-setup'].includes(body.action)&&!validRequestIdentity(body,new URL(request.url).pathname))return jsonResponse({error:'A UUID commit identity or valid timestamped control identity is required.'},400);
       if(!token||!body.principal||body.protocol!==syncProtocol)return jsonResponse({error:'Invalid internal synchronization request.'},403);
       if(['create','inspect-setup'].includes(body.action)){
         let setup=await this.ctx.storage.get('setup');

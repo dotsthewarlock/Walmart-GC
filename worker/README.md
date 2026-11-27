@@ -20,6 +20,10 @@ is the authority for account binding, schema, protocol, recovery and rollback;
 - `POST /api/sync` uses `gc-wallet-sync-v1` for pull, semantic commit and explicit
   shared maintenance. `POST /api/sheet/ensure` performs protected setup. Historical
   `/api/cards/save` cannot bypass protocol fencing; old writers receive 426.
+  New setup/maintenance controls use `control:<UTC ISO milliseconds>:<UUIDv4>`;
+  historical standalone UUIDv4 controls and ordinary UUIDv4 commits remain valid.
+  Exact-Sheet saved controls retry their original identity; uncertain writes and
+  targetless setup retain their existing proof requirements.
 - One SQLite Durable Object per Sheet serializes external reads/writes. Setup
   creation has a separate principal-scoped fence. DO persistence contains only
   coordination IDs, hashes, versions and bounded receipts, never card credentials.

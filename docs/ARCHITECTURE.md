@@ -207,6 +207,13 @@ serialized coordinator, a failed control can receive an exact ID/request-hash
 non-dispatch proof only after durable rejection fencing and in the absence of any
 possible dispatch or retained confirmation. Rejected IDs cannot later dispatch,
 including from stale tabs. New control IDs contain an immutable UTC creation time.
+The Worker HTTP boundary accepts `control:<canonical UTC ISO milliseconds>:<UUIDv4>`
+only for `ensure`, `pause`, `resume` and the internal setup-creation hop. Ordinary
+commits retain standalone UUIDv4 identities; historical UUIDv4 controls remain valid.
+Timestamp age/cutoff policy remains in the coordinator, after positive recovery.
+An exact-Sheet saved control rejected by the former UUID-only HTTP gate can retry
+its original identity through Sync now without clearing local state. Previously
+possible-dispatch controls still require matching commit/content proof.
 The coordinator retains at most 64 dated rejection hashes and a monotonic cutoff;
 evicted IDs stay fenced by that cutoff, including when their action is changed.
 Positive possible-dispatch recovery and exact retained successful receipts take

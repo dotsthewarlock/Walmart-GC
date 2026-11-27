@@ -5,8 +5,11 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 ## Current development
 
-- R1 — resilient synchronization and recovery simplification — starts from
-  accepted main `bd7d8e6` (PR #251). It consolidates compatible duplicate rows,
+- R1 shipped through PRs #252/#253 on main `40dc926`, from accepted baseline
+  `bd7d8e6` (PR #251). The focused post-release correction aligns Worker HTTP
+  validation with frontend timestamped control identities, retains UUID controls
+  and commits, and verifies original-flight recovery through real Worker HTTP.
+  R1 consolidates compatible duplicate rows,
   isolates conflicting credentials and provisional balances, compacts and
   partitions evidence, replaces inventory-sized DO maintenance proofs, bounds
   completed recovery history and isolates damaged Batch state. Genuine fresh
