@@ -9,6 +9,10 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 - V0.4 / PR #243 adds offline balance checking, selection-independent request
   references, precise verification timestamps and Companion 1.0.4 Dev. Release
   evidence is recorded in the PR and deployment checks; Stable is not promoted.
+- PR #245 released Companion 1.0.5 Dev from main `c740f0d1710efb7eecf058343ffda82ce1026d8a`.
+  Foreground checks use a fixed 1,400 ms delay and continue to the selected
+  target of 10, 25 or 50, or until the queue is empty, without ten-card
+  segmentation or rest. Stable remains unpromoted.
 - The compatible V0.4 Worker from source `1653373b0cf523a4bed63f54da239015f7bc50f8`
   is deployed at 100% as `6fe91b40-c301-44ea-9637-452598c8d20a`, retaining
   the unpaused activation state, bindings, routes and privacy settings. The

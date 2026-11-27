@@ -18,7 +18,7 @@ test('equal resulting monetary values from distinct actions conflict; remote is 
 });
 test('different balances preserve remote and unrelated additions; later applicable genuine verification clears uncertainty',()=>{
  const local={...a,currentBalance:70},remote={...a,currentBalance:80};
- const disputed=merge([a],[local,b],[remote],[operation('spend-A',a,local,'set-balance')]);
+ const disputed=merge([a],[local,b],[remote],[operation('spend-A',a,local,'set-balance')],{now:'2026-11-26T11:00:00.000Z'});
  assert.equal(disputed.cards.find(c=>c.cardNumber===a.cardNumber).currentBalance,80);assert.equal(disputed.cards.length,2);
  const observed={...remote,currentBalance:75,lastBalanceChecked:'2026-11-26',dateUpdated:'2026-11-26',pendingReconciliation:false};
  const verified=merge([remote],[observed],disputed.cards,[operation('verified',remote,observed,'manual-verification',{checkedAt:'2026-11-26T12:00:00.000Z',observedBalance:75})],{evidence:disputed.evidence,now:'2026-11-26T12:00:01.000Z'});
