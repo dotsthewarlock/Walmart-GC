@@ -120,24 +120,40 @@ workerd with SQLite persistence and denied/unmatched outbound traffic. This prov
 local queue/storage/restart behavior, not deployed bindings or Google semantics.
 No production configuration was provisioned by this development.
 
-## Conservative three-way reconciliation
+## Record-level three-way reconciliation
 
 Independent additions and field edits combine. Pending field edits retain their
-own original field baseline across acknowledgment of an earlier commit. The
-confirmed remote baseline cannot make a competing later edit an unconditional
-overwrite. Local acknowledgment reconciliation durably preserves alternatives;
-the following protected commit writes targeted shared evidence. Unchanged local fields follow
-remote changes; identical nonmonetary edits coalesce. Competing notes retain the
-remote value provisionally plus targeted local/base alternatives. PIN, identity
-and explicit-deletion conflicts require owner resolution. No deletion is inferred
+own original field baseline across acknowledgment of an earlier commit. Unchanged
+local fields follow remote changes. Reconciliation has three dispositions:
+
+- **MERGE:** identical/compatible records and low-risk metadata disagreements.
+  Competing metadata uses the earliest nonempty dateAdded, latest dateUpdated/dateUsed,
+  maximum recorded startingBalance (never a sum), used=true if either competing
+  record is used, and a sorted union of distinct note lines. A deliberate later
+  used-state edit still applies against its baseline. Subsequent explicit edits
+  supersede old metadata evidence; no field-by-field decisions are required.
+- **FLAG:** monetary or verification uncertainty retains the card and its recorded
+  provisional balance, with pendingReconciliation and bounded alternatives. It
+  continues synchronizing independently of merchant verification.
+- **QUARANTINE:** conflicting credentials, merchant/identity, explicit deletion or
+  unclassified integrity evidence preserves necessary alternatives. Only affected
+  identities are excluded from checkout and verification. Unrelated records sync.
+
+`reconciliationPolicy.js` owns these deterministic defaults, persisted evidence
+repair, eligibility, verification retirement and derived recovery counts. The same
+policy runs during transactional local initialization and Worker projection, as
+well as new reconciliation. It never rewrites a saved flight, pending operation,
+baseline or original migration bytes. No deletion is inferred
 from absence; missing remote rows preserve credentials, create durable recovery
-operations and stay balance-uncertain until verified. Their targeted missing-row
-evidence can be acknowledged after restoration; acknowledging it alone does not
-verify the balance. Later acknowledgments cannot erase the recovered row.
+operations and stay balance-uncertain until verified. Matching recovered rows
+need no manual acknowledgement; their obsolete missing-row evidence retires.
+Credential alternatives and explicit tombstones prevent that automatic retirement.
+Later acknowledgments cannot erase the recovered row.
 Controlled explicit deletions create compact retained tombstones so
 stale devices cannot resurrect them. Restore is explicit and balance-uncertain.
 Date-only pending operations and historical CSV recovery cannot silently erase a
-precise verification timestamp. Conflicting date-only proposals remain recoverable.
+precise verification timestamp. Conflicting date-only proposals become one
+verification uncertainty, retaining the actual alternatives until fresh verification.
 
 Monetary operations carry semantic identities and per-card monetary revisions.
 When independent monetary changes conflict, the remote recorded balance remains
@@ -152,8 +168,11 @@ used-card/credential protections stay intact.
 Recovery evidence is targeted, not a second card database or generalized event
 log. Credential alternatives are retained only for affected identity conflicts.
 Resolved alternatives are removed after an applicable explicit choice or fresh
-verification. Duplicate unresolved values coalesce without discarding distinct
-alternatives. Per-card monetary revisions, applicability times and tombstones
+verification. Repeated monetary conflicts consolidate to one card-level balance
+detail with distinct numeric alternatives; repeated verification disagreements
+retain distinct field/value alternatives in one detail. Historical operation IDs
+in monetary warnings retire; durable semantic operations and coordinator receipts
+still fence dispatch/replay. Per-card monetary revisions, applicability times and tombstones
 remain; stale baselines and operation receipts fence replay after compaction.
 Tombstones do not expire automatically.
 
@@ -178,7 +197,7 @@ account's verified destination, then uses the existing conservative CSV recovery
 command. Original compartments, operations and credentials remain intact.
 
 `inventoryRecovery.js` owns deterministic duplicate projection, explicit recovery
-planning, credential eligibility and optional Batch isolation/receipt retention.
+planning, quarantined-record eligibility and optional Batch isolation/receipt retention.
 Individually valid duplicate rows consolidate independent of row order. Matching
 credentials combine compatible fields; conflicting balances use the minimum
 recorded amount provisionally, never a sum, and require fresh verification. The
@@ -187,9 +206,14 @@ The newest supported legacy date survives too; if a newer date-only record
 supersedes older precise history, the original precise pair remains in targeted
 evidence until a fresh verification replaces it. Distinct repair episodes have
 distinct conflict identities, so stale resolutions cannot retire new alternatives.
-Distinct nonempty field and credential alternatives remain in targeted evidence.
-Credential ambiguity blocks only that card's checkout and verification until an
-explicit choice; other cards continue. No unresolved alternative is silently lost.
+Low-risk metadata follows the record-level defaults. Distinct credential and
+integrity alternatives remain in targeted evidence until an explicit choice;
+other cards continue. Settings separates synchronization (synchronized, pending or
+blocked), balance confidence and record integrity, with a concise derived summary
+and a flagged-card verification action. Exceptional details and owner recovery
+controls remain under advanced disclosure. Uncertainty/quarantine alone is not a
+synchronization error. Genuine ownership, shared integrity and uncertain-dispatch
+failures remain Sheet-wide fences.
 
 Pulls return a verified projection and a repair flag. The existing engine uses a
 durable ordinary commit to persist repair, preserving confirmation/retry fencing.
@@ -309,7 +333,13 @@ revision beyond the acknowledged local operations invalidates outstanding reques
 for that card, including unchanged same-day verifications. Shared maintenance
 invalidates only affected requests. Uncertain active cards, including provisional
 zero balances and recent verification dates, precede the normal default Batch
-filters; explicit used-card selection still applies. Protected synchronization continues to reconcile
+filters; explicit used-card selection still applies in the normal selection.
+A dedicated Flagged only scope derives from current inventory and bypasses normal
+status/balance/date filters, including eligible used cards and provisional zeros.
+It shares Manual/Batch workflows and never reactivates used cards. Applicable new
+observations retire monetary and verification evidence in the same local
+transaction, then reconcile through the existing protected protocol. Monetary,
+uncertainty and scoped maintenance times bound applicability. Protected synchronization continues to reconcile
 concurrent monetary operations that have not yet been observed locally.
 Partial apply atomically saves accepted observations, inventory, semantic pending
 operations and applied references. Exact replay is a no-op; conflicting replay is

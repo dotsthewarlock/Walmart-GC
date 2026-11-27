@@ -77,6 +77,28 @@ covered by the coordinated Google adapter fixtures, not by a legacy write bypass
 
 ## Minimal independent review cycle
 
+The R1 completion fixture in `tests/recoveryFixture.mjs` models 621 existing cards
+and 285 persisted entries: 65 dateAdded, 65 dateUpdated, 72 missing-remote,
+63 repeated balance and 20 verification disagreements, with no pending operations.
+`recordReconciliation.test.mjs` checks automatic repair, atomic abort/restart,
+unchanged baselines/pending identities/migration bytes, flagged used/zero selection,
+local Manual/Batch retirement, deletion/credential/merchant quarantine, mixed
+Batch reference isolation after evidence-only quarantine, lost repair
+acknowledgements and repeat no-op sync. The Worker runtime fixture exercises the
+actual frontend engine through authenticated synthetic Worker HTTP, including
+fresh unchanged used-card verification; the browser fixture checks the concise
+summary and dedicated Manual/Batch scope. No real account or private inventory is
+accessed. Broad architecture audits remain accepted and are not repeated.
+
+Completion measurements: 285 persisted entries become 72 flagged cards with zero
+individual decisions; 41 consolidated advanced details retain distinct monetary
+and verification alternatives. Logical evidence falls from 99,253 to 18,572 bytes
+(17,243 bytes including the encoded metadata object). One repair write, five
+snapshot reads across pull/commit/repeated pull, zero writes on repeated sync.
+Existing R1 621-card/16-cycle, partition capacity, uncertain dispatch, maintenance,
+credential, replay and Batch retention tests remain required. These figures are
+synthetic evidence, not a claim of completed private inventory acceptance.
+
 R1 reuses the existing fixtures and adds focused recovery/capacity cases in
 `src/lib/r1Recovery.test.mjs`. Acceptance covers 621 cards and 80 duplicate pairs,
 row-order-independent repair, preserved credential alternatives, mixed unbound

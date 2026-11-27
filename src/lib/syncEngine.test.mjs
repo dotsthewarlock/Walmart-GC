@@ -95,7 +95,8 @@ test('expired recovery is explicit, archives intent and cannot silently replay a
  const engine=createSyncEngine({store:f.store,request,timers});await engine.sync();assert.equal(profileOf(await f.store.read()).syncBlocked,'baseline_expired');
  await engine.recoverExpired();let state=await f.store.read();assert.equal(profileOf(state).inFlight,null);assert.equal(profileOf(state).pending[0].kind,'unbound-recovery');assert.equal(state.quarantine.at(-1).kind,'expired-sync-recovery');
  await engine.sync();state=await f.store.read();assert.equal(profileOf(state).pending.length,0);
- assert.ok(profileOf(state).recoveryEvidence.cards[a.cardNumber].conflicts.some(c=>!c.resolution));
+ assert.equal(profileOf(state).cards[0].notes,'Synthetic A\nold intent');
+ assert.equal(profileOf(state).recoveryEvidence.cards[a.cardNumber],undefined);
  const normal=await fixture();await assert.rejects(normal.engine.recoverExpired(),/cannot be bypassed/);
 });
 test('an independent monetary change observed during acknowledgment cannot be hidden by rebasing a later local spend',async()=>{
@@ -110,18 +111,20 @@ test('an independent monetary change observed during acknowledgment cannot be hi
  await engine.sync();assert.equal((await f.remote.read()).cards[0].currentBalance,80);assert.equal((await f.remote.read()).cards[0].pendingReconciliation,true);
  assert.ok((await f.remote.read()).evidence.cards[a.cardNumber].conflicts.some(c=>c.local===90));
 });
-test('ACK rebasing retains competing later notes durably and the next commit cannot overwrite their remote alternative',async()=>{
+test('ACK rebasing combines competing later notes durably and repeated sync converges without decisions',async()=>{
  const f=await fixture(),original=profileOf(await f.store.read()).cards[0];await edit(f.store,'submitted note');let release;
  const barrier=new Promise(resolve=>{release=resolve;});let held=true;
  const engine=createSyncEngine({store:f.store,timers,request:async(...args)=>{if(args[0]==='/api/sync'&&JSON.parse(args[1].body).action==='commit'&&held){held=false;await barrier;}return f.request(...args);}});
  const syncing=engine.sync();let state;while(!(state=await f.store.read()).profiles[state.active].inFlight)await new Promise(resolve=>setTimeout(resolve,1));
  await edit(f.store,'later competing note');const {commitRequest,operation}=await import('../../tests/syncFixtures.mjs');
  await f.remote.coordinator.run(await commitRequest(f.remote,[{...original,notes:'other device'}],[operation('other-note',original,{...original,notes:'other device'})]));
- release();await syncing;state=await f.store.read();assert.equal(profileOf(state).cards[0].notes,'other device');assert.equal(profileOf(state).pending.length,1);
- assert.ok(profileOf(state).recoveryEvidence.cards[a.cardNumber].conflicts.some(c=>c.local==='later competing note'));
+ const combined='later competing note\nother device\nsubmitted note';
+ release();await syncing;state=await f.store.read();assert.equal(profileOf(state).cards[0].notes,combined);assert.equal(profileOf(state).pending.length,1);
+ assert.equal(profileOf(state).recoveryEvidence.cards[a.cardNumber],undefined);
  const restarted=createSyncEngine({store:f.store,timers,request:f.request});await restarted.sync();const remote=await f.remote.read();
- assert.equal(remote.cards[0].notes,'other device');assert.ok(remote.evidence.cards[a.cardNumber].conflicts.some(c=>c.local==='later competing note'&&c.remote==='other device'&&c.base==='submitted note'));
+ assert.equal(remote.cards[0].notes,combined);assert.equal(remote.evidence.cards[a.cardNumber],undefined);
  assert.equal(profileOf(await f.store.read()).pending.length,0);
+ const writes=f.remote.writes;await restarted.sync();assert.equal(f.remote.writes,writes);
 });
 test('maintenance restores a missing card without inferring deletion, and later acknowledgments preserve it',async()=>{
  const f=await fixture();await f.remote.coordinator.run({protocol:syncProtocol,action:'pause',id:crypto.randomUUID()});

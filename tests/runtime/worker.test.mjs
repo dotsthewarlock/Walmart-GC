@@ -8,8 +8,10 @@ import {cardA,cardB,operation} from '../syncFixtures.mjs';
 import {csvHeaders} from '../../src/lib/csvSchema.js';
 import {syncProtocol,fingerprint,snapshotContent} from '../../src/lib/syncProtocol.js';
 import {createSyncEngine} from '../../src/lib/syncEngine.js';
-import {openInventory,inventoryContext} from '../../src/lib/inventory.js';
+import {openInventory,inventoryContext,profileOf} from '../../src/lib/inventory.js';
 import {syntheticIndexedDB} from '../syntheticIndexedDB.mjs';
+import {persistedRecoveryFixture} from '../recoveryFixture.mjs';
+import {evidenceMetadata} from '../../src/lib/syncEvidence.js';
 
 // Real workerd + SQLite, production Worker module graph and HTTP DO class.
 // All outbound requests are denied unless fulfilled by these synthetic adapters.
@@ -59,6 +61,30 @@ function runtime(mock,persist,bindings={}){return new Miniflare({modules:true,sc
  modulesRules:[{type:'ESModule',include:['**/*.js'],fallthrough:true}],compatibilityDate:'2026-06-11',
  durableObjects:{SHEET_COORDINATOR:{className:'SheetCoordinator',useSQLite:true}},durableObjectsPersist:persist,
  kvNamespaces:['SESSIONS','OAUTH_STATE'],bindings:{SESSION_SECRET:'synthetic-secret',GOOGLE_CLIENT_ID:'synthetic-client',GOOGLE_CLIENT_SECRET:'synthetic-client-secret',FRONTEND_ORIGIN:'https://wallet.example',REDIRECT_URI:'https://wallet.example/auth/callback',...bindings},fetchMock:mock});}
+
+test('621 persisted recovery cards converge through actual frontend/Worker HTTP and fresh used-card verification',async()=>{
+ const {mock,sheet}=googleFixture(),fixture=persistedRecoveryFixture();
+ sheet.cards.push(...fixture.cards.map(card=>csvHeaders.map(h=>card[h]??'')));
+ sheet.meta.push(...Object.entries(evidenceMetadata(fixture.evidence)));
+ const mf=runtime(mock),store=openInventory({indexedDB:syntheticIndexedDB(),name:'persisted-http',storage:{getItem:()=>null}}),statuses=[];
+ const request=async(path,options={})=>{
+  const response=await mf.dispatchFetch('https://wallet.example'+path,{...options,headers:{Origin:'https://wallet.example',Cookie:'walmart_gc_session=synthetic-session','Content-Type':'application/json'}});
+  const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error),{status:response.status,payload:result});return result;
+ };
+ const engine=createSyncEngine({store,request,timers:{setTimeout(){return 1;},clearTimeout(){}},onStatus:s=>statuses.push(s)});
+ try{
+  await seedSession(mf);await store.initialize();await engine.sync({bind:true});
+  let state=await store.read(),p=profileOf(state);assert.equal(statuses.at(-1).phase,'saved',JSON.stringify(statuses));
+  assert.equal(p.cards.length,621);assert.equal(p.pending.length,0);assert.equal(sheet.writes,1);assert.equal(statuses.at(-1).uncertain,72);
+  const card=p.cards[0];assert.equal(card.used,true);assert.equal(card.currentBalance,0);
+  await store.commit({id:crypto.randomUUID(),kind:'manual-verification',...inventoryContext(state),cardNumber:card.cardNumber,
+   version:p.versions[card.cardNumber],observation:{observedBalance:0,checkedAt:new Date().toISOString()}});
+  await engine.sync();state=await store.read();p=profileOf(state);
+  assert.equal(p.cards[0].pendingReconciliation,false);assert.equal(p.cards[0].used,true);assert.equal(p.recoveryEvidence.cards[card.cardNumber].conflicts.length,0);
+  assert.equal(statuses.at(-1).uncertain,71);assert.equal(p.pending.length,0);assert.equal(sheet.writes,2);
+  await engine.sync();assert.equal(sheet.writes,2);assert.equal(statuses.at(-1).phase,'saved');
+ }finally{engine.stop();await store.close();await mf.dispose();await mock.close();}
+});
 async function stub(mf,name='sheet:synthetic-sheet'){const ns=await mf.getDurableObjectNamespace('SHEET_COORDINATOR');return ns.get(ns.idFromName(name));}
 async function send(target,body){const response=await target.fetch('https://internal/sync',{method:'POST',headers:{Authorization:'Bearer synthetic-token','Content-Type':'application/json'},body:JSON.stringify({protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',...body})});return {status:response.status,...await response.json()};}
 const commit=(base,operations)=>({action:'commit',id:crypto.randomUUID(),base,cards:operations.map(op=>op.after),operations});

@@ -8,6 +8,7 @@ import { StatusChip } from '../../components/primitives/Chip';
 import { ActionButton } from '../../components/ActionButton';
 import { googleOAuthStatuses } from '../../lib/api';
 import { recoveryWarning } from '../../lib/inventory';
+import { flaggedConflict } from '../../lib/reconciliationPolicy';
 
 function maskEmail(email) {
   if (!email || !email.includes("@")) return email;
@@ -207,10 +208,13 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
         <p className="text-sm">Pending changes: {inventory.pendingCount}{inventory.confirming ? ' · confirmation in progress' : ''}</p>
         <p className="text-sm">Last confirmed synchronization: {inventory.lastConfirmedAt ? new Date(inventory.lastConfirmedAt).toLocaleString() : 'Not yet recorded on this device'}</p>
         <p role="status" className="text-sm">{synchronization.message}</p>
+        <p className="text-sm">Balance confidence: {inventory.recoverySummary?.uncertain??0} uncertain · Record integrity: {inventory.recoverySummary?.quarantined??0} quarantined</p>
+        <p className="text-xs text-m3-on-surface-variant">Uncertain balances and quarantined exceptions do not prevent other cards from synchronizing.</p>
+        {(inventory.recoverySummary?.flaggedEligible??0)>0&&<Button variant="outlined" onClick={commands.reviewFlagged}>Verify flagged cards ({inventory.recoverySummary.flaggedEligible})</Button>}
         {synchronization.diagnostics?.length>0&&<div className="text-sm border border-m3-outline-variant rounded-xl p-3">
-          <p>Duplicate Sheet rows need private review:</p>
+          <p>Sheet row diagnostics:</p>
           <ul>{synchronization.diagnostics.map((item,index)=><li key={index}>Card ending {item.last4}: rows {item.rows.join(' and ')}</li>)}</ul>
-          <p>Pause shared maintenance, then download a private Sheet backup. Compare all duplicate values, including PIN, balance and verification details. Preserve alternatives in your backup before combining rows into one valid identity. Keep _META intact, accept maintenance, then select Sync now. No automatic repair is performed.</p>
+          <p>Compatible duplicate rows repair automatically with Sync now. Conflicting credentials remain isolated for private review under advanced recovery. If validation fails, preserve a private backup and review the reported rows.</p>
           {synchronization.diagnosticSheetId&&<ActionButton href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(synchronization.diagnosticSheetId)}/edit`} target="_blank" rel="noopener noreferrer" icon="external" label="Open Sheet for recovery" compact />}
         </div>}
         {inventory.controlFlight&&<p className="text-sm">Saved {inventory.controlFlight.action} request awaits confirmation. Select Sync now to check the same request. An uncertain request cannot be discarded or replaced.</p>}
@@ -221,7 +225,6 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
         <details>
           <summary className="cursor-pointer text-sm font-medium">Advanced synchronization and recovery</summary>
           <div className="flex flex-col gap-2 pt-2">
-            <ActionButton id="ensure-sheet" onClick={() => commands.ensureSheet(exactSheetId)} icon="wrench" label="Set up Sheet" compact />
             <ActionButton id="load-from-sheets" onClick={commands.importSheet} icon="download" label="Import Sheet" compact />
             <ActionButton id="save-to-sheets" onClick={commands.saveSheet} icon="upload" label="Save to Sheet" compact />
             <label htmlFor="exact-sheet-id">Exact Sheet ID (optional)</label>
@@ -237,16 +240,18 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
               await commands.recoverExpired();
             }}>Recover expired synchronization safely</Button>}
             <Button variant="outlined" disabled={connection.status!=='connected'} onClick={commands.recoverUnbound}>Recover unbound inventory into connected account</Button>
+            <details><summary className="cursor-pointer text-sm font-medium">Exceptional record details (private)</summary>
             {Object.entries(inventory.recoveryCards??{}).flatMap(([number,entry])=>(entry.conflicts??[]).filter(c=>!c.resolution).map(conflict=>(
               <div key={conflict.id} className="border border-m3-outline-variant rounded-xl p-3 text-sm">
-                <p>Card ending {number.slice(-4)}: {conflict.kind==='balance'?'Balance needs fresh merchant verification':conflict.kind==='missing-remote'?'Recovered a missing Sheet card. Verify its balance.':conflict.kind}</p>
-                <details><summary className="cursor-pointer">Compare recovery values (may contain credentials)</summary><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify({recovered:conflict.local,sheet:conflict.remote},null,2)}</pre></details>
-                {conflict.kind!=='balance'&&<div className="flex flex-wrap gap-2">
+                <p>Card ending {number.slice(-4)}: {flaggedConflict(conflict.kind)?'Balance needs fresh merchant verification':conflict.kind}</p>
+                <details><summary className="cursor-pointer">Compare recovery values (may contain credentials)</summary><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify({recovered:conflict.local,sheet:conflict.remote,alternatives:conflict.alternatives},null,2)}</pre></details>
+                {!flaggedConflict(conflict.kind)&&<div className="flex flex-wrap gap-2">
                   <Button variant="outlined" onClick={()=>commands.resolveConflict(number,conflict,conflict.kind==='deleted-identity'?'restore':'local')}>{conflict.kind==='missing-remote'?'Keep recovered card':'Use recovered values'}</Button>
                   {conflict.kind!=='missing-remote'&&<Button variant="outlined" onClick={()=>commands.resolveConflict(number,conflict,'remote')}>Keep Sheet values</Button>}
                 </div>}
               </div>
             )))}
+            </details>
           </div>
         </details>
       </Card>

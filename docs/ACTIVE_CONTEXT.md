@@ -5,6 +5,23 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 ## Current development
 
+- R1 record-level completion correction is implemented from
+  main `0ecb5c1077621a3e1c65047b8cdb06655bd7ddfd` (PRs #252–254). Practical
+  private recovery acceptance failed despite shipped infrastructure: 621 cards,
+  zero pending operations and 285 accumulated recovery entries. The approved
+  record-level MERGE / FLAG / QUARANTINE contract supersedes older field-conflict
+  requirements. Shared deterministic policy repairs saved/new evidence, removes
+  low-risk decisions and restored-row acknowledgements, consolidates uncertainty,
+  adds flagged Manual/Batch selection including used/zero cards, and separates
+  sync status from confidence/integrity. One IDB authority, engine, Worker/DO and
+  private Sheet remain. Required independent review, CI and compatible production
+  release are authorized, retaining existing bindings, namespace, unpaused state
+  and privacy. Independent review accepted the correction, including individual
+  Batch-reference invalidation after evidence-only quarantine. Local synthetic
+  acceptance passes 214 Node tests, eight Worker/SQLite tests and the focused
+  mobile recovery workflows; CI and exact release evidence belong in the
+  correction PR. Actual private
+  recovery remains user-performed; R2, inactive-tab execution and A4 are excluded.
 - R1 shipped through PRs #252/#253 on main `40dc926`, from accepted baseline
   `bd7d8e6` (PR #251). The focused post-release correction aligns Worker HTTP
   validation with frontend timestamped control identities, retains UUID controls

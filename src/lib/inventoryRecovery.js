@@ -1,6 +1,7 @@
 import {canonical, equal, emptyEvidence, reconcile} from './syncProtocol.js';
+import { lowRiskField, metadataDefault, repairRecovery, recordQuarantined } from './reconciliationPolicy.js';
 
-export const credentialAmbiguous = (evidence, number) => evidence?.cards?.[number]?.conflicts?.some(c => c.kind === 'credentials' && !c.resolution) === true;
+export const credentialAmbiguous = recordQuarantined;
 export const verificationCards = profile => profile.cards.filter(card => !credentialAmbiguous(profile.recoveryEvidence,card.cardNumber));
 
 export function planInventoryRecovery(profile,cards,id) {
@@ -77,7 +78,8 @@ export function reconcileDuplicates(cards, evidence = emptyEvidence(), now = new
       };
       for (const card of unique.slice(1)) {
         if (card.pin !== primary.pin) add('credentials', card, unique[0]);
-        for (const field of ['notes','merchant','startingBalance']) if (!equal(primary[field],card[field])) {
+        for (const field of ['notes','merchant','merchantInferred','startingBalance','dateAdded','dateUpdated']) if (!equal(primary[field],card[field])) {
+          if(lowRiskField(field)){primary[field]=metadataDefault(field,[primary[field],card[field]]);continue;}
           if ((primary[field] === '' || primary[field] === undefined) && card[field] !== '') primary[field] = card[field];
           else if (card[field] !== '' && card[field] !== undefined) add('field:'+field,card[field],primary[field]);
         }
@@ -110,7 +112,7 @@ export function reconcileDuplicates(cards, evidence = emptyEvidence(), now = new
     }
     result.push(primary);
   }
-  return {cards:result.sort((a,b) => a.cardNumber.localeCompare(b.cardNumber)), evidence:next, diagnostics};
+  return {...repairRecovery(result.sort((a,b) => a.cardNumber.localeCompare(b.cardNumber)),next,now), diagnostics};
 }
 
 export function isolateBatch(state, profile) {

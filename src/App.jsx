@@ -6,6 +6,7 @@ import { SettingsPanel } from './features/settings/SettingsPanel';
 import { CardsPanel } from './features/cards/CardsPanel';
 import { CheckoutPanel } from './features/checkout/CheckoutPanel';
 import { credentialAmbiguous } from './lib/inventoryRecovery';
+import { recoverySummary } from './lib/reconciliationPolicy';
 import { CheckoutOverlays } from './features/checkout/CheckoutOverlays';
 import { useCheckout } from './features/checkout/useCheckout';
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
@@ -98,6 +99,7 @@ function App() {
   const recoveryReloadRequired = useRef(false);
   const restoreReviewFocus = useRef(false);
   const [balanceReviewOpen, setBalanceReviewOpen] = useState(false);
+  const [reviewFlaggedOnly,setReviewFlaggedOnly] = useState(false);
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
@@ -255,9 +257,11 @@ function App() {
   }
 
   function getAppSyncSummaryState() {
-    const pending = walletRef.current && profileOf(walletRef.current).pending.length;
+    const current=walletRef.current&&profileOf(walletRef.current);
+    const pending = current&&(current.pending.length||current.inFlight||current.remoteBase?.needsRepair
+      ||walletRef.current.controlFlights?.[current.context.principal]);
     if(syncUi.phase==='checking')return {key:'checking',label:'Checking sync…',help:'Local cards stay available'};
-    if(['error','review'].includes(syncUi.phase))return {key:'error',label:'Review sync',help:syncUi.message};
+    if(['error','blocked','maintenance'].includes(syncUi.phase))return {key:'error',label:'Sync blocked',help:syncUi.message};
     if(syncUi.phase==='saved'&&!pending)return {key:'connected',label:'Synced',help:syncUi.message};
     return {key:'local-only',label:pending?'Saved locally':'Local inventory',help:syncUi.message};
   }
@@ -701,6 +705,7 @@ function App() {
   if (balanceReviewOpen) {
     return (
       <BalanceReview
+        initialFlaggedOnly={reviewFlaggedOnly}
         cards={cards}
         walletSnapshot={walletSnapshot}
         readWallet={readWallet}
@@ -868,7 +873,7 @@ function App() {
               loaded={cardsLoaded.current}
               googleConnected={oauthState.status === googleOAuthStatuses.connected}
               maskCardNumber={maskCardNumber}
-              commands={{ reviewBalances: () => setBalanceReviewOpen(true), connectGoogle: handleConnectGoogle,
+              commands={{ reviewBalances: () => {setReviewFlaggedOnly(false);setBalanceReviewOpen(true);}, connectGoogle: handleConnectGoogle,
                 importCsv: () => document.getElementById('csv-file-input').click(),
                 resetFilters: settingsController.resetFilters, openSettings: () => setActivePanel('settings'),
                 selectCard: index => { setSelectedCardIndex(index); setActivePanel('detail'); } }}
@@ -886,6 +891,7 @@ function App() {
                   context: profileOf(walletSnapshot).context, pendingCount: profileOf(walletSnapshot).pending.length,
                   confirming: Boolean(profileOf(walletSnapshot).inFlight), lastConfirmedAt: profileOf(walletSnapshot).sync?.lastConfirmedAt,
                   syncBlocked: profileOf(walletSnapshot).syncBlocked, recoveryCards: profileOf(walletSnapshot).recoveryEvidence?.cards,
+                  recoverySummary: recoverySummary(profileOf(walletSnapshot)),
                   controlFlight: walletSnapshot.controlFlights?.[oauthState.principal]?.request, zeroBalanceCount }}
                 commands={{ markZeroBalanceUsed: handleMarkZeroBalanceUsed, connectGoogle: handleConnectGoogle,
                   disconnectGoogle: handleDisconnectGoogle, syncNow, ensureSheet: handleEnsureSheet,
@@ -893,7 +899,7 @@ function App() {
                   recoverExpired: async () => {
                     try { await syncEngine.current?.recoverExpired(); }
                     catch (error) { setTransferMutationError(error.message); }
-                  }, recoverUnbound, resolveConflict, selectCompartment: handleSelectCompartment,
+                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>{setReviewFlaggedOnly(true);setBalanceReviewOpen(true);}, selectCompartment: handleSelectCompartment,
                   exportCsv: handleExportCsv, exportRecovery: handleExportRecovery,
                   openRawEditor: handleOpenRawEditor }}
                 showRawCsvEditor={SHOW_RAW_CSV_EDITOR}

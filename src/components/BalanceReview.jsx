@@ -13,6 +13,7 @@ const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "
 
 export function BalanceReview({ onExit, ...props }) {
   const [mode, setMode] = useState("manual");
+  const [flaggedOnly,setFlaggedOnly] = useState(props.initialFlaggedOnly === true);
   return (
     <main className="min-h-screen bg-m3-surface text-m3-on-surface">
       <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">
@@ -28,14 +29,19 @@ export function BalanceReview({ onExit, ...props }) {
           onClick={() => setMode("batch")}>Batch</Button>
       </div>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
-        {mode === "manual" ? <ManualBalanceReview {...props} /> : <BalanceTransfer {...props} />}
+        <div role="group" aria-label="Cards to verify" className="grid grid-cols-2 gap-2">
+          <Button variant={!flaggedOnly?'tonal':'outlined'} aria-pressed={!flaggedOnly} onClick={()=>setFlaggedOnly(false)}>All eligible</Button>
+          <Button variant={flaggedOnly?'tonal':'outlined'} aria-pressed={flaggedOnly} onClick={()=>setFlaggedOnly(true)}>Flagged only</Button>
+        </div>
+        {flaggedOnly&&<p className="text-sm">Includes eligible used cards and provisional zero balances. Verification leaves used status unchanged.</p>}
+        {mode === "manual" ? <ManualBalanceReview key={String(flaggedOnly)} {...props} flaggedOnly={flaggedOnly} /> : <BalanceTransfer {...props} flaggedOnly={flaggedOnly} />}
       </div>
     </main>
   );
 }
 
-function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, maskCardNumber }) {
-  const [queue] = useState(() => createBalanceReviewQueue(verificationCards(profileOf(walletSnapshot))));
+function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, maskCardNumber, flaggedOnly }) {
+  const [queue] = useState(() => createBalanceReviewQueue(verificationCards(profileOf(walletSnapshot)).filter(card=>!flaggedOnly||card.pendingReconciliation===true)));
   const [initialVersions] = useState(() => ({ ...profileOf(walletSnapshot).versions }));
   const [initialContext] = useState(() => inventoryContext(walletSnapshot));
   const [position, setPosition] = useState(0);

@@ -1,5 +1,6 @@
 import { bundledSampleGiftCards } from './cards.js';
 import { compactEvidence, evidenceMetadata } from './syncEvidence.js';
+import { lowRiskField, metadataDefault, repairRecovery, retireVerificationEvidence, recordQuarantined } from './reconciliationPolicy.js';
 export const syncProtocol = 'gc-wallet-sync-v1';
 export const equal = (a,b) => canonical(a) === canonical(b);
 export function canonical(value) {
@@ -33,6 +34,7 @@ const validLegacyVerification=(op,priorTime)=>{
 // Absence is never a delete operation. Only controlled maintenance creates tombstones.
 // A monetary operation's identity matters even when two resulting values match.
 export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvidence(),evidence=emptyEvidence(),now=new Date().toISOString()}) {
+  ({cards:remote,evidence}=repairRecovery(remote,evidence,now));
   const result=mapCards(remote), old=mapCards(base), working=mapCards(local);
   const operationsByCard=new Map();
   for(const op of operations){if(!operationsByCard.has(op.cardNumber))operationsByCard.set(op.cardNumber,[]);operationsByCard.get(op.cardNumber).push(op);}
@@ -76,7 +78,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       const missingBase=prior??ops.find(o=>o.before)?.before;
       if(missingBase){
         card.pendingReconciliation=true;
-        const entry=conflict(number,'missing-remote',{local:card,base:missingBase,remote:null},ids);
+        const entry=next.cards[number]??={money:0,conflicts:[]};
         entry.uncertainSince??=now;
       }
       // Preserve credentials even when direct edits removed a row without a tombstone.
@@ -132,6 +134,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       if(equal(card[field],saved[field])||equal(card[field],fieldBase))continue;
       if((prior||first?.before)&&equal(saved[field],fieldBase)&&!ops.some(o=>o.kind==='unbound-recovery'))assign(field,card[field]);
       else if(!prior&&saved[field]===undefined)assign(field,card[field]);
+      else if(lowRiskField(field))assign(field,metadataDefault(field,[card[field],saved[field]]));
       else conflict(number,'field:'+field,{local:card[field]??null,remote:saved[field]??null,base:fieldBase??null},ids);
     }
     // Verification date and timestamp form one value. Independent CSV edits can
@@ -147,7 +150,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     const observedAt=verify?.observation?.checkedAt;
     const observedValue=verify?.kind==='manual-verification'?verify.observation?.observedBalance:verify?.observation?.balance;
     const applicable=typeof observedAt==='string'&&Number.isFinite(Date.parse(observedAt))&&new Date(observedAt).toISOString()===observedAt
-      &&!entry.conflicts?.some(conflict=>conflict.kind==='credentials'&&!conflict.resolution)
+      &&!recordQuarantined(next,number)
       &&typeof observedValue==='number'&&verify.after?.currentBalance===observedValue
       &&verify.after?.lastBalanceChecked===observedAt.slice(0,10)
       &&(!verify.after?.lastBalanceCheckedAt||verify.after.lastBalanceCheckedAt===observedAt)&&verify.after?.pin===saved.pin
@@ -178,9 +181,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       }
       if(fresh){
         if(saved.pendingReconciliation!==undefined||card.pendingReconciliation!==undefined||entry.uncertainSince)merged.pendingReconciliation=false;
-        delete entry.uncertainSince;
-        delete entry.previousVerification;
-        for(const c of entry.conflicts??[])if(c.kind==='balance'&&!c.resolution)c.resolution='verified:'+verify.id;
+        retireVerificationEvidence(entry);
       }
     }
     if(localMoney&&monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
@@ -191,9 +192,10 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
     result.set(number,merged);
   }
   const cards=[...result.values()].sort((a,b)=>a.cardNumber.localeCompare(b.cardNumber));
-  const compact=compactEvidence(next);
+  const repaired=repairRecovery(cards,next,now);
+  const compact=compactEvidence(repaired.evidence);
   evidenceMetadata(compact); // Check actual bounded Sheet representation before dispatch.
-  return {cards,evidence:compact};
+  return {cards:repaired.cards,evidence:compact};
 }
 
 // Replay semantic differences against the acknowledged inventory, never a stale

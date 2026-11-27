@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {syntheticRemote,cardA,cardB} from '../syncFixtures.mjs';
 import {schemaCapability} from '../../src/lib/csvSchema.js';
+import {persistedRecoveryFixture} from '../recoveryFixture.mjs';
 const protocol='gc-wallet-sync-v1';
 test.describe.configure({timeout:120000});
 const syncPoll=fn=>expect.poll(fn,{timeout:22000});
@@ -236,7 +237,7 @@ test('Settings retains drafts, shares persistent preferences and exposes failure
  expect(await snapshot(page)).toEqual(before);
  // A transport failure opens connection details and leaves committed cards intact.
  qa.mock.offline=true;await page.getByRole('button',{name:'Sync now',exact:true}).click();
- await expect(page.getByText('Review sync',{exact:true}).first()).toBeVisible();
+ await expect(page.getByText('Sync blocked',{exact:true}).first()).toBeVisible();
  await expect(connection).toHaveAttribute('open','');
  expect(active(await snapshot(page)).cards).toEqual(active(before).cards);
  qa.mock.offline=false;
@@ -351,6 +352,7 @@ test('R1 duplicate recovery isolates credentials while damaged Batch leaves unre
  await page.getByRole('button',{name:'Review card credentials'}).click();
  const advanced=page.locator('summary').filter({hasText:'Advanced synchronization and recovery'});
  if(!await advanced.evaluate(node=>node.parentElement.open))await advanced.click();
+ await page.getByText('Exceptional record details (private)',{exact:true}).click();
  await expect(page.getByText('Card ending 0042: credentials')).toBeVisible();
  await page.screenshot({path:test.info().outputPath('r1-recovery-mobile.png'),fullPage:true});
  await page.getByRole('button',{name:'Keep Sheet values',exact:true}).click();
@@ -364,4 +366,38 @@ test('R1 duplicate recovery isolates credentials while damaged Batch leaves unre
  await cards(page);await page.locator('#review-balances').click();await expect(page.getByLabel('Verified balance (CAD)')).toBeVisible();
  await page.getByRole('button',{name:'Batch',exact:true}).click();await expect(page.getByText(/A damaged or interrupted legacy Batch was preserved/)).toBeVisible();
  expect(qa.errors).toEqual([]);await context.close();
+});
+
+test('621 persisted recovery cards show concise synchronized status and dedicated flagged Manual/Batch selection',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:412,height:923}}),fixture=persistedRecoveryFixture(),remote=await syntheticRemote(fixture.cards);
+ remote.directEdit(s=>{s.evidence=fixture.evidence;s.fingerprint='';});
+ const qa=await setup(context,remote,[]),page=await context.newPage();await start(page);
+ await syncPoll(async()=>active(await snapshot(page)).remoteBase.needsRepair??false).toBe(false);
+ await settings(page);await expect(page.getByText('Synchronized with your private Sheet.',{exact:true})).toBeVisible();
+ await expect(page.getByText('Balance confidence: 72 uncertain · Record integrity: 0 quarantined')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Keep recovered card'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Verify flagged cards (72)'}).click();
+ await expect(page.getByRole('button',{name:'Flagged only'})).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByText('Card 1 of 72',{exact:true})).toBeVisible();
+ await expect(page.getByText(/This card is marked used/)).toBeVisible();
+ await page.getByRole('button',{name:'Confirm unchanged'}).click();
+ await expect(page.getByText('Card 2 of 72',{exact:true})).toBeVisible();
+ const first=fixture.cards[0].cardNumber;
+ await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);
+ let state=await snapshot(page);expect(active(state).cards[0].used).toBe(true);expect(active(state).cards[0].pendingReconciliation).toBe(false);
+ expect(active(state).recoveryEvidence.cards[first].conflicts).toEqual([]);
+ await page.getByRole('button',{name:'Batch',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Select cards (71)'})).toBeVisible();
+ await page.getByRole('button',{name:'Select cards (71)'}).click();
+ await expect.poll(async()=>active(await snapshot(page)).ledger?.requests.length??0).toBe(71);
+ state=await snapshot(page);expect(active(state).ledger.requests).toHaveLength(71);
+ expect(active(state).ledger.requests.some(r=>r.cardNumber===fixture.cards[1].cardNumber)).toBe(true);
+ await page.getByRole('button',{name:'Exit',exact:true}).click();
+ await page.screenshot({path:test.info().outputPath('r1-record-summary-mobile.png'),fullPage:true});
+ const writes=remote.writes;await page.getByRole('button',{name:'Sync now',exact:true}).click();
+ await expect(page.getByText('Synchronized with your private Sheet.',{exact:true})).toBeVisible();expect(remote.writes).toBe(writes);
+ await page.reload();await expect(page.getByRole('button',{name:'Open settings'})).toBeVisible();
+ expect(active(await snapshot(page)).cards[0].used).toBe(true);expect(qa.errors).toEqual([]);
+ expect(qa.blocked.filter(url=>!url.startsWith('https://fonts.googleapis.com/'))).toEqual([]);
+ await context.close();
 });

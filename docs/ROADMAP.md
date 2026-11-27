@@ -17,8 +17,14 @@ reads, focus-triggered result detection or clipboard permission prompts.
 
 ## R1 — resilient synchronization and recovery simplification
 
-Approved baseline: main `bd7d8e6`, including released P0 / PR #251. Deliver one
-cohesive release with deterministic duplicate consolidation, localized credential
+Infrastructure baseline: main `bd7d8e6`, including released P0 / PR #251, followed
+by PRs #252–254 through `0ecb5c1`. The approved completion correction addresses
+failed practical recovery acceptance: 621 saved cards, zero pending operations,
+and 285 accumulated recovery entries. Deliver one cohesive correction with
+record-level MERGE / FLAG / QUARANTINE, automatic persisted metadata/missing-row
+repair, consolidated monetary uncertainty, dedicated flagged Manual/Batch selection
+including used/zero cards, fresh evidence retirement and accurate separate status.
+Retain deterministic duplicate consolidation, localized credential
 and monetary ambiguity, mixed unbound recovery, uncertainty-first verification,
 bounded evidence/receipt retention, repairable shared maintenance and damaged
 Batch isolation. Preserve transaction completion, credentials and original migration
@@ -26,8 +32,12 @@ bytes, pending work, exact account/Sheet ownership, explicit deletions and uncer
 external-write fences. Architecture owns the replacement safeguards and module map;
 QA owns synthetic acceptance and capacity measurements. The release PR records
 review, required CI, preserved production configuration and hosted verification.
-PRs #252/#253 shipped R1 on `40dc926`; the focused control-identity HTTP compatibility
-correction remains within this release's recovery contract and authority.
+PRs #252/#253 shipped R1 infrastructure on `40dc926`; PR #254 corrected
+control-identity HTTP compatibility. Synthetic infrastructure acceptance did not
+establish usable private recovery. The completion correction uses a persisted
+621-card/285-entry fixture, interrupted local repair, lost acknowledgements,
+actual Worker HTTP and a focused mobile workflow; exact release evidence belongs
+in its PR. Private recovery acceptance remains pending the user's ordinary use.
 
 The user authorizes the compatible production release after independent review
 and required CI, with existing infrastructure, bindings, DO namespace, unpaused
