@@ -39,8 +39,10 @@ between milestones; this is not a freeze until all four are complete.
   and existing command callbacks. No exclusively owned mutable state was present;
   shared preferences, selection, totals and inventory authority keep their owners.
   See the [contract and module map](ARCHITECTURE.md#a2-cards--inventory-feature-boundary).
-  This run authorizes A2 through review, CI, release verification and cleanup;
-  regression and release evidence belong in its PR.
+  Implemented and independently reviewed in
+  [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248), which records
+  regression, CI and release verification evidence. A2 release and cleanup are
+  authorized; A3/A4 require separate authority.
 - **A3 — Checkout:** planned; implementation requires separate authority.
 - **A4 — Conditional application shell and Balance Check convergence:** planned;
   implementation requires separate authority.

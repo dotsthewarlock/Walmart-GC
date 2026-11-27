@@ -13,6 +13,11 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
   inventory, sync, Worker, schema, companion or transfer contract changes.
   The permanent agent execution policy now calls for autonomous authorized
   completion and the least expensive sufficient validation/review approach.
+  [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248) records review,
+  CI and release evidence. Local checks passed: 13 focused Node tests, two serial
+  Cards/Settings browser scenarios, mobile/desktop visual inspection, build,
+  JavaScript syntax and whitespace. The shared CSV input now stays mounted in App
+  so the Cards empty-state import works while Settings is unmounted.
 - Approved sequence: A1 Settings/pattern → A2 Cards/Inventory → A3 Checkout → A4
   conditional shell/Balance Check convergence. Each is independently releasable;
   functional work may happen between milestones. This run authorizes full A2
