@@ -26,6 +26,25 @@ released Companion 1.0.5 Dev with a fixed 1,400 ms delay, selected targets of
 10, 25 or 50, and no ten-card segmentation or rest. Stable remains unpromoted.
 Ordinary-use companion and native clipboard acceptance remain pending.
 
+## Incremental architecture: A1–A4
+
+Each milestone is independently releasable. Functional development may occur
+between milestones; this is not a freeze until all four are complete.
+
+- **A1 — Settings and modularization pattern:** Settings rendering and its
+  preference/draft/disclosure controller are extracted. App retains domain
+  commands, navigation, theme application and inventory/sync lifetime. See the
+  [module contract](ARCHITECTURE.md#a1-feature-module-boundary). This run implements
+  A1 only, with regression and release evidence in its PR.
+- **A2 — Cards / Inventory:** planned; implementation requires separate authority.
+- **A3 — Checkout:** planned; implementation requires separate authority.
+- **A4 — Conditional application shell and Balance Check convergence:** planned;
+  implementation requires separate authority.
+
+Preserve local-first integrity, protocol/schema, Worker, companion and transfer
+contracts at every milestone. No speculative store, new dependencies, mechanical
+file reorganization or navigation redesign is included.
+
 ## Near term, only after synchronization foundation
 
 Online-use reconciliation remains deferred. V0.4 adds precise UTC verification

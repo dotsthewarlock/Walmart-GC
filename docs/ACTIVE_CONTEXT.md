@@ -5,6 +5,16 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 ## Current development
 
+- Architecture milestone A1 extracts Settings rendering and its app-lifetime
+  preference/draft/disclosure controller into `src/features/settings/`. App keeps
+  navigation, active inventory context, theme application and all domain commands.
+  No inventory, sync, Worker, schema, companion or transfer contract changes.
+- Approved sequence: A1 Settings/pattern → A2 Cards/Inventory → A3 Checkout → A4
+  conditional shell/Balance Check convergence. Each is independently releasable;
+  functional work may happen between milestones. Only A1 is authorized in this run.
+  See [ownership and interfaces](ARCHITECTURE.md#a1-feature-module-boundary) and
+  [roadmap](ROADMAP.md#incremental-architecture-a1a4).
+
 - Repository: dotsthewarlock/Walmart-GC.
 - V0.4 / PR #243 adds offline balance checking, selection-independent request
   references, precise verification timestamps and Companion 1.0.4 Dev. Release

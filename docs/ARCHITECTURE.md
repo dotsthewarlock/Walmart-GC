@@ -256,3 +256,40 @@ prove the binding/migration was deployed; preserve its migration history.
 Rollback must keep indexedDB, protocol/evidence and fencing readable. An old
 writable frontend/Worker is unsafe; use a compatible read-only recovery build and
 private CSV/Sheet backups, never a localStorage dual-write bridge.
+
+## A1 feature module boundary
+
+`src/features/settings/SettingsPanel.jsx` owns Settings rendering, account masking,
+preference controls, connection/recovery disclosure and backup/troubleshooting UI.
+It uses the existing primitives and shared `components/ActionButton.jsx` (also used
+by Checkout). Markup, accessible labels, confirmation text and navigation remain.
+
+`useSettings` owns preferences, best-effort persistence through `lib/settings.js`,
+connection disclosure state and the exact-Sheet/deleted-identities drafts. App
+calls it unconditionally: drafts survive Settings, Checkout and Balance Check
+navigation, but reset on page reload. App initializes preferences at the existing
+wallet-open boundary. The controller provides `settings`, a live `current` ref for
+the sync scheduler, `initialize`, `resetFilters`, and a `panel` interface containing
+preference `change`/`toggle` and draft/disclosure setters. Enabling automatic sync
+updates the live preference before invoking App's foreground callback. Connection
+disclosure defaults are applied before the native accordion mounts, preventing a
+queued toggle from undoing the entry/error state. Failed
+preference storage retains the in-memory session; it never writes inventory.
+
+The panel receives only that panel interface plus read-only `connection`,
+`synchronization` (summary, messages, diagnostic flags) and `inventory` (selected
+compartment metadata, pending/confirmation state, recovery evidence and zero count)
+views. Its `commands` callbacks cover connection, protected sync/setup/maintenance,
+recovery/conflict resolution, compartment selection, CSV import/export, recovery
+export and zero-card marking; `onBack` preserves the previous primary destination.
+Setup takes the draft Sheet ID; maintenance takes an action and deletion draft.
+App trims/parses them and retains every existing confirmation, transaction/context
+fence, failure message and uncertain-write protection.
+
+App still owns wallet/sync engine lifetime, authoritative snapshots, domain
+commands, error presentation, navigation/active context and theme application.
+CSV editor transactions remain in App because they share captured inventory
+context with import and save. Settings has no inventory store, engine or network
+client. This is a local feature pattern, with no global store or new runtime
+boundary for the protected protocol. Cards, Checkout and the conditional shell
+remain in App until separately authorized milestones.

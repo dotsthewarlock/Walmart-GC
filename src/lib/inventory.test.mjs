@@ -501,7 +501,8 @@ test('existing development migration IDs upgrade atomically without changing car
 test('UI exposes protected synchronization, account recovery and balance warning without mandatory hold',async()=>{
   const {readFile}=await import('node:fs/promises');
   const app=await readFile(new URL('../App.jsx',import.meta.url),'utf8');
-  assert.match(app,/createSyncEngine/);assert.match(app,/Sync now/);assert.match(app,/Balance needs verification/);
-  assert.match(app,/window.confirm\(recoveryWarning\)/);assert.match(app,/handleExportCsv\(undefined, walletSnapshot.active\)/);
+  const settings=await readFile(new URL('../features/settings/SettingsPanel.jsx',import.meta.url),'utf8');
+  assert.match(app,/createSyncEngine/);assert.match(settings,/Sync now/);assert.match(app,/Balance needs verification/);
+  assert.match(app,/window.confirm\(recoveryWarning\)/);assert.match(settings,/commands.exportCsv\(undefined, inventory.activeKey\)/);
   assert.doesNotMatch(app,/Sheet writes are paused during this development stage/);
 });
