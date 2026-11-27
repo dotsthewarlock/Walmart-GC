@@ -30,6 +30,27 @@ corrective release is compatible with the one-PR efficiency preference.
 
 Independent review and required CI precede the user-authorized protected merge, Wallet release and Dev Companion publication. Verify public shell digests, descriptor revision, both artifact hashes and inert transport compatibility. Preserve infrastructure/configuration and leave an unaffected Worker deployed. No Stable promotion, standalone A4, schema change, runtime dependency, background merchant execution, automatic retry or challenge bypass.
 
+## P1.1 — Unified Wallet Navigation (authorized)
+
+From main `3366acf`, integrate Cards, Checkout and Balance Check into one existing
+M3 application shell. Preserve domain/state ownership, shared totals/private sync
+status/Settings, selection/filters/scroll, drafts/progress, contextual return,
+explicit flagged entry, account fencing, offline use and passive checkout.
+Reuse R2 verification/transfer and accepted R1 recovery safeguards.
+
+Independent technical review and required integrated CI precede the explicitly
+authorized normal protected merge and Wallet production release. Verify the
+hosted shell and offline launch; preserve deployed configuration and leave the
+unaffected Worker and Companion source/Stable channel unchanged. The existing
+Pages workflow still stages the matching Dev descriptor. Exact release evidence
+belongs in the milestone PR. Master Architecture receives the
+[canonical stream handoff](ARCHITECTURE.md#master-and-subordinate-architecture-streams);
+native user acceptance is a separate disposition.
+
+No single-card verification enhancement, Checkout Undo, standalone A4, new state
+store/runtime dependency, schema/protocol/infrastructure change or unrelated
+redesign. The authorized shell is functional P1.1 work, not a revived A4 audit.
+
 ## V0.3 maintenance: lean synchronization and quota recovery
 
 1. PR #240 supplies unchanged KV write suppression and explicit-only Batch clipboard transfer. PR #241 builds on that merge and supplies event-driven automatic sync (3s coalescing, 15s minimum, 5min freshness, no idle polling), manual-only mode, no-op suppression, local Batch preparation/preview and bounded timeout and quota recovery.
@@ -78,7 +99,7 @@ planning labels, not dependencies or a requirement to finish architecture first.
 | --- | --- |
 | Released V0.1–V0.4 foundation | Card/CSV schema, Manual/Batch verification, protected V0.3 sync, resilient checks and precise UTC verification with date-only compatibility. Installation/offline shell shipped in PR #250; R1 is accepted and R2 is released with the current correction. |
 | P0 | Ordinary-use acceptance and demonstrated consequential defects; preserve R1 recovery, pending work and uncertain-write fences. |
-| P1 — unified Wallet UX | Plan a shared Cards / Checkout / Balance Check shell, contextual return and limited Checkout Undo; see [M3 decisions](M3_DESIGN_DECISIONS.md#deferred-product-interactions). Requires separate functional authorization. |
+| P1 — unified Wallet UX | P1.1 shared Cards / Checkout / Balance Check shell and contextual return are authorized above. Checkout Undo and single-card verification enhancements remain deferred; see [M3 decisions](M3_DESIGN_DECISIONS.md#deferred-product-interactions). |
 | P2 / V0.5 — online use | Spending, partial redemption and refund reconciliation through existing pendingReconciliation plus merchant verification; no accounting subsystem. |
 | P3 / V0.6 — acquisition and management | Manual add, bulk paste/import, duplicate handling and card lifecycle; explicit camera scanning only when useful, with manual fallback. |
 | Later / V0.7+ — merchants | The next real merchant vertical slice when demand exists, retaining currency, identity and barcode differences; no speculative plugin framework. |

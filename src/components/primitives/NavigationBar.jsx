@@ -7,7 +7,7 @@ function NavigationBar({
 }) {
   return (
     <nav
-      className={["fixed bottom-0 left-0 right-0 h-20 z-40 md:static flex border-t border-m3-outline-variant/30 bg-m3-surface-container w-full", className].filter(Boolean).join(" ")}
+      className={["fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] z-40 md:static md:h-20 md:pb-0 flex border-t border-m3-outline-variant/30 bg-m3-surface-container w-full", className].filter(Boolean).join(" ")}
       {...props}
     >
       {children}

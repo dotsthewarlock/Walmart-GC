@@ -6,6 +6,30 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 
 ## Automated cycle
 
+P1.1 lifecycle failure acceptance (defined before implementation):
+
+- Cards, Checkout and Balance Check share one accessible M3 shell, merchant total,
+  privacy-safe sync status and Settings entry at 412 × 923 and desktop. Navigation
+  and contextual return retain selection, filters, per-destination scroll, Settings
+  and Checkout drafts, Manual progress and Companion result drafts/preview.
+- Verification preparation/save/apply holds all shell exits and mode/selection
+  controls until transaction completion. An aborted command reports failure,
+  retains its draft/preview, advances no progress and remains retryable. Navigation
+  never implies save, merchant execution or application of an observation.
+- Settings returns to its calling destination; ordinary Balance Check entry resumes
+  its session. Explicit flagged entry starts a fresh Manual queue from current
+  flags and returns to Settings. Keyboard return restores the invoking control
+  or an accessible destination heading when that control no longer exists.
+- Account/context changes retain the existing generation and revision fences;
+  stale verification/editor work cannot write into another compartment. Offline
+  navigation and local commands remain available. Checkout wake locks release
+  when inactive, including late grants. No credentials enter navigation storage.
+
+Reuse affected Cards/Checkout/Settings, R2 preparation/atomic-abort/flagged-entry
+and stale-context fixtures. Required integrated CI owns unchanged R1, protocol,
+Worker, Companion transport and offline-shell coverage; native user acceptance
+remains distinct from synthetic technical closure.
+
 R2 focused coverage includes shared Manual/Companion filters, ordering and quantity,
 draft/progress survival across mode/contextual navigation, offline preparation and
 reconnect, read-only direct preview, injected atomic application failure and retry,

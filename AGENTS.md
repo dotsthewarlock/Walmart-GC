@@ -7,6 +7,9 @@ GitHub is the sole durable project authority. GPT retains architecture, roadmap
 and independent assessment responsibilities; Codex implements and verifies the
 authorized milestone. Consolidate unique decisions in the authorities below.
 Project sources and chat are migration input, not parallel ongoing authorities.
+The Master/subordinate architecture-stream handoff is defined in
+[Architecture](docs/ARCHITECTURE.md#master-and-subordinate-architecture-streams).
+Technical release closure and native user acceptance are separate dispositions.
 Do not claim migration coverage for source documents that were not actually read.
 Verify essential external source access before expensive implementation; distinguish
 sources actually read from another reviewer's reported ZIP or provenance checks.

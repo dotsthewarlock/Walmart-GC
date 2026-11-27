@@ -39,6 +39,115 @@ async function setup(context,remote,legacy=[cardA,cardB]){
 async function start(page){await page.goto('/');await expect(page.getByRole('button',{name:'Open settings'})).toBeVisible();await expect.poll(async()=>active(await snapshot(page)).context.ownershipVerified).toBe(true);}
 async function recover(page){await settings(page);await page.locator('summary').filter({hasText:'Advanced synchronization and recovery'}).click();await page.getByRole('button',{name:'Recover unbound inventory into connected account'}).click();await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);await cards(page);}
 
+test('P1.1 shared shell retains destination scroll, selection, drafts and contextual return offline',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:412,height:923}});
+ const extra=Array.from({length:38},(_,i)=>({...cardB,cardNumber:'630000000003'+String(i).padStart(4,'0')}));
+ const remote=await syntheticRemote([cardA,cardB,...extra]),qa=await setup(context,remote,[]);
+ const page=await context.newPage();await start(page);qa.mock.offline=true;
+ await settings(page);await page.getByLabel('Sort gift cards').selectOption('balance-desc');await page.locator('#settings-back').click();
+ await checkoutA(page);await page.getByRole('button',{name:'Edit',exact:true}).click();
+ await page.getByPlaceholder('Add card notes...').fill('P1.1 retained checkout draft');
+ await cards(page);await page.evaluate(()=>window.scrollTo(0,650));
+ const cardsScroll=await page.evaluate(()=>scrollY);
+ await page.locator('#nav-review').click();
+ await expect(page.locator('#nav-review')).toHaveAttribute('aria-current','page');
+ await expect(page.getByRole('heading',{name:'Gift Card Manager',exact:true})).toBeVisible();
+ await expect(page.getByRole('status',{name:/Available Walmart balance: \$2050.00/})).toBeVisible();
+ await expect(page.getByText(/qa@example.invalid/)).toHaveCount(0);
+ expect(await page.evaluate(()=>scrollY)).toBe(0);
+ await page.getByRole('group',{name:/Quantity/}).getByText('20',{exact:true}).click();
+ await page.getByRole('button',{name:'Select cards (20)',exact:true}).click();
+ await page.getByLabel('Verified balance (CAD)').fill('43.21');
+ await page.getByRole('button',{name:'Save & next'}).click();
+ await expect(page.getByText('Working selection: 20 cards · 1 verified',{exact:true})).toBeVisible();
+ await page.getByLabel('Verified balance (CAD)').fill('32.10');
+ await page.evaluate(()=>window.scrollTo(0,500));const reviewScroll=await page.evaluate(()=>scrollY);
+ await cards(page);expect(await page.evaluate(()=>scrollY)).toBe(cardsScroll);
+ await page.locator('#nav-review').click();expect(await page.evaluate(()=>scrollY)).toBe(reviewScroll);
+ await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('32.10');
+ await expect(page.getByText('Working selection: 20 cards · 1 verified',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Companion / Batch',exact:true}).click();
+ await page.getByRole('button',{name:'Prepare selected cards',exact:true}).click();
+ const prepared=active(await snapshot(page));
+ const ref=prepared.batchSelection[0];
+ const packet=['WMGC-RESULT\t1','ref\tbalanceCAD\tcheckedAt',ref+'\t12.34\t'+new Date().toISOString()].join('\n');
+ await page.getByLabel('Paste results').fill(packet);await cards(page);await page.locator('#nav-review').click();
+ await expect(page.getByLabel('Paste results')).toHaveValue(packet);
+ await page.getByRole('button',{name:'Preview results'}).click();
+ await expect(page.getByRole('heading',{name:'Results preview',exact:true})).toBeFocused();
+ await page.evaluate(()=>window.scrollTo(0,500));const previewScroll=await page.evaluate(()=>scrollY);
+ await cards(page);await page.locator('#nav-review').click();
+ expect(await page.evaluate(()=>scrollY)).toBe(previewScroll);
+ await expect(page.locator('#wallet-section-heading')).toBeFocused();
+ await page.locator('#open-settings').dispatchEvent('click');await page.locator('#settings-back').click();
+ await expect(page.locator('#nav-review')).toHaveAttribute('aria-current','page');
+ await expect(page.getByLabel('Paste results')).toHaveValue('');
+ await expect(page.getByText('1 accepted · 1 changed · 0 unchanged',{exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Results preview',exact:true})).toBeVisible();
+ await expect(page.locator('#open-settings')).toBeFocused();
+ expect(await page.evaluate(()=>scrollY)).toBe(previewScroll);
+ expect(active(await snapshot(page)).cards).toEqual(prepared.cards);
+ // A primary-tab return from Settings is also an excursion, preserving Cards as Exit's origin.
+ await page.locator('#open-settings').dispatchEvent('click');await page.locator('#nav-review').click();
+ await page.getByRole('button',{name:'Exit',exact:true}).click();
+ await expect(page.locator('#review-balances')).toBeFocused();expect(await page.evaluate(()=>scrollY)).toBe(cardsScroll);
+ await page.locator('#nav-detail').click();
+ await expect(page.getByPlaceholder('Add card notes...')).toHaveValue('P1.1 retained checkout draft');
+ await expect(page.locator('#card-detail')).toContainText('0042');
+ await page.locator('#nav-review').focus();await page.keyboard.press('Enter');
+ await page.getByRole('button',{name:'Exit',exact:true}).click();
+ await expect(page.locator('#nav-review')).toBeFocused();await expect(page.locator('#card-detail')).toContainText('0042');
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:test.info().outputPath('p11-checkout-mobile.png'),fullPage:true,animations:'disabled'});
+ await page.locator('#nav-review').click();await page.getByRole('button',{name:'Manual',exact:true}).click();
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:test.info().outputPath('p11-review-mobile.png'),fullPage:true,animations:'disabled'});
+ await cards(page);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:test.info().outputPath('p11-cards-mobile.png'),animations:'disabled'});
+ for(const viewport of [{width:412,height:923},{width:1280,height:900}]){
+  await page.setViewportSize(viewport);
+  for(const id of ['nav-list','nav-detail','nav-review']){
+   await page.locator('#'+id).click();await page.evaluate(()=>window.scrollTo(0,0));
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+   await expect(page.getByRole('navigation',{name:'App sections'})).toBeVisible();
+   await expect(page.getByRole('status',{name:/Available Walmart balance:/})).toBeVisible();
+   expect(await page.locator('#open-settings').evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48);
+   if(viewport.width===1280)await page.screenshot({path:test.info().outputPath('p11-'+id+'-desktop.png'),fullPage:true,animations:'disabled'});
+  }
+ }
+ expect(qa.errors).toEqual([]);expect(qa.blocked.filter(url=>!url.startsWith('https://fonts.googleapis.com/'))).toEqual([]);
+ await context.close();
+});
+
+test('P1.1 failed verification stays retryable and stale compartment work remains fenced',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]),qa=await setup(context,remote,[]);
+ const page=await context.newPage();await start(page);qa.mock.offline=true;
+ await page.locator('#nav-review').click();await page.getByLabel('Verified balance (CAD)').fill('22.22');
+ const before=await snapshot(page);await page.evaluate(()=>sessionStorage.setItem('qa-fail','yes'));
+ await page.getByRole('button',{name:'Save & next'}).click();
+ await expect(page.getByText('QA transaction failure',{exact:true})).toBeVisible();
+ expect(await snapshot(page)).toEqual(before);await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('22.22');
+ await expect(page.getByText('Working selection: 2 cards · 0 verified',{exact:true})).toBeVisible();
+ await cards(page);await page.locator('#nav-review').click();await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('22.22');
+ await page.evaluate(()=>sessionStorage.setItem('qa-hold-selection','yes'));
+ await page.getByRole('button',{name:'Save & next'}).click();
+ await expect.poll(()=>page.evaluate(()=>typeof window.qaCompleteSelection)).toBe('function');
+ for(const id of ['nav-list','nav-detail','nav-review','open-settings'])await expect(page.locator('#'+id)).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Exit',exact:true})).toBeDisabled();
+ await expect(page.getByText('Working selection: 2 cards · 0 verified',{exact:true})).toBeVisible();
+ await page.evaluate(()=>{sessionStorage.removeItem('qa-hold-selection');window.qaCompleteSelection();delete window.qaCompleteSelection;});
+ await expect(page.getByText('Working selection: 2 cards · 1 verified',{exact:true})).toBeVisible();
+ await expect(page.locator('#nav-list')).toBeEnabled();
+ await page.getByLabel('Verified balance (CAD)').fill('11.11');
+ await settings(page);await page.locator('#saved-inventory').selectOption('unbound');
+ await page.locator('#saved-inventory').selectOption(before.active);await page.locator('#settings-back').click();
+ await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('');
+ await expect(page.getByText('Working selection: 1 cards · 0 verified',{exact:true})).toBeVisible();
+ expect(active(await snapshot(page)).cards.find(c=>c.cardNumber===cardB.cardNumber).currentBalance).toBe(50);
+ await settings(page);await page.locator('#saved-inventory').selectOption('unbound');await cards(page);
+ await expect(page.locator('#nav-detail')).toBeDisabled();await page.locator('#nav-review').click();
+ await expect(page.getByRole('heading',{name:'No eligible cards',exact:true})).toBeVisible();
+ await expect(page.locator('#open-settings')).toBeEnabled();expect(qa.errors).toEqual([]);await context.close();
+});
+
 test('offline selections survive reload and synchronize delayed observations',async({browser})=>{
  const context=await browser.newContext(),remote=await syntheticRemote([]),qa=await setup(context,remote);const page=await context.newPage();
  await start(page);await recover(page);qa.mock.offline=true;
@@ -485,6 +594,7 @@ test('R2 unified selection retains drafts and progress; direct partial preview u
  await expect(page.getByLabel('Verified balance (CAD)')).toBeDisabled();
  for(const name of ['Save & next','Confirm unchanged','Skip'])await expect(page.getByRole('button',{name,exact:true,includeHidden:true})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Manual',exact:true})).toBeDisabled();
+ for(const id of ['nav-list','nav-detail','nav-review','open-settings'])await expect(page.locator('#'+id)).toBeDisabled();
  await page.evaluate(()=>{sessionStorage.removeItem('qa-hold-selection');window.qaCompleteSelection();delete window.qaCompleteSelection;});
  await expect(page.getByRole('button',{name:'Manual',exact:true})).toBeEnabled();
  await expect(page.getByText('Working selection: 1 cards · 0 verified',{exact:true})).toBeVisible();

@@ -9,6 +9,33 @@ wrappers, a global store or wholesale rewrites. A module's public contract names
 inputs, outputs/commands, captured context, invariants, effects, failure behavior
 and meaningful tests. Use existing feature boundaries and complete vertical slices.
 
+## Master and subordinate architecture streams
+
+GitHub and the canonical authorities linked from [Active Context](ACTIVE_CONTEXT.md)
+are the sole durable project authority. Master Architecture (GPT) owns architecture,
+roadmap, cross-stream decisions and independent assessment. A subordinate stream
+implements and verifies only its authorized milestone; it can make local,
+evolutionary implementation decisions within the existing contracts. Independent
+technical review is a release prerequisite, not Master architectural or native
+user acceptance. Explicit user scope and release authorization govern execution.
+
+Before implementation, confirm the exact baseline, affected ownership/contracts,
+source access and lifecycle failure acceptance. Before candidate review, reconcile
+unique decisions into the relevant existing authorities, rather than creating
+parallel handoff documents. Reuse accepted baselines and review/release evidence;
+do not reopen accepted R1 or repeat unaffected R2 audits.
+
+Return to Master the implementation outcome, exact commits/PR/CI/deployment and
+hosted evidence, material decisions, unresolved risks/blockers, cross-stream
+implications and acceptance disposition. Distinguish sources actually read from
+reported provenance, synthetic technical closure from native user acceptance,
+and completed checks from unexecuted prerequisites. Escalate essential unavailable
+access, consequential unresolved defects and substantial scope expansion; ordinary
+authorized implementation/review/CI/release corrections continue autonomously.
+Master reconciles architectural or roadmap consequences into these same authorities
+before authorizing another milestone. This protocol records the P1.1 mandate;
+it does not claim access to an additional external handoff document.
+
 ## Components and ownership
 
 React 19 / Vite / Tailwind uses existing Pages hosting and same-origin `/api/*`
@@ -572,7 +599,32 @@ remain; no global store or duplicate inventory is added. A4 shell/Balance Check
 convergence remains deferred. A3 included no core, protocol, schema, Worker, companion,
 transfer, PWA/service-worker, dependency or UX changes.
 
-### Frontend and Companion module map after R2
+## P1.1 shared navigation boundary
+
+App retains shell/navigation and the existing inventory, selection and command
+owners. Cards, Checkout and Balance Check are stable primary destinations; private
+Settings returns to the destination that opened it. Balance Check now renders
+inside the shared header, merchant total, privacy-safe sync strip and navigation.
+Sync assistance opens Settings rather than initiating OAuth from a status chip.
+No feature extraction or new state store is required.
+
+App keeps only per-destination scroll offsets and contextual return panel/control
+IDs in ephemeral refs. Heading focus announces a destination; contextual return
+restores the invoking control with a heading fallback and restores scroll without
+focus scrolling. Settings opened inside Balance Check does not replace its return
+origin. Ordinary entry preserves the R2 session; explicit Settings flagged entry
+still refreshes current flags in Manual mode. Verification busy state disables
+shell exits until the existing command completes, preserving R2 transaction order.
+
+Settings, Checkout and verification controllers retain their App lifetime and
+captured targets/context fences. Checkout wake lock and overlays are active only
+on Checkout; notes/reveal/drafts survive navigation. Verification heading focus
+does not override restored scroll. Navigation neither writes inventory nor starts
+checks, transport or result application. The existing generation-change reset,
+saved Batch ledger and offline shell remain authoritative. No schema/protocol,
+Worker, Companion source, infrastructure or dependency changes are included.
+
+### Frontend and Companion module map after P1.1
 
 | Module | Owner / remaining coupling |
 | --- | --- |
