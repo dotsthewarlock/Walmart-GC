@@ -33,7 +33,10 @@ self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
     try {
-      await cache.addAll(SHELL);
+      await cache.addAll(SHELL.filter(url => url !== '/'));
+      const html = await cache.match('/index.html');
+      if (!await matches(html, '/')) throw new Error('Shell HTML version mismatch');
+      await cache.put('/', html.clone());
       for (const url of SHELL) {
         const response = await cache.match(url);
         if (!await matches(response, url)) throw new Error('Shell asset version mismatch');
@@ -65,7 +68,7 @@ self.addEventListener('fetch', event => {
       } catch {}
       try {
         // The canonical public URL excludes OAuth parameters and cookies.
-        const response = await fetch(new Request(new URL(key, self.location.origin), {cache:'no-store', credentials:'omit', redirect:'error'}));
+        const response = await fetch(new Request(new URL(key === '/' ? '/index.html' : key, self.location.origin), {cache:'no-store', credentials:'omit', redirect:'error'}));
         if (await matches(response, key)) {
           try { await cache?.put(key, response.clone()); } catch {}
           return response;

@@ -156,3 +156,5 @@ the external items above are not repeated development phase gates.
 ## Installation and offline shell
 
 Run `npm run build` then `npm run test:shell` against the built shell and the local release fixture. Verify manifest and icons, complete shell installation, offline reload, and that private routes are absent from Cache Storage. The integrated synthetic cycle remains responsible for local edits, pending operations and reconnect. The serial shell regression exercises an existing controlled tab, rejected mixed and incomplete installs, matching cache repair, unavailable matching assets, OAuth return queries, changed release bytes, offline activation, durable pending/in-flight work and eligible reconnect against synthetic services. Installation and offline launch depend on browser support and a successful initial online visit.
+
+The fixture transforms root HTML like the production CDN. Installation and root repair must use matching canonical `/index.html` bytes; transformed or mixed bytes must never enter the shell. Hosted verification includes a fresh empty browser, successful service-worker readiness and offline reload, alongside public asset digest checks.

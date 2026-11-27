@@ -8,6 +8,10 @@ test('installed shell reloads offline without caching private responses', async 
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await page.evaluate(async () => {const name=(await caches.keys()).find(name=>name.startsWith('gc-shell-'));await(await caches.open(name)).delete('/');});
+  await page.reload();
+  await expect(page.getByRole('button', {name:'Open settings'})).toBeVisible();
+  expect(await page.evaluate(async () => (await (await fetch('/')).text()).includes('CDN root transformation'))).toBe(false);
   const manifest = await page.evaluate(async () => (await fetch(document.querySelector('link[rel=manifest]').href)).json());
   expect(manifest.icons.map(icon => icon.sizes)).toEqual(['192x192', '512x512']);
   const keys = await page.evaluate(async () => (await Promise.all((await caches.keys()).map(async name => (await (await caches.open(name)).keys()).map(request => new URL(request.url).pathname)))).flat());
