@@ -10,7 +10,7 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 - A2 released in [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248)
   on main `ac0759b`: stateless Cards rendering lives in `src/features/cards/`.
 - A3 Checkout shipped in PR #249 on main `0985eca`. The authorized current milestone adds installation and a versioned offline application shell; it preserves the existing inventory and synchronization contracts. Release evidence belongs in its PR. Stop after this milestone.
-- A4 shell/Balance Check convergence remains conditional and is not authorized by this installation milestone.
+- Dedicated A4 shell/Balance Check convergence is deferred indefinitely.
 
 - Repository: dotsthewarlock/Walmart-GC.
 - V0.4 / PR #243 adds offline balance checking, selection-independent request
