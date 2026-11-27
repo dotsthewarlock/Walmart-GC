@@ -193,3 +193,57 @@ test('legacy clipboard opt-in is ignored; checker return requires explicit paste
  await syncPoll(async()=>active(await snapshot(page)).pending.length).toBe(0);expect(remote.writes).toBe(1);
  await context.close();
 });
+
+test('Settings retains drafts, shares persistent preferences and exposes failures without changing inventory',async({browser})=>{
+ const context=await browser.newContext(),remote=await syntheticRemote([cardA,cardB]);
+ const qa=await setup(context,remote,[]),page=await context.newPage();await start(page);
+ await expect(page.getByText('Synced',{exact:true}).first()).toBeVisible();
+ await checkoutA(page);await settings(page);
+ const connection=page.locator('details').filter({has:page.locator('summary h3').filter({hasText:'Google connection'})});
+ await expect(connection).not.toHaveAttribute('open');
+ await connection.locator('summary').click();await expect(page.getByText('Connected: qa@example.invalid')).toBeVisible();
+ const advanced=page.locator('summary').filter({hasText:'Advanced synchronization and recovery'});
+ await advanced.click();await page.getByLabel('Exact Sheet ID (optional)').fill('  synthetic-sheet  ');
+ await page.getByLabel('Explicitly deleted card numbers (optional)').fill('0000, 1111');
+ await page.getByLabel('Sort gift cards').focus();await page.keyboard.press('Tab');
+ await expect(page.getByRole('combobox',{name:'Appearance',exact:true})).toBeFocused();
+ await page.getByLabel('Sort gift cards').selectOption('balance-desc');
+ await page.getByRole('combobox',{name:'Appearance',exact:true}).selectOption('light');
+ await page.getByText('Checkout auto-dark',{exact:true}).click();
+ await page.getByText('Hide Used Cards',{exact:true}).click();await page.getByText('Hide $0 Cards',{exact:true}).click();
+ await page.getByText('Auto-Advance',{exact:true}).click();await page.getByText('Automatic synchronization',{exact:true}).click();
+ const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('walmartGc.settings')));
+ expect(saved).toMatchObject({sortMode:'balance-desc',themeMode:'light',checkoutDark:false,hideUsedCards:false,hideZeroBalanceCards:true,advanceOnMarkUsed:false,automaticSync:false});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:test.info().outputPath('settings-mobile.png'),fullPage:true,animations:'disabled'});
+ const before=await snapshot(page);
+ // Back returns to Checkout; the header toggle returns there too.
+ await page.locator('#settings-back').click();await expect(page.locator('#card-detail')).toBeVisible();
+ await expect(page.getByText(/qa@example.invalid/)).toHaveCount(0);
+ await expect(page.locator('html')).not.toHaveClass(/dark/);
+ await settings(page);await expect(connection).not.toHaveAttribute('open');await advanced.click();
+ await expect(page.getByLabel('Exact Sheet ID (optional)')).toHaveValue('  synthetic-sheet  ');
+ await expect(page.getByLabel('Explicitly deleted card numbers (optional)')).toHaveValue('0000, 1111');
+ await page.locator('#open-settings').click();await expect(page.locator('#card-detail')).toBeVisible();
+ await cards(page);await expect(page.getByText(/0042/).first()).toBeVisible();
+ await page.locator('#review-balances').click();await page.getByRole('button',{name:'Exit',exact:true}).click();
+ await settings(page);await page.setViewportSize({width:1280,height:900});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:test.info().outputPath('settings-desktop.png'),fullPage:true,animations:'disabled'});
+ await expect(page.getByLabel('Sort gift cards')).toHaveValue('balance-desc');
+ // A synchronous preference write failure retains the session and the inventory.
+ await page.evaluate(()=>{window.qaOriginalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='walmartGc.settings')throw Error('QA preferences unavailable');return window.qaOriginalSetItem.call(this,key,value);};});
+ await page.getByRole('combobox',{name:'Appearance',exact:true}).selectOption('dark');
+ await expect(page.locator('html')).toHaveClass(/dark/);
+ expect(await snapshot(page)).toEqual(before);
+ // A transport failure opens connection details and leaves committed cards intact.
+ qa.mock.offline=true;await page.getByRole('button',{name:'Sync now',exact:true}).click();
+ await expect(page.getByText('Review sync',{exact:true}).first()).toBeVisible();
+ await expect(connection).toHaveAttribute('open','');
+ expect(active(await snapshot(page)).cards).toEqual(active(before).cards);
+ qa.mock.offline=false;
+ await page.reload();await expect(page.getByRole('button',{name:'Open settings'})).toBeVisible();await settings(page);
+ await expect(page.getByRole('combobox',{name:'Appearance',exact:true})).toHaveValue('light');
+ await expect(page.getByLabel('Automatic synchronization')).not.toBeChecked();
+ await expect(page.getByLabel('Sort gift cards')).toHaveValue('balance-desc');
+ await advanced.click();await expect(page.getByLabel('Exact Sheet ID (optional)')).toHaveValue('');
+ expect(qa.errors).toEqual([]);await context.close();
+});

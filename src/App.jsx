@@ -1,7 +1,9 @@
 import { createSyncEngine } from './lib/syncEngine';
 import React, { useState, useEffect, useRef } from 'react';
 import { calculateVisibleCards, calculateCardSummary, getBarcodePayload, getBarcodeFallbackMessage } from './lib/cards';
-import { loadSettings, saveSettings } from './lib/settings';
+import { useSettings } from './features/settings/useSettings';
+import { SettingsPanel } from './features/settings/SettingsPanel';
+import { ActionButton } from './components/ActionButton';
 import { getCode128BarcodeBars } from './lib/barcode';
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
 import { fetchWorkerJson, googleOAuthStatuses, directSheetsStatuses, syncStatuses } from './lib/api';
@@ -11,11 +13,9 @@ import { Card } from './components/primitives/Card';
 import { Dialog } from './components/primitives/Dialog';
 import { ListItem } from './components/primitives/ListItem';
 import { NavigationBar, NavigationBarItem } from './components/primitives/NavigationBar';
-import { Switch } from './components/primitives/Switch';
 import { Surface } from './components/primitives/Surface';
 import { TextArea } from './components/primitives/TextArea';
 import { TextField } from './components/primitives/TextField';
-import { SelectField } from './components/primitives/SelectField';
 import { BalanceReview } from './components/BalanceReview';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
 import { ClipboardCheck, Settings2, X } from 'lucide-react';
@@ -38,18 +38,6 @@ function maskCardNumber(cardNumber) {
   const middleMaskLength = digits.length - 8;
   const maskedDigits = `${firstFour}${"•".repeat(middleMaskLength)}${lastFour}`;
   return maskedDigits.replace(/(.{4})/g, "$1 ").trim();
-}
-
-function maskEmail(email) {
-  if (!email || !email.includes("@")) return email;
-  const [local, domain] = email.split("@");
-  if (local.length >= 5) {
-    return `${local.slice(0, 2)}…${local.slice(-2)}@${domain}`;
-  }
-  if (local.length === 4) {
-    return `${local.slice(0, 1)}…${local.slice(-1)}@${domain}`;
-  }
-  return `${local}@${domain}`;
 }
 
 function getCardCode(card) {
@@ -114,66 +102,6 @@ async function writeClipboardText(text) {
   }
 }
 
-function ActionIcon({ name }) {
-  if (name === 'wrench') {
-    return (
-      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
-      </svg>
-    );
-  }
-  if (name === 'external') {
-    return (
-      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-      </svg>
-    );
-  }
-  if (name === 'download') {
-    return (
-      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-      </svg>
-    );
-  }
-  if (name === 'upload') {
-    return (
-      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-      </svg>
-    );
-  }
-  return null;
-}
-
-function ActionButton({ id, onClick, icon, label, className = "", href, target, rel, disabled, variant = "tonal", compact }) {
-  const content = (
-    <>
-      {icon && <ActionIcon name={icon} />}
-      <span>{label}</span>
-    </>
-  );
-  const mappedVariant = variant === "primary" ? "filled" : variant === "outlined" ? "outlined" : "tonal";
-  const density = compact ? "compact" : "standard";
-
-  return (
-    <Button
-      id={id}
-      onClick={onClick}
-      disabled={disabled}
-      href={href}
-      target={target}
-      rel={rel}
-      variant={mappedVariant}
-      density={density}
-      className={`w-full justify-center ${className}`}
-      type="button"
-    >
-      {content}
-    </Button>
-  );
-}
-
 function App() {
   const cardsLoaded = useRef(false);
   const inventoryStore = useRef(null);
@@ -182,8 +110,6 @@ function App() {
   const [walletSnapshot, setWalletSnapshot] = useState(null);
   const syncEngine = useRef(null);
   const [syncUi,setSyncUi] = useState({phase:'local',message:'Saved on this device.'});
-  const [exactSheetId,setExactSheetId] = useState('');
-  const [deletedIds,setDeletedIds] = useState('');
   const balanceTarget = useRef(null);
   const notesTarget = useRef(null);
   const csvTarget = useRef(null);
@@ -198,17 +124,6 @@ function App() {
   const [transferMutationError, setTransferMutationError] = useState("");
   const sheetMutation = useRef(false);
   const transferWallet = useRef(null);
-  const [settings, setSettings] = useState({
-    advanceOnMarkUsed: true,
-    hideUsedCards: true,
-    hideZeroBalanceCards: false,
-    sortMode: "balance-asc",
-    themeMode: "system",
-    checkoutDark: true,
-    automaticSync: true,
-  });
-  const preferences = useRef(settings);
-  preferences.current = settings;
   const [activePanel, setActivePanel] = useState('list'); // 'list', 'detail', or 'settings'
   const [previousPrimaryPanel, setPreviousPrimaryPanel] = useState('list');
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
@@ -273,6 +188,13 @@ function App() {
     lastErrorMessage: "",
     pendingOperation: null,
   });
+
+  const settingsController = useSettings({
+    active: activePanel === 'settings', connectionStatus: oauthState.status,
+    summaryKey: getAppSyncSummaryState().key,
+    onAutomaticEnabled: () => syncEngine.current?.foreground(),
+  });
+  const { settings, current: preferences } = settingsController;
 
   transferWallet.current = { cards, sheets: directSheetsState, sync: syncState };
   selectionIdentity.current = cards[selectedCardIndex]?.cardNumber ?? null;
@@ -356,48 +278,13 @@ function App() {
     return transferWallet.current;
   }
 
-  const getAppSyncSummaryState = () => {
+  function getAppSyncSummaryState() {
     const pending = walletRef.current && profileOf(walletRef.current).pending.length;
     if(syncUi.phase==='checking')return {key:'checking',label:'Checking sync…',help:'Local cards stay available'};
     if(['error','review'].includes(syncUi.phase))return {key:'error',label:'Review sync',help:syncUi.message};
     if(syncUi.phase==='saved'&&!pending)return {key:'connected',label:'Synced',help:syncUi.message};
     return {key:'local-only',label:pending?'Saved locally':'Local inventory',help:syncUi.message};
-  };
-
-  const [isGoogleSyncOpen, setIsGoogleSyncOpen] = useState(false);
-  const [hasInitializedSettingsSyncOpen, setHasInitializedSettingsSyncOpen] = useState(false);
-  const prevOauthStatus = useRef(oauthState.status);
-  const prevSyncError = useRef(false);
-
-  // Reset the settings initialization flag when leaving the Settings panel
-  useEffect(() => {
-    if (activePanel !== 'settings') {
-      setHasInitializedSettingsSyncOpen(false);
-    }
-  }, [activePanel]);
-
-  // Set the default expanded state on entering Settings, when connection status transitions to connected, or when a new error occurs
-  useEffect(() => {
-    if (activePanel === 'settings') {
-      const summary = getAppSyncSummaryState();
-      const hasSyncError = ['conflict', 'unavailable', 'unsynced', 'error'].includes(summary.key);
-      const isSyncing = summary.key === 'checking';
-      const isConnected = oauthState.status === googleOAuthStatuses.connected;
-      const justConnected = prevOauthStatus.current !== googleOAuthStatuses.connected && isConnected;
-      const errorJustOccurred = !prevSyncError.current && hasSyncError;
-
-      if (!hasInitializedSettingsSyncOpen || justConnected || errorJustOccurred) {
-        if (isConnected && !hasSyncError && !isSyncing) {
-          setIsGoogleSyncOpen(false);
-        } else {
-          setIsGoogleSyncOpen(true);
-        }
-        setHasInitializedSettingsSyncOpen(true);
-      }
-      prevSyncError.current = hasSyncError;
-    }
-    prevOauthStatus.current = oauthState.status;
-  }, [activePanel, oauthState.status, hasInitializedSettingsSyncOpen, syncState.status, directSheetsState.status]);
+  }
 
   useEffect(() => {
     return () => {
@@ -518,8 +405,7 @@ function App() {
         if (cancelled) return;
         inventoryStore.current = store;
         cardsLoaded.current = true;
-        preferences.current = loadSettings();
-        setSettings(preferences.current);
+        settingsController.initialize();
         adoptWallet(state);
         const url = new URL(window.location.href);
         const authReturn = url.searchParams.get("auth") === "connected";
@@ -564,44 +450,7 @@ function App() {
     return visibleIndexes[0];
   };
 
-  // Handle setting toggles
-  const handleToggleSetting = (key) => {
-    const nextSettings = {
-      ...settings,
-      [key]: !settings[key],
-    };
-    setSettings(nextSettings);
-    saveSettings(nextSettings);
-  };
-
-  const handleResetFilters = () => {
-    const nextSettings = {
-      ...settings,
-      hideUsedCards: false,
-      hideZeroBalanceCards: false,
-    };
-    setSettings(nextSettings);
-    saveSettings(nextSettings);
-  };
-
-  // Handle sort mode changes
-  const handleSortChange = (e) => {
-    const nextSettings = {
-      ...settings,
-      sortMode: e.target.value,
-    };
-    setSettings(nextSettings);
-    saveSettings(nextSettings);
-  };
-
-  const handleThemeModeChange = (e) => {
-    const nextSettings = {
-      ...settings,
-      themeMode: e.target.value,
-    };
-    setSettings(nextSettings);
-    saveSettings(nextSettings);
-  };
+  const handleResetFilters = settingsController.resetFilters;
 
   // Handle used toggles on specific card items
   const handleToggleUsed = async (index) => {
@@ -964,13 +813,13 @@ function App() {
   };
 
   const syncNow = async (bind=false) => syncEngine.current?.manual({bind});
-  const handleEnsureSheet = async () => {
+  const handleEnsureSheet = async (exactSheetId = "") => {
     try { await syncEngine.current?.control('ensure',{sheetId:exactSheetId.trim()}); }
     catch(error){setTransferMutationError(error.message);}
   };
   const handleLoadCardsFromSheet = async () => syncNow(true);
   const handleSaveCardsToSheet = async () => syncNow();
-  const maintenance = async (action) => {
+  const maintenance = async (action, deletedIds = "") => {
     if(!window.confirm(action==='pause'?'Pause shared Sheet writes before directly editing Cards or _META? Keep a private backup.':'Accept direct Sheet edits and resume synchronization? Confirm only the explicitly listed deleted identities.'))return;
     try { await syncEngine.current?.control(action,{deletedIds:action==='resume'?deletedIds.split(/[\s,]+/).filter(Boolean):[]}); }
     catch(error){setTransferMutationError(error.message);}
@@ -1270,362 +1119,31 @@ function App() {
               </section>
             </main>
            ) : activePanel === 'settings' ? (
-              <main className="p-3 pb-28 md:pb-16 flex flex-col gap-3 animate-panel-enter">
-
-                {/* Local Settings / Filtering Controls */}
-                <Card as="section" className="p-3 flex flex-col gap-2">
-                  <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider px-2 py-1">Preferences</h3>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <span>Sort Order</span>
-                      <SelectField
-                        value={settings.sortMode}
-                        onChange={handleSortChange}
-                        aria-label="Sort gift cards"
-                        title="Sort gift cards"
-                        className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer text-center [text-align-last:center] max-w-[160px] sm:max-w-none"
-                      >
-                        <option value="balance-asc">Lowest balance first</option>
-                        <option value="balance-desc">Highest balance first</option>
-                        <option value="date-updated-desc">Recently updated first</option>
-                        <option value="date-added-asc">Sheet order</option>
-                        <option value="date-added-desc">Date added ↓</option>
-                        <option value="date-updated-asc">Date updated ↑</option>
-                        <option value="card-number">Card #</option>
-                      </SelectField>
-                    </label>
-
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <span>Appearance</span>
-                      <SelectField
-                        value={settings.themeMode || "system"}
-                        onChange={handleThemeModeChange}
-                        className="text-sm font-medium border border-m3-outline-variant/60 rounded-lg py-1 px-2 bg-m3-surface text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary cursor-pointer text-center [text-align-last:center]"
-                      >
-                        <option value="system">System (Auto)</option>
-                        <option value="light">Light Mode</option>
-                        <option value="dark">Dark Mode</option>
-                      </SelectField>
-                    </label>
-
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <div className="flex flex-col text-left">
-                        <span>Checkout auto-dark</span>
-                        <span className="text-[10px] text-m3-on-surface-variant font-normal">Overrides Appearance on Checkout</span>
-                      </div>
-                      <Switch checked={settings.checkoutDark} onChange={() => handleToggleSetting('checkoutDark')} />
-                    </label>
-
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <span>Hide Used Cards</span>
-                      <Switch checked={settings.hideUsedCards} onChange={() => handleToggleSetting('hideUsedCards')} />
-                    </label>
-
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <span>Hide $0 Cards</span>
-                      <Switch checked={settings.hideZeroBalanceCards} onChange={() => handleToggleSetting('hideZeroBalanceCards')} />
-                    </label>
-
-                    <label className="flex items-center justify-between gap-3 text-sm font-medium text-m3-on-surface cursor-pointer min-h-[40px] py-0.5 px-2 hover:bg-m3-surface-container/40 rounded-lg transition-colors">
-                      <span>Auto-Advance</span>
-                      <Switch checked={settings.advanceOnMarkUsed} onChange={() => handleToggleSetting('advanceOnMarkUsed')} />
-                    </label>
-
-                    {zeroBalanceCount > 0 && (
-                      <button
-                        id="mark-zero-used"
-                        onClick={handleMarkZeroBalanceUsed}
-                        className="w-full sm:col-span-2 text-xs font-medium bg-m3-surface-container hover:bg-m3-surface-container-high text-m3-on-surface border border-m3-outline-variant/30 rounded-lg py-2 px-3 flex justify-between items-center transition-all active:scale-95 shadow-sm font-sans cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
-                        type="button"
-                      >
-                        <span>Mark {zeroBalanceCount} zero-balance card(s) used</span>
-                        <span className="bg-m3-surface-container-low text-m3-on-surface px-2 py-0.5 rounded text-[10px]" aria-hidden="true">Mark</span>
-                      </button>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Google connection Connection Panel */}
-                <Card as="section" className="p-3 flex flex-col gap-2">
-                  {oauthState.status === googleOAuthStatuses.connected ? (
-                    <details
-                      className="group"
-                      open={isGoogleSyncOpen}
-                      onToggle={(e) => setIsGoogleSyncOpen(e.target.open)}
-                    >
-                      <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
-                        <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google connection</h3>
-                        <div className="flex items-center gap-2">
-                          {(() => {
-                            const summary = getAppSyncSummaryState();
-                            const syncLabel = summary.label;
-                            return (
-                              <StatusChip
-                                size="compact"
-                                status={getSyncChipStatus(summary.key)}
-                                indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
-                                className="max-w-full min-w-0"
-                              >
-                                {syncLabel}
-                              </StatusChip>
-                            );
-                          })()}
-                          <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform ml-2 shrink-0">▼</span>
-                        </div>
-                      </summary>
-                      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-m3-outline-variant/20 w-full">
-                        {/* Connected email address */}
-                        {oauthState.connectedEmail && (
-                          <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed px-2">
-                            Connected: {maskEmail(oauthState.connectedEmail)}
-                          </p>
-                        )}
-
-                        {/* Disconnect Action */}
-                        <div className="px-2">
-                          <Button
-                            id="disconnect-google"
-                            onClick={handleDisconnectGoogle}
-                            variant="elevated"
-                            density="compact"
-                            className="w-full sm:w-auto self-start text-xs"
-                          >
-                            Disconnect
-                          </Button>
-                        </div>
-
-                        <div className="flex flex-col gap-2 mt-1 pt-2 border-t border-m3-outline-variant/20 w-full">
-                          <p id="direct-sheet-status" className="text-xs font-medium text-m3-on-surface-variant px-2">
-                            {directSheetsState.message}
-                          </p>
-
-                        </div>
-                      </div>
-                    </details>
-                  ) : (
-                    <div className="flex flex-col gap-2 w-full px-2 py-1">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Google connection</h3>
-                          {(() => {
-                            const summary = getAppSyncSummaryState();
-                            const syncLabel = summary.label;
-                            return (
-                              <span className="text-xs font-medium text-m3-on-surface-variant">
-                                {syncLabel}
-                              </span>
-                            );
-                          })()}
-                        </div>
-
-                        <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed mt-0.5">
-                          {oauthState.message}
-                        </p>
-                      </div>
-
-                      <button
-                        id="connect-google"
-                        onClick={handleConnectGoogle}
-                        className="w-full sm:w-auto self-start bg-m3-primary hover:bg-m3-primary/90 text-m3-on-primary text-xs font-medium py-2 px-3.5 rounded-lg transition-all active:scale-95 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 min-h-[38px]"
-                        type="button"
-                      >
-                        Connect Google account
-                      </button>
-                    </div>
-                  )}
-
-                  {oauthState.lastErrorMessage && (
-                    <p id="google-oauth-status" className="text-xs font-medium text-m3-error border-t border-m3-outline-variant/20 pt-2 mt-1 px-2">
-                      {oauthState.lastErrorMessage}
-                    </p>
-                  )}
-                </Card>
-
-                <Card as="section" className="p-3 flex flex-col gap-2" aria-label="Synchronization recovery">
-                  <h3 className="text-sm font-semibold">Synchronization</h3>
-                  <p className="text-sm">Active inventory: {savedCompartments(walletSnapshot).find(item => item.key === walletSnapshot.active)?.label}</p>
-                  <p className="text-sm">Destination: {profileOf(walletSnapshot).context.ownershipVerified === true ? `Google Sheet ${profileOf(walletSnapshot).context.sheetId}` : 'No verified Sheet for this inventory'}</p>
-                  <p className="text-sm">Pending changes: {profileOf(walletSnapshot).pending.length}{profileOf(walletSnapshot).inFlight ? ' · confirmation in progress' : ''}</p>
-                  <p className="text-sm">Last confirmed synchronization: {profileOf(walletSnapshot).sync?.lastConfirmedAt ? new Date(profileOf(walletSnapshot).sync.lastConfirmedAt).toLocaleString() : 'Not yet recorded on this device'}</p>
-                  <p role="status" className="text-sm">{syncUi.message}</p>
-                  <label className="flex items-center justify-between gap-3 min-h-[48px]"><span>Automatic synchronization</span><Switch checked={settings.automaticSync} onChange={()=>{const next={...settings,automaticSync:!settings.automaticSync};preferences.current=next;setSettings(next);saveSettings(next);if(next.automaticSync)syncEngine.current?.foreground();}} /></label>
-                  <p className="text-xs text-m3-on-surface-variant">{settings.automaticSync?"Sync saved changes and check when returning to the wallet.":"Save locally until you select Sync now."}</p>
-                  <Button variant="outlined" onClick={()=>syncNow()}>Sync now</Button>
-                  {profileOf(walletSnapshot).context.ownershipVerified === true && profileOf(walletSnapshot).context.sheetId && <ActionButton id="open-direct-sheet" href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(profileOf(walletSnapshot).context.sheetId)}/edit`} target="_blank" rel="noopener noreferrer" icon="external" label="Open Sheet" compact />}
-                  <details>
-                    <summary className="cursor-pointer text-sm font-medium">Advanced synchronization and recovery</summary>
-                    <div className="flex flex-col gap-2 pt-2">
-                      <ActionButton id="ensure-sheet" onClick={handleEnsureSheet} icon="wrench" label="Set up Sheet" compact />
-                      <ActionButton id="load-from-sheets" onClick={handleLoadCardsFromSheet} icon="download" label="Import Sheet" compact />
-                      <ActionButton id="save-to-sheets" onClick={handleSaveCardsToSheet} icon="upload" label="Save to Sheet" compact />
-                      <label htmlFor="exact-sheet-id">Exact Sheet ID (optional)</label>
-                      <TextField id="exact-sheet-id" value={exactSheetId} onChange={e=>setExactSheetId(e.target.value)} />
-                      <Button variant="outlined" onClick={handleEnsureSheet}>Create or initialize private Sheet</Button>
-                      <p className="text-sm">Pause shared maintenance before direct card edits and export a private backup first. Keep managed _META recovery fields intact.</p>
-                      <Button variant="outlined" onClick={()=>maintenance('pause')}>Pause shared maintenance</Button>
-                      <label htmlFor="deleted-identities">Explicitly deleted card numbers (optional)</label>
-                      <TextField id="deleted-identities" value={deletedIds} onChange={e=>setDeletedIds(e.target.value)} />
-                      <Button variant="outlined" onClick={()=>maintenance('resume')}>Accept maintenance and resume</Button>
-                      {profileOf(walletSnapshot).syncBlocked==='baseline_expired'&&<Button variant="outlined" onClick={async()=>{
-                        if(!window.confirm('Preserve a private recovery backup first. Reconcile this expired commit against the current Sheet? Uncertain monetary actions will require verification.'))return;
-                        try{await syncEngine.current?.recoverExpired();}catch(error){setTransferMutationError(error.message);}
-                      }}>Recover expired synchronization safely</Button>}
-                      <Button variant="outlined" disabled={profileOf(walletSnapshot).context.ownershipVerified!==true||oauthState.status!=='connected'||oauthState.principal!==profileOf(walletSnapshot).context.principal} onClick={recoverUnbound}>Recover unbound inventory into connected account</Button>
-                      {Object.entries(profileOf(walletSnapshot).recoveryEvidence?.cards??{}).flatMap(([number,entry])=>(entry.conflicts??[]).filter(c=>!c.resolution).map(conflict=>(
-                        <div key={conflict.id} className="border border-m3-outline-variant rounded-xl p-3 text-sm">
-                          <p>Card ending {number.slice(-4)}: {conflict.kind==='balance'?'Balance needs fresh merchant verification':conflict.kind==='missing-remote'?'Recovered a missing Sheet card. Verify its balance.':conflict.kind}</p>
-                          <details><summary className="cursor-pointer">Compare recovery values (may contain credentials)</summary><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify({recovered:conflict.local,sheet:conflict.remote},null,2)}</pre></details>
-                          {conflict.kind!=='balance'&&<div className="flex flex-wrap gap-2">
-                            <Button variant="outlined" onClick={()=>resolveConflict(number,conflict,conflict.kind==='deleted-identity'?'restore':'local')}>{conflict.kind==='missing-remote'?'Keep recovered card':'Use recovered values'}</Button>
-                            {conflict.kind!=='missing-remote'&&<Button variant="outlined" onClick={()=>resolveConflict(number,conflict,'remote')}>Keep Sheet values</Button>}
-                          </div>}
-                        </div>
-                      )))}
-                    </div>
-                  </details>
-                </Card>
-
-                <Card as="section" className="p-3 flex flex-col gap-2" aria-label="Saved inventories">
-                  <label htmlFor="saved-inventory" className="text-sm font-medium">Saved inventory (available offline)</label>
-                  <SelectField id="saved-inventory" value={walletSnapshot.active}
-                    onChange={event => handleSelectCompartment(event.target.value)}>
-                    {savedCompartments(walletSnapshot).map(item => <option key={item.key} value={item.key}>{item.label} · {item.count} cards</option>)}
-                  </SelectField>
-                  <p className="text-xs text-m3-on-surface-variant">Selection never claims ownership or merges inventories. Only the matching verified account can synchronize.</p>
-                  <Button variant="outlined" onClick={() => handleExportCsv(undefined, walletSnapshot.active)}>Back up selected inventory CSV</Button>
-                  <p className="text-xs text-m3-on-surface-variant">{recoveryWarning} CSV backups also contain card credentials.</p>
-                  <Button variant="outlined" onClick={handleExportRecovery}>Export original and quarantined recovery data</Button>
-                </Card>
-
-                {/* Data Panel / Backup Controls */}
-                <Card as="section" className="p-3 flex flex-col gap-2">
-                  <details className="group">
-                    <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
-                      <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Backup & CSV Controls</span>
-                      <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
-                    </summary>
-                    <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-m3-outline-variant/20 px-2 pb-1">
-                      <div className="flex gap-2">
-                        <input
-                          id="csv-file-input"
-                          type="file"
-                          accept=".csv,text/csv"
-                          onChange={handleImportCsvFile}
-                          className="hidden"
-                        />
-                        <ActionButton
-                          id="import-csv"
-                          onClick={() => {
-                            if (window.confirm("Import this CSV into the recovery editor? Saving applies explicit additions and updates; omitted cards are retained and conflicting credentials are rejected.")) {
-                              document.getElementById('csv-file-input').click();
-                            }
-                          }}
-                          icon="download"
-                          label="Import CSV"
-                          className="flex-1"
-                          compact
-                        />
-                        <ActionButton
-                          id="export-csv"
-                          onClick={() => handleExportCsv()}
-                          icon="upload"
-                          label="Export CSV"
-                          className="flex-1"
-                          compact
-                        />
-                      </div>
-
-                      {SHOW_RAW_CSV_EDITOR && (
-                        <div className="border border-m3-outline-variant/20 bg-m3-surface-container rounded-xl p-2.5 flex justify-between items-center gap-2.5">
-                          <div>
-                            <h4 className="text-xs font-medium text-m3-on-surface uppercase">Raw CSV Editor</h4>
-                            <p className="text-[10px] text-m3-on-surface-variant mt-0.5">Open a locked editor to view or paste diagnostic card data.</p>
-                          </div>
-                          <Button
-                            id="open-raw-data-modal"
-                            onClick={handleOpenRawEditor}
-                            variant="elevated"
-                            density="compact"
-                            className="text-m3-primary shrink-0"
-                          >
-                            Open Editor
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </details>
-                </Card>
-
-                {/* Troubleshooting (Unified Container) */}
-                <Card as="section" className="p-3 flex flex-col gap-2">
-                  <details className="group">
-                    <summary className="list-none flex justify-between items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary rounded-xl px-2 py-1">
-                      <span className="text-xs font-bold text-m3-on-surface-variant uppercase tracking-wider">Troubleshooting</span>
-                      <span className="text-m3-on-surface-variant group-open:rotate-180 transition-transform">▼</span>
-                    </summary>
-                    <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-m3-outline-variant/20 px-2 pb-1">
-                      <Card variant="container" className="p-2.5 flex flex-col gap-2">
-                        <h4 className="text-xs font-medium text-m3-on-surface uppercase mb-0.5">System Status</h4>
-                        <ul className="text-xs text-m3-on-surface-variant font-medium list-none flex flex-col gap-1.5">
-                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                            <span>Google Account</span>
-                            <span className="text-[10px] text-m3-on-surface font-medium">
-                              {oauthState.status === googleOAuthStatuses.connected ? "Connected" : "Disconnected"}
-                            </span>
-                          </li>
-                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                            <span>Sheet status</span>
-                            {(() => {
-                              const summary = getAppSyncSummaryState();
-                              const syncStatusLabel = summary.label;
-                              return (
-                                <StatusChip
-                                  size="compact"
-                                  status={getSyncChipStatus(summary.key)}
-                                  indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
-                                  className="max-w-full min-w-0"
-                                >
-                                  {syncStatusLabel}
-                                </StatusChip>
-                              );
-                            })()}
-                          </li>
-                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                            <span>Pending Changes</span>
-                            <span className="text-[10px] text-m3-on-surface font-medium">
-                              {Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) ? "Yes" : "No"}
-                            </span>
-                          </li>
-                          <li className="flex justify-between border-b border-m3-outline-variant/20 pb-1">
-                            <span>Last Sheet read</span>
-                            <span className="text-[10px] text-m3-on-surface font-medium">
-                              {profileOf(walletSnapshot).sync?.lastConfirmedAt ? new Date(profileOf(walletSnapshot).sync.lastConfirmedAt).toLocaleString() : "Not yet recorded on this device"}
-                            </span>
-                          </li>
-                          <li className="flex justify-between">
-                            <span>Network State</span>
-                            <span className="text-[10px] text-m3-on-surface font-medium">
-                              {navigator.onLine !== false ? "Online" : "Offline"}
-                            </span>
-                          </li>
-                        </ul>
-                        <div id="advanced-sync-diagnostics" className="text-[10px] text-m3-on-surface-variant leading-relaxed border-t border-m3-outline-variant/20 pt-2 mt-1">
-                          {syncState.message || directSheetsState.message}
-                        </div>
-                      </Card>
-                    </div>
-                  </details>
-                </Card>
-
-                <ActionButton
-                  id="settings-back"
-                  onClick={() => setActivePanel(previousPrimaryPanel)}
-                  label="Back"
-                  variant="outlined"
-                  compact
-                />
-              </main>
+              <SettingsPanel
+                preferences={settingsController.panel}
+                connection={oauthState}
+                synchronization={{ summary: getAppSyncSummaryState(), chipStatus: getSyncChipStatus(getAppSyncSummaryState().key),
+                  message: syncUi.message, sheetMessage: directSheetsState.message,
+                  diagnosticMessage: syncState.message || directSheetsState.message,
+                  hasPendingChanges: Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) }}
+                inventory={{ activeKey: walletSnapshot.active, compartments: savedCompartments(walletSnapshot),
+                  label: savedCompartments(walletSnapshot).find(item => item.key === walletSnapshot.active)?.label,
+                  context: profileOf(walletSnapshot).context, pendingCount: profileOf(walletSnapshot).pending.length,
+                  confirming: Boolean(profileOf(walletSnapshot).inFlight), lastConfirmedAt: profileOf(walletSnapshot).sync?.lastConfirmedAt,
+                  syncBlocked: profileOf(walletSnapshot).syncBlocked, recoveryCards: profileOf(walletSnapshot).recoveryEvidence?.cards,
+                  zeroBalanceCount }}
+                commands={{ markZeroBalanceUsed: handleMarkZeroBalanceUsed, connectGoogle: handleConnectGoogle,
+                  disconnectGoogle: handleDisconnectGoogle, syncNow, ensureSheet: handleEnsureSheet,
+                  importSheet: handleLoadCardsFromSheet, saveSheet: handleSaveCardsToSheet, maintenance,
+                  recoverExpired: async () => {
+                    try { await syncEngine.current?.recoverExpired(); }
+                    catch (error) { setTransferMutationError(error.message); }
+                  }, recoverUnbound, resolveConflict, selectCompartment: handleSelectCompartment,
+                  exportCsv: handleExportCsv, exportRecovery: handleExportRecovery,
+                  importCsvFile: handleImportCsvFile, openRawEditor: handleOpenRawEditor }}
+                showRawCsvEditor={SHOW_RAW_CSV_EDITOR}
+                onBack={() => setActivePanel(previousPrimaryPanel)}
+              />
           ) : (
             /* Checkout Detail Panel Layout */
             <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-6 animate-panel-enter">
