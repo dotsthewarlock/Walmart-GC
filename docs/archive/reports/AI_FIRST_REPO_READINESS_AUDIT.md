@@ -1,3 +1,5 @@
+> Historical report; not an active authority or implementation instruction. Follow [Active Context](../../ACTIVE_CONTEXT.md).
+
 # AI-First Repo Readiness Audit (AI_FIRST_REPO_READINESS_AUDIT.md)
 
 This document contains a comprehensive readiness audit evaluating whether the GC Wallet (`Walmart-GC`) repository is optimal for automated, AI-first development cycles (including Agy, GPT, and other LLM developer agents).

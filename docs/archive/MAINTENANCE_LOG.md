@@ -1,3 +1,5 @@
+> Historical record only. Newer [canonical authorities](../ACTIVE_CONTEXT.md) supersede all operating instructions and rollout claims below.
+
 # Maintenance Log
 
 Purpose: durable tracking for non-blocking cleanup, artifacts, validation gaps, and minor follow-ups that should not live only in chat memory.

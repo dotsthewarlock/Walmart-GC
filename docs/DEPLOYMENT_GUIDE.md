@@ -1,19 +1,20 @@
 # Deployment Guide
 
-> V0.3 activation is operator-authorized, subject to the gates below. Follow
-> [Architecture](ARCHITECTURE.md) and [QA prerequisites](QA_TEST_CHECKLIST.md)
-> before using the historical deployment steps below. The production config records
-> verified KV IDs/routes and a fail-closed activation pause. Required
-> coordination binding is `SHEET_COORDINATOR`, exported class `SheetCoordinator`,
-> with an independently approved `new_sqlite_classes` migration and confirmed
-> account entitlement/runtime compatibility. Verify principal/ownership behavior
-> under drive.file and secret/session binding names/presence without printing
-> values. No provisioning or production configuration changes were performed.
-> A coordinated Worker must precede the V0.3 frontend; old writable rollback is
-> unsafe. Use one integrated acceptance cycle, not historical phase gates.
-> Follow the [consolidated V0.3 activation/recovery plan](V0.3_RELEASE_READINESS.md)
-> for current rollout order and external prerequisites. Local workerd/SQLite checks
-> passed using mocked Google; production configuration and account checks remain.
+Follow [Architecture](ARCHITECTURE.md), [Active Context](ACTIVE_CONTEXT.md) and
+[QA](QA_TEST_CHECKLIST.md). R1 is released and user-accepted through PR #255.
+Preserve previously accepted Google and infrastructure checks; repeat only for
+material changes. The existing production Worker is unpaused, while the checked-in
+Wrangler flag remains fail-closed. Preserve resource IDs, routes, namespace,
+migration history and privacy. Never inspect secret values. A frontend/Companion
+release does not authorize redeploying an unaffected Worker.
+
+R2 production Wallet and Dev Companion publication are explicitly user-authorized
+after independent review and required CI. The existing Pages workflow builds both
+from the merged revision; Stable stays unchanged. Record exact review/CI/merge,
+shell digests, Dev descriptor revision, both artifact hashes and inert transport
+evidence in the PR. The historical [activation plan](V0.3_RELEASE_READINESS.md)
+remains recovery evidence, not a repeated initial provisioning gate. Old writable
+clients are unsafe rollback targets.
 
 
 Walmart-GC is a static GitHub Pages app. The frontend uses React 19, Vite, and Tailwind CSS. Production frontend deployment requires building the application using `npm run build` and hosting the contents of the generated `dist` directory on GitHub Pages or another static hosting service.

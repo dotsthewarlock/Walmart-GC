@@ -1,13 +1,13 @@
 # Private wallet Sheet setup
 
-V0.3 is a release candidate, not a deployed update. Protocol/schema authority is
+The protected synchronization foundation and R1 are released and accepted. Protocol/schema authority is
 [Architecture](ARCHITECTURE.md); infrastructure/release gates are in
 [QA](QA_TEST_CHECKLIST.md) and [Deployment](DEPLOYMENT_GUIDE.md).
 
-After release, use the existing custom-domain app and same-origin Worker OAuth.
+Use the existing custom-domain app and same-origin Worker OAuth.
 End users never paste OAuth credentials or create app-owned accounts. Consent is
-limited to drive.file. Actual principal/ownership behavior and coordinator
-bindings must be independently validated before production writes are enabled.
+limited to drive.file. Previously accepted principal/ownership and existing
+coordinator bindings remain accepted; validate material changes before release.
 Synthetic development acceptance uses mocked APIs, never localhost live OAuth.
 
 1. Open Settings and connect Google. The Worker verifies the stable principal.

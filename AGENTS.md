@@ -3,6 +3,12 @@
 Read [Active Context](docs/ACTIVE_CONTEXT.md) first. The user's approved scope
 supersedes historical requirements. Keep work focused, evolutionary and reviewable.
 
+GitHub is the sole durable project authority. GPT retains architecture, roadmap
+and independent assessment responsibilities; Codex implements and verifies the
+authorized milestone. Consolidate unique decisions in the authorities below.
+Project sources and chat are migration input, not parallel ongoing authorities.
+Do not claim migration coverage for source documents that were not actually read.
+
 ## Authorities
 
 - [Architecture](docs/ARCHITECTURE.md): data, persistence, API, account binding,

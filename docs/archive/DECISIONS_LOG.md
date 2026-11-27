@@ -1,3 +1,5 @@
+> Historical record only. Newer [canonical authorities](../ACTIVE_CONTEXT.md) supersede all operating instructions and rollout claims below.
+
 # Decisions Log
 
 Record of key decisions, architecture designs, user UX choices, and AI-made decisions for Walmart-GC. Recording these decisions ensures durability, debugging, audits, conflict detection, refinement, scalability, and token efficiency.

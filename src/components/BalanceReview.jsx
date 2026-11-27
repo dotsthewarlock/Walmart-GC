@@ -1,56 +1,71 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Copy } from "lucide-react";
-import { createBalanceReviewQueue, parseVerifiedBalance } from "../lib/balanceReview";
-import { profileOf, inventoryContext } from "../lib/inventory";
+import { parseVerifiedBalance } from "../lib/balanceReview";
+import { profileOf, inventoryContext, inventoryBytes } from "../lib/inventory";
 import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { TextField } from "./primitives/TextField";
 import { BalanceTransfer } from "./BalanceTransfer";
-import { checkerUrl } from "../lib/balanceTransfer";
+import { checkerUrl, selectTransferCards } from "../lib/balanceTransfer";
+import {createTransferLedger} from '../lib/balanceTransferLedger';
+import {openVerificationSession} from '../features/verification/verificationCommands';
+import {VerificationSelection} from '../features/verification/VerificationSelection';
 import { verificationCards } from '../lib/inventoryRecovery';
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 
-export function BalanceReview({ onExit, ...props }) {
-  const [mode, setMode] = useState("manual");
-  const [flaggedOnly,setFlaggedOnly] = useState(props.initialFlaggedOnly === true);
+export function BalanceReview({ onExit, session, ...props }) {
+  const {mode,setMode,selection,setSelection,setManual,busy,setBusy}=session;
+  const [error,setError]=useState('');
+  const selecting=useRef(false);
+  const counts=selectTransferCards(verificationCards(profileOf(props.walletSnapshot)),{...session.preferences,flaggedOnly:session.flaggedOnly});
+  function capture(state,selected){return {id:crypto.randomUUID(),queue:selected,versions:{...profileOf(state).versions},context:inventoryContext(state)};}
+  useEffect(()=>{if(!selection)setSelection(capture(props.walletSnapshot,counts.selected));},[selection]);
+  async function select(){
+    if(selecting.current||busy)return;selecting.current=true;setBusy(true);setError('');
+    try{
+      const {state,profile,context}=await openVerificationSession(props);
+      const selected=selectTransferCards(verificationCards(profile),{...session.preferences,flaggedOnly:session.flaggedOnly}).selected;
+      const ledger=await createTransferLedger(context,selected,inventoryBytes(state),undefined,profile.ledger?.id);
+      await props.commitWallet({kind:'set-batch',...inventoryContext(state),revision:profile.revision,ledger});
+      setSelection(capture(state,selected));setManual({position:0,saved:0,amount:'',completed:[]});session.setPreview(null);
+    }catch(e){setError(e.message);}finally{selecting.current=false;setBusy(false);}
+  }
   return (
     <main className="min-h-screen bg-m3-surface text-m3-on-surface">
       <header className="border-b border-m3-outline-variant/40 bg-m3-surface-container">
         <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
           <h1 className="text-lg font-semibold">Review balances</h1>
-          <Button variant="text" onClick={onExit}>Exit</Button>
+          <Button variant="text" disabled={busy} onClick={onExit}>Exit</Button>
         </div>
       </header>
       <div role="group" aria-label="Review mode" className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2 px-4 pt-4 sm:px-6">
-        <Button variant={mode === "manual" ? "tonal" : "outlined"} aria-pressed={mode === "manual"}
+        <Button disabled={busy} variant={mode === "manual" ? "tonal" : "outlined"} aria-pressed={mode === "manual"}
           onClick={() => setMode("manual")}>Manual</Button>
-        <Button variant={mode === "batch" ? "tonal" : "outlined"} aria-pressed={mode === "batch"}
-          onClick={() => setMode("batch")}>Batch</Button>
+        <Button disabled={busy} variant={mode === "batch" ? "tonal" : "outlined"} aria-pressed={mode === "batch"}
+          onClick={() => setMode("batch")}>Companion / Batch</Button>
       </div>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
-        <div role="group" aria-label="Cards to verify" className="grid grid-cols-2 gap-2">
-          <Button variant={!flaggedOnly?'tonal':'outlined'} aria-pressed={!flaggedOnly} onClick={()=>setFlaggedOnly(false)}>All eligible</Button>
-          <Button variant={flaggedOnly?'tonal':'outlined'} aria-pressed={flaggedOnly} onClick={()=>setFlaggedOnly(true)}>Flagged only</Button>
-        </div>
-        {flaggedOnly&&<p className="text-sm">Includes eligible used cards and provisional zero balances. Verification leaves used status unchanged.</p>}
-        {mode === "manual" ? <ManualBalanceReview key={String(flaggedOnly)} {...props} flaggedOnly={flaggedOnly} /> : <BalanceTransfer {...props} flaggedOnly={flaggedOnly} />}
+        <VerificationSelection session={session} selectionCounts={counts} busy={busy} onSelect={select}/>
+        <p role="alert" className="text-sm text-m3-error">{error}</p>
+        {selection&&<p className="text-sm" role="status">Working selection: {selection.queue.length} cards · {session.manual.saved} verified</p>}
+        <div hidden={mode!=='manual'}>{selection&&<ManualBalanceReview key={selection.id} {...props} session={session}/>}</div>
+        <div hidden={mode!=='batch'}><BalanceTransfer {...props} session={session}/></div>
       </div>
     </main>
   );
 }
 
-function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, maskCardNumber, flaggedOnly }) {
-  const [queue] = useState(() => createBalanceReviewQueue(verificationCards(profileOf(walletSnapshot)).filter(card=>!flaggedOnly||card.pendingReconciliation===true)));
-  const [initialVersions] = useState(() => ({ ...profileOf(walletSnapshot).versions }));
-  const [initialContext] = useState(() => inventoryContext(walletSnapshot));
-  const [position, setPosition] = useState(0);
-  const [saved, setSaved] = useState(0);
-  const [amount, setAmount] = useState("");
+function ManualBalanceReview({ commitWallet, copyText, maskCardNumber, session }) {
+  const {selection,manual,setManual,setBusy}=session;
+  const {queue,versions:initialVersions,context:initialContext}=selection;
+  const {position,saved,amount}=manual;
+  const setAmount=value=>setManual(m=>({...m,amount:value}));
   const [inputError, setInputError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
-  const cursor = useRef(0);
+  const cursor = useRef(position);
+  cursor.current=position;
   const copyAttempt = useRef(0);
   const saving = useRef(false);
   const pendingObservation = useRef(null);
@@ -64,8 +79,8 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
 
   function advance() {
     cursor.current += 1;
-    setPosition(cursor.current);
-    setAmount("");
+    while(queue[cursor.current]&&manual.completed?.includes(queue[cursor.current].snapshot.cardNumber))cursor.current++;
+    setManual(m=>({...m,position:cursor.current,amount:''}));
     setInputError("");
     setSaveError("");
     setCopyMessage("");
@@ -73,7 +88,7 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
   }
 
   async function saveObservation(value, fromInput = false) {
-    if (saving.current || cursor.current !== position || !card) return;
+    if (saving.current || session.busy || cursor.current !== position || !card) return;
     let verifiedBalance;
     try {
       verifiedBalance = parseVerifiedBalance(value);
@@ -86,15 +101,16 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
       pendingObservation.current = { value, checkedAt: new Date() };
     }
     saving.current = true;
+    setBusy(true);
     try {
       await commitWallet({ kind: "manual-verification", ...initialContext,
         cardNumber: card.cardNumber, version: initialVersions[card.cardNumber],
         observation: { observedBalance: verifiedBalance, checkedAt: pendingObservation.current.checkedAt.toISOString() } });
-      setSaved((count) => count + 1);
+      setManual(m=>({...m,saved:m.saved+1,completed:[...(m.completed??[]),card.cardNumber]}));
       advance();
     } catch (error) {
       setSaveError(error.message);
-    } finally { saving.current = false; }
+    } finally { saving.current = false; setBusy(false); }
   }
 
   async function copy(label, value) {
@@ -177,7 +193,7 @@ function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, ma
                   if (event.detail < 2) saveObservation(card.currentBalance);
                 }}>Confirm unchanged</Button>
                 <Button variant="text" onClick={(event) => {
-                  if (event.detail < 2 && cursor.current === position) advance();
+                  if (!session.busy && event.detail < 2 && cursor.current === position) advance();
                 }}>Skip</Button>
               </div>
               <div className="min-h-5 text-sm text-m3-error">

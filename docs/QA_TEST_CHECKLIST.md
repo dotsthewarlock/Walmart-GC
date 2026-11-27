@@ -6,6 +6,19 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 
 ## Automated cycle
 
+R2 focused coverage includes shared Manual/Companion filters, ordering and quantity,
+draft/progress survival across mode/contextual navigation, offline preparation and
+reconnect, read-only direct preview, injected atomic application failure and retry,
+partial results/replay and interrupted transport with saved TSV fallback.
+`companionTransport.test.mjs` tests strict origin/frame/document/type/version/session
+validation, foreign/expired transfers, unknown refs, conflicting replay and atomic
+partial-packet rejection. The native packaged MV3 browser scenario intercepts both
+production origins with inert synthetic pages, verifies actual Chrome sender
+context, explicit foreground start, observation return and reloaded-document fencing.
+It does not contact merchant services. Build shared artifacts before this browser
+scenario with `python3 companion/build.py`; CI performs that step. Existing R1
+integrity and offline-shell regressions remain in the required integrated cycle.
+
 ```sh
 npm ci
 npm test

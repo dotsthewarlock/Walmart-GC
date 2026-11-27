@@ -18,6 +18,7 @@ import { Dialog } from './components/primitives/Dialog';
 import { NavigationBar, NavigationBarItem } from './components/primitives/NavigationBar';
 import { TextArea } from './components/primitives/TextArea';
 import { BalanceReview } from './components/BalanceReview';
+import {useVerificationSession} from './features/verification/useVerificationSession';
 import { openInventory, operationId, profileOf, inventoryContext, assertInventoryContext, savedCompartments, compartmentCards, recoveryExport, recoveryWarning, validateInventory } from './lib/inventory';
 import { Settings2 } from 'lucide-react';
 import { StatusChip } from './components/primitives/Chip';
@@ -99,7 +100,7 @@ function App() {
   const recoveryReloadRequired = useRef(false);
   const restoreReviewFocus = useRef(false);
   const [balanceReviewOpen, setBalanceReviewOpen] = useState(false);
-  const [reviewFlaggedOnly,setReviewFlaggedOnly] = useState(false);
+  const verificationSession=useVerificationSession(walletSnapshot);
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
@@ -705,7 +706,7 @@ function App() {
   if (balanceReviewOpen) {
     return (
       <BalanceReview
-        initialFlaggedOnly={reviewFlaggedOnly}
+        session={verificationSession}
         cards={cards}
         walletSnapshot={walletSnapshot}
         readWallet={readWallet}
@@ -873,7 +874,7 @@ function App() {
               loaded={cardsLoaded.current}
               googleConnected={oauthState.status === googleOAuthStatuses.connected}
               maskCardNumber={maskCardNumber}
-              commands={{ reviewBalances: () => {setReviewFlaggedOnly(false);setBalanceReviewOpen(true);}, connectGoogle: handleConnectGoogle,
+              commands={{ reviewBalances: () => {setBalanceReviewOpen(true);}, connectGoogle: handleConnectGoogle,
                 importCsv: () => document.getElementById('csv-file-input').click(),
                 resetFilters: settingsController.resetFilters, openSettings: () => setActivePanel('settings'),
                 selectCard: index => { setSelectedCardIndex(index); setActivePanel('detail'); } }}
@@ -899,7 +900,7 @@ function App() {
                   recoverExpired: async () => {
                     try { await syncEngine.current?.recoverExpired(); }
                     catch (error) { setTransferMutationError(error.message); }
-                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>{setReviewFlaggedOnly(true);setBalanceReviewOpen(true);}, selectCompartment: handleSelectCompartment,
+                  }, recoverUnbound, resolveConflict, reviewFlagged:()=>{if(!verificationSession.flaggedOnly){verificationSession.setSelection(null);verificationSession.setManual({position:0,saved:0,amount:'',completed:[]});}verificationSession.setFlaggedOnly(true);setBalanceReviewOpen(true);}, selectCompartment: handleSelectCompartment,
                   exportCsv: handleExportCsv, exportRecovery: handleExportRecovery,
                   openRawEditor: handleOpenRawEditor }}
                 showRawCsvEditor={SHOW_RAW_CSV_EDITOR}
