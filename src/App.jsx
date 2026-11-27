@@ -5,6 +5,7 @@ import { useSettings } from './features/settings/useSettings';
 import { SettingsPanel } from './features/settings/SettingsPanel';
 import { CardsPanel } from './features/cards/CardsPanel';
 import { CheckoutPanel } from './features/checkout/CheckoutPanel';
+import { credentialAmbiguous } from './lib/inventoryRecovery';
 import { CheckoutOverlays } from './features/checkout/CheckoutOverlays';
 import { useCheckout } from './features/checkout/useCheckout';
 import { cardsToCsv, parseRawCardData, wouldDiscardCardMetadata } from './lib/csv';
@@ -159,6 +160,7 @@ function App() {
   const { settings, current: preferences } = settingsController;
 
   const selectedCard = cards[selectedCardIndex];
+  const credentialBlocked=walletSnapshot&&credentialAmbiguous(profileOf(walletSnapshot).recoveryEvidence,selectedCard?.cardNumber);
   const checkout = useCheckout({
     active: activePanel === 'detail' && !balanceReviewOpen,
     selectedCard, copyText: writeClipboardText,
@@ -675,7 +677,10 @@ function App() {
     catch(error){setTransferMutationError(error.message);}
   };
   const recoverUnbound = async () => {
-    if(!window.confirm('Copy unbound inventory into this verified account? Conflicting credentials are blocked; uncertain recovered balances require verification. The original inventory remains preserved.'))return;
+    const source=walletSnapshot?.profiles.unbound.cards??[],target=walletSnapshot?profileOf(walletSnapshot).cards:[];
+    const additions=source.filter(c=>!target.some(t=>t.cardNumber===c.cardNumber)).length;
+    const conflicts=source.filter(c=>target.some(t=>t.cardNumber===c.cardNumber&&t.pin!==c.pin)).length;
+    if(!window.confirm(`Recover ${source.length} unbound cards: ${additions} additions, ${source.length-additions} matching identities, ${conflicts} credential conflicts for review? Compatible records will continue; disputed balances need verification. The original inventory remains preserved.`))return;
     try { await syncEngine.current?.recoverUnbound(); }
     catch(error) { setTransferMutationError(error.message); }
   };
@@ -896,6 +901,7 @@ function App() {
               />
           ) : (
             <CheckoutPanel selectedCard={selectedCard} visiblePosition={visiblePosition}
+              credentialBlocked={credentialBlocked} onReviewCredentials={()=>setActivePanel('settings')}
               visibleCount={visibleIndexes.length} workflow={checkout}
               onPrevious={handlePrevCard} onNext={handleNextCard}
               onToggleUsed={() => handleToggleUsed(selectedCardIndex)}
@@ -906,7 +912,7 @@ function App() {
 
 
 
-      <CheckoutOverlays selectedCard={selectedCard} workflow={checkout} />
+      {!credentialBlocked&&<CheckoutOverlays selectedCard={selectedCard} workflow={checkout} />}
 
       {/* Raw CSV Editor Modal */}
       {isRawDataModalOpen && (

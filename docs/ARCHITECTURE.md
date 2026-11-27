@@ -33,16 +33,20 @@ Batch observations/reference receipts commit atomically. Save success follows
 Legacy localStorage is immutable migration input. A durable migration seed
 retains original bytes and a UUID namespace before migration. Retries cannot
 replace an existing inventory or change published operation IDs. Duplicate or
-invalid identities/metadata, bundled samples and damaged/interrupted ledgers are
-quarantined, never guessed or uploaded. Later old-client writes/clears are
+invalid identities/metadata and bundled samples are quarantined. Damaged/interrupted
+Batch ledgers are isolated intact; they cannot suspend unrelated card edits or
+synchronization. Batch requires explicit discard before new requests/results.
+Later old-client writes/clears are
 preserved as recovery evidence, never interpreted as deletion. Unreadable legacy
 storage blocks initial migration; an existing migrated wallet remains usable.
 
 Unbound, historical unverified Sheet and verified `account:principal:sheet:id`
 compartments stay separate. A cached context never establishes authenticated
 ownership. Verified binding does not merge old/unbound inventories. Explicit
-unbound recovery preserves originals, blocks credential ambiguity and treats
-conflicting recovered balances as uncertain. CSV backup is per selected
+unbound recovery preserves originals, retains credential alternatives for affected
+identities and treats conflicting recovered balances as uncertain. Compatible
+records continue in the same atomic command. Ordinary CSV credential validation
+remains strict. CSV backup is per selected
 compartment; recovery JSON includes original/quarantined data and warns about
 credentials. Persistent context generations fence async responses and editors,
 including switching away and back. Tabs share atomic commands, not stale arrays.
@@ -51,8 +55,11 @@ Each verified profile holds its last acknowledged remote snapshot and exact
 in-flight request. Acknowledgment requires the matching receipt/request hash and
 verified snapshot fingerprint. Only submitted operation IDs are removed;
 subsequent edits are reconciled and remain pending. Up to 128 operations are sent
-per commit. Local operation receipts are bounded; Batch applied references and
-unresolved recovery evidence remain preserved.
+per commit. Local command receipts retain 128 SHA-256 digests (legacy full-command
+receipts remain readable). Batch retains pending requests plus the latest 128
+completed references. Observation receipts follow retained ledgers; obsolete
+references cannot match newly generated UUID requests. Unresolved recovery
+evidence remains preserved.
 
 ## Account and exact Sheet binding
 
@@ -144,13 +151,25 @@ used-card/credential protections stay intact.
 
 Recovery evidence is targeted, not a second card database or generalized event
 log. Credential alternatives are retained only for affected identity conflicts.
-Resolved alternatives are retained for private recovery until controlled cleanup;
-tombstones do not expire automatically. Evidence exceeding 38 KB blocks new
-writes rather than dropping records. Controlled operator recovery is then required; automatic evidence compaction is intentionally not provided in this release candidate.
+Resolved alternatives are removed after an applicable explicit choice or fresh
+verification. Duplicate unresolved values coalesce without discarding distinct
+alternatives. Per-card monetary revisions, applicability times and tombstones
+remain; stale baselines and operation receipts fence replay after compaction.
+Tombstones do not expire automatically.
+
+`syncEvidence.js` owns the Sheet encoding and compaction. Saved/API v1 evidence
+remains a logical object. `_META.syncEvidence` is a manifest for up to 128 fixed
+`syncEvidence:N` parts, each at most 38,000 UTF-8 bytes; ordinary revisions use
+compact tuples. All parts, Cards and the commit marker change in one Sheets batch.
+Missing/damaged parts fail closed; obsolete part values are cleared and keys reused.
+Legacy single-cell evidence remains readable. An older Worker rejects the new
+manifest rather than ignoring evidence; rollback must use a compatible build.
+The 4,864,000-byte encoded capacity is a final recovery bound, not an ordinary
+card-count ceiling. Exhaustion preserves pending work and requires private recovery.
 
 ## Maintenance and direct edits
 
-P0 recoverability keeps Settings responsible for masked diagnostics and explicit
+R1 keeps Settings responsible for masked diagnostics and explicit
 owner actions, `syncEngine` for binding/control/recovery orchestration, inventory
 for transactional transitions, the Worker adapter for row validation, and the
 coordinator for dispatch fences. Initial binding intent survives failed reads;
@@ -158,24 +177,43 @@ Sync now can retry it. Explicit unbound recovery first establishes the connected
 account's verified destination, then uses the existing conservative CSV recovery
 command. Original compartments, operations and credentials remain intact.
 
-Duplicate identities block ordinary reads/writes with structured row numbers and
-last-four diagnostics. Explicit pause alone may read individually valid duplicate
-rows and write only metadata; it never rewrites Cards, appends its headers or
-chooses a winner. The snapshot is confirmation evidence, never a bindable local
-inventory. The owner backs up the private Sheet, resolves rows manually while
-preserving alternatives, retains `_META`, accepts maintenance and retries binding.
-Conflicting precise verification records and the existing bounded verification
-proof limit fail closed for operator recovery. Invalid headers/rows and damaged
-evidence remain blocked; this is not generalized schema repair.
+`inventoryRecovery.js` owns deterministic duplicate projection, explicit recovery
+planning, credential eligibility and optional Batch isolation/receipt retention.
+Individually valid duplicate rows consolidate independent of row order. Matching
+credentials combine compatible fields; conflicting balances use the minimum
+recorded amount provisionally, never a sum, and require fresh verification. The
+latest genuine precise timestamp survives as history. Used state is preserved.
+The newest supported legacy date survives too; if a newer date-only record
+supersedes older precise history, the original precise pair remains in targeted
+evidence until a fresh verification replaces it. Distinct repair episodes have
+distinct conflict identities, so stale resolutions cannot retire new alternatives.
+Distinct nonempty field and credential alternatives remain in targeted evidence.
+Credential ambiguity blocks only that card's checkout and verification until an
+explicit choice; other cards continue. No unresolved alternative is silently lost.
+
+Pulls return a verified projection and a repair flag. The existing engine uses a
+durable ordinary commit to persist repair, preserving confirmation/retry fencing.
+Retained, independently hashed baselines and a constant-size hash of the positively
+committed monetary/credential/verification context classify compatible external edits.
+That aggregate proof preserves genuine current verification even for stale clients;
+unprovable monetary drift from a stale baseline requires explicit maintenance.
+Classifiable monetary/verification drift becomes local uncertainty rather than a
+wallet-wide stop. Missing rows are restored, never deleted by omission.
+Unclassifiable edits require explicit shared maintenance. Invalid headers/rows and damaged
+managed evidence remain blocked; this is not generalized schema repair.
 
 Control rejection is distinct from dispatch uncertainty. Within the existing
 serialized coordinator, a failed control can receive an exact ID/request-hash
 non-dispatch proof only after durable rejection fencing and in the absence of any
 possible dispatch or retained confirmation. Rejected IDs cannot later dispatch,
-including from stale tabs. Up to 64 rejection hashes are retained in existing
-coordination metadata without eviction; capacity exhaustion fails closed. The
-client archives the original request and proof in existing local recovery data
-before retiring it. Transport failures, setup creation uncertainty, errors before
+including from stale tabs. New control IDs contain an immutable UTC creation time.
+The coordinator retains at most 64 dated rejection hashes and a monotonic cutoff;
+evicted IDs stay fenced by that cutoff, including when their action is changed.
+Positive possible-dispatch recovery and exact retained successful receipts take
+precedence over the rejection cutoff.
+Existing undated rejections remain readable and fenced (at most 64); further legacy
+controls require an upgraded client at that bound. The client preserves the latest
+64 rejected-control records before retiring them. Transport failures, setup creation uncertainty, errors before
 coordinator proof, mismatched proofs and uncertain flights keep the same request.
 Sync now checks that request; a different control cannot silently replace it.
 An unresolved targetless setup cannot be redirected or retired using a later
@@ -191,10 +229,18 @@ and optionally confirms exact deleted identities already absent from Cards. A
 maintenance timestamp fences older monetary observations. Managed recovery
 evidence/tombstones must stay intact even during maintenance; the coordinator
 retains their hash and rejects external erasure.
-The coordinator also retains bounded hashes of precise verification metadata at
-pause; resume rejects changes or removal unless the card is explicitly deleted.
+At pause, temporary original cards are retained in protected, partitioned private
+Sheet evidence, with only an aggregate hash in the DO. Resume restores accidentally
+missing cards unless their exact deletion was explicitly confirmed. It restores
+genuine original verification times after timestamp edits and preserves conflicting
+credentials. Only changed monetary/credential/verification context gains a per-card
+revision, uncertainty and applicability fence; notes-only maintenance preserves
+unaffected Batch requests. Temporary originals are removed in the confirmed resume
+batch. Existing in-progress legacy maintenance proofs remain supported. The
+global historical maintenance fence is retained as the compatibility floor when
+transitioning to per-card maintenance fences.
 Absence alone never creates tombstones. Fingerprinting detects direct edits even
-without a changed sheetVersion. Undeclared edits stop normal writes; an owner must
+without a changed sheetVersion. Unclassifiable edits stop normal writes; an owner must
 pause/review/accept them. The app cannot prevent an external editor ignoring the
 pause protocol or making concurrent edits during a batch. This operational limit
 must be explained and exercised before release.
@@ -253,8 +299,10 @@ legacy date-only values do not establish ordering within a day. Equal-time
 conflicting observations are rejected.
 On a protected pull or acknowledgment, a change in the per-card monetary evidence
 revision beyond the acknowledged local operations invalidates outstanding requests
-for that card, including unchanged same-day verifications. Shared maintenance also
-invalidates outstanding requests. Protected synchronization continues to reconcile
+for that card, including unchanged same-day verifications. Shared maintenance
+invalidates only affected requests. Uncertain active cards, including provisional
+zero balances and recent verification dates, precede the normal default Batch
+filters; explicit used-card selection still applies. Protected synchronization continues to reconcile
 concurrent monetary operations that have not yet been observed locally.
 Partial apply atomically saves accepted observations, inventory, semantic pending
 operations and applied references. Exact replay is a no-op; conflicting replay is

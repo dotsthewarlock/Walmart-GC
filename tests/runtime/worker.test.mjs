@@ -100,29 +100,34 @@ test('activation block permits verified identity/ownership checks but cannot rea
  }finally{await mf.dispose();await mock.close();}
 });
 
-test('SQLite maintenance verification proofs survive restart and block timestamp removal',async()=>{
+test('SQLite maintenance recovery survives restart and restores a removed genuine timestamp',async()=>{
  const persist=await mkdtemp(join(tmpdir(),'gc-wallet-proof-')),{mock,sheet}=googleFixture();
  const precise={...cardA,lastBalanceChecked:'2026-11-25',lastBalanceCheckedAt:'2026-11-25T10:00:00.000Z'};
- sheet.cards.push(csvHeaders.map(h=>precise[h]??''));let mf=runtime(mock,persist);
+ for(let index=0;index<621;index++)sheet.cards.push(csvHeaders.map(h=>h==='cardNumber'?'63'+String(100000+index).padStart(14,'0'):precise[h]??''));
+ let mf=runtime(mock,persist);
  try{
   let object=await stub(mf);assert.equal((await send(object,{action:'pause',id:crypto.randomUUID()})).status,200);
   await mf.dispose();mf=runtime(mock,persist);object=await stub(mf);
   sheet.cards[1][csvHeaders.indexOf('lastBalanceCheckedAt')]='';
   const result=await send(object,{action:'resume',id:crypto.randomUUID(),deletedIds:[]});
-  assert.equal(result.code,'verification_changed');
+  assert.equal(result.status,200);assert.equal(result.snapshot.cards[0].lastBalanceCheckedAt,precise.lastBalanceCheckedAt);
+  assert.equal(result.snapshot.cards[0].pendingReconciliation,true);
+  assert.equal(result.snapshot.cards.length,621);assert.equal(result.snapshot.cards.filter(c=>c.pendingReconciliation).length,1);
  }finally{await mf.dispose();await mock.close();await rm(persist,{recursive:true,force:true});}
 });
 
 test('SQLite control rejection proof and duplicate maintenance survive HTTP boundaries and restart',async()=>{
  const {mock,sheet}=googleFixture(),persist=await mkdtemp(join(tmpdir(),'gc-p0-'));let mf=runtime(mock,persist);
  const row=csvHeaders.map(key=>key==='used'?'FALSE':cardA[key]??'');sheet.cards.push(row,[...row]);
+ const headers=sheet.cards[0];sheet.cards[0]=[...headers,'pin'];
  try{
   await seedSession(mf);
   const request={protocol:syncProtocol,principal:'qa-principal',sheetId:'synthetic-sheet',action:'ensure',id:crypto.randomUUID()};
   const http=body=>mf.dispatchFetch('https://wallet.example/api/sheet/ensure',{method:'POST',headers:{Cookie:'walmart_gc_session=synthetic-session','Content-Type':'application/json'},body:JSON.stringify(body)});
-  let response=await http(request),result=await response.json();assert.equal(response.status,409);assert.equal(result.code,'duplicate_cards');assert.equal(result.notDispatched,true);assert.equal(result.rejection.id,request.id);assert.equal(result.rejection.requestHash,await fingerprint(request));assert.deepEqual(result.diagnostics[0].rows,[2,3]);assert.ok(!JSON.stringify(result).includes(cardA.cardNumber));
+  let response=await http(request),result=await response.json();assert.equal(response.status,409);assert.equal(result.notDispatched,true);assert.equal(result.rejection.id,request.id);assert.equal(result.rejection.requestHash,await fingerprint(request));assert.ok(!JSON.stringify(result).includes(cardA.cardNumber));
   await mf.dispose();mf=runtime(mock,persist);await seedSession(mf);response=await http(request);result=await response.json();assert.equal(result.code,'control_rejected');assert.equal(result.notDispatched,true);
-  const before=structuredClone(sheet.cards),object=await stub(mf),paused=await send(object,{action:'pause',id:crypto.randomUUID()});
-  assert.equal(paused.status,200);assert.equal(paused.snapshot.maintenance,true);assert.deepEqual(sheet.cards,before);assert.equal(sheet.writes,1);
+  sheet.cards[0]=headers;
+  const object=await stub(mf),paused=await send(object,{action:'pause',id:crypto.randomUUID()});
+  assert.equal(paused.status,200);assert.equal(paused.snapshot.maintenance,true);assert.equal(paused.snapshot.cards.length,1);assert.equal(sheet.cards.length,2);assert.equal(sheet.writes,1);
  }finally{await mf.dispose();mock.close();await rm(persist,{recursive:true,force:true});}
 });

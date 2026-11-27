@@ -7,6 +7,7 @@ import { Card } from "./primitives/Card";
 import { TextField } from "./primitives/TextField";
 import { BalanceTransfer } from "./BalanceTransfer";
 import { checkerUrl } from "../lib/balanceTransfer";
+import { verificationCards } from '../lib/inventoryRecovery';
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 
@@ -34,7 +35,7 @@ export function BalanceReview({ onExit, ...props }) {
 }
 
 function ManualBalanceReview({ cards, walletSnapshot, commitWallet, copyText, maskCardNumber }) {
-  const [queue] = useState(() => createBalanceReviewQueue(cards));
+  const [queue] = useState(() => createBalanceReviewQueue(verificationCards(profileOf(walletSnapshot))));
   const [initialVersions] = useState(() => ({ ...profileOf(walletSnapshot).versions }));
   const [initialContext] = useState(() => inventoryContext(walletSnapshot));
   const [position, setPosition] = useState(0);

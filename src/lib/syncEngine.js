@@ -1,12 +1,12 @@
 import {inventoryContext,assertInventoryContext,profileOf,operationId} from './inventory.js';
-import {syncProtocol,fingerprint,snapshotContent,materialize,validateEvidence} from './syncProtocol.js';
+import {syncProtocol,fingerprint,snapshotContent,materialize,validateEvidence,equal} from './syncProtocol.js';
 
 // All local write commands finish before the coalesced push. No work is promised
 // after the page closes. In-flight request bytes/identity survive a process exit.
 export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},onAuth=()=>{},timers=globalThis,automatic=()=>true,visible=()=>typeof document==='undefined'||document.visibilityState==='visible',now=()=>Date.now()}) {
   let running=false,again=false,stopped=false,timer,retryTimer,queuedAt=null,attempts=0,lastPrincipal,lastAttempt=-Infinity,lastManual=-Infinity,lastCheck=-Infinity,lastContext='',retryNotBefore=0,initialBind=true;
   const autoAllowed=()=>!stopped&&automatic()&&visible();
-  const pending=state=>{const p=profileOf(state);return p.context.ownershipVerified===true&&Boolean(p.inFlight||p.pending.length||state.controlFlights?.[p.context.principal]);};
+  const pending=state=>{const p=profileOf(state);return p.context.ownershipVerified===true&&Boolean(p.inFlight||p.pending.length||p.remoteBase?.needsRepair||state.controlFlights?.[p.context.principal]);};
   const commit=async command=>{const state=await store.commit({id:operationId(),...command});onState(state);return state;};
   async function observeIdentity(state,status){
     const identity=status.authenticated?status.principal||null:null;
@@ -19,6 +19,13 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
     if(result.principal!==principal||result.sheetId!==sheetId||result.snapshot?.protocol!==syncProtocol
       ||await fingerprint(snapshotContent(result.snapshot))!==result.snapshot.fingerprint)throw Error('The response did not confirm the exact account, Sheet and content. Local work remains saved.');
   }
+  async function bindSnapshot(state,principal,sheetId,snapshot){
+    state=await commit({kind:'bind-remote',...inventoryContext(state),principal,sheetId,snapshot});
+    const profile=profileOf(state);
+    if(!profile.pending.length&&!profile.inFlight&&!equal(profile.remoteBase,snapshot))
+      state=await commit({kind:'sync-pull',...inventoryContext(state),revision:profile.revision,snapshot});
+    return state;
+  }
   async function performControl(state,status,action,details={}) {
     const context=inventoryContext(state);
     if(!status.authenticated||!status.principal||!status.ownershipVerified||status.syncProtocol!==syncProtocol||!status.coordinationAvailable)throw Error('Verified Google access and protected coordination are required.');
@@ -26,7 +33,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
     if(saved&&!saved.sheetId)throw Error('Saved setup has no confirmed Sheet destination. Its outcome may be uncertain; preserve a private recovery backup and use operator recovery. It cannot be redirected to another Sheet.');
     if(saved&&action&&(saved.action!==action||(details.sheetId&&details.sheetId!==saved.sheetId)))throw Error('A previous control request still needs confirmation. Select Sync now to check it before choosing a different action or Sheet.');
     if(!state.controlFlights?.[status.principal]){
-      const payload={...details,id:operationId(),protocol:syncProtocol,action,principal:status.principal,sheetId:details.sheetId||status.sheetId||''};
+      const payload={...details,id:'control:'+new Date(now()).toISOString()+':'+operationId(),protocol:syncProtocol,action,principal:status.principal,sheetId:details.sheetId||status.sheetId||''};
       state=await commit({kind:'control-begin',...context,request:payload});
     }
     const payload=state.controlFlights[status.principal].request;
@@ -44,11 +51,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
     const normalized={...payload,sheetId:result.sheetId};
     if(result.receipt?.id!==payload.id||result.receipt.requestHash!==await fingerprint(normalized))throw Error('Protected control commit could not be confirmed.');
     state=await commit({kind:'control-ack',...context,principal:status.principal,commitId:payload.id});
-    if(result.snapshot.diagnostics?.length){
-      onStatus({phase:'maintenance',message:'Shared maintenance is paused. Back up the Sheet and resolve the listed duplicate rows before accepting maintenance.',diagnostics:result.snapshot.diagnostics,sheetId:result.sheetId});
-      return state;
-    }
-    return commit({kind:'bind-remote',...inventoryContext(state),principal:status.principal,sheetId:result.sheetId,snapshot:result.snapshot});
+    return bindSnapshot(state,status.principal,result.sheetId,result.snapshot);
   }
   async function control(action,details={}) {
     if(running||stopped)throw Error('Wait for the current synchronization check to finish.');
@@ -89,15 +92,16 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
       if(profile.context.principal!==status.principal||profile.context.sheetId!==status.sheetId||profile.context.ownershipVerified!==true){
         if(!bind){onStatus({phase:'local',message:'This inventory is offline or belongs to another account. Select a matching saved inventory or reconnect.'});return;}
         if(!status.sheetId){onStatus({phase:'setup',message:'Create or choose your private wallet Sheet in Settings.'});return;}
-        const result=await request('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,action:'pull',principal:status.principal,sheetId:status.sheetId})});
+        const saved=state.profiles[`account:${status.principal}:sheet:${status.sheetId}`];
+        const result=await request('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,action:'pull',principal:status.principal,sheetId:status.sheetId,...(saved?.remoteBase?{base:saved.remoteBase}:{})})});
         await verifySnapshot(result,status.principal,status.sheetId);
-        state=await commit({kind:'bind-remote',...context,principal:status.principal,sheetId:status.sheetId,snapshot:result.snapshot});
+        state=await bindSnapshot(state,status.principal,status.sheetId,result.snapshot);
         context=inventoryContext(state);profile=profileOf(state);bound=true;
       }
       initialBind=false;
       if(bindOnly){onStatus({phase:'local',message:'Connected. Select Sync now to synchronize saved changes.'});return state;}
       state=await store.read();assertInventoryContext(state,context);profile=profileOf(state);
-      if(profile.inFlight||profile.pending.length){
+      if(profile.inFlight||profile.pending.length||profile.remoteBase?.needsRepair){
         if(!profile.inFlight){
           const payload={id:operationId(),protocol:syncProtocol,action:'commit',principal:status.principal,sheetId:status.sheetId,
             base:profile.remoteBase,cards:materialize(profile.remoteBase.cards,profile.pending.slice(0,128)),operations:profile.pending.slice(0,128)};
@@ -110,7 +114,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
         if(!result.receipt||result.receipt.id!==flight.request.id||result.receipt.requestHash!==flight.requestHash)throw Error('Commit receipt could not be confirmed. Pending work remains saved.');
         state=await commit({kind:'sync-ack',...context,snapshot:result.snapshot,receipt:result.receipt,acknowledged:result.acknowledged,confirmedAt:new Date().toISOString()});
       }else if(!bound){
-        const result=await request('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,action:'pull',principal:status.principal,sheetId:status.sheetId})});
+        const result=await request('/api/sync',{method:'POST',body:JSON.stringify({protocol:syncProtocol,action:'pull',principal:status.principal,sheetId:status.sheetId,base:profile.remoteBase})});
         await verifySnapshot(result,status.principal,status.sheetId);
         state=await commit({kind:'sync-pull',...context,revision:profile.revision,snapshot:result.snapshot,confirmedAt:new Date().toISOString()});
       }
@@ -118,7 +122,7 @@ export function createSyncEngine({store,request,onState=()=>{},onStatus=()=>{},o
       const evidence=profileOf(state).recoveryEvidence;
       const conflicts=Object.values(evidence?.cards??{}).flatMap(e=>e.conflicts??[]).filter(c=>!c.resolution).length;
       onStatus({phase:profileOf(state).remoteBase?.maintenance?'maintenance':conflicts?'review':'saved',message:profileOf(state).remoteBase?.maintenance?'Shared maintenance is paused. Local work remains saved.':conflicts?'Saved with recovery evidence. Review uncertain cards.':'Changes saved to your private Sheet.'});
-      if(profileOf(state).pending.length)again=true;
+      if(profileOf(state).pending.length||profileOf(state).remoteBase?.needsRepair)again=true;
     }catch(error){
       if(error.payload?.code==='baseline_expired'&&error.payload.notDispatched&&context){
         const state=await store.read();

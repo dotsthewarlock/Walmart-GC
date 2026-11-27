@@ -55,11 +55,13 @@ export function selectTransferCards(cards, preferences = defaultTransferPreferen
   const matching = allEligible.filter(({ card }) => {
     const checked = card.lastBalanceChecked || "";
     return (preferences.status === "all" || (preferences.status === "used" ? card.used === true : card.used !== true))
-      && (preferences.balance === "all" || (preferences.balance === "zero" ? card.currentBalance === 0 : card.currentBalance > 0))
-      && (preferences.checked === "any" || (preferences.checked === "never" && !checked)
+      && (card.pendingReconciliation===true || preferences.balance === "all" || (preferences.balance === "zero" ? card.currentBalance === 0 : card.currentBalance > 0))
+      && (card.pendingReconciliation===true || preferences.checked === "any" || (preferences.checked === "never" && !checked)
         || (preferences.checked === "older" && (!checked || checked <= cutoff))
         || (preferences.checked === "recent" && checked && checked >= cutoff && checked <= today));
   }).sort(({ card: a }, { card: b }) => {
+    const uncertainty=Number(b.pendingReconciliation===true)-Number(a.pendingReconciliation===true);
+    if(uncertainty)return uncertainty;
     const sort = preferences.sort;
     let order;
     if (sort.startsWith("checked-")) order = (a.lastBalanceChecked || "").localeCompare(b.lastBalanceChecked || "") * (sort === "checked-newest" ? -1 : 1);
@@ -164,7 +166,7 @@ export function transferRequestRows(ledger, cards, selectedRefs = null) {
   });
 }
 
-export function previewTransferResults(ledger, cards, observations, now = Date.now()) {
+export function previewTransferResults(ledger, cards, observations, now = Date.now(), evidence) {
   const requests = new Map(ledger.requests.map((request, index) => [request.ref, { ...request, position: index + 1 }]));
   const eligible = new Map(transferEligibleCards(cards).map((entry) => [entry.card.cardNumber, entry]));
   const counts = { accepted: 0, changed: 0, unchanged: 0, unknown: 0, invalidated: 0, stale: 0, alreadyApplied: 0, rejected: 0 };
@@ -177,6 +179,8 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     if (!entry || JSON.stringify(request.snapshot) !== JSON.stringify(transferCardSnapshot(card))) return 'The requested card changed or is unavailable.';
     if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) return 'Observation predates its request or is more than 60 seconds in the future.';
     if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) return 'The observation predates the saved verification time.';
+    const recovery=evidence?.cards?.[card.cardNumber];
+    if(checkedAt<(recovery?.uncertainSince||'')||checkedAt<(recovery?.moneyAt||''))return 'The observation predates the latest monetary change or uncertainty.';
     return null;
   };
   for (const observation of observations) {

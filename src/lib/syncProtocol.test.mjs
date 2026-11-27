@@ -64,14 +64,14 @@ test('a later monetary action cannot use an earlier verification to clear uncert
  assert.equal(result.cards[0].currentBalance,saved.currentBalance);
  assert.equal(result.cards[0].pendingReconciliation,true);
 });
-test('explicit notes/PIN resolution consumes only a still-applicable conflict and preserves alternatives',()=>{
+test('explicit notes/PIN resolution compacts resolved alternatives and rejects stale resolution',()=>{
  for(const field of ['notes','pin']){
   const local={...a,[field]:field==='pin'?'9999':'local note'},remote={...a,[field]:field==='pin'?'1111':'remote note'};
   const disputed=merge([a],[local],[remote],[operation('original',a,local)],{now:'2026-11-25T00:00:00.000Z'});
   const conflict=disputed.evidence.cards[a.cardNumber].conflicts[0];
   const op={...operation('resolution',remote,local,'resolve-conflict'),conflictId:conflict.id,choice:'local'};
   const resolved=merge([remote],[local],[remote],[op],{evidence:disputed.evidence,baseEvidence:disputed.evidence});
-  assert.equal(resolved.cards[0][field],local[field]);assert.equal(resolved.evidence.cards[a.cardNumber].conflicts.filter(c=>!c.resolution).length,0);assert.ok(resolved.evidence.cards[a.cardNumber].conflicts[0].remote);
+  assert.equal(resolved.cards[0][field],local[field]);assert.equal(resolved.evidence.cards[a.cardNumber]?.conflicts?.length??0,0);
   const later={...remote,[field]:field==='pin'?'2222':'later remote note'};
   const stale=merge([remote],[local],[later],[op],{evidence:disputed.evidence,baseEvidence:disputed.evidence});
   assert.equal(stale.cards[0][field],later[field]);assert.ok(stale.evidence.cards[a.cardNumber].conflicts.some(c=>!c.resolution));

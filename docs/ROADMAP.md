@@ -15,6 +15,24 @@ Ordinary-use production acceptance remains pending.
 Batch uses explicit copy, paste, preview and application only. No passive clipboard
 reads, focus-triggered result detection or clipboard permission prompts.
 
+## R1 — resilient synchronization and recovery simplification
+
+Approved baseline: main `bd7d8e6`, including released P0 / PR #251. Deliver one
+cohesive release with deterministic duplicate consolidation, localized credential
+and monetary ambiguity, mixed unbound recovery, uncertainty-first verification,
+bounded evidence/receipt retention, repairable shared maintenance and damaged
+Batch isolation. Preserve transaction completion, credentials and original migration
+bytes, pending work, exact account/Sheet ownership, explicit deletions and uncertain
+external-write fences. Architecture owns the replacement safeguards and module map;
+QA owns synthetic acceptance and capacity measurements. The release PR records
+review, required CI, preserved production configuration and hosted verification.
+
+The user authorizes the compatible production release after independent review
+and required CI, with existing infrastructure, bindings, DO namespace, unpaused
+state and privacy retained. Private inventory recovery remains user-performed.
+R2 direct Companion integration, verification-session extraction and inactive-tab
+execution remain outside R1. A4 remains deferred.
+
 ## V0.3 maintenance: lean synchronization and quota recovery
 
 1. PR #240 supplies unchanged KV write suppression and explicit-only Batch clipboard transfer. PR #241 builds on that merge and supplies event-driven automatic sync (3s coalescing, 15s minimum, 5min freshness, no idle polling), manual-only mode, no-op suppression, local Batch preparation/preview and bounded timeout and quota recovery.
@@ -56,8 +74,8 @@ file reorganization or navigation redesign is included.
 
 Online-use reconciliation remains deferred. V0.4 adds precise UTC verification
 timestamps while retaining historical date-only compatibility.
-Improve recovery evidence cleanup only when actual usage warrants it and safe
-retention/backup requirements are established.
+R1 supplies targeted recovery cleanup following the demonstrated capacity failures;
+unresolved alternatives, deletion fences and uncertain writes remain preserved.
 
 ## Unapproved expansion
 

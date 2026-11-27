@@ -10,6 +10,7 @@ import { Button } from "./primitives/Button";
 import { Card } from "./primitives/Card";
 import { SelectField } from "./primitives/SelectField";
 import { TextArea } from "./primitives/TextArea";
+import { verificationCards } from '../lib/inventoryRecovery';
 
 const currency = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
 function Segments({ label, value, choices, onChange, disabled, detail }) {
@@ -55,7 +56,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   const ledger = batch.ledger;
   const pending = ledger?.requests.filter(({ state }) => state === "pending").length ?? 0;
   const invalidated = ledger?.requests.filter(({ state }) => state === "invalidated").length ?? 0;
-  const selectionCounts = selectTransferCards(cards, preferences);
+  const selectionCounts = selectTransferCards(verificationCards(profileOf(walletSnapshot)), preferences);
 
   useEffect(() => { try { window.localStorage.setItem(transferPreferenceKey, JSON.stringify(preferences)); } catch { /* Preferences are optional. */ } }, [preferences]);
 
@@ -133,7 +134,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
         profile=profileOf(state);
       }
     }
-    const session = { state, profile, ledger: profile.ledger, context, inventoryRaw, previewCards: profile.cards };
+    const session = { state, profile, ledger: profile.ledger, context, inventoryRaw, previewCards: verificationCards(profile) };
     await assertSession(session);
     return session;
   }
@@ -150,7 +151,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
 
   async function createBatch() {
     const session = await verifiedSession();
-    const { selected } = selectTransferCards(session.profile.cards, preferences);
+    const { selected } = selectTransferCards(session.previewCards, preferences);
     const ledger = await createTransferLedger(session.context, selected, session.inventoryRaw, undefined, session.ledger?.id);
     await commitWallet({ kind: "set-batch", ...inventoryContext(session.state), revision: session.profile.revision, ledger });
     setPreview(null);
@@ -161,7 +162,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
   async function copyRequest() {
     const session = await verifiedSession();
     if (!session.ledger) throw new Error("Create a batch before copying a request.");
-    const rows = transferRequestRows(session.ledger, session.profile.cards, session.profile.batchSelection ?? null);
+    const rows = transferRequestRows(session.ledger, session.previewCards, session.profile.batchSelection ?? null);
     await assertSession(session);
     const copied = await copyText(formatTransferRequest(rows));
     if (!mounted.current) return;
@@ -182,7 +183,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!session.ledger) throw new Error("There is no saved request for these results. Create a new batch.");
     if (session.ledger.application) throw new Error("Resolve the interrupted application first.");
     const now = Date.now();
-    return { ...previewTransferResults(session.ledger, session.previewCards, results, now),
+    return { ...previewTransferResults(session.ledger, session.previewCards, results, now,session.profile.recoveryEvidence),
       context: inventoryContext(session.state), results, now, ledgerRaw: JSON.stringify(session.ledger), inventoryRaw: session.inventoryRaw };
   }
 

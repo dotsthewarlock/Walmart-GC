@@ -59,7 +59,8 @@ export function createBalanceReviewQueue(cards) {
   return cards.filter((card) => isEligible(card) && counts.get(card.cardNumber) === 1)
     .map((card) => ({ card, snapshot: { ...card } }))
     .sort(({ snapshot: a }, { snapshot: b }) =>
-      (a.lastBalanceChecked || "").localeCompare(b.lastBalanceChecked || "")
+      Number(b.pendingReconciliation===true)-Number(a.pendingReconciliation===true)
+      || (a.lastBalanceCheckedAt || a.lastBalanceChecked || "").localeCompare(b.lastBalanceCheckedAt || b.lastBalanceChecked || "")
       || a.cardNumber.localeCompare(b.cardNumber));
 }
 
