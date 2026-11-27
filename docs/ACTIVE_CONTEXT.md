@@ -7,23 +7,21 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 - A1 released in PR #247 (main `db83092`): Settings rendering and its app-lifetime
   preference/draft/disclosure controller live in `src/features/settings/`.
-- A2 extracts the stateless Cards view into `src/features/cards/CardsPanel.jsx`.
-  Shared selection, derived inventory views, navigation, active inventory context,
-  theme application and protected commands retain their existing owners. No
-  inventory, sync, Worker, schema, companion or transfer contract changes.
-  The permanent agent execution policy now calls for autonomous authorized
-  completion and the least expensive sufficient validation/review approach.
-  [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248) records review,
-  CI and release evidence. Local checks passed: 13 focused Node tests, two serial
-  Cards/Settings browser scenarios, mobile/desktop visual inspection, build,
-  JavaScript syntax and whitespace. The shared CSV input now stays mounted in App
-  so the Cards empty-state import works while Settings is unmounted.
+- A2 released in [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248)
+  on main `ac0759b`: stateless Cards rendering lives in `src/features/cards/`.
+- A3 extracts Checkout rendering and exclusively owned app-lifetime workflow into
+  `src/features/checkout/`. App retains shared selection, inventory authority,
+  context fencing, protected commands, navigation/return and theme application.
+  Barcode/copy, wake lock, balance/used actions, notes and durable save behavior
+  remain; late wake-lock grants are released after navigation. See the
+  [contract and module map](ARCHITECTURE.md#a3-checkout-feature-boundary).
+- This run authorizes full A3 implementation, independent review, CI, merge,
+  deployment verification and cleanup, starting at current main `ac0759b`.
+  Finalized candidate documentation lives here; subsequent review/CI/release
+  evidence is recorded in the A3 PR. Stop after A3.
 - Approved sequence: A1 Settings/pattern → A2 Cards/Inventory → A3 Checkout → A4
-  conditional shell/Balance Check convergence. Each is independently releasable;
-  functional work may happen between milestones. This run authorizes full A2
-  execution and release only; stop after A2. See
-  [ownership, interfaces and module map](ARCHITECTURE.md#a2-cards--inventory-feature-boundary) and
-  [roadmap](ROADMAP.md#incremental-architecture-a1a4).
+  conditional shell/Balance Check convergence. A4 remains separately authorized.
+  No UX redesign, Undo, core, PWA/service-worker changes or new dependencies.
 
 - Repository: dotsthewarlock/Walmart-GC.
 - V0.4 / PR #243 adds offline balance checking, selection-independent request

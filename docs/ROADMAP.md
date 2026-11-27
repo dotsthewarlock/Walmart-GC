@@ -41,9 +41,13 @@ between milestones; this is not a freeze until all four are complete.
   See the [contract and module map](ARCHITECTURE.md#a2-cards--inventory-feature-boundary).
   Implemented and independently reviewed in
   [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248), which records
-  regression, CI and release verification evidence. A2 release and cleanup are
-  authorized; A3/A4 require separate authority.
-- **A3 — Checkout:** planned; implementation requires separate authority.
+  regression, CI and release verification evidence. A2 is released on main `ac0759b`.
+- **A3 — Checkout:** rendering, balance/notes drafts, reveal/copy feedback and
+  passive wake-lock lifecycle are extracted. Shared selection, contextual return,
+  inventory context and durable commands retain their owners. See the
+  [module contract](ARCHITECTURE.md#a3-checkout-feature-boundary). Full A3 review,
+  release, deployment verification and cleanup are authorized; release evidence
+  belongs in the PR. Stop after A3.
 - **A4 — Conditional application shell and Balance Check convergence:** planned;
   implementation requires separate authority.
 

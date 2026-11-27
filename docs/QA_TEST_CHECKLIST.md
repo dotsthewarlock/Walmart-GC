@@ -47,6 +47,13 @@ chooser. It captures 412 × 923 and desktop views. The Settings regression cover
 shared preference/draft lifetime; unaffected protocol/Worker suites run in required
 CI. The shared hidden CSV input stays mounted in App for both feature views.
 
+For A3, focused Checkout coverage exercises passive barcode rendering, mobile
+reveal and desktop CODE/PIN copy, previous/next selection and editor reset,
+notes draft survival through Settings, balance amount-used arithmetic/Escape,
+contextual return and late/active wake-lock release. It captures mobile and desktop
+Checkout views. Reuse the integrated durable-edit/transaction-abort and stale-tab
+editor scenarios plus Settings lifetime regression; unaffected suites run in CI.
+
 The integrated scenarios cover migration/startup/reload; balance/notes/used saves;
 manual verification and precise timestamp persistence; Batch v1 create/preview/partial
 apply/exact replay; independent devices and stale/obsolete tabs; offline inventory
