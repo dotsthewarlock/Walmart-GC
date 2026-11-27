@@ -27,7 +27,7 @@ function credentialsValid(card) {
     && typeof card.pin === "string" && pinPattern.test(card.pin);
 }
 
-function transferEligibleCards(cards) {
+export function transferEligibleCards(cards) {
   return createBalanceReviewQueue(cards).filter(({ card }) => credentialsValid(card));
 }
 

@@ -33,6 +33,9 @@ Manual and Companion / Batch share selection filters, quantity and ordering,
 including flagged-card priority, eligible used cards and provisional zero balances.
 Mode changes and contextual exits retain the current UI session, drafts and
 progress. Explicit selection replaces it; account/context changes fence it.
+Manual selection works independently of damaged Batch state. Switching a Manual
+selection to Companion offers **Prepare selected cards**, retaining its order,
+draft and progress while saving requests for the remaining cards.
 
 The extension supports explicit request/result transfer using Batch TSV v1.
 Send selected requests from Wallet, receive them in the extension on the official
@@ -42,6 +45,10 @@ worker restart or interrupted transfer may require the saved TSV fallback. Manua
 verification and the bookmarklet remain available. See the
 [Companion guide](companion/README.md) and [distribution contract](companion/DISTRIBUTION.md).
 Dev publication does not promote Stable.
+
+R2 shipped in [PR #256](https://github.com/dotsthewarlock/Walmart-GC/pull/256).
+Its corrective release completes historical-source consolidation and fixes
+verification entry/reselection; current status is in [Active Context](docs/ACTIVE_CONTEXT.md).
 
 ## Development and release
 

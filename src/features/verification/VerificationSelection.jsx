@@ -20,8 +20,8 @@ export function VerificationSelection({session,selectionCounts,busy,onSelect}){
  return <Card as="section" className="flex flex-col gap-3 p-4" aria-label="Verification selection">
  <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Select cards</h2><Button variant="text" disabled={busy} onClick={()=>setPreferences({...defaultTransferPreferences})}>Reset</Button></div>
  <div role="group" aria-label="Cards to verify" className="grid grid-cols-2 gap-2">
- <Button variant={!flaggedOnly?'tonal':'outlined'} aria-pressed={!flaggedOnly} onClick={()=>setFlaggedOnly(false)}>All eligible</Button>
- <Button variant={flaggedOnly?'tonal':'outlined'} aria-pressed={flaggedOnly} onClick={()=>setFlaggedOnly(true)}>Flagged only</Button>
+ <Button disabled={busy} variant={!flaggedOnly?'tonal':'outlined'} aria-pressed={!flaggedOnly} onClick={()=>setFlaggedOnly(false)}>All eligible</Button>
+ <Button disabled={busy} variant={flaggedOnly?'tonal':'outlined'} aria-pressed={flaggedOnly} onClick={()=>setFlaggedOnly(true)}>Flagged only</Button>
  </div>
  {flaggedOnly&&<p className="text-sm">Includes eligible used cards and provisional zero balances. Verification leaves used status unchanged.</p>}
              {!flaggedOnly&&<>

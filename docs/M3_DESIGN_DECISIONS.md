@@ -133,4 +133,33 @@ GC Wallet is the product name; Walmart-GC remains the repository/deployment iden
 
 Manual and Companion / Batch share a working selection. Explicit reselection applies filter changes; changing mode or returning from the calling screen retains relevant drafts and progress. Account/context changes fence stale work. Direct transfer has explicit receive/start/return/preview/apply actions; it does not add automatic merchant execution or application.
 
+Manual reselection is independent of optional Batch recovery. Preparing that same
+selection for Companion saves requests only for remaining cards without replacing
+the Manual draft or progress. Settings “Verify flagged cards” explicitly starts a
+fresh Manual queue from current flags, including eligible used/provisional-zero
+cards; ordinary return to review retains the existing session.
+
 Browser inventory is stored in ordinary, unencrypted IndexedDB. Legacy localStorage is recovery input only; no stronger storage-encryption claim is made. Account details stay in Settings and credentials never enter transfer URLs, logs or persistent transport storage.
+
+## Deferred product interactions
+
+The [roadmap](ROADMAP.md#product-priorities-and-deferred-work) preserves these
+future UX decisions. They require separate authorization and do not change the
+released Cards/Checkout navigation or authorize standalone A4.
+
+- A shared M3 shell with Cards, Checkout and Balance Check destinations, merchant
+  total, compact sync status and private Settings. Keep card/filter/scroll state,
+  Manual/Batch drafts and progress, and contextual return across navigation.
+- Cards retains Active/Used/All, balance filters and sorting. Checkout remains
+  barcode-first with bounded Previous/Next/swipes; balance, used and verification
+  are distinct actions and notes remain secondary.
+- Show a precise last-check timestamp in local time, the actual date for legacy
+  date-only records, and “Never checked” when absent. Never invent a midnight time.
+- Default shared verification ordering prioritizes uncertainty, then never checked,
+  then oldest checked; expose used/zero scope and quantity explicitly.
+- A single-card check opened from Checkout returns to the original accessible card
+  on save or cancel. Do not lose the surrounding collection or select another card
+  silently.
+- Checkout Undo uses the five-action, session-only corrective-operation contract
+  in the roadmap. Show feedback only after durable success, fence stale actions
+  and isolate/clear history on account change; do not undo unrelated fields.
