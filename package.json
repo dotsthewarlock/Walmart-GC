@@ -5,7 +5,8 @@
     "preview": "vite preview",
     "test": "node --test --test-isolation=none --test-reporter=tap src/lib/*.test.mjs worker/*.test.mjs",
     "test:browser": "playwright test",
-    "test:worker": "node --test --test-reporter=tap tests/runtime/*.test.mjs"
+    "test:worker": "node --test --test-reporter=tap tests/runtime/*.test.mjs",
+    "test:shell": "playwright test --config playwright.shell.config.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",

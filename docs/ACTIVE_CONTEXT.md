@@ -9,19 +9,8 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
   preference/draft/disclosure controller live in `src/features/settings/`.
 - A2 released in [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248)
   on main `ac0759b`: stateless Cards rendering lives in `src/features/cards/`.
-- A3 extracts Checkout rendering and exclusively owned app-lifetime workflow into
-  `src/features/checkout/`. App retains shared selection, inventory authority,
-  context fencing, protected commands, navigation/return and theme application.
-  Barcode/copy, wake lock, balance/used actions, notes and durable save behavior
-  remain; late wake-lock grants are released after navigation. See the
-  [contract and module map](ARCHITECTURE.md#a3-checkout-feature-boundary).
-- This run authorizes full A3 implementation, independent review, CI, merge,
-  deployment verification and cleanup, starting at current main `ac0759b`.
-  Finalized candidate documentation lives here; subsequent review/CI/release
-  evidence is recorded in the A3 PR. Stop after A3.
-- Approved sequence: A1 Settings/pattern → A2 Cards/Inventory → A3 Checkout → A4
-  conditional shell/Balance Check convergence. A4 remains separately authorized.
-  No UX redesign, Undo, core, PWA/service-worker changes or new dependencies.
+- A3 Checkout shipped in PR #249 on main `0985eca`. The authorized current milestone adds installation and a versioned offline application shell; it preserves the existing inventory and synchronization contracts. Release evidence belongs in its PR. Stop after this milestone.
+- Dedicated A4 shell/Balance Check convergence is deferred indefinitely.
 
 - Repository: dotsthewarlock/Walmart-GC.
 - V0.4 / PR #243 adds offline balance checking, selection-independent request
@@ -74,3 +63,5 @@ The checked-in Wrangler configuration retains `SYNC_ACTIVATION_BLOCKED="true"`;
 the active deployment overrides it to false. Preserve that intent in any future
 deployment. See [release readiness](V0.3_RELEASE_READINESS.md) for evidence and
 recovery, and [Architecture](ARCHITECTURE.md) for data and synchronization contracts.
+
+Post-A3 architectural audits by Codex and GPT independently found no material architectural blocker. GPT confirmed main `0985eca`, A3 CI and deployment, and the source boundaries. Dedicated A4 is deferred indefinitely; refine the broad Balance Check session/command interface, App projections and CSV ownership alongside relevant functional work.
