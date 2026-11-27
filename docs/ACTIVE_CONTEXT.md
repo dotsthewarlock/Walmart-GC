@@ -5,11 +5,21 @@ Start here, then read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.m
 
 ## Current development
 
+- Authorized P0 synchronization recoverability starts from main `3ead6e4` (PR
+  #250 offline shell). It addresses retryable initial binding, masked duplicate
+  row diagnostics, explicit metadata-only duplicate maintenance pause, verified
+  unbound recovery orchestration and exact durable control-rejection recovery.
+  Acceptance preserves 621 synthetic unbound cards/pending operations, both
+  inventories, verification and `_META` evidence, Batch identities and all
+  uncertain dispatch fences. No live private-data inspection or automatic repair.
+  Independent GPT review of the exact candidate and required CI precede the
+  authorized compatible Worker/frontend release; stop after verification/cleanup.
+
 - A1 released in PR #247 (main `db83092`): Settings rendering and its app-lifetime
   preference/draft/disclosure controller live in `src/features/settings/`.
 - A2 released in [PR #248](https://github.com/dotsthewarlock/Walmart-GC/pull/248)
   on main `ac0759b`: stateless Cards rendering lives in `src/features/cards/`.
-- A3 Checkout shipped in PR #249 on main `0985eca`. The authorized current milestone adds installation and a versioned offline application shell; it preserves the existing inventory and synchronization contracts. Release evidence belongs in its PR. Stop after this milestone.
+- A3 Checkout shipped in PR #249 on main `0985eca`. Installation and the versioned offline shell shipped in PR #250 on main `3ead6e4`. Release evidence belongs in the corresponding PR.
 - Dedicated A4 shell/Balance Check convergence is deferred indefinitely.
 
 - Repository: dotsthewarlock/Walmart-GC.

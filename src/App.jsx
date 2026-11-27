@@ -676,19 +676,7 @@ function App() {
   };
   const recoverUnbound = async () => {
     if(!window.confirm('Copy unbound inventory into this verified account? Conflicting credentials are blocked; uncertain recovered balances require verification. The original inventory remains preserved.'))return;
-    const state=walletSnapshot;
-    if(profileOf(state).context.ownershipVerified!==true)return;
-    try {
-      const status=await fetchWorkerJson('/api/status',{cache:'no-store'});
-      if(!await responseIsCurrent(inventoryContext(state)))throw new Error('Inventory context changed.');
-      const owner=profileOf(state).context;
-      if(!status.authenticated||!status.ownershipVerified||status.principal!==owner.principal||status.sheetId!==owner.sheetId){
-        await commitWallet({kind:'begin-context',...inventoryContext(state)});
-        setOauthState(prev=>({...prev,status:'disconnected',principal:'',connectedEmail:'',connectedName:''}));
-        throw new Error('Reconnect the matching Google account and exact Sheet before copying unbound data.');
-      }
-      await commitWallet({kind:'csv-recovery',...inventoryContext(state),revision:profileOf(state).revision,cards:state.profiles.unbound.cards,recovery:true});
-    }
+    try { await syncEngine.current?.recoverUnbound(); }
     catch(error) { setTransferMutationError(error.message); }
   };
   const resolveConflict = async (cardNumber,conflict,choice) => {
@@ -885,7 +873,7 @@ function App() {
                 preferences={settingsController.panel}
                 connection={oauthState}
                 synchronization={{ summary: getAppSyncSummaryState(), chipStatus: getSyncChipStatus(getAppSyncSummaryState().key),
-                  message: syncUi.message, sheetMessage: directSheetsState.message,
+                  message: syncUi.message, diagnostics: syncUi.diagnostics, diagnosticSheetId: syncUi.sheetId, sheetMessage: directSheetsState.message,
                   diagnosticMessage: syncState.message || directSheetsState.message,
                   hasPendingChanges: Boolean(syncState.pendingOperation || directSheetsState.pendingUnsynced) }}
                 inventory={{ activeKey: walletSnapshot.active, compartments: savedCompartments(walletSnapshot),
@@ -893,7 +881,7 @@ function App() {
                   context: profileOf(walletSnapshot).context, pendingCount: profileOf(walletSnapshot).pending.length,
                   confirming: Boolean(profileOf(walletSnapshot).inFlight), lastConfirmedAt: profileOf(walletSnapshot).sync?.lastConfirmedAt,
                   syncBlocked: profileOf(walletSnapshot).syncBlocked, recoveryCards: profileOf(walletSnapshot).recoveryEvidence?.cards,
-                  zeroBalanceCount }}
+                  controlFlight: walletSnapshot.controlFlights?.[oauthState.principal]?.request, zeroBalanceCount }}
                 commands={{ markZeroBalanceUsed: handleMarkZeroBalanceUsed, connectGoogle: handleConnectGoogle,
                   disconnectGoogle: handleDisconnectGoogle, syncNow, ensureSheet: handleEnsureSheet,
                   importSheet: handleLoadCardsFromSheet, saveSheet: handleSaveCardsToSheet, maintenance,

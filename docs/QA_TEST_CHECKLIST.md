@@ -72,6 +72,18 @@ covered by the coordinated Google adapter fixtures, not by a legacy write bypass
 
 ## Minimal independent review cycle
 
+P0 recovery acceptance uses the existing synthetic fixtures: initial binding
+failure followed by ordinary Sync now with 621 original cards/operations intact;
+masked duplicate row 551 diagnostics; metadata-only pause preserving every Cards
+cell and unrelated `_META`; explicit repaired resume with precise verification
+intact; exact rejected-control archival; restart and stale-ID fencing; uncertain
+control preservation with no extra dispatch; wrong proof rejection; verified
+destination acquisition before unbound recovery. The real workerd/SQLite HTTP
+fixture checks error serialization and rejection persistence across restart.
+The mobile Settings regression verifies masked instructions, private Sheet link
+and ordinary retry after synthetic repair. Existing Batch/account/late-write tests
+remain acceptance evidence; production private inventory is not test input.
+
 After automated tests, review the same synthetic browser scenario in headed mode:
 
 ```sh

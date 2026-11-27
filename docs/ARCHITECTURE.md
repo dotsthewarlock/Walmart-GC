@@ -150,6 +150,40 @@ writes rather than dropping records. Controlled operator recovery is then requir
 
 ## Maintenance and direct edits
 
+P0 recoverability keeps Settings responsible for masked diagnostics and explicit
+owner actions, `syncEngine` for binding/control/recovery orchestration, inventory
+for transactional transitions, the Worker adapter for row validation, and the
+coordinator for dispatch fences. Initial binding intent survives failed reads;
+Sync now can retry it. Explicit unbound recovery first establishes the connected
+account's verified destination, then uses the existing conservative CSV recovery
+command. Original compartments, operations and credentials remain intact.
+
+Duplicate identities block ordinary reads/writes with structured row numbers and
+last-four diagnostics. Explicit pause alone may read individually valid duplicate
+rows and write only metadata; it never rewrites Cards, appends its headers or
+chooses a winner. The snapshot is confirmation evidence, never a bindable local
+inventory. The owner backs up the private Sheet, resolves rows manually while
+preserving alternatives, retains `_META`, accepts maintenance and retries binding.
+Conflicting precise verification records and the existing bounded verification
+proof limit fail closed for operator recovery. Invalid headers/rows and damaged
+evidence remain blocked; this is not generalized schema repair.
+
+Control rejection is distinct from dispatch uncertainty. Within the existing
+serialized coordinator, a failed control can receive an exact ID/request-hash
+non-dispatch proof only after durable rejection fencing and in the absence of any
+possible dispatch or retained confirmation. Rejected IDs cannot later dispatch,
+including from stale tabs. Up to 64 rejection hashes are retained in existing
+coordination metadata without eviction; capacity exhaustion fails closed. The
+client archives the original request and proof in existing local recovery data
+before retiring it. Transport failures, setup creation uncertainty, errors before
+coordinator proof, mismatched proofs and uncertain flights keep the same request.
+Sync now checks that request; a different control cannot silently replace it.
+An unresolved targetless setup cannot be redirected or retired using a later
+per-Sheet proof: it remains preserved for operator recovery, including after a
+session destination change. Recovering that case automatically would require
+principal-scoped immutable destination proof and is outside this focused slice.
+No new store, protocol version, dependency or automatic destructive repair.
+
 Cards and `_META` are app-managed during automatic sync. Pause shared maintenance
 through the coordinator before direct editing; app writes then suspend across
 sessions. Export a private backup. Resume explicitly accepts the observed contents

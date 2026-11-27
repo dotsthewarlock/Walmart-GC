@@ -207,6 +207,13 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
         <p className="text-sm">Pending changes: {inventory.pendingCount}{inventory.confirming ? ' · confirmation in progress' : ''}</p>
         <p className="text-sm">Last confirmed synchronization: {inventory.lastConfirmedAt ? new Date(inventory.lastConfirmedAt).toLocaleString() : 'Not yet recorded on this device'}</p>
         <p role="status" className="text-sm">{synchronization.message}</p>
+        {synchronization.diagnostics?.length>0&&<div className="text-sm border border-m3-outline-variant rounded-xl p-3">
+          <p>Duplicate Sheet rows need private review:</p>
+          <ul>{synchronization.diagnostics.map((item,index)=><li key={index}>Card ending {item.last4}: rows {item.rows.join(' and ')}</li>)}</ul>
+          <p>Pause shared maintenance, then download a private Sheet backup. Compare all duplicate values, including PIN, balance and verification details. Preserve alternatives in your backup before combining rows into one valid identity. Keep _META intact, accept maintenance, then select Sync now. No automatic repair is performed.</p>
+          {synchronization.diagnosticSheetId&&<ActionButton href={`https://docs.google.com/spreadsheets/d/${encodeURIComponent(synchronization.diagnosticSheetId)}/edit`} target="_blank" rel="noopener noreferrer" icon="external" label="Open Sheet for recovery" compact />}
+        </div>}
+        {inventory.controlFlight&&<p className="text-sm">Saved {inventory.controlFlight.action} request awaits confirmation. Select Sync now to check the same request. An uncertain request cannot be discarded or replaced.</p>}
         <label className="flex items-center justify-between gap-3 min-h-[48px]"><span>Automatic synchronization</span><Switch checked={settings.automaticSync} onChange={() => preferences.toggle("automaticSync")} /></label>
         <p className="text-xs text-m3-on-surface-variant">{settings.automaticSync?"Sync saved changes and check when returning to the wallet.":"Save locally until you select Sync now."}</p>
         <Button variant="outlined" onClick={()=>commands.syncNow()}>Sync now</Button>
@@ -229,7 +236,7 @@ export function SettingsPanel({ preferences, connection, synchronization, invent
               if(!window.confirm('Preserve a private recovery backup first. Reconcile this expired commit against the current Sheet? Uncertain monetary actions will require verification.'))return;
               await commands.recoverExpired();
             }}>Recover expired synchronization safely</Button>}
-            <Button variant="outlined" disabled={inventory.context.ownershipVerified!==true||connection.status!=='connected'||connection.principal!==inventory.context.principal} onClick={commands.recoverUnbound}>Recover unbound inventory into connected account</Button>
+            <Button variant="outlined" disabled={connection.status!=='connected'} onClick={commands.recoverUnbound}>Recover unbound inventory into connected account</Button>
             {Object.entries(inventory.recoveryCards??{}).flatMap(([number,entry])=>(entry.conflicts??[]).filter(c=>!c.resolution).map(conflict=>(
               <div key={conflict.id} className="border border-m3-outline-variant rounded-xl p-3 text-sm">
                 <p>Card ending {number.slice(-4)}: {conflict.kind==='balance'?'Balance needs fresh merchant verification':conflict.kind==='missing-remote'?'Recovered a missing Sheet card. Verify its balance.':conflict.kind}</p>
