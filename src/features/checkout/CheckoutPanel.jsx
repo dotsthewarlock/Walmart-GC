@@ -10,7 +10,7 @@ import { isDesktopCopyTarget } from './useCheckout';
 export function CheckoutPanel({ selectedCard, visiblePosition, visibleCount, workflow,
   credentialBlocked, onReviewCredentials, onPrevious: handlePrevCard, onNext: handleNextCard, onToggleUsed, onBack }) {
   const { revealNumber, setRevealNumber, isEditingNotes, newNotesValue, setNewNotesValue,
-    setIsEditingNotes, handleCopyCodePin, handleOpenBalanceEdit, handleOpenNotes, handleSaveNotes } = workflow;
+    handleCancelNotes, handleCopyCodePin, handleOpenBalanceEdit, handleOpenNotes, handleSaveNotes } = workflow;
   if(credentialBlocked)return <main className="p-4 flex flex-col gap-4">
     <p>This card has conflicting credentials or identity evidence. Review the preserved alternatives in Settings before using it.</p>
     <Button variant="filled" onClick={onReviewCredentials}>Review card credentials</Button>
@@ -180,7 +180,7 @@ export function CheckoutPanel({ selectedCard, visiblePosition, visibleCount, wor
                     Save Notes
                   </Button>
                   <Button
-                    onClick={() => setIsEditingNotes(false)}
+                    onClick={handleCancelNotes}
                     variant="outlined"
                     density="compact"
                   >

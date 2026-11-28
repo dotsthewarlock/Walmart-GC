@@ -1,4 +1,5 @@
 import { createSyncEngine } from './lib/syncEngine';
+import { fingerprint } from './lib/syncProtocol';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { calculateVisibleCards, calculateCardSummary } from './lib/cards';
 import { useSettings } from './features/settings/useSettings';
@@ -100,6 +101,7 @@ function App() {
   const recoveryReloadRequired = useRef(false);
   const panelScroll = useRef({});
   const pendingPanelFocus = useRef(null);
+  const navigationAction = useRef(0);
   const reviewReturn = useRef({ panel: 'list', focusId: 'review-balances' });
   const verificationSession=useVerificationSession(walletSnapshot);
   const mainTouchStart = useRef(null);
@@ -167,12 +169,17 @@ function App() {
   const credentialBlocked=walletSnapshot&&credentialAmbiguous(profileOf(walletSnapshot).recoveryEvidence,selectedCard?.cardNumber);
   const checkout = useCheckout({
     active: activePanel === 'detail',
+    contextKey: JSON.stringify([walletSnapshot?.active, walletSnapshot?.contextGeneration ?? 0]),
     selectedCard, copyText: writeClipboardText,
     commands: {
       captureTarget: cardTarget,
-      saveBalance: (target, value) => commitWallet({ kind: "patch", action: "set-balance", ...target,
-        patch: { currentBalance: value, dateUpdated: new Date().toISOString().slice(0, 10) } }),
-      saveNotes: (target, notes) => commitWallet({ kind: "patch", action: "set-notes", ...target, patch: { notes } }),
+      isContextCurrent: target => {
+        try { assertInventoryContext(walletRef.current, target); return true; }
+        catch { return false; }
+      },
+      saveBalance: (target, value, isCurrent) => commitWallet({ kind: "patch", action: "set-balance", ...target,
+        patch: { currentBalance: value, dateUpdated: new Date().toISOString().slice(0, 10) } }, isCurrent),
+      saveNotes: (target, notes, isCurrent) => commitWallet({ kind: "patch", action: "set-notes", ...target, patch: { notes } }, isCurrent),
     },
   });
 
@@ -217,13 +224,19 @@ function App() {
     catch { return false; }
   }
 
-  async function commitWallet(command) {
+  async function commitWallet(command, feedbackIsCurrent = () => true) {
     if (!inventoryStore.current) throw new Error("Local inventory is still opening.");
     if (command.kind === "discard-batch" && recoveryReloadRequired.current) throw new Error("Reload the wallet before discarding the preserved Batch.");
     try {
       const state = await inventoryStore.current.commit({ id: operationId(), ...command });
       adoptWallet(state);
-      setTransferMutationError("");
+      // A late transaction notification may follow a newer context adoption.
+      // It must not clear errors or change feedback in that newer context.
+      if (command.profile && command.kind !== 'select-compartment') {
+        try { assertInventoryContext(walletRef.current, command); }
+        catch { return state; }
+      }
+      if (feedbackIsCurrent()) setTransferMutationError("");
       if (['patch','manual-verification','mark-zero-used','csv-recovery','apply-batch','resolve-conflict','select-compartment'].includes(command.kind)) {
         if(command.kind==='select-compartment'||profileOf(state).pending.length||profileOf(state).inFlight){
           setSyncUi({phase:'local',message:'Changes saved on this device.'});
@@ -234,7 +247,12 @@ function App() {
       return state;
     } catch (error) {
       if (command.kind === "discard-batch") recoveryReloadRequired.current = true;
-      setTransferMutationError(error.message);
+      let current = true;
+      if (command.profile) {
+        try { assertInventoryContext(walletRef.current, command); }
+        catch { current = false; }
+      }
+      if (current && feedbackIsCurrent()) setTransferMutationError(error.message);
       throw error;
     }
   }
@@ -365,6 +383,7 @@ function App() {
 
   function navigate(panel, focusId = null) {
     if (verificationSession.busy || panel === activePanel) return;
+    navigationAction.current++;
     panelScroll.current[activePanel] = window.scrollY;
     pendingPanelFocus.current = focusId;
     setActivePanel(panel);
@@ -382,10 +401,43 @@ function App() {
     if (verificationSession.busy || activePanel === 'review') return;
     if (flagged || activePanel !== 'settings' || previousPrimaryPanel !== 'review') {
       reviewReturn.current = { panel: activePanel,
+        ...(activePanel === 'detail' ? { ...inventoryContext(walletSnapshot),
+          cardIdentity: fingerprint(selectedCard?.cardNumber).catch(() => null) } : {}),
         focusId: flagged ? 'review-flagged' : activePanel === 'list' ? 'review-balances' : 'nav-review' };
     }
     if (flagged) verificationSession.startFlaggedReview();
     navigate('review');
+  }
+
+  async function exitBalanceReview() {
+    setTransferMutationError('');
+    const origin = reviewReturn.current;
+    const action = navigationAction.current;
+    if (origin.panel === 'detail') {
+      try {
+        const identity = await origin.cardIdentity;
+        const state = await readWallet();
+        const identities = await Promise.all(profileOf(state).cards.map(card => fingerprint(card.cardNumber)));
+        const index = identity ? identities.indexOf(identity) : -1;
+        const eligible = index >= 0 && calculateVisibleCards(profileOf(state).cards, preferences.current, preferences.current.sortMode).includes(index)
+          && !credentialAmbiguous(profileOf(state).recoveryEvidence, profileOf(state).cards[index].cardNumber);
+        // Hashing and IndexedDB are asynchronous. Reconfirm the exact snapshot,
+        // and never redirect a user who navigated elsewhere while Exit waited.
+        const latest = await readWallet();
+        if (action !== navigationAction.current) return;
+        adoptWallet(latest);
+        if (state.active !== origin.profile || (state.contextGeneration ?? 0) !== origin.generation
+          || latest.revision !== state.revision || walletRef.current.revision !== latest.revision || !eligible) {
+          navigate('list');
+          return;
+        }
+        setSelectedCardIndex(index);
+      } catch {
+        if (action === navigationAction.current) navigate('list');
+        return;
+      }
+    }
+    navigate(origin.panel, origin.focusId);
   }
 
   function openCheckout() {
@@ -916,7 +968,7 @@ function App() {
           ) : activePanel === 'review' ? (
             <BalanceReview session={verificationSession} cards={cards} walletSnapshot={walletSnapshot}
               readWallet={readWallet} commitWallet={commitWallet} getTransferWallet={getTransferWallet}
-              onExit={() => { setTransferMutationError(''); navigate(reviewReturn.current.panel, reviewReturn.current.focusId); }}
+              onExit={exitBalanceReview}
               copyText={writeClipboardText} maskCardNumber={maskCardNumber} />
           ) : (
             <CheckoutPanel selectedCard={selectedCard} visiblePosition={visiblePosition}
