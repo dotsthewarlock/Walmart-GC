@@ -8,7 +8,7 @@ import { TextArea } from '../../components/primitives/TextArea';
 import { isDesktopCopyTarget } from './useCheckout';
 
 export function CheckoutPanel({ selectedCard, visiblePosition, visibleCount, workflow,
-  credentialBlocked, onReviewCredentials, onPrevious: handlePrevCard, onNext: handleNextCard, onToggleUsed, onBack }) {
+  credentialBlocked, onReviewCredentials, onVerifyBalance, onPrevious: handlePrevCard, onNext: handleNextCard, onToggleUsed, onBack }) {
   const { revealNumber, setRevealNumber, isEditingNotes, newNotesValue, setNewNotesValue,
     handleCancelNotes, handleCopyCodePin, handleOpenBalanceEdit, handleOpenNotes, handleSaveNotes } = workflow;
   if(credentialBlocked)return <main className="p-4 flex flex-col gap-4">
@@ -147,6 +147,8 @@ export function CheckoutPanel({ selectedCard, visiblePosition, visibleCount, wor
               variant={selectedCard.used ? "outlined" : "primary"}
             />
           </div>
+
+          <ActionButton id="verify-balance" onClick={onVerifyBalance} label="Verify Balance" variant="outlined" />
 
           {/* Add note row */}
           <div className="p-1 flex flex-col gap-2">

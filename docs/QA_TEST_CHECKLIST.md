@@ -6,6 +6,33 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 
 ## Automated cycle
 
+P1.2 lifecycle acceptance (scope established by the Master assignment):
+
+- Selected Checkout identity resolves exactly once against saved context/generation
+  and version; changed/unchanged/zero observations use the existing Manual command.
+  Positive recovery retains used status. Cancellation performs no inventory mutation.
+- Aborted transactions retain the task/draft for retry and never return early;
+  durable success returns by identity. Reordered origins resolve correctly;
+  removed, filtered, credential-blocked or changed-context origins fall back to Cards.
+- Preserve valid general Manual progress/drafts and Batch packet/preview/correlation.
+  Context/credential changes fence tasks and copies; local persistence works offline.
+- Reproduce P0.2 retry-time inheritance after Batch advances Manual and delayed
+  clipboard denial after an unnotified saved context/credential change. Bind times
+  to workflow/card/version, retain same-observation retry time, suppress obsolete
+  fallback/feedback, and do not claim native writes can be revoked.
+- Reuse existing synthetic wallet/IndexedDB/remote fixtures. Verify mobile layout,
+  keyboard labels and return focus at 412 × 923. Native acceptance remains separate.
+
+`src/lib/verificationWorkflow.test.mjs` reproduces both residual failures against
+the released P0.2 controller, then exercises task isolation, abort/retry, retained
+session/Companion cancellation and saved origin fences. `tests/browser/p12.spec.mjs`
+uses the existing wallet fixture for observations/offline persistence, cancellation,
+general Manual/Batch continuity, identity return, stale/superseded launch ownership,
+used recovery, mobile focus and
+delayed clipboard fallback after unnotified credential/generation changes.
+Required integrated CI owns unaffected monetary/protocol/Worker/shell coverage.
+Exact candidate review, validation and release results belong in the milestone PR.
+
 P0.2 lifecycle failure acceptance (before implementation):
 
 - Changed compartment/generation clears credential-bearing selection, Manual

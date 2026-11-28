@@ -401,8 +401,10 @@ test('Checkout retains workflow drafts and selection while copy, barcode, naviga
  await page.locator('#prev-card').click();await expect(page.locator('#card-position')).toHaveText('Card 1 of 2');
  await page.screenshot({path:test.info().outputPath('checkout-mobile.png'),fullPage:true,animations:'disabled'});
  await page.setViewportSize({width:1280,height:900});await page.evaluate(()=>{window.qaFinePointer=true;});
- await page.locator('#detail-barcode-caption').click();await page.locator('#detail-barcode-pin').click();
- expect(await page.evaluate(()=>window.qaCopies)).toEqual([`${cardA.cardNumber}/${cardA.pin}`,`${cardA.cardNumber}/${cardA.pin}`]);
+ await page.locator('#detail-barcode-caption').click();
+ await expect.poll(()=>page.evaluate(()=>window.qaCopies.length)).toBe(1);
+ await page.locator('#detail-barcode-pin').click();
+ await expect.poll(()=>page.evaluate(()=>window.qaCopies)).toEqual([`${cardA.cardNumber}/${cardA.pin}`,`${cardA.cardNumber}/${cardA.pin}`]);
  await expect(page.getByText('Code/PIN copied',{exact:true})).toBeVisible();
  await page.screenshot({path:test.info().outputPath('checkout-desktop.png'),fullPage:true,animations:'disabled'});
  await expect(page.getByText(/qa@example.invalid/)).toHaveCount(0);expect(qa.errors).toEqual([]);

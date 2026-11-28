@@ -19,20 +19,20 @@ export function BalanceReview({ onExit, session, walletSnapshot, maskCardNumber 
   return (
     <main aria-labelledby="wallet-section-heading" className="bg-m3-surface text-m3-on-surface">
         <div className="mx-auto flex w-full max-w-xl justify-end px-4 sm:px-6">
-          <Button variant="text" disabled={busy} onClick={onExit}>Exit</Button>
+          <Button variant="text" disabled={busy} onClick={onExit}>{session.contextual?'Cancel verification':'Exit'}</Button>
         </div>
-      <div role="group" aria-label="Review mode" className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2 px-4 pt-4 sm:px-6">
+      {!session.contextual&&<div role="group" aria-label="Review mode" className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2 px-4 pt-4 sm:px-6">
         <Button disabled={busy} variant={mode === "manual" ? "tonal" : "outlined"} aria-pressed={mode === "manual"}
           onClick={() => setMode("manual")}>Manual</Button>
         <Button disabled={busy} variant={mode === "batch" ? "tonal" : "outlined"} aria-pressed={mode === "batch"}
           onClick={() => setMode("batch")}>Companion / Batch</Button>
-      </div>
+      </div>}
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-5 sm:px-6">
-        <VerificationSelection session={session} selectionCounts={counts} busy={busy} onSelect={()=>select()}/>
+        {session.contextual?<p className="text-sm">Verify this Checkout card. Save an observation or cancel to return.</p>:<VerificationSelection session={session} selectionCounts={counts} busy={busy} onSelect={()=>select()}/>}
         <p role="alert" className="text-sm text-m3-error">{error}</p>
         {selection&&<p className="text-sm" role="status">Working selection: {selection.queue.length} cards · {session.manual.saved} verified</p>}
         <div hidden={mode!=='manual'}>{selection&&<ManualBalanceReview key={selection.id} maskCardNumber={maskCardNumber} session={session}/>}</div>
-        <div hidden={mode!=='batch'}>
+        <div hidden={mode!=='batch'||Boolean(session.contextual)}>
           {selection&&!selection.refs&&<Button disabled={busy||selection.queue.every(entry=>session.manual.completed.includes(entry.card.cardNumber))} onClick={()=>select(true)}>Prepare selected cards</Button>}
           <BalanceTransfer walletSnapshot={walletSnapshot} maskCardNumber={maskCardNumber} session={session}/>
         </div>
@@ -113,14 +113,14 @@ function ManualBalanceReview({ maskCardNumber, session }) {
               </label>
               <Button disabled={session.busy} type="submit" onClick={(event) => {
                 if (event.detail > 1) event.preventDefault();
-              }}>Save &amp; next</Button>
+              }}>{session.contextual?'Save & return':'Save & next'}</Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button disabled={session.busy} variant="outlined" className="max-[359px]:px-2" onClick={(event) => {
                   if (event.detail < 2) saveObservation(card.currentBalance);
                 }}>Confirm unchanged</Button>
-                <Button disabled={session.busy} variant="text" onClick={(event) => {
+                {!session.contextual&&<Button disabled={session.busy} variant="text" onClick={(event) => {
                   if (!session.busy && event.detail < 2) session.skip();
-                }}>Skip</Button>
+                }}>Skip</Button>}
               </div>
               <div className="min-h-5 text-sm text-m3-error">
                 <p id="review-input-error" role="alert">{inputError}</p>

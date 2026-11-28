@@ -56,7 +56,7 @@ function getSyncChipStatus(summaryKey) {
   return 'neutral';
 }
 
-async function writeClipboardText(text, isCurrent = () => true) {
+async function writeClipboardText(text, isCurrent = () => true, validate = async () => isCurrent()) {
   if (!isCurrent()) return false;
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
     try {
@@ -67,7 +67,9 @@ async function writeClipboardText(text, isCurrent = () => true) {
     }
   }
 
-  if (!isCurrent() || typeof document === "undefined" || !document.body) {
+  let relevant=false;
+  try { relevant=await validate(); } catch { /* obsolete or unreadable saved context */ }
+  if (!relevant || !isCurrent() || typeof document === "undefined" || !document.body) {
     return false;
   }
 
@@ -117,6 +119,8 @@ function App() {
     // Starting a command supersedes any asynchronous Exit already resolving.
     if (verificationSession.busy) navigationAction.current++;
   }, [verificationSession.busy]);
+  const contextualTask = useRef(null);
+  const contextualLaunch = useRef(null);
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
@@ -189,6 +193,12 @@ function App() {
       isContextCurrent: target => {
         try { assertInventoryContext(walletRef.current, target); return true; }
         catch { return false; }
+      },
+      validateCopyTarget: async target => {
+        const saved=await readWallet();assertInventoryContext(saved,target);
+        const p=profileOf(saved),matches=p.cards.filter(card=>card.cardNumber===target.cardNumber);
+        return matches.length===1&&p.versions[target.cardNumber]===target.version
+          &&!credentialAmbiguous(p.recoveryEvidence,target.cardNumber)&&matches[0].pin===selectedCard?.pin;
       },
       saveBalance: (target, value, isCurrent) => commitWallet({ kind: "patch", action: "set-balance", ...target,
         patch: { currentBalance: value, dateUpdated: new Date().toISOString().slice(0, 10) } }, isCurrent),
@@ -395,7 +405,8 @@ function App() {
   }, [activePanel]);
 
   function navigate(panel, focusId = null) {
-    if (verificationBusy.current || panel === activePanel) return;
+    if (verificationSession.getSnapshot().busy || panel === activePanel) return;
+    if(activePanel==='review'&&verificationSession.getSnapshot().contextual)return;
     navigationAction.current++;
     panelScroll.current[activePanel] = window.scrollY;
     pendingPanelFocus.current = focusId;
@@ -423,7 +434,38 @@ function App() {
     navigate('review');
   }
 
+  async function verifyCheckoutCard() {
+    if(verificationSession.busy||!selectedCard||credentialBlocked)return;
+    const launch={};contextualLaunch.current=launch;
+    const origin={panel:'detail',...inventoryContext(walletSnapshot),
+      cardIdentity:fingerprint(selectedCard.cardNumber).catch(()=>null),focusId:'verify-balance'};
+    await verificationSession.startContextual(cardTarget(selectedCard));
+    if(contextualLaunch.current!==launch)return;
+    try { assertInventoryContext(walletRef.current,origin); } catch { return; }
+    const task=verificationSession.getSnapshot().contextual;
+    if(!task){
+      setTransferMutationError(verificationSession.getSnapshot().feedback.selectionError);
+      // A saved-context/card change can precede the cross-tab notification.
+      // Do not leave the obsolete Checkout barcode on a failed launch.
+      navigate('list');return;
+    }
+    reviewReturn.current=origin;
+    contextualTask.current=task.id;
+    navigate('review');
+  }
+
+  useEffect(()=>{
+    if(!contextualTask.current||verificationSession.busy)return;
+    if(verificationSession.contextual?.id===contextualTask.current&&!verificationSession.contextual.done)return;
+    contextualTask.current=null;
+    verificationSession.finishContextual();
+    void exitBalanceReview();
+  },[verificationSession.contextual,verificationSession.busy]);
+
   async function exitBalanceReview() {
+    if(verificationSession.getSnapshot().busy)return;
+    contextualTask.current=null;
+    verificationSession.finishContextual();
     setTransferMutationError('');
     const origin = reviewReturn.current;
     const action = navigationAction.current;
@@ -831,7 +873,7 @@ function App() {
             <IconButton
               id="open-settings"
               onClick={openSettings}
-              disabled={verificationSession.busy}
+              disabled={verificationSession.busy||Boolean(verificationSession.contextual)}
               variant={activePanel === 'settings' ? 'tonal' : 'standard'}
               size="standard"
               className="text-m3-on-primary-container"
@@ -867,7 +909,7 @@ function App() {
                 <StatusChip
                   id="checkout-feedback-btn"
                   onClick={openSettings}
-                  disabled={verificationSession.busy}
+                  disabled={verificationSession.busy||Boolean(verificationSession.contextual)}
                   size="compact"
                   status={getSyncChipStatus(summary.key)}
                   indicatorClassName={summary.key === 'checking' ? 'animate-pulse bg-amber-500' : ''}
@@ -903,7 +945,7 @@ function App() {
           <NavigationBarItem
             id="nav-list"
             onClick={() => navigate('list')}
-            disabled={verificationSession.busy}
+            disabled={verificationSession.busy||Boolean(verificationSession.contextual)}
             selected={activePanel === 'list'}
             label="Cards"
             icon={
@@ -917,7 +959,7 @@ function App() {
           <NavigationBarItem
             id="nav-detail"
             onClick={openCheckout}
-            disabled={verificationSession.busy || visibleIndexes.length === 0}
+            disabled={verificationSession.busy || Boolean(verificationSession.contextual) || visibleIndexes.length === 0}
             selected={activePanel === 'detail'}
             label="Checkout"
             icon={
@@ -928,7 +970,7 @@ function App() {
           >
           </NavigationBarItem>
           <NavigationBarItem id="nav-review" onClick={() => openBalanceReview()}
-            disabled={verificationSession.busy} selected={activePanel === 'review'}
+            disabled={verificationSession.busy||Boolean(verificationSession.contextual)} selected={activePanel === 'review'}
             label="Balance Check" icon={<ClipboardCheck className="size-6" aria-hidden="true" />} />
         </div>
       </NavigationBar>
@@ -990,7 +1032,7 @@ function App() {
               maskCardNumber={maskCardNumber} />
           ) : (
             <CheckoutPanel selectedCard={selectedCard} visiblePosition={visiblePosition}
-              credentialBlocked={credentialBlocked} onReviewCredentials={openSettings}
+              credentialBlocked={credentialBlocked} onReviewCredentials={openSettings} onVerifyBalance={verifyCheckoutCard}
               visibleCount={visibleIndexes.length} workflow={checkout}
               onPrevious={handlePrevCard} onNext={handleNextCard}
               onToggleUsed={() => handleToggleUsed(selectedCardIndex)}

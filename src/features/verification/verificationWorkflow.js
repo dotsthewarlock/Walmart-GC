@@ -12,12 +12,12 @@ const emptyFeedback=()=>({selectionError:'',inputError:'',saveError:'',copyMessa
 const scopeOf=wallet=>wallet?`${wallet.active}:${wallet.contextGeneration??0}`:null;
 class SupersededVerification extends Error {}
 const initialState=preferences=>({preferences,mode:'manual',flaggedOnly:false,selection:null,
- manual:emptyManual(),packet:'',preview:null,transfer:null,busy:false,feedback:emptyFeedback()});
+ manual:emptyManual(),packet:'',preview:null,transfer:null,contextual:null,busy:false,feedback:emptyFeedback()});
 
 // One controller per App, with no persistence authority. Views subscribe to its
 // snapshot; command lifetime and completion ownership never depend on mounting.
 export function createVerificationWorkflow(preferences){
- let state=initialState(preferences),options={},wallet=null,scope=null,epoch={},operation=null,copyAction=null,pendingObservation=null,started=false;
+ let state=initialState(preferences),options={},wallet=null,scope=null,epoch={},operation=null,copyAction=null,pendingObservation=null,retained=null,started=false;
  const listeners=new Set();
  function publish(patch){state={...state,...patch};for(const notify of listeners)notify();}
  function feedback(patch){publish({feedback:{...state.feedback,...patch}});}
@@ -32,8 +32,8 @@ export function createVerificationWorkflow(preferences){
   publish({selection:queue.length?capture(wallet,queue,requests.map(r=>r.ref)):capture(wallet,counts().selected)});
  }
  function reset(patch={}){
-  const transfer=state.transfer,send=options.sendCompanion??sendCompanion;
-  epoch={};operation=null;copyAction=null;pendingObservation=null;
+  const transfer=state.transfer??retained?.state.transfer,send=options.sendCompanion??sendCompanion;
+  epoch={};operation=null;copyAction=null;pendingObservation=null;retained=null;
   publish({...initialState(state.preferences),mode:state.mode,flaggedOnly:state.flaggedOnly,...patch});
   if(transfer)void send({type:'wallet-transfer-cancel',version:1,sessionId:transfer.sessionId}).catch(()=>{});
  }
@@ -44,6 +44,10 @@ export function createVerificationWorkflow(preferences){
   const changedCredentials=state.selection?.queue.some(({snapshot:card})=>{
    const current=eligible?.get(card.cardNumber);return !current||current.pin!==card.pin;
   });
+  if(retained?.state.selection?.queue.some(({snapshot:card})=>!eligible?.has(card.cardNumber)||eligible.get(card.cardNumber).pin!==card.pin)){
+   const transfer=retained.state.transfer;retained=null;
+   if(transfer)void (options.sendCompanion??sendCompanion)({type:'wallet-transfer-cancel',version:1,sessionId:transfer.sessionId}).catch(()=>{});
+  }
   wallet=nextWallet;
   if(scope!==nextScope||changedCredentials){scope=nextScope;reset();}
   restore();
@@ -99,13 +103,30 @@ export function createVerificationWorkflow(preferences){
  const api={
   subscribe(notify){listeners.add(notify);return()=>listeners.delete(notify);},getSnapshot:()=>state,configure,
   enter(){started=true;restore();},
+  startContextual(origin){return run('selection',async task=>{
+   const saved=await task.guard(),p=profileOf(saved);
+   assertInventoryContext(saved,origin);
+   const matches=transferEligibleCards(verificationCards(p)).filter(entry=>entry.snapshot.cardNumber===origin.cardNumber);
+   if(matches.length!==1||p.versions[origin.cardNumber]!==origin.version)throw Error('This card changed or is unavailable. Return to Cards and select it again.');
+   await task.guard();
+   retained={state:task.target.snapshot,pendingObservation};
+   operation=null;copyAction=null;pendingObservation=null;
+   publish({...initialState(state.preferences),selection:capture(saved,matches),contextual:{id:crypto.randomUUID(),done:false}});
+  });},
+  finishContextual(){
+   if(state.busy||!state.contextual)return false;
+   const prior=retained;retained=null;epoch={};copyAction=null;pendingObservation=prior?.pendingObservation??null;
+   publish(prior?{...prior.state,busy:false}:{...initialState(state.preferences)});
+   restore();return true;
+  },
   setPreferences(value){if(!state.busy)publish({preferences:typeof value==='function'?value(state.preferences):value});},
-  setMode(mode){if(!state.busy)publish({mode});},
+  setMode(mode){if(!state.busy&&!state.contextual)publish({mode});},
   setFlaggedOnly(flaggedOnly){if(!state.busy)publish({flaggedOnly});},
   setPacket(packet){if(!state.busy)publish({packet,preview:null});},
   setAmount(amount){if(!state.busy){pendingObservation=null;publish({manual:{...state.manual,amount}});feedback({inputError:''});}},
   startFlaggedReview(){started=true;reset({mode:'manual',flaggedOnly:true});restore();},
   select(prepare=false){return run('selection',async task=>{
+   if(state.contextual)return;
    const ui=task.target.snapshot,batch=ui.mode==='batch';
    const session=batch?await opened(task):null;
    const saved=session?.state??await task.guard(),p=profileOf(saved);
@@ -127,25 +148,29 @@ export function createVerificationWorkflow(preferences){
    publish({busy:false,selection:prepare?{...ui.selection,refs}:capture(saved,selected,refs),
     manual:prepare?state.manual:emptyManual(),preview:null,transfer:null,feedback:emptyFeedback()});
   });},
-  skip(){if(!state.busy)advance();},
+  skip(){if(!state.busy&&!state.contextual)advance();},
   saveObservation(value,fromInput=false){
    if(state.busy||!state.selection?.queue[state.manual.position])return;
    let verifiedBalance;try{verifiedBalance=parseVerifiedBalance(value);}catch(error){feedback({[fromInput?'inputError':'saveError']:error.message});return;}
-   if(pendingObservation?.value!==value)pendingObservation={value,checkedAt:new Date().toISOString()};
+   const selection=state.selection,card=selection.queue[state.manual.position].snapshot;
+   const observationKey=JSON.stringify([selection.id,selection.context,card.cardNumber,selection.versions[card.cardNumber],value]);
+   if(pendingObservation?.key!==observationKey)pendingObservation={key:observationKey,checkedAt:new Date().toISOString()};
    const checkedAt=pendingObservation.checkedAt;
    return run('manual',async task=>{
     const ui=task.target.snapshot,card=ui.selection.queue[ui.manual.position].snapshot;
     await task.command({kind:'manual-verification',...ui.selection.context,cardNumber:card.cardNumber,
      version:ui.selection.versions[card.cardNumber],observation:{observedBalance:verifiedBalance,checkedAt}});
     await task.guard();
-    advance({...ui.manual,saved:ui.manual.saved+1,completed:[...ui.manual.completed,card.cardNumber]});
+    if(ui.contextual){pendingObservation=null;copyAction=null;publish({contextual:{...ui.contextual,done:true}});}
+    else advance({...ui.manual,saved:ui.manual.saved+1,completed:[...ui.manual.completed,card.cardNumber]});
    });
   },
   async copy(label,value){
    const target=token(),action={};copyAction=action;feedback({copyMessage:''});
    const position=state.manual.position;
    const isCurrent=()=>current(target)&&copyAction===action&&state.manual.position===position;
-   let copied=false;try{await assertSaved(target);if(!isCurrent())return;copied=await target.options.copyText(value,isCurrent);}catch{/* report only to the originating task */}
+   const validate=async()=>{await assertSaved(target);return isCurrent();};
+   let copied=false;try{if(!await validate())return;copied=await target.options.copyText(value,isCurrent,validate);}catch{/* report only to the originating task */}
    try{await assertSaved(target);}catch(error){if(current(target)&&copyAction===action&&!(error instanceof SupersededVerification))feedback({copyMessage:`${label} copy failed. Try again.`});return;}
    if(copyAction!==action||state.manual.position!==position)return;
    feedback({copyMessage:copied?`${label} copied.`:`${label} copy failed. Try again.`});
@@ -156,7 +181,7 @@ export function createVerificationWorkflow(preferences){
    if(!ui.selection?.refs)throw Error('Prepare selected cards before copying a request.');
    const rows=transferRequestRows(session.ledger,session.previewCards,ui.selection.refs);
    await assertBatch(task,session);
-   const copied=await task.target.options.copyText(formatTransferRequest(rows),task.isCurrent);
+   const copied=await task.target.options.copyText(formatTransferRequest(rows),task.isCurrent,async()=>{await assertBatch(task,session);return task.isCurrent();});
    await task.guard();if(!copied)throw Error('Clipboard access failed. Try Copy selected cards again.');
    feedback({batchMessage:`Copied ${rows.length} requests. Paste them into the Companion.`});
   });},
@@ -210,7 +235,7 @@ export function createVerificationWorkflow(preferences){
    const ui=task.target.snapshot,queue=ui.selection?.queue??[],selected=new Set(queue.map(entry=>entry.snapshot.cardNumber));
    const completed=[...new Set([...ui.manual.completed,...accepted.map(item=>item.cardNumber).filter(number=>selected.has(number))])];
    let position=ui.manual.position;while(queue[position]&&completed.includes(queue[position].snapshot.cardNumber))position++;
-   copyAction=null;
+   copyAction=null;if(position!==ui.manual.position)pendingObservation=null;
    publish({manual:{...ui.manual,completed,saved:completed.length,position,amount:position!==ui.manual.position?'':ui.manual.amount},preview:null});
    feedback({copyMessage:'',batchMessage:`Applied ${accepted.length} locally (${fresh.counts.changed} balances changed, ${fresh.counts.unchanged} unchanged). Verification dates were recorded. ${fresh.outstanding-accepted.length} requests remain outstanding. Sheet synchronization is pending confirmation.`});
   });},

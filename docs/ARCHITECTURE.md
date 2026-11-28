@@ -451,6 +451,28 @@ requires explicit backup-aware confirmation.
 
 ## Verification and Batch continuity
 
+P1.2 Checkout Verify Balance captures the originating inventory context, generation,
+card identity and version. The existing verification controller resolves exactly
+one eligible saved card and temporarily suspends the general session in memory.
+It renders the same Manual controls and uses the same `manual-verification`
+inventory command, monetary validation and transaction boundary. No Companion or
+selection controls are offered in this task. Failure retains the task/draft for
+explicit retry; only durable success or explicit cancellation restores the general
+session and invokes the existing identity-based return. Failed entry leaves the
+obsolete Checkout safely for Cards; superseded launch completions cannot replace
+a newer task's return origin. Context or credential
+invalidation drops obsolete sensitive state before paint and resolves a safe return.
+General drafts/progress, preferences, packet/preview and transfer correlation remain
+retained when relevant; stale versions/previews still fail their existing checks.
+No parallel command owner or inventory persistence is introduced.
+
+Retained observation time is keyed by workflow, context, card, captured version and
+input. A same-observation retry keeps its time; advancing Manual through Batch
+clears it. Clipboard fallback rechecks saved context/generation, selected credential
+relevance and action ownership after native denial and before writing. Feedback
+also rechecks relevance. An already initiated native clipboard write cannot be
+revoked; only subsequent fallback writes and obsolete feedback are suppressed.
+
 P0.2 gives each App its own `features/verification/verificationWorkflow.js`
 controller, subscribed through `useVerificationSession`. It owns ephemeral state
 and reusable selection, Manual save/skip/copy, Batch prepare/export/preview/apply

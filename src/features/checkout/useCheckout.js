@@ -122,7 +122,13 @@ export function useCheckout({ active, selectedCard, contextKey, commands, copyTe
     copyAction.current = action;
     const isCurrent = () => copyAction.current === action && currentScope.current === scope
       && commands.isContextCurrent(target);
-    const copied = await copyText(formatCodePin(card));
+    const validate=async()=>isCurrent()&&await commands.validateCopyTarget(target)&&isCurrent();
+    let copied=false;
+    try {
+      if(!await validate())return false;
+      copied=await copyText(formatCodePin(card),isCurrent,validate);
+      if(!await validate())return copied;
+    } catch { return false; }
     if (!isCurrent()) return copied;
     if (copyFeedbackTimer.current) {
       clearTimeout(copyFeedbackTimer.current);
