@@ -27,7 +27,8 @@ P1.2 lifecycle acceptance (scope established by the Master assignment):
 the released P0.2 controller, then exercises task isolation, abort/retry, retained
 session/Companion cancellation and saved origin fences. `tests/browser/p12.spec.mjs`
 uses the existing wallet fixture for observations/offline persistence, cancellation,
-general Manual/Batch continuity, identity return, used recovery, mobile focus and
+general Manual/Batch continuity, identity return, stale/superseded launch ownership,
+used recovery, mobile focus and
 delayed clipboard fallback after unnotified credential/generation changes.
 Required integrated CI owns unaffected monetary/protocol/Worker/shell coverage.
 Exact candidate review, validation and release results belong in the milestone PR.

@@ -458,7 +458,9 @@ It renders the same Manual controls and uses the same `manual-verification`
 inventory command, monetary validation and transaction boundary. No Companion or
 selection controls are offered in this task. Failure retains the task/draft for
 explicit retry; only durable success or explicit cancellation restores the general
-session and invokes the existing identity-based return. Context or credential
+session and invokes the existing identity-based return. Failed entry leaves the
+obsolete Checkout safely for Cards; superseded launch completions cannot replace
+a newer task's return origin. Context or credential
 invalidation drops obsolete sensitive state before paint and resolves a safe return.
 General drafts/progress, preferences, packet/preview and transfer correlation remain
 retained when relevant; stale versions/previews still fail their existing checks.

@@ -10,7 +10,7 @@ async function editSaved(page,change){
   if(change==='reorder')p.cards.reverse();
   if(change==='remove')p.cards=p.cards.filter(card=>card.cardNumber!==number);
   if(change==='filter')p.cards.find(card=>card.cardNumber===number).used=true;
-  if(change==='pin')p.cards.find(card=>card.cardNumber===number).pin='9999';
+  if(change==='pin'){p.cards.find(card=>card.cardNumber===number).pin='9999';p.versions[number]++;}
   if(change==='generation')state.contextGeneration=(state.contextGeneration??0)+2;
   state.revision++;
   await new Promise((resolve,reject)=>{const req=indexedDB.open('walmartGc.inventory',1);req.onsuccess=()=>{
@@ -101,6 +101,44 @@ test('P1.2 positive recovery preserves used until explicit Mark Active',async({b
  await page.getByRole('button',{name:'Save & return',exact:true}).click();await expect(page.locator('#verify-balance')).toBeFocused();
  expect(active(await snapshot(page)).cards[0].used).toBe(true);expect(active(await snapshot(page)).cards[0].currentBalance).toBe(15.25);
  await page.getByRole('button',{name:'Mark Active',exact:true}).click();expect(active(await snapshot(page)).cards[0].used).toBe(false);
+ expect(qa.errors).toEqual([]);await context.close();
+});
+
+test('P1.2 stale saved origin cannot launch a task or leave an obsolete Checkout barcode',async({browser})=>{
+ for(const change of ['remove','generation','pin']){
+  const context=await browser.newContext(),qa=await setup(context,await syntheticRemote([cardA,cardB]),[]);
+  const page=await context.newPage();await start(page);qa.mock.offline=true;await checkoutA(page);
+  await editSaved(page,change);await page.locator('#verify-balance').click();
+  await expect(page.locator('#nav-list')).toHaveAttribute('aria-current','page');
+  await expect(page.locator('#wallet-section-heading')).toBeFocused();
+  await expect(page.getByRole('img',{name:'Code 128 checkout barcode'})).toHaveCount(0);
+  expect(qa.errors).toEqual([]);await context.close();
+ }
+});
+
+test('P1.2 superseded launch completion cannot replace the new task return origin',async({browser})=>{
+ const context=await browser.newContext(),qa=await setup(context,await syntheticRemote([cardA]),[cardB]);
+ await context.addInitScript(()=>{
+  const descriptor=Object.getOwnPropertyDescriptor(IDBTransaction.prototype,'oncomplete');
+  Object.defineProperty(IDBTransaction.prototype,'oncomplete',{...descriptor,set(handler){
+   descriptor.set.call(this,event=>{
+    if(this.mode==='readonly'&&sessionStorage.getItem('qa-hold-read')==='yes'){
+     sessionStorage.removeItem('qa-hold-read');window.qaFinishRead=()=>handler.call(this,event);
+    }else handler.call(this,event);
+   });
+  }});
+ });
+ const page=await context.newPage();await start(page);qa.mock.offline=true;await checkoutA(page);
+ await page.evaluate(()=>sessionStorage.setItem('qa-hold-read','yes'));await page.locator('#verify-balance').click();
+ await expect.poll(()=>page.evaluate(()=>typeof window.qaFinishRead)).toBe('function');
+ const other=await context.newPage();await start(other);await settings(other);await other.locator('#saved-inventory').selectOption('unbound');
+ await expect(page.locator('#detail-barcode-pin')).toHaveText('0084');
+ await page.locator('#verify-balance').click();await expect(page.locator('#review-card-heading')).toContainText('0084');
+ await page.getByLabel('Verified balance (CAD)').fill('45.67');
+ await page.evaluate(()=>window.qaFinishRead());
+ await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('45.67');
+ await page.getByRole('button',{name:'Cancel verification',exact:true}).click();
+ await expect(page.locator('#verify-balance')).toBeFocused();await expect(page.locator('#card-detail')).toContainText('0084');
  expect(qa.errors).toEqual([]);await context.close();
 });
 

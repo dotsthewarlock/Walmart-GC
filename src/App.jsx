@@ -120,6 +120,7 @@ function App() {
     if (verificationSession.busy) navigationAction.current++;
   }, [verificationSession.busy]);
   const contextualTask = useRef(null);
+  const contextualLaunch = useRef(null);
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
@@ -435,11 +436,19 @@ function App() {
 
   async function verifyCheckoutCard() {
     if(verificationSession.busy||!selectedCard||credentialBlocked)return;
+    const launch={};contextualLaunch.current=launch;
     const origin={panel:'detail',...inventoryContext(walletSnapshot),
       cardIdentity:fingerprint(selectedCard.cardNumber).catch(()=>null),focusId:'verify-balance'};
     await verificationSession.startContextual(cardTarget(selectedCard));
+    if(contextualLaunch.current!==launch)return;
+    try { assertInventoryContext(walletRef.current,origin); } catch { return; }
     const task=verificationSession.getSnapshot().contextual;
-    if(!task){setTransferMutationError(verificationSession.getSnapshot().feedback.selectionError);return;}
+    if(!task){
+      setTransferMutationError(verificationSession.getSnapshot().feedback.selectionError);
+      // A saved-context/card change can precede the cross-tab notification.
+      // Do not leave the obsolete Checkout barcode on a failed launch.
+      navigate('list');return;
+    }
     reviewReturn.current=origin;
     contextualTask.current=task.id;
     navigate('review');
