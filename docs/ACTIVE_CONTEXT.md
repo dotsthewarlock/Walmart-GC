@@ -4,7 +4,43 @@ Read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.md),
 [M3 decisions](M3_DESIGN_DECISIONS.md), [roadmap](ROADMAP.md) and
 [QA](QA_TEST_CHECKLIST.md). GitHub is the sole durable project authority.
 
-## P1.1 — Unified Wallet Navigation
+## P0.1 — lifecycle correction and governance consolidation
+
+Assigned by A-UX to D-UX from main
+`6527173765650b99e95024af198d3b35cc53ceff` (released P1.1). Correct Checkout
+cross-context transient state, late save/copy/timer feedback and contextual return
+identity. Preserve same-context drafts, transactional fences, R2 continuity, shared
+navigation and offline operation. No independent scroll redesign or subsequent
+feature milestone is authorized. Acceptance is defined in [QA](QA_TEST_CHECKLIST.md).
+
+Implementation, canonical governance consolidation, independent candidate review,
+required CI, commit/push/PR, protected merge, Wallet production release, hosted
+verification and safe cleanup are explicitly authorized. Preserve production
+configuration, the unaffected Worker and Companion Stable. Reuse retained
+`test-results/p01` investigation fixtures/logs; five scenarios already established
+the defects and stale-save rejection. They are evidence input, not an authority.
+
+Assignment register (the sole active register; release evidence belongs in the PR):
+
+| Assignment | Route / scope | Session / writer | State / next action |
+| --- | --- | --- | --- |
+| P0.1 | Master → A-UX (architecture/assessment) → D-UX (implementation/release) → A-UX → Master | Existing Codespace; current P0.1 session is sole writer on `fix/p01-lifecycle-governance`; prior investigation read-only | Authorized correction; independently review finalized candidate, run required CI, release and return evidence |
+
+Execution configuration: existing session, implementation/release action, inherited
+Codex model and thinking settings (exact model/effort not exposed to the session),
+workspace-write sandbox with automatic escalation review, task allowance limited
+to P0.1 and its required review/CI/release corrections. No dependency, protocol,
+schema, infrastructure, live account/merchant work or next feature allowance.
+Changing session/model/thinking does not enlarge permissions or task scope.
+
+Source limitation: `ai-first-arch-dev-cycle-handoff.md` Revision 2 was not supplied
+at an accessible local path or attachment. Its contents have not been read or
+claimed as migrated. The explicit conventions supplied in A-UX's assignment are
+adopted in [agent rules](../AGENTS.md) and [Architecture](ARCHITECTURE.md#master-and-subordinate-architecture-streams),
+preserving stronger GC Wallet safeguards. Source-dependent reconciliation remains
+blocked pending access; it does not block the authorized privacy correction.
+
+## P1.1 — released Unified Wallet Navigation
 
 Authorized from main `3366acf` ([R2 correction #257](https://github.com/dotsthewarlock/Walmart-GC/pull/257)):
 integrate Cards, Checkout and Balance Check in the shared M3 shell using existing

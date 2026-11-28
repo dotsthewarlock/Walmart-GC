@@ -33,8 +33,35 @@ and completed checks from unexecuted prerequisites. Escalate essential unavailab
 access, consequential unresolved defects and substantial scope expansion; ordinary
 authorized implementation/review/CI/release corrections continue autonomously.
 Master reconciles architectural or roadmap consequences into these same authorities
-before authorizing another milestone. This protocol records the P1.1 mandate;
-it does not claim access to an additional external handoff document.
+before authorizing another milestone.
+
+ARCH/DEV assignments are scope-gated: Master can delegate architecture/milestone
+management to a named subordinate ARCH (A-UX here); DEV (D-UX) implements and
+releases only the assigned scope. Local technical decisions remain evolutionary.
+The compact assignment register in Active Context records route, scope, writer,
+status and next action; do not create another registry. Only one DEV session may
+write the checkout/branch. Prior investigation and independent review are read-only;
+writer transfer must identify the releasing and receiving session and checkpoint.
+
+Each assignment/continuation states session, action, model, thinking, permissions
+and allowance (scope/cost/tool limits); unknown configuration stays explicitly
+unknown. Intent shortcuts inherit those boundaries: continue/resume uses the last
+checkpoint, review is read-only, and release requires existing explicit release
+authorization. A pause/stop suspends further action until resumed; interruptions
+require inspecting actual branch/files/processes/PR state before continuing.
+No shortcut, model change or continuation authorizes another milestone.
+
+Routed handoffs identify sender, recipient, action, baseline, deliverable/evidence,
+blockers and acceptance/writer disposition. A copy control copies text only;
+dispatch requires a supported authorized channel and receipt is established only
+by actual acknowledgement. Do not report delivery from a copied prompt or infer
+acceptance from dispatch. Existing chat continuation is sufficient; no runtime
+command parser or custom HTML artifact is required. Return P0.1 evidence to A-UX
+for independent assessment and onward report to Master.
+
+These conventions consolidate the explicit P0.1 assignment. The separately named
+Revision 2 handoff source is unavailable and has not been read; no source-complete
+migration claim is made. Repository safeguards and explicit user scope prevail.
 
 ## Components and ownership
 
@@ -569,20 +596,29 @@ barcode presentation, credential controls, card navigation controls, balance/use
 actions and notes UI. `CheckoutOverlays.jsx` owns the balance dialog and copy
 feedback. Existing primitives, labels, layout and barcode helpers are reused.
 
-App calls `useCheckout` unconditionally, preserving app-lifetime reveal state,
+App calls `useCheckout` unconditionally, preserving same-context app-lifetime reveal state,
 copy feedback/timer, balance/amount-used/error and notes drafts, editor visibility
 and captured edit targets through conditional Settings and Balance Check views.
 Previous/next still changes shared selection in App and explicitly resets
-Checkout reveal/edit visibility. Other navigation retains the prior lifetime.
+Checkout transient state. Ordinary same-card/context panel navigation retains the
+prior lifetime. P0.1 binds all sensitive transient state to compartment, persistent
+context generation and selected card, clearing drafts/reveal/feedback/targets
+before a changed scope paints, including switching away and back.
 The shell reads editor visibility only to suppress swipe navigation during edits.
 
 The controller receives the selected card, active Checkout visibility, the shared
-clipboard writer and three commands: `captureTarget(card)`,
-`saveBalance(target, value)` and `saveNotes(target, notes)`. Targets capture the
+clipboard writer, context identity and commands: `captureTarget(card)`, `isContextCurrent(target)`,
+`saveBalance(target, value, isCurrent)` and `saveNotes(target, notes, isCurrent)`.
+The completion predicate also fences App's save-error feedback without changing
+the transactional command or committed inventory. Targets capture the
 original inventory context/generation, card identity and version at editor open;
 saves never recapture the current selection. App constructs the existing semantic
 patches, dates and commit operations. Success closes editors only after the
-transaction resolves; failed saves retain drafts and existing error presentation.
+transaction resolves and only while the same editor instance and context remain.
+Cancel/reopen invalidates editor identity; stale completion cannot close or alter
+a newer editor. Failed current saves retain drafts and existing error presentation.
+Copy completion and its timer require the original scope and latest action identity;
+neither stale success nor stale failure changes current feedback.
 Used/active actions and advance-on-used remain App-owned shared commands.
 
 The controller owns best-effort wake-lock acquisition and cleanup while Checkout
@@ -608,8 +644,17 @@ inside the shared header, merchant total, privacy-safe sync strip and navigation
 Sync assistance opens Settings rather than initiating OAuth from a status chip.
 No feature extraction or new state store is required.
 
-App keeps only per-destination scroll offsets and contextual return panel/control
-IDs in ephemeral refs. Heading focus announces a destination; contextual return
+App keeps per-destination scroll offsets and contextual return panel/control IDs
+in ephemeral refs. A Checkout review origin also captures a SHA-256 card identity
+digest and exact compartment/generation. Exit reads IndexedDB and resolves that
+card in the current eligible collection, resolves its index/eligibility against
+the latest saved snapshot after hashing and abandons late navigation if the user
+has changed destination or started a verification command;
+revision changes retry resolution at most three times, then return safely to
+Cards under continuous inventory activity rather than waiting indefinitely;
+missing/filtered/credential-blocked or changed-context origins fall back to Cards
+with heading focus, never another card's barcode. Reordering preserves identity.
+No credentials are stored in these refs. Heading focus announces a destination; contextual return
 restores the invoking control with a heading fallback and restores scroll without
 focus scrolling. Settings opened inside Balance Check does not replace its return
 origin. Ordinary entry preserves the R2 session; explicit Settings flagged entry
@@ -618,7 +663,7 @@ shell exits until the existing command completes, preserving R2 transaction orde
 
 Settings, Checkout and verification controllers retain their App lifetime and
 captured targets/context fences. Checkout wake lock and overlays are active only
-on Checkout; notes/reveal/drafts survive navigation. Verification heading focus
+on Checkout; notes/reveal/drafts survive same-card/context navigation. Verification heading focus
 does not override restored scroll. Navigation neither writes inventory nor starts
 checks, transport or result application. The existing generation-change reset,
 saved Batch ledger and offline shell remain authoritative. No schema/protocol,

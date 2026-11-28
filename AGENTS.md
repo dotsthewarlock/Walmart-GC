@@ -10,6 +10,19 @@ Project sources and chat are migration input, not parallel ongoing authorities.
 The Master/subordinate architecture-stream handoff is defined in
 [Architecture](docs/ARCHITECTURE.md#master-and-subordinate-architecture-streams).
 Technical release closure and native user acceptance are separate dispositions.
+ARCH frames scope and independently assesses; DEV implements and verifies only
+that scope. Delegation requires an explicit assignment and may not expand scope.
+One named DEV session owns writes; investigations/reviewers are read-only unless
+writer authority is explicitly transferred. Keep the compact active assignment
+register in Active Context, not a parallel registry. Route handoffs to the named
+recipient with sender, action, baseline, scope, evidence and remaining disposition.
+Intent shortcuts (resume, continue, review, release) inherit the current assignment
+and its permissions; they never authorize the next milestone. Copying a handoff
+is not dispatch, and dispatch is not receipt or acceptance. Record confirmed
+receipt separately when available. Continuations reuse the existing checkpoint;
+pause/stop instructions govern further action and resume restores only authorized
+scope. State session/action/model/thinking/permissions/allowance configuration in
+the assignment; mark unavailable settings unknown instead of inventing values.
 Do not claim migration coverage for source documents that were not actually read.
 Verify essential external source access before expensive implementation; distinguish
 sources actually read from another reviewer's reported ZIP or provenance checks.

@@ -30,7 +30,19 @@ corrective release is compatible with the one-PR efficiency preference.
 
 Independent review and required CI precede the user-authorized protected merge, Wallet release and Dev Companion publication. Verify public shell digests, descriptor revision, both artifact hashes and inert transport compatibility. Preserve infrastructure/configuration and leave an unaffected Worker deployed. No Stable promotion, standalone A4, schema change, runtime dependency, background merchant execution, automatic retry or challenge bypass.
 
-## P1.1 — Unified Wallet Navigation (authorized)
+## P0.1 — authorized lifecycle correction
+
+From released P1.1 main `6527173765650b99e95024af198d3b35cc53ceff`, correct
+cross-context Checkout drafts/reveal, late save/clipboard/timer completion and
+contextual return identity. Consolidate explicitly supplied ARCH/DEV governance
+into existing authorities; the separately named Revision 2 source remains unread
+unless accessible. Preserve transactional fences, same-context drafts, R2,
+offline operation, production configuration, unaffected Worker and Companion Stable.
+Independent review, required CI, protected merge, production release, hosted
+verification and safe cleanup are authorized. Native acceptance and A-UX/Master
+assessment remain separate. No subsequent feature milestone is authorized.
+
+## P1.1 — Unified Wallet Navigation (released)
 
 From main `3366acf`, integrate Cards, Checkout and Balance Check into one existing
 M3 application shell. Preserve domain/state ownership, shared totals/private sync

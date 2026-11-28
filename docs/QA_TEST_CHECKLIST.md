@@ -6,6 +6,27 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 
 ## Automated cycle
 
+P0.1 lifecycle correction acceptance (before implementation validation):
+
+- Changing compartment or persistent context generation, including away and back,
+  clears Checkout notes/balance/amount-used/error drafts, captured editor targets,
+  credential reveal and copy feedback before the new context paints. A different
+  selected card also resets this state; ordinary same-context destination changes
+  preserve drafts and explicit reveal.
+- Held save success/failure cannot close or alter a newer editor after context,
+  card, cancel or reopen changes. Clipboard completion and feedback timers affect
+  only their originating scope and latest copy action. Durable saves still wait
+  for transaction completion and reject stale context/revisions.
+- Balance Check Exit restores the exact originating Checkout card only within
+  its original compartment/generation and current eligible collection, without
+  credential ambiguity. Missing, filtered or changed-context origins return to
+  Cards with heading focus and no substitute barcode. Reordering alone preserves
+  identity. Existing R2 session, offline commands and navigation remain intact.
+
+Convert the retained P0.1 investigation probes into durable synthetic regressions;
+do not repeat the five-scenario investigation or add independent scroll redesign.
+Required integrated CI retains unchanged protocol/Worker/Companion coverage.
+
 P1.1 lifecycle failure acceptance (defined before implementation):
 
 - Cards, Checkout and Balance Check share one accessible M3 shell, merchant total,
