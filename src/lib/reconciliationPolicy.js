@@ -1,5 +1,6 @@
 import { compactEvidence } from './syncEvidence.js';
 import { createBalanceReviewQueue } from './balanceReview.js';
+import { applicableZeroProof } from './zeroObservation.js';
 
 // Record-level defaults shared by the local authority and the Worker. These
 // fields cannot move money or select credentials. Notes retain distinct lines.
@@ -73,6 +74,7 @@ export function repairRecovery(cards, evidence, now = new Date().toISOString(), 
       entry.uncertainSince = [entry.uncertainSince,...money.map(c=>c.at),...verification.map(c=>c.at)].filter(Boolean).sort().at(-1) || now;
     }
     if (card && entry.uncertainSince) card.pendingReconciliation = true;
+    if (!applicableZeroProof(card,entry,operations)) delete entry.zeroObservation;
     if (card?.used !== true && card) card.dateUsed = '';
   }
   return {cards:result,evidence:compactEvidence(next)};

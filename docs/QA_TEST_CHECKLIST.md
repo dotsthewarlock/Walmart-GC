@@ -6,6 +6,33 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 
 ## Automated cycle
 
+P2.0 failure acceptance (defined before implementation):
+
+- Recorded/estimated zero after a prior positive check is unconfirmed. Only an
+  accepted applicable zero observation creates revision-bound protected evidence;
+  notes and used-state edits preserve it, monetary/credential changes, uncertainty,
+  recovery and affected maintenance invalidate it. Missing/invalid proof degrades
+  to unconfirmed. Encoding/compaction, older writers, stale clients, replay and
+  rollback cannot manufacture confirmation. CSV backup carries history, not proof.
+- Pending zero observations survive transaction completion, reload and compatible
+  acknowledgment of earlier work. Abort preserves cards, evidence, outbox and
+  drafts; interrupted/replayed operations do not advance twice. Account isolation,
+  offline Manual/Batch work and R1/R2/P0.1 fences remain intact.
+- Shared selection exposes reconciliation, 120-day refund watch, final checks due
+  at day 120 (30-day priority grace, with missed checks still eligible afterwards),
+  and explicit bounded historical recovery. Valid dateUsed only; no invented date
+  or final completion. Freshness defaults to 60 days with 30/60/90 choices.
+  Lifecycle/historical queues default to 20 and never exceed 50, including large
+  histories. Uncertainty bypasses age/freshness while retaining credential fences.
+- Positive recovery saves through existing verification commands without a refund
+  cap or invented transaction. Used remains independent until explicit Mark Active.
+  Changing selection preferences requires explicit reselection and retains working
+  drafts/progress. No automatic merchant calls; hosted checks use synthetic data.
+
+Worker/frontend ordering and compatible rollback must be established before
+release. Independent candidate review and required integrated CI precede merge;
+technical closure is separate from native acceptance.
+
 P0.1 lifecycle correction acceptance (before implementation validation):
 
 - Changing compartment or persistent context generation, including away and back,

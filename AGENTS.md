@@ -24,6 +24,15 @@ pause/stop instructions govern further action and resume restores only authorize
 scope. State session/action/model/thinking/permissions/allowance configuration in
 the assignment; mark unavailable settings unknown instead of inventing values.
 Do not claim migration coverage for source documents that were not actually read.
+Standalone disc/eval/stat is read-only; imp/go executes only authorized scope;
+send prepares a routed handoff, not dispatch; hold retains the reservation; rule
+consolidates governance; done verifies closure. Assignment states are AUTHORIZED,
+PAUSED, RETURNED, CLOSED and DORMANT. Recipient gates confirm expected/actual HEAD,
+clean or explicitly retained work and sole writer. Integration is expected-head,
+non-force; closure includes explicit writer handback. Routed editable context may
+be copied together, with optional copy confirmation and manual dispatch
+confirmation; actual receipt remains separate. Payload edits reset local transfer
+flags. State required/optional/deferred actions and existing/new session explicitly.
 Verify essential external source access before expensive implementation; distinguish
 sources actually read from another reviewer's reported ZIP or provenance checks.
 

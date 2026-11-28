@@ -148,7 +148,7 @@ export function BalanceTransfer({ cards, copyText, maskCardNumber, getTransferWa
     if (!session.ledger) throw new Error("There is no saved request for these results. Create a new batch.");
     if (session.ledger.application) throw new Error("Resolve the interrupted application first.");
     const now = Date.now();
-    return { ...previewTransferResults(session.ledger, session.previewCards, results, now,session.profile.recoveryEvidence),
+    return { ...previewTransferResults(session.ledger, session.previewCards, results, now,session.profile.recoveryEvidence,session.profile.pending),
       context: inventoryContext(session.state), results, now, ledgerRaw: JSON.stringify(session.ledger), inventoryRaw: session.inventoryRaw };
   }
 

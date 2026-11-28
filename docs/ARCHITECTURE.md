@@ -56,10 +56,23 @@ blockers and acceptance/writer disposition. A copy control copies text only;
 dispatch requires a supported authorized channel and receipt is established only
 by actual acknowledgement. Do not report delivery from a copied prompt or infer
 acceptance from dispatch. Existing chat continuation is sufficient; no runtime
-command parser or custom HTML artifact is required. Return P0.1 evidence to A-UX
+command parser or custom HTML artifact is required. Return milestone evidence to A-UX
 for independent assessment and onward report to Master.
 
-These conventions consolidate the explicit P0.1 assignment. The separately named
+Standalone disc/eval/stat is read-only. imp/go executes authorized work; send
+prepares the routed handoff without dispatch; hold retains the reservation; rule
+consolidates governance; done verifies closure. Assignment states are AUTHORIZED,
+PAUSED, RETURNED, CLOSED and DORMANT. Recipient gates record expected/actual HEAD,
+clean or explicitly retained work, source/contract access and sole writer.
+Integration uses an expected candidate HEAD and never force-updates protected refs.
+Writer handback is explicit. Both directions carry editable context with combined
+copying, optional copy confirmation, manual dispatch confirmation and actual
+recipient receipt as separate facts. Editing a payload resets local copy/dispatch/
+receipt flags. Each action is required, optional or deferred and states existing
+or new session, model, thinking, permissions and allowance. These are operating
+conventions, not a product command parser or a new registry.
+
+These conventions consolidate the explicit P0.1 and P2.0 assignments. The separately named
 Revision 2 handoff source is unavailable and has not been read; no source-complete
 migration claim is made. Repository safeguards and explicit user scope prevail.
 
@@ -250,6 +263,74 @@ Legacy single-cell evidence remains readable. An older Worker rejects the new
 manifest rather than ignoring evidence; rollback must use a compatible build.
 The 4,864,000-byte encoded capacity is a final recovery bound, not an ordinary
 card-count ceiling. Exhaustion preserves pending work and requires private recovery.
+
+## P2.0 spent-card zero evidence and lifecycle selection
+
+Used state remains independent of balance, verification and refund recovery.
+An estimated or recorded zero, even with retained positive verification history,
+is unconfirmed. The sole optional protected per-card `zeroObservation` is
+`{checkedAt, money}`: a canonical precise accepted zero observation and the
+acknowledged monetary revision. Local pending proof additionally names its exact
+`operationId`; it applies only while that accepted zero operation is the latest
+pending monetary action, with matching current credentials, value and timestamp
+and no reconciliation requirement. It survives transaction completion/reload and
+compatible earlier acknowledgments; the server replaces it with acknowledged
+proof. No Cards/CSV columns, separate inventory authority or refund ledger.
+
+Only applicable accepted Manual/Batch observations establish proof. Money changes,
+credential/merchant changes, uncertainty, affected maintenance, tombstones and
+recovery invalidate inapplicable proof; notes and independent used changes preserve
+it. Readers validate shape, timestamp/date, revision, zero value, uncertainty,
+unresolved conflicts and pending identity. Missing/invalid evidence degrades to
+unconfirmed; it never derives from dateUpdated, used or retained check dates.
+Proof packs into the existing bounded evidence representation and compacts with
+ordinary entries. CSV restores history without creating proof; recovery JSON
+preserves original bytes/evidence as recovery input, never automatic authority.
+
+New local monetary operations without observations carry canonical `performedAt`
+inside the existing semantic pending operation. Reconciliation validates canonical
+time and the existing 60-second future tolerance, retaining the maximum previous
+monetary applicability time. Genuine verification uses its observation time;
+legacy/malformed operation times retain the conservative commit-time fence.
+An unknown earlier action time in a legacy mixed-operation flight cannot establish
+zero proof. Pending action times fence local Manual acceptance and Batch preview/
+application as well as shared reconciliation; proof cannot predate moneyAt.
+Uncertainty/conflicts and maintenance retain their existing fences. This additive
+operation detail prevents transport latency from invalidating a later accepted
+local observation after an earlier action's ACK. Stale baselines/revision changes
+and operation receipts still govern applicability and replay. Local evidence is
+cloned independently of hashed baselines, including saved profiles from older builds.
+
+Deploy the compatible Worker before publishing the P2.0 frontend. The new Worker
+accepts older v1 clients and establishes proof only from applicable observations;
+old set-balance operations increment the revision and cannot reuse proof. An older
+frontend continues ordinary verification without interpreting proof. A P2.0
+frontend paired with an older Worker can lose confirmation conservatively; this
+is not the supported publication order. Once evidence exists, Worker rollback
+must retain P2.0 reconciliation/invalidation (a compatible corrective build), never
+roll back to a proof-unaware writer. Frontend rollback is compatible while keeping
+that Worker. No protocol/version, schema, binding, activation or privacy changes.
+
+Shared selection offers general verification, spent reconciliation (used cards
+without applicable zero), recent refund watch, final checks and historical sweeps.
+Use only valid nonfuture dateUsed. Watch covers age <120 days; freshness defaults
+to 60 days with 30/60/90 choices. Final checks are due at age >=120 until an
+applicable zero at/after the anniversary; age 120–149 has priority, and missed
+checks remain eligible indefinitely. Historical sweeps explicitly recover used
+cards with missing/invalid dates or age >=120, subject to chosen freshness.
+Zero without proof is never treated as fresh. Positive verification history can
+order work but never completes a zero final check. Lifecycle selection defaults
+to 20, caps at 50, and orders uncertainty, priority due work, other due work,
+never applicable checked, oldest applicable checked, then identity. Uncertainty
+bypasses age/freshness and used-state scope but retains credential/account fences.
+Historical growth cannot enlarge a routine working selection. The watch horizon
+is a workload heuristic, never refund eligibility. Cards remain indefinitely.
+
+Positive observations (including above starting balance) use existing commands,
+preserve used status and require explicit Mark Active. No automatic reactivation,
+refund cap, invented transaction, scheduler, retries or live merchant execution.
+Explicit reselection and existing R2 drafts/progress, transactional fences,
+account isolation, offline continuity and P0.1 lifecycle safeguards remain.
 
 ## Maintenance and direct edits
 

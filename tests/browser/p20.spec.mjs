@@ -1,0 +1,50 @@
+import {test,expect} from '@playwright/test';
+import {syntheticRemote,cardA} from '../syncFixtures.mjs';
+import {setup,start,snapshot,active,cards} from './walletFixture.mjs';
+
+test('P2.0 shared bounded selection retains drafts offline and saves refund/zero only after transaction completion',async({browser})=>{
+  const today=new Date().toISOString().slice(0,10);
+  const seed=Array.from({length:60},(_,i)=>({...cardA,cardNumber:'630000'+String(i).padStart(10,'0'),used:true,
+    currentBalance:0,dateUsed:i<30?today:'',lastBalanceChecked:'2026-01-01',lastBalanceCheckedAt:'2026-01-01T00:00:00.000Z'}));
+  seed.push({...cardA,pendingReconciliation:true,lastBalanceChecked:today,lastBalanceCheckedAt:new Date().toISOString()});
+  const context=await browser.newContext({viewport:{width:412,height:923}});
+  const remote=await syntheticRemote(seed),qa=await setup(context,remote,[]);
+  const page=await context.newPage();await start(page);qa.mock.offline=true;
+  await page.locator('#nav-review').click();
+  await page.getByLabel('Verification purpose').selectOption('reconcile');
+  await expect(page.getByText('· 61 matching')).toBeVisible();
+  await page.getByRole('button',{name:'Select cards (20)',exact:true}).click();
+  await page.getByLabel('Verified balance (CAD)').fill('150');
+  await page.getByLabel('Verification purpose').selectOption('watch');
+  await expect(page.getByText('· 31 matching')).toBeVisible();
+  await expect(page.getByLabel('Check freshness')).toHaveValue('60');
+  await page.getByRole('button',{name:'Companion / Batch',exact:true}).click();
+  await page.getByRole('button',{name:'Manual',exact:true}).click();
+  await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('150');
+  const before=active(await snapshot(page));
+  await page.evaluate(()=>sessionStorage.setItem('qa-fail','yes'));
+  await page.getByRole('button',{name:'Save & next',exact:true}).click();
+  await expect(page.getByText('QA transaction failure',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Verified balance (CAD)')).toHaveValue('150');
+  expect(active(await snapshot(page)).cards).toEqual(before.cards);
+  await page.getByRole('button',{name:'Save & next',exact:true}).click();
+  await expect.poll(async()=>active(await snapshot(page)).cards.find(card=>card.cardNumber===cardA.cardNumber)?.currentBalance).toBe(150);
+  // Flagged card remains active; the next used card recovers positive without reactivation.
+  await page.getByLabel('Verified balance (CAD)').fill('150');
+  await page.getByRole('button',{name:'Save & next',exact:true}).click();
+  await expect.poll(async()=>active(await snapshot(page)).cards.filter(card=>card.used&&card.currentBalance===150).length).toBe(1);
+  await page.getByLabel('Verified balance (CAD)').fill('0');
+  await page.getByRole('button',{name:'Save & next',exact:true}).click();
+  await expect.poll(async()=>Object.values(active(await snapshot(page)).recoveryEvidence.cards).filter(entry=>entry.zeroObservation).length).toBe(1);
+  await page.getByLabel('Verification purpose').selectOption('historical');
+  await expect(page.getByRole('button',{name:'Select cards (20)',exact:true})).toBeVisible();
+  await page.getByRole('group',{name:/Quantity/}).getByText('50',{exact:true}).click();
+  await expect(page.getByRole('button',{name:'Select cards (30)',exact:true})).toBeVisible();
+  await page.screenshot({path:'test-results/p20/selection-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:'test-results/p20/selection-desktop.png',fullPage:true});
+  await cards(page);await page.locator('#nav-review').click();
+  await expect(page.getByText(/Working selection: 20 cards · 3 verified/)).toBeVisible();
+  expect(qa.blocked.filter(url=>!url.startsWith('https://fonts.googleapis.com/'))).toEqual([]);
+  expect(qa.errors).toEqual([]);await context.close();
+});

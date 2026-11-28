@@ -30,7 +30,33 @@ corrective release is compatible with the one-PR efficiency preference.
 
 Independent review and required CI precede the user-authorized protected merge, Wallet release and Dev Companion publication. Verify public shell digests, descriptor revision, both artifact hashes and inert transport compatibility. Preserve infrastructure/configuration and leave an unaffected Worker deployed. No Stable promotion, standalone A4, schema change, runtime dependency, background merchant execution, automatic retry or challenge bypass.
 
-## P0.1 — authorized lifecycle correction
+## P2.0 — authorized spent reconciliation and refund recovery
+
+From main `ddf8236760de7c25b7410561d2338e6bee83f064`, extend existing shared
+Manual/Companion selection with used-card reconciliation, 120-day refund watch,
+day-120 final checks (30-day priority grace, missed checks never expire), and
+bounded historical/missing-date sweeps. Preserve general verification, independent
+used state and retained inventory. Optional revision-bound zero proof lives only
+in protected evidence; CSV/recorded zeros never imply confirmation. Freshness
+defaults to 60 days with 30/60/90 choices; routine/historical quantities default
+to 20 and cap at 50. Recover positives through existing commands, explicitly
+Mark Active, never create refund transactions or caps. Watch is a workload
+heuristic, not refund eligibility. See Architecture/M3/QA for integrated contracts.
+
+Implementation, compatibility validation, independent review, required CI,
+commit/push/PR, normal protected merge, Wallet publication, necessary affected
+Worker deployment, hosted synthetic verification and cleanup are authorized.
+Deploy compatible Worker first; preserve its proof handling on rollback. Preserve
+production bindings, unpaused activation, privacy and Companion Stable. No new
+infrastructure/runtime dependency, scheduler, automatic checking/retries, separate
+archive, merchant policy/accounting system, single-card enhancements, Checkout Undo,
+standalone A4, unrelated refactoring or next feature milestone. Return to A-UX;
+native acceptance remains separate from technical release closure.
+
+## P0.1 — released lifecycle correction
+
+Released at `ddf8236760de7c25b7410561d2338e6bee83f064` in
+[PR #259](https://github.com/dotsthewarlock/Walmart-GC/pull/259).
 
 From released P1.1 main `6527173765650b99e95024af198d3b35cc53ceff`, correct
 cross-context Checkout drafts/reveal, late save/clipboard/timer completion and

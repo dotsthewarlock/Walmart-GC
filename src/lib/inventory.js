@@ -7,6 +7,7 @@ import { decodeTransferLedger, invalidatedLedger } from './balanceTransferLedger
 import { storageKeys } from './storage.js';
 import { isolateBatch, pruneObservationReceipts, credentialAmbiguous, verificationCards, planInventoryRecovery } from './inventoryRecovery.js';
 import { repairRecovery, retireVerificationEvidence, flaggedConflict } from './reconciliationPolicy.js';
+import { recordZeroObservation, applicableZeroProof, pendingMonetaryTime } from './zeroObservation.js';
 
 export const inventoryDatabase = 'walmartGc.inventory';
 const stale = 'Saved cards changed. Reload the wallet or reopen this editor before saving.';
@@ -123,10 +124,15 @@ function record(profile, op, before, after) {
   const position = profile.cards.findIndex(c => c.cardNumber === number);
   if (position < 0) profile.cards.push(after);
   else profile.cards[position] = after;
+  if (isMonetaryOperation({...op,before,after}) || before?.pin !== after?.pin
+    || before?.merchant !== after?.merchant || before?.merchantInferred !== after?.merchantInferred
+    || before?.lastBalanceCheckedAt !== after?.lastBalanceCheckedAt || after?.pendingReconciliation === true)
+    delete (profile.recoveryEvidence.cards[number] ?? {}).zeroObservation;
   if(before&&after&&(before.pin!==after.pin||(op.kind!=='batch-verification'&&before.lastBalanceCheckedAt!==after.lastBalanceCheckedAt))&&profile.ledger)
     for(const request of profile.ledger.requests)if(request.cardNumber===number&&request.state==='pending')request.state='invalidated';
   profile.pending.push({ id: op.id, kind: op.kind, cardNumber: number, before, after,
-    revision, ...(op.observation ? { observation: op.observation } : {}), ...(op.kind === 'resolve-conflict' ? {conflictId:op.conflictId,choice:op.choice}: {}) });
+    revision, ...(isMonetaryOperation({...op,before,after}) && !op.observation ? {performedAt:new Date().toISOString()} : {}),
+    ...(op.observation ? { observation: op.observation } : {}), ...(op.kind === 'resolve-conflict' ? {conflictId:op.conflictId,choice:op.choice}: {}) });
 }
 
 // Pure reducer: the native adapter invokes it only after reading inside the
@@ -135,6 +141,9 @@ export function reduceInventory(input, command, commandHash) {
   if (input.schema !== 1) throw new Error('Unsupported local inventory schema.');
   const state = structuredClone(input);
   const profile = profileOf(state);
+  // Saved older profiles can share their evidence object with remoteBase.
+  // Local proof retirement/creation must never mutate the hashed sync baseline.
+  profile.recoveryEvidence = structuredClone(profile.recoveryEvidence);
   isolateBatch(state, profile);
   if (!command.id || !command.profile) throw new Error('Missing operation identity or context.');
   const digest = commandHash ?? JSON.stringify(command);
@@ -241,6 +250,7 @@ export function reduceInventory(input, command, commandHash) {
     if(command.kind==='sync-pull'&&syncEqual(profile.remoteBase,remote)&&syncEqual(profile.cards,remote.cards)&&syncEqual(profile.recoveryEvidence,remote.evidence)&&profile.sync?.status==='connected'&&profile.sheets?.status==='ready'&&(!profile.ledger||profile.ledger.context.sheetVersion===remote.version))return input;
     const local=command.kind==='sync-ack'?materialize(remote.cards,profile.pending):profile.cards;
     if(command.kind==='sync-ack')for(const card of profile.cards)if(!local.some(c=>c.cardNumber===card.cardNumber)&&!remote.evidence.tombstones[card.cardNumber])local.push(card);
+    const pendingProofs = profile.cards.map(card => [card.cardNumber,applicableZeroProof(card,profile.recoveryEvidence.cards[card.cardNumber],profile.pending)]);
     const merged=reconcile({base,local,remote:remote.cards,operations:profile.pending,
       baseEvidence:command.kind==='sync-ack'?remote.evidence:profile.remoteBase?.evidence,evidence:remote.evidence});
     // A restored row must have durable semantic intent; otherwise the next ACK
@@ -250,6 +260,15 @@ export function reduceInventory(input, command, commandHash) {
         before:profile.remoteBase?.cards.find(c=>c.cardNumber===card.cardNumber)??card,after:card,revision:profile.revision+1});
     }
     for(const op of profile.pending.filter(op=>op.requiresReconciliation)) {const card=merged.cards.find(c=>c.cardNumber===op.cardNumber);if(card)card.pendingReconciliation=true;}
+    // An ACK of earlier work must not discard a later accepted local observation.
+    // Only its exact still-pending operation in a compatible monetary context survives.
+    for (const [number,proof] of pendingProofs) if (proof?.operationId) {
+      const card = merged.cards.find(card => card.cardNumber === number), entry = merged.evidence.cards[number];
+      if (card && entry && profile.pending.some(op => op.id === proof.operationId && !op.requiresReconciliation)) {
+        entry.zeroObservation = {...proof,money:entry.money};
+        if (!applicableZeroProof(card,entry,profile.pending)) delete entry.zeroObservation;
+      }
+    }
     for(const card of merged.cards) {
       const previous=profile.cards.find(c=>c.cardNumber===card.cardNumber);
       if(previous&&(previous.pin!==card.pin||previous.lastBalanceCheckedAt!==card.lastBalanceCheckedAt)&&profile.ledger)
@@ -341,7 +360,7 @@ export function reduceInventory(input, command, commandHash) {
     let after;
     if (command.kind === 'manual-verification') {
       const evidence=profile.recoveryEvidence?.cards?.[command.cardNumber],time=command.observation?.checkedAt;
-      if(time<(evidence?.uncertainSince||'')||time<(evidence?.moneyAt||'')||time<(maintenanceRevision(profile.recoveryEvidence,command.cardNumber)||'')
+      if(time<(evidence?.uncertainSince||'')||time<(evidence?.moneyAt||'')||time<pendingMonetaryTime(profile.pending,command.cardNumber)||time<(maintenanceRevision(profile.recoveryEvidence,command.cardNumber)||'')
         ||Date.parse(time)>Date.now()+60_000)throw new Error('Verify this card again after its latest monetary change or uncertainty.');
       const entry = createBalanceReviewQueue(profile.cards).find(e => e.card.cardNumber === command.cardNumber);
       after = applyBalanceObservation(profile.cards, { ...command.observation, cardNumber: command.cardNumber, expected: entry })
@@ -354,7 +373,10 @@ export function reduceInventory(input, command, commandHash) {
       if(syncEqual(before,after))return input;
     }
     record(profile, { ...command, kind: command.action ?? command.kind }, before, after);
-    if(command.kind==='manual-verification')retireVerificationEvidence(profile.recoveryEvidence?.cards?.[command.cardNumber]);
+    if(command.kind==='manual-verification') {
+      retireVerificationEvidence(profile.recoveryEvidence?.cards?.[command.cardNumber]);
+      recordZeroObservation(profile,command,after);
+    }
   } else if (command.kind === 'mark-zero-used') {
     editable(profile);
     for (const target of command.targets) {
@@ -445,7 +467,7 @@ export function reduceInventory(input, command, commandHash) {
     editable(profile);
     if(profile.ledgerRecovery)throw new Error('Discard the preserved damaged Batch before applying results.');
     if (command.ledgerId !== profile.ledger?.id) throw new Error(stale);
-    const result = previewTransferResults(profile.ledger, verificationCards(profile), command.observations, command.now,profile.recoveryEvidence);
+    const result = previewTransferResults(profile.ledger, verificationCards(profile), command.observations, command.now,profile.recoveryEvidence,profile.pending);
     if (!equal(result.items, command.items)) throw new Error('Batch preview changed. Preview again.');
     if (!result.counts.accepted) return input;
     for (const item of result.items.filter(i => i.outcome === 'accepted')) {
@@ -455,6 +477,7 @@ export function reduceInventory(input, command, commandHash) {
       record(profile, { id: `observation:${item.ref}`, kind: 'batch-verification', observation: { ref: item.ref,
         balance: item.balance, checkedAt: item.checkedAt } }, before, after);
       retireVerificationEvidence(profile.recoveryEvidence?.cards?.[item.cardNumber]);
+      recordZeroObservation(profile,{id:`observation:${item.ref}`,observation:{checkedAt:item.checkedAt}},after);
       const request = profile.ledger.requests.find(r => r.ref === item.ref);
       request.state = 'applied';
       request.applied = { ref: item.ref, balance: item.balance, checkedAt: item.checkedAt };
