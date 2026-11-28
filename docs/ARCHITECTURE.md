@@ -451,6 +451,34 @@ requires explicit backup-aware confirmation.
 
 ## Verification and Batch continuity
 
+P0.2 gives each App its own `features/verification/verificationWorkflow.js`
+controller, subscribed through `useVerificationSession`. It owns ephemeral state
+and reusable selection, Manual save/skip/copy, Batch prepare/export/preview/apply
+and explicit Companion commands. Views render snapshots and own only focus/scroll
+effects. This is no global store or second persistence authority: IndexedDB,
+inventory commands, saved Batch ledger and protected synchronization remain intact.
+
+The controller accepts the current wallet snapshot, saved-wallet reader,
+transactional commit, transfer-availability guard and explicit clipboard/transport
+writers. Commands capture compartment/generation, workflow selection identity,
+operation identity and their inputs. Saved context is checked across asynchronous
+boundaries, including notifications that lag away/back generation changes.
+Only the owning command can publish progress, preview, correlation, feedback or
+release busy state. Superseded completions leave legitimately committed operations
+durable without changing newer UI state; abort retains valid drafts/previews and
+recovery evidence. No automatic merchant execution/retry or credential persistence
+is introduced. P2.0 zero proof, performedAt and proof-aware Worker rollback remain.
+
+The hook resets sensitive transient state and command ownership in a layout
+effect before changed context/credentials paint. Missing/ambiguous or edited
+selected credentials invalidate the working workflow, including pending copies;
+commands also validate saved credentials before export. Same-context view mounting,
+navigation and mode changes preserve drafts/progress. Explicit reselection and
+flagged entry replace the workflow; preparing remaining cards preserves Manual
+draft/progress. Old transfer cancellation is best effort and never clears a newer
+correlation. Failures remain local to their originating command; optional damaged
+Batch state still cannot block Manual selection.
+
 R2 keeps shared verification UI state at App lifetime in
 `features/verification/useVerificationSession.js`. Manual and Companion / Batch
 use `selectTransferCards` and `VerificationSelection` for scope, status, balance,
@@ -760,7 +788,7 @@ Worker, Companion source, infrastructure or dependency changes are included.
 | `src/features/settings/SettingsPanel.jsx`, `useSettings.js` | Settings view, shared preferences and app-lifetime Settings drafts/disclosure. |
 | `src/lib/cards.js` | Existing shared filtering, sorting, totals and card helpers. |
 | `src/lib/inventory.js`, `syncEngine.js` | Existing transactional inventory and synchronization authorities. |
-| `src/features/verification/useVerificationSession.js` | App-lifetime shared selection, filters/mode, Manual draft/progress, result draft/preview and ephemeral transfer correlation; clears/fences on inventory context change, refreshes explicit flagged entry. No second inventory authority. |
+| `src/features/verification/useVerificationSession.js`, `verificationWorkflow.js` | App-lifetime subscription and reusable verification workflow commands/state; pre-paint context/credential fencing and owned asynchronous completions. No second inventory authority. |
 | `src/features/verification/VerificationSelection.jsx` | Shared scope/filter/quantity/order controls; explicit reselection with asynchronous action locking. |
 | `src/components/BalanceReview.jsx` | Captures Manual queue/context/revisions independently of Batch; prepares selected requests through existing commands and owns Manual observation orchestration. |
 | `src/features/verification/verificationCommands.js` | Batch session/context checks, foreign-ledger isolation and affected-reference validation; no new persistence authority. |

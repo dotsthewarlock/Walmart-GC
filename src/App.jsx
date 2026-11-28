@@ -56,7 +56,8 @@ function getSyncChipStatus(summaryKey) {
   return 'neutral';
 }
 
-async function writeClipboardText(text) {
+async function writeClipboardText(text, isCurrent = () => true) {
+  if (!isCurrent()) return false;
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
@@ -66,10 +67,11 @@ async function writeClipboardText(text) {
     }
   }
 
-  if (typeof document === "undefined" || !document.body) {
+  if (!isCurrent() || typeof document === "undefined" || !document.body) {
     return false;
   }
 
+  const trigger = document.activeElement;
   const textarea = document.createElement("textarea");
   textarea.value = text;
   textarea.setAttribute("readonly", "");
@@ -86,6 +88,9 @@ async function writeClipboardText(text) {
     return false;
   } finally {
     textarea.remove();
+    if (isCurrent() && document.activeElement === document.body && trigger?.isConnected) {
+      trigger.focus({ preventScroll: true });
+    }
   }
 }
 
@@ -103,7 +108,9 @@ function App() {
   const pendingPanelFocus = useRef(null);
   const navigationAction = useRef(0);
   const reviewReturn = useRef({ panel: 'list', focusId: 'review-balances' });
-  const verificationSession=useVerificationSession(walletSnapshot);
+  const verificationSession=useVerificationSession(walletSnapshot,{
+    readWallet,commitWallet,getTransferWallet,copyText:writeClipboardText,
+  });
   const verificationBusy = useRef(false);
   verificationBusy.current = verificationSession.busy;
   useLayoutEffect(() => {
@@ -412,6 +419,7 @@ function App() {
         focusId: flagged ? 'review-flagged' : activePanel === 'list' ? 'review-balances' : 'nav-review' };
     }
     if (flagged) verificationSession.startFlaggedReview();
+    else verificationSession.enter();
     navigate('review');
   }
 
@@ -977,10 +985,9 @@ function App() {
                 onBack={() => navigate(previousPrimaryPanel, 'open-settings')}
               />
           ) : activePanel === 'review' ? (
-            <BalanceReview session={verificationSession} cards={cards} walletSnapshot={walletSnapshot}
-              readWallet={readWallet} commitWallet={commitWallet} getTransferWallet={getTransferWallet}
+            <BalanceReview session={verificationSession} walletSnapshot={walletSnapshot}
               onExit={exitBalanceReview}
-              copyText={writeClipboardText} maskCardNumber={maskCardNumber} />
+              maskCardNumber={maskCardNumber} />
           ) : (
             <CheckoutPanel selectedCard={selectedCard} visiblePosition={visiblePosition}
               credentialBlocked={credentialBlocked} onReviewCredentials={openSettings}
