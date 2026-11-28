@@ -1,6 +1,8 @@
 import { applyBalanceObservation, createBalanceReviewQueue, parseVerifiedBalance } from "./balanceReview.js";
 import { isCalendarDate, schemaCapability } from "./csvSchema.js";
 import { maintenanceRevision } from './syncProtocol.js';
+import { selectSpentCards } from './spentReconciliation.js';
+import { pendingMonetaryTime } from './zeroObservation.js';
 
 export const checkerUrl = "https://www.walmart.ca/en/account/giftcards/balance";
 export const transferVersion = 1;
@@ -32,12 +34,14 @@ export function transferEligibleCards(cards) {
 }
 
 export const transferPreferenceKey = "gc-wallet-batch-selection-v1";
-export const defaultTransferPreferences = Object.freeze({ version: 2, quantity: "all", status: "active", balance: "yes", checked: "older", days: 30, sort: "checked-oldest" });
+export const defaultTransferPreferences = Object.freeze({ version: 2, purpose: 'general', freshness: 60, quantity: "all", status: "active", balance: "yes", checked: "older", days: 30, sort: "checked-oldest" });
 export function readTransferPreferences(storage) {
   try {
     const value = JSON.parse(storage.getItem(transferPreferenceKey));
     if (!value || ![1, 2].includes(value.version)) return { ...defaultTransferPreferences };
     return { version: 2,
+      purpose: ['general','reconcile','watch','final','historical'].includes(value.purpose) ? value.purpose : 'general',
+      freshness: [30,60,90].includes(value.freshness) ? value.freshness : 60,
       quantity: ["all", "1", "5", "20", "50"].includes(value.quantity) ? value.quantity : "all",
       status: value.version === 1 ? (value.includeUsed === true ? "all" : "active") : (["active", "used", "all"].includes(value.status) ? value.status : "active"),
       balance: value.version === 1 ? (value.includeZero === true ? "all" : "yes") : (["yes", "zero", "all"].includes(value.balance) ? value.balance : "yes"),
@@ -47,11 +51,13 @@ export function readTransferPreferences(storage) {
   } catch { return { ...defaultTransferPreferences }; }
 }
 
-export function selectTransferCards(cards, preferences = defaultTransferPreferences, now = new Date()) {
+export function selectTransferCards(cards, preferences = defaultTransferPreferences, now = new Date(), evidence, operations = []) {
   preferences={...defaultTransferPreferences,...preferences};
   const allEligible = transferEligibleCards(cards);
   const usedCount = allEligible.filter(({ card }) => card.used === true).length;
   const zeroCount = allEligible.filter(({ card }) => card.currentBalance === 0).length;
+  if (preferences.flaggedOnly !== true && ['reconcile','watch','final','historical'].includes(preferences.purpose))
+    return {...selectSpentCards(allEligible,preferences,evidence,operations,now),usedCount,zeroCount};
   const today = now.toISOString().slice(0, 10);
   const cutoff = new Date(Date.parse(`${today}T00:00:00.000Z`) - preferences.days * 86400000).toISOString().slice(0, 10);
   const matching = allEligible.filter(({ card }) => {
@@ -169,7 +175,7 @@ export function transferRequestRows(ledger, cards, selectedRefs = null) {
   });
 }
 
-export function previewTransferResults(ledger, cards, observations, now = Date.now(), evidence) {
+export function previewTransferResults(ledger, cards, observations, now = Date.now(), evidence, operations = []) {
   const requests = new Map(ledger.requests.map((request, index) => [request.ref, { ...request, position: index + 1 }]));
   const eligible = new Map(transferEligibleCards(cards).map((entry) => [entry.card.cardNumber, entry]));
   const counts = { accepted: 0, changed: 0, unchanged: 0, unknown: 0, invalidated: 0, stale: 0, alreadyApplied: 0, rejected: 0 };
@@ -183,7 +189,7 @@ export function previewTransferResults(ledger, cards, observations, now = Date.n
     if (checkedAt < request.createdAt || Date.parse(checkedAt) > now + futureToleranceMs) return 'Observation predates its request or is more than 60 seconds in the future.';
     if ((card.lastBalanceChecked && checkedAt.slice(0, 10) < card.lastBalanceChecked) || (card.lastBalanceCheckedAt && checkedAt <= card.lastBalanceCheckedAt)) return 'The observation predates the saved verification time.';
     const recovery=evidence?.cards?.[card.cardNumber];
-    if(checkedAt<(recovery?.uncertainSince||'')||checkedAt<(recovery?.moneyAt||'')||checkedAt<(maintenanceRevision(evidence,card.cardNumber)||''))return 'The observation predates the latest monetary change or uncertainty.';
+    if(checkedAt<(recovery?.uncertainSince||'')||checkedAt<(recovery?.moneyAt||'')||checkedAt<pendingMonetaryTime(operations,card.cardNumber)||checkedAt<(maintenanceRevision(evidence,card.cardNumber)||''))return 'The observation predates the latest monetary change or uncertainty.';
     return null;
   };
   for (const observation of observations) {

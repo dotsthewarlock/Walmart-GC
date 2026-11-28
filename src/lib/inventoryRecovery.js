@@ -42,7 +42,8 @@ export function resumeMaintenance(candidate,{deletedIds=[],id,now}) {
       const entry=candidate.evidence.cards[number]??={money:0,conflicts:[]};entry.uncertainSince??=now;
       entry.money++;entry.moneyAt=now;entry.maintenanceAt=now;
     }
-    if((card.lastBalanceChecked||'')!==date||(card.lastBalanceCheckedAt||'')!==time||card.currentBalance!==balance||card.pin!==pin){
+    if((card.lastBalanceChecked||'')!==date||(card.lastBalanceCheckedAt||'')!==time||card.currentBalance!==balance||card.pin!==pin
+      ||card.merchant!==saved.merchant||card.merchantInferred!==saved.merchantInferred){
       const entry=candidate.evidence.cards[number]??={money:0,conflicts:[]};
       entry.money++;entry.moneyAt=now;entry.uncertainSince??=now;entry.maintenanceAt=now;
       if(card.pin!==pin)entry.conflicts.push({id:id+':credentials:'+number,kind:'credentials',local:{...saved},remote:{...card},base:null,at:now,operationIds:[]});

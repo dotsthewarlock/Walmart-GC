@@ -1,6 +1,7 @@
 import { bundledSampleGiftCards } from './cards.js';
 import { compactEvidence, evidenceMetadata } from './syncEvidence.js';
 import { lowRiskField, metadataDefault, repairRecovery, retireVerificationEvidence, recordQuarantined } from './reconciliationPolicy.js';
+import { pendingMonetaryTime } from './zeroObservation.js';
 export const syncProtocol = 'gc-wallet-sync-v1';
 export const equal = (a,b) => canonical(a) === canonical(b);
 export function canonical(value) {
@@ -157,6 +158,7 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
       &&verify.before?.pin===saved.pin&&(verify.after?.merchant||verify.after?.merchantInferred)==='walmart-ca'
       &&(saved.merchant||saved.merchantInferred)==='walmart-ca';
     const fresh=applicable&&monetary.at(-1)===verify
+      &&observedAt>=pendingMonetaryTime(monetary,number)
       &&(!saved.lastBalanceChecked||observedAt.slice(0,10)>=saved.lastBalanceChecked)
       &&(!saved.lastBalanceCheckedAt||observedAt>saved.lastBalanceCheckedAt)
       &&Date.parse(observedAt)>=Math.max(Date.parse(entry.uncertainSince||'1970-01-01'),Date.parse(entry.moneyAt||'1970-01-01'),Date.parse(maintenanceRevision(next,number)||'1970-01-01'))
@@ -184,7 +186,24 @@ export function reconcile({base,local,remote,operations=[],baseEvidence=emptyEvi
         retireVerificationEvidence(entry);
       }
     }
-    if(localMoney&&monetary.length){entry.money=(entry.money??0)+monetary.length;entry.moneyAt=now;}
+    if(localMoney&&monetary.length){
+      entry.money=(entry.money??0)+monetary.length;
+      // Applicability follows the action, not delayed transport completion.
+      // New local monetary commands supply an immutable action time; old writers
+      // retain the conservative commit-time fence. Conflicts still fence at now.
+      const times=monetary.map(op=>{
+        const at=['manual-verification','batch-verification'].includes(op.kind) ? op.observation?.checkedAt : op.performedAt;
+        return canonicalTime(at) && at<=new Date(Date.parse(now)+60_000).toISOString() ? at : now;
+      });
+      entry.moneyAt=[entry.moneyAt||'',...times].sort().at(-1);
+    }
+    if (localMoney || localUncertainty || entry.conflicts.some(c => !c.resolution)
+      || ops.some(op => op.before?.pin !== op.after?.pin || op.before?.merchant !== op.after?.merchant
+        || op.before?.merchantInferred !== op.after?.merchantInferred)) delete entry.zeroObservation;
+    const priorActionsTimed=monetary.slice(0,-1).every(op=>canonicalTime(
+      ['manual-verification','batch-verification'].includes(op.kind)?op.observation?.checkedAt:op.performedAt));
+    if (fresh && priorActionsTimed && merged.currentBalance === 0 && !merged.pendingReconciliation)
+      entry.zeroObservation = {checkedAt:observedAt,money:entry.money};
     if(localUncertainty&&!fresh){merged.pendingReconciliation=true;entry.uncertainSince??=now;}
     if(localMoney||localUncertainty)next.cards[number]=entry;
     if(saved.pendingReconciliation&&!fresh)merged.pendingReconciliation=true;

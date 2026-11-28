@@ -154,6 +154,17 @@ is persisted. Desktop remains centered within 60rem; mobile has no outer panel.
 
 ## Deferred product interactions
 
+P2.0 implements spent reconciliation, refund watch, final checks and historical
+sweeps inside the existing shared Verification selection, retaining General
+verification. Purpose/freshness/quantity changes take effect only on Select cards;
+working Manual/Companion drafts and progress remain until explicit reselection.
+Lifecycle defaults to 20, max 50; freshness is 60 days with 30/60/90 choices.
+Explain recorded zero versus applicable verified zero, the 120-day workload watch,
+day-120 final due/30-day priority grace and indefinite missed/historical eligibility.
+Missing dates stay missing. Known uncertainty precedes routine age filters.
+Positive recovery preserves used status until explicit Mark Active; no automatic
+reactivation, archive, invented refund transaction or eligibility cutoff.
+
 The [roadmap](ROADMAP.md#product-priorities-and-deferred-work) preserves these
 future UX decisions. They require separate authorization and do not authorize
 standalone A4.

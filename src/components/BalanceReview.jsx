@@ -18,7 +18,8 @@ export function BalanceReview({ onExit, session, ...props }) {
   const {mode,setMode,selection,setSelection,setManual,busy,setBusy}=session;
   const [error,setError]=useState('');
   const selecting=useRef(false);
-  const counts=selectTransferCards(verificationCards(profileOf(props.walletSnapshot)),{...session.preferences,flaggedOnly:session.flaggedOnly});
+  const currentProfile=profileOf(props.walletSnapshot);
+  const counts=selectTransferCards(verificationCards(currentProfile),{...session.preferences,flaggedOnly:session.flaggedOnly},new Date(),currentProfile.recoveryEvidence,currentProfile.pending);
   function capture(state,selected,refs=null){return {id:crypto.randomUUID(),queue:selected,versions:{...profileOf(state).versions},context:inventoryContext(state),refs};}
   useEffect(()=>{
     if(selection)return;
@@ -41,7 +42,7 @@ export function BalanceReview({ onExit, session, ...props }) {
       assertInventoryContext(state,inventoryContext(props.walletSnapshot));
       const profile=profileOf(state);
       const selected=prepare?selection.queue.filter(entry=>!session.manual.completed.includes(entry.card.cardNumber)):
-        selectTransferCards(verificationCards(profile),{...session.preferences,flaggedOnly:session.flaggedOnly}).selected;
+        selectTransferCards(verificationCards(profile),{...session.preferences,flaggedOnly:session.flaggedOnly},new Date(),profile.recoveryEvidence,profile.pending).selected;
       if(prepare){
         assertInventoryContext(state,selection.context);
         if(selected.some(entry=>profile.versions[entry.card.cardNumber]!==selection.versions[entry.card.cardNumber]))throw Error('Selected cards changed. Select cards again before preparing requests.');

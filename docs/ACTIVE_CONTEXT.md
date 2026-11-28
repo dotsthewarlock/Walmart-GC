@@ -4,7 +4,52 @@ Read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.md),
 [M3 decisions](M3_DESIGN_DECISIONS.md), [roadmap](ROADMAP.md) and
 [QA](QA_TEST_CHECKLIST.md). GitHub is the sole durable project authority.
 
-## P0.1 — lifecycle correction and governance consolidation
+## P2.0 — spent-card reconciliation and refund recovery
+
+Received in this D-UX session from A-UX on 2026-11-28. Baseline and initial HEAD:
+`ddf8236760de7c25b7410561d2338e6bee83f064`; main was clean. This session is the
+sole writer on `feat/p20-spent-reconciliation`; investigations and independent
+reviewers are read-only. Implementation, optional revision-bound zero-observation
+evidence, compatibility validation, independent review, required CI, commit/push/PR,
+normal protected merge, production Wallet publication, affected Worker deployment,
+hosted synthetic verification and safe cleanup are explicitly authorized.
+
+| Assignment | Route / scope | Session / writer | State / next action |
+| --- | --- | --- | --- |
+| P2.0 | Master/user → A-UX (milestone/assessment) → D-UX (implementation/release) → A-UX → Master | Current fresh Codespace D-UX session is sole writer; read-only independent review | AUTHORIZED; implement/validate, finalize canonical docs, independently review candidate, CI/release/verify, return clean main and hand back writer authority |
+
+Execution: existing Codespace, fresh assigned session, required imp/go execution.
+Requested model GPT-6.1 Sol, Medium, 500K context; exact effective model, thinking
+and context capacity are not exposed and remain unknown. Workspace-write with
+Auto-review is verified. Allowance is P2.0 and required corrections/review/CI/release;
+no next milestone, runtime dependency, infrastructure, live account/merchant work
+or Companion Stable promotion. Any material unresolved integrity/protocol issue
+returns to A-UX. Native acceptance is separate from technical closure.
+Independent read-only reviewer receipt was confirmed in this session; no writer
+authority was transferred. After successful hosted verification, the milestone PR
+records RETURNED/technical closure and explicit writer handback; this reservation
+then ends. A-UX/Master own assessment/CLOSED disposition and native acceptance.
+
+Scope: shared Manual/Companion selection gains spent reconciliation, 120-day
+watch, day-120 final checks (30-day priority grace; missed checks remain eligible),
+and bounded historical/missing-date recovery. Independent used state, IndexedDB,
+pending work, R1/R2/P0.1 and privacy remain intact. Proof is optional protected
+per-card evidence, never new Cards/CSV columns or a second authority. See
+[Architecture](ARCHITECTURE.md), [M3](M3_DESIGN_DECISIONS.md) and preimplementation
+failure acceptance in [QA](QA_TEST_CHECKLIST.md).
+
+Source access: the supplied P2.0 assignment and applicable canonical authorities
+were read; no local feasibility report was found or claimed read. GitHub access
+and P0.1 merge SHA were verified. Master-supplied Revision 2 conventions are
+consolidated in [agent rules](../AGENTS.md) and [Architecture](ARCHITECTURE.md#master-and-subordinate-architecture-streams).
+The original Revision 2 attachment was not accessible and has not been read.
+
+## P0.1 — released lifecycle correction and governance consolidation
+
+Technical release closed at main `ddf8236760de7c25b7410561d2338e6bee83f064`,
+[PR #259](https://github.com/dotsthewarlock/Walmart-GC/pull/259). The P2.0
+assignment supersedes its stale active reservation. Native user acceptance and
+A-UX/Master assessment remain separate; exact release evidence belongs in that PR.
 
 Assigned by A-UX to D-UX from main
 `6527173765650b99e95024af198d3b35cc53ceff` (released P1.1). Correct Checkout
@@ -19,19 +64,6 @@ verification and safe cleanup are explicitly authorized. Preserve production
 configuration, the unaffected Worker and Companion Stable. Reuse retained
 `test-results/p01` investigation fixtures/logs; five scenarios already established
 the defects and stale-save rejection. They are evidence input, not an authority.
-
-Assignment register (the sole active register; release evidence belongs in the PR):
-
-| Assignment | Route / scope | Session / writer | State / next action |
-| --- | --- | --- | --- |
-| P0.1 | Master → A-UX (architecture/assessment) → D-UX (implementation/release) → A-UX → Master | Existing Codespace; current P0.1 session is sole writer on `fix/p01-lifecycle-governance`; prior investigation read-only | Authorized correction; independently review finalized candidate, run required CI, release and return evidence |
-
-Execution configuration: existing session, implementation/release action, inherited
-Codex model and thinking settings (exact model/effort not exposed to the session),
-workspace-write sandbox with automatic escalation review, task allowance limited
-to P0.1 and its required review/CI/release corrections. No dependency, protocol,
-schema, infrastructure, live account/merchant work or next feature allowance.
-Changing session/model/thinking does not enlarge permissions or task scope.
 
 Source limitation: `ai-first-arch-dev-cycle-handoff.md` Revision 2 was not supplied
 at an accessible local path or attachment. Its contents have not been read or

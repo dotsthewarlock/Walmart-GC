@@ -156,7 +156,8 @@ test('Worker HTTP validates timestamped control identities by action, canonical 
   const generated=sent[0];assert.equal(sheet.creationId,generated.id);assert.equal(sheet.creates,1);assert.equal(sheet.writes,1);
   assert.equal((await store.read()).controlFlights['qa-principal'],undefined);
   const control={...generated,sheetId:'synthetic-sheet',action:'pause'};
-  for(const id of [generated.id+'suffix',generated.id+'\n',generated.id.replace(/:[^:]+$/,':not-a-uuid'),generated.id.replace(/-4([0-9a-f]{3}-)/,'-5$1'),generated.id.replace(/control:.*Z:/,'control:2026-02-30T00:00:00.000Z:'),generated.id.replace(/\.\d{3}Z:/, 'Z:'),crypto.randomUUID()+'\n']){
+  const invalidVersion=generated.id.slice(0,generated.id.lastIndexOf(':')+1)+'00000000-0000-5000-8000-000000000000';
+  for(const id of [generated.id+'suffix',generated.id+'\n',generated.id.replace(/:[^:]+$/,':not-a-uuid'),invalidVersion,generated.id.replace(/control:.*Z:/,'control:2026-02-30T00:00:00.000Z:'),generated.id.replace(/\.\d{3}Z:/, 'Z:'),crypto.randomUUID()+'\n']){
    await assert.rejects(request('/api/sync',{method:'POST',body:JSON.stringify({...control,id})}),error=>error.status===400);
   }
   for(const action of ['commit','create','unknown']){

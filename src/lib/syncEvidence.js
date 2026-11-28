@@ -16,7 +16,7 @@ export function compactEvidence(evidence) {
       if (seen.has(key)) return false;
       seen.add(key); return true;
     });
-    if (!entry.money && !entry.moneyAt && !entry.uncertainSince && !entry.conflicts.length) delete next.cards[number];
+    if (!entry.money && !entry.moneyAt && !entry.uncertainSince && !entry.conflicts.length && !entry.zeroObservation) delete next.cards[number];
   }
   return next;
 }
