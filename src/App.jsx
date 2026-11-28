@@ -422,23 +422,27 @@ function App() {
     if (origin.panel === 'detail') {
       try {
         const identity = await origin.cardIdentity;
-        const state = await readWallet();
-        const identities = await Promise.all(profileOf(state).cards.map(card => fingerprint(card.cardNumber)));
-        const original = identity ? profileOf(state).cards[identities.indexOf(identity)] : null;
-        // Hashing and IndexedDB are asynchronous. Reconfirm the exact snapshot,
-        // and never redirect a user who navigated elsewhere while Exit waited.
-        const saved = await readWallet();
-        if (action !== navigationAction.current || verificationBusy.current) return;
-        const latest = walletRef.current.revision > saved.revision ? walletRef.current : saved;
-        const index = original ? profileOf(latest).cards.findIndex(card => card.cardNumber === original.cardNumber) : -1;
-        const eligible = index >= 0 && calculateVisibleCards(profileOf(latest).cards, preferences.current, preferences.current.sortMode).includes(index)
-          && !credentialAmbiguous(profileOf(latest).recoveryEvidence, original.cardNumber);
-        adoptWallet(latest);
-        if (latest.active !== origin.profile || (latest.contextGeneration ?? 0) !== origin.generation || !eligible) {
-          navigate('list');
+        let state = await readWallet();
+        // Bound retries under continuous inventory activity. Reordering or a
+        // restored card gets resolved afresh instead of using a stale index.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const identities = await Promise.all(profileOf(state).cards.map(card => fingerprint(card.cardNumber)));
+          const saved = await readWallet();
+          if (action !== navigationAction.current || verificationBusy.current) return;
+          const latest = walletRef.current.revision > saved.revision ? walletRef.current : saved;
+          adoptWallet(latest);
+          if (latest.active !== origin.profile || (latest.contextGeneration ?? 0) !== origin.generation) break;
+          if (latest.revision !== state.revision) { state = latest; continue; }
+          const index = identity ? identities.indexOf(identity) : -1;
+          const eligible = index >= 0 && calculateVisibleCards(profileOf(latest).cards, preferences.current, preferences.current.sortMode).includes(index)
+            && !credentialAmbiguous(profileOf(latest).recoveryEvidence, profileOf(latest).cards[index].cardNumber);
+          if (!eligible) break;
+          setSelectedCardIndex(index);
+          navigate(origin.panel, origin.focusId);
           return;
         }
-        setSelectedCardIndex(index);
+        navigate('list');
+        return;
       } catch {
         if (action === navigationAction.current) navigate('list');
         return;

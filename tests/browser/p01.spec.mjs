@@ -27,6 +27,18 @@ async function releaseSave(page) {
   // Flush React's resulting render before inspecting a newer editor.
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
+async function replaceSyntheticCards(page, cards) {
+  await page.evaluate(cards => new Promise((resolve, reject) => {
+    const request = indexedDB.open('walmartGc.inventory', 1);
+    request.onsuccess = () => {
+      const db = request.result, tx = db.transaction('state', 'readwrite'), store = tx.objectStore('state');
+      const read = store.get('wallet');
+      read.onsuccess = () => { const state = read.result; state.profiles[state.active].cards = cards; state.revision++; store.put(state, 'wallet'); };
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
+    };
+    request.onerror = () => reject(request.error);
+  }), cards);
+}
 
 test('P0.1 overlapping identities isolate drafts and preserve same-context navigation and stale-save fences', async ({ browser }) => {
   const context = await browser.newContext();
@@ -257,16 +269,19 @@ test('P0.1 pending Exit preserves reordered identity and yields to a newly start
   };
   await holdExit();
   // Synthetic direct storage reorder, without a notification to the rendering tab.
-  await page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('walmartGc.inventory', 1);
-    request.onsuccess = () => {
-      const db = request.result, tx = db.transaction('state', 'readwrite'), store = tx.objectStore('state');
-      const read = store.get('wallet');
-      read.onsuccess = () => { const state = read.result; state.profiles[state.active].cards.reverse(); state.revision++; store.put(state, 'wallet'); };
-      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
-    };
-    request.onerror = () => reject(request.error);
-  }));
+  const reordered = active(await snapshot(page)).cards.reverse();
+  await replaceSyntheticCards(page, reordered);
+  await page.evaluate(() => window.qaFinishRead());
+  await expect(page.locator('#nav-detail')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#card-detail')).toContainText('0042');
+  // The first read misses the original card; a concurrent restore must be
+  // considered by the next resolution against the latest persisted revision.
+  await page.locator('#nav-review').click();
+  await replaceSyntheticCards(page, reordered.filter(card => card.cardNumber !== cardA.cardNumber));
+  await page.evaluate(() => { delete window.qaFinishRead; sessionStorage.setItem('qa-hold-read', 'yes'); });
+  await page.getByRole('button', { name: 'Exit', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => typeof window.qaFinishRead)).toBe('function');
+  await replaceSyntheticCards(page, reordered);
   await page.evaluate(() => window.qaFinishRead());
   await expect(page.locator('#nav-detail')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('#card-detail')).toContainText('0042');

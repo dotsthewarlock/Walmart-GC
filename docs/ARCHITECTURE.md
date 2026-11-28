@@ -650,6 +650,8 @@ digest and exact compartment/generation. Exit reads IndexedDB and resolves that
 card in the current eligible collection, resolves its index/eligibility against
 the latest saved snapshot after hashing and abandons late navigation if the user
 has changed destination or started a verification command;
+revision changes retry resolution at most three times, then return safely to
+Cards under continuous inventory activity rather than waiting indefinitely;
 missing/filtered/credential-blocked or changed-context origins fall back to Cards
 with heading focus, never another card's barcode. Reordering preserves identity.
 No credentials are stored in these refs. Heading focus announces a destination; contextual return
