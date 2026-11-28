@@ -1,5 +1,29 @@
 # GC Wallet roadmap
 
+## Authorized sequence
+
+P0.2 → P1.2 → P3.1 → integrated functional acceptance → cohesive UX refactoring.
+Only P0.2 is currently authorized; sequencing does not authorize later work.
+Prioritize maximum verified delivery with minimum organizational friction.
+
+## P0.2 — Functional Architecture Readiness
+
+From accepted main `e67a28a9dea37097ea57cc6400e8b3561c8adfd1`, establish lean
+App-lifetime verification ownership, pre-paint context/credential fencing and
+context/generation/workflow-bound commands, progress, previews, transfer correlation,
+feedback and busy state. Preserve same-context drafts and Manual/Companion/offline
+continuity, committed inventory operations and every P2.0 monetary safeguard.
+Reuse existing fixtures and components; extract cohesive commands only where useful.
+
+Master explicitly authorized implementation/corrections, local validation,
+independent review, required integrated CI, commit/push/PR, normal protected merge,
+Wallet production publication, hosted synthetic checks and safe cleanup/writer
+handback. Preserve production configuration and the unaffected proof-aware Worker.
+No visual redesign, broad App rewrite, standalone A4, P1.2 implementation, global
+store, runtime dependency, infrastructure/schema/protocol change, live private or
+merchant testing, or Companion Stable promotion. Technical closure, Master
+architectural acceptance and native acceptance remain separate.
+
 ## Released V0.3 foundation
 
 V0.3 consolidates transactional local persistence, verified account/Sheet binding,
@@ -30,7 +54,13 @@ corrective release is compatible with the one-PR efficiency preference.
 
 Independent review and required CI precede the user-authorized protected merge, Wallet release and Dev Companion publication. Verify public shell digests, descriptor revision, both artifact hashes and inert transport compatibility. Preserve infrastructure/configuration and leave an unaffected Worker deployed. No Stable promotion, standalone A4, schema change, runtime dependency, background merchant execution, automatic retry or challenge bypass.
 
-## P2.0 — authorized spent reconciliation and refund recovery
+## P2.0 — technically released spent reconciliation and refund recovery
+
+Released at `e67a28a9dea37097ea57cc6400e8b3561c8adfd1`,
+[PR #260](https://github.com/dotsthewarlock/Walmart-GC/pull/260), with independent
+review, integrated PR/main CI and hosted verification. D-UX handed back writer
+authority. Proof-aware Worker rollback remains required; native and independent
+architectural acceptance remain separate from technical closure.
 
 From main `ddf8236760de7c25b7410561d2338e6bee83f064`, extend existing shared
 Manual/Companion selection with used-card reconciliation, 120-day refund watch,

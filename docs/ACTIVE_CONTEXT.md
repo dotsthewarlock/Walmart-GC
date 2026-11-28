@@ -4,45 +4,54 @@ Read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.md),
 [M3 decisions](M3_DESIGN_DECISIONS.md), [roadmap](ROADMAP.md) and
 [QA](QA_TEST_CHECKLIST.md). GitHub is the sole durable project authority.
 
-## P2.0 — spent-card reconciliation and refund recovery
+## P0.2 — Functional Architecture Readiness
 
-Received in this D-UX session from A-UX on 2026-11-28. Baseline and initial HEAD:
-`ddf8236760de7c25b7410561d2338e6bee83f064`; main was clean. This session is the
-sole writer on `feat/p20-spent-reconciliation`; investigations and independent
-reviewers are read-only. Implementation, optional revision-bound zero-observation
-evidence, compatibility validation, independent review, required CI, commit/push/PR,
-normal protected merge, production Wallet publication, affected Worker deployment,
-hosted synthetic verification and safe cleanup are explicitly authorized.
+Received from Master Architecture in the existing fresh D-UX session on
+2026-11-28, including the completed continuation. Expected/actual main:
+`e67a28a9dea37097ea57cc6400e8b3561c8adfd1`; checkout clean. Prior D-UX
+confirmed P2.0 technical return and explicit writer handback in PR #260;
+its session is idle. Accepted R1–P2.0 evidence is reused, not reopened.
+Independent read-only review receipt/availability confirmed in this session;
+no writer authority was transferred. Current-read failure reporting and clipboard
+focus findings were corrected; final candidate review/CI/release evidence belongs
+in the milestone PR.
 
 | Assignment | Route / scope | Session / writer | State / next action |
 | --- | --- | --- | --- |
-| P2.0 | Master/user → A-UX (milestone/assessment) → D-UX (implementation/release) → A-UX → Master | Current fresh Codespace D-UX session is sole writer; read-only independent review | AUTHORIZED; implement/validate, finalize canonical docs, independently review candidate, CI/release/verify, return clean main and hand back writer authority |
+| P0.2 | Master Architecture → D-UX → Master | Existing session `8bab1894-dc3d-4207-a070-d9513a29d560` is sole writer on `feat/p02-verification-lifecycle`; independent reviewers read-only | AUTHORIZED; reproduce lifecycle failures, implement, validate/review, CI/release/verify, safely clean up and explicitly hand back writer authority |
 
-Execution: existing Codespace, fresh assigned session, required imp/go execution.
-Requested model GPT-6.1 Sol, Medium, 500K context; exact effective model, thinking
-and context capacity are not exposed and remain unknown. Workspace-write with
-Auto-review is verified. Allowance is P2.0 and required corrections/review/CI/release;
-no next milestone, runtime dependency, infrastructure, live account/merchant work
-or Companion Stable promotion. Any material unresolved integrity/protocol issue
-returns to A-UX. Native acceptance is separate from technical closure.
-Independent read-only reviewer receipt was confirmed in this session; no writer
-authority was transferred. After successful hosted verification, the milestone PR
-records RETURNED/technical closure and explicit writer handback; this reservation
-then ends. A-UX/Master own assessment/CLOSED disposition and native acceptance.
+Execution: resume / imp, existing Codespace, workspace-write with Auto-Review.
+Requested GPT-6.2 if available, Medium; actual model/thinking unavailable and
+unknown. Allowance covers complete P0.2 implementation, routine corrections,
+local checks, independent review, commit/push/PR, required CI, normal protected
+merge, Wallet publication, hosted synthetic verification and safe cleanup.
+Preserve the unaffected proof-aware Worker and production configuration.
 
-Scope: shared Manual/Companion selection gains spent reconciliation, 120-day
-watch, day-120 final checks (30-day priority grace; missed checks remain eligible),
-and bounded historical/missing-date recovery. Independent used state, IndexedDB,
-pending work, R1/R2/P0.1 and privacy remain intact. Proof is optional protected
-per-card evidence, never new Cards/CSV columns or a second authority. See
-[Architecture](ARCHITECTURE.md), [M3](M3_DESIGN_DECISIONS.md) and preimplementation
-failure acceptance in [QA](QA_TEST_CHECKLIST.md).
+Scope: App-lifetime verification ownership; pre-paint context fencing; bind
+selection, Manual progress, Batch previews/transfer, feedback and busy ownership
+to context/generation/workflow. Preserve valid same-context drafts, explicit
+Manual/Companion continuity, offline operation, durable commits and P2.0 semantics.
+No redesign, broad App rewrite, P1.2, standalone A4, runtime dependency, global
+store, infrastructure/schema/protocol changes, live private/merchant testing or
+Companion Stable promotion. Required sequence: P0.2 → P1.2 → P3.1 → integrated
+functional acceptance → cohesive UX refactoring; later stages are not authorized.
+Technical closure, Master architectural acceptance and native acceptance remain
+separate dispositions. Source access: both supplied P0.2 messages and applicable
+canonical contracts read; no inaccessible source is claimed read.
 
-Source access: the supplied P2.0 assignment and applicable canonical authorities
-were read; no local feasibility report was found or claimed read. GitHub access
-and P0.1 merge SHA were verified. Master-supplied Revision 2 conventions are
-consolidated in [agent rules](../AGENTS.md) and [Architecture](ARCHITECTURE.md#master-and-subordinate-architecture-streams).
-The original Revision 2 attachment was not accessible and has not been read.
+## P2.0 — technically released; writer returned
+
+Released at `e67a28a9dea37097ea57cc6400e8b3561c8adfd1`,
+[PR #260](https://github.com/dotsthewarlock/Walmart-GC/pull/260). Independent
+review, PR/main CI, Wallet publication and hosted synthetic checks passed.
+Proof-aware Worker `58f34f01-4537-4247-b1c0-a05e186d953c` was deployed first.
+Prior D-UX explicitly released writer authority; native/architecture acceptance
+remain separate. Historical authorization below is superseded by P0.2.
+
+P2.0 scope/contracts remain in Architecture/M3/QA; exact evidence and prior
+execution configuration remain in PR #260. The prior session read its supplied
+assignment and canonical authorities, but no local feasibility report or original
+Revision 2 attachment; no additional source-migration claim is made here.
 
 ## P0.1 — released lifecycle correction and governance consolidation
 

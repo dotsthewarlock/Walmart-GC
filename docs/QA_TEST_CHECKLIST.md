@@ -6,6 +6,34 @@ already passed for the V0.3A.1 foundation; do not repeatedly rerun that old harn
 
 ## Automated cycle
 
+P0.2 lifecycle failure acceptance (before implementation):
+
+- Changed compartment/generation clears credential-bearing selection, Manual
+  drafts/progress, Batch packet/preview/transfer and feedback before paint.
+  Changed credentials or credential ambiguity invalidate affected working state.
+- Held selection, Manual save, Batch preview/apply, clipboard and transport
+  success/failure cannot alter a newer workflow or release its busy ownership.
+  Already committed inventory operations remain durable; rejected/aborted work
+  retains valid drafts, preview and recovery evidence without progress.
+- Navigation/unmount and mode changes in the same context retain working state;
+  command execution belongs to the App-lifetime controller, not the view.
+  Explicit reselection/flagged entry replaces the workflow. Persisted generation
+  fences include away/back before notification, with no cross-account inheritance.
+- Reuse synthetic wallet/transaction/Companion fixtures. Focus regressions on
+  stale completion, credential changes, pre-paint fencing, continuity and abort;
+  required integrated CI owns unchanged P2.0 monetary/protocol/offline coverage.
+
+P0.2 baseline reproduction: held Manual and Batch preparation completion followed
+by a cross-tab compartment switch left the new context's controls busy. Retained
+as `tests/browser/p02.spec.mjs`; added old completion/new busy owner, frame-visible
+privacy fencing, same-context unmounted copy, delayed abort, fallback focus and
+late denied-copy coverage. `src/lib/verificationWorkflow.test.mjs` executes commands
+without React and covers delayed selection/Manual/Batch/transport success/failure,
+persisted away/back fencing, credential edits, owned read errors and abort/retry.
+These are synthetic checks, not native/private-account acceptance. Exact final
+review, CI, publication and hosted evidence belong in the P0.2 PR.
+
+
 P2.0 failure acceptance (defined before implementation):
 
 - Recorded/estimated zero after a prior positive check is unconfirmed. Only an

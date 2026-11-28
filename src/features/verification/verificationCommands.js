@@ -1,7 +1,7 @@
-import {inventoryBytes,profileOf,inventoryContext,assertInventoryContext} from '../../lib/inventory';
-import {inventoryFingerprint} from '../../lib/balanceTransferLedger';
-import {sameTransferContext} from '../../lib/balanceTransfer';
-import {verificationCards,credentialAmbiguous} from '../../lib/inventoryRecovery';
+import {inventoryBytes,profileOf,inventoryContext,assertInventoryContext} from '../../lib/inventory.js';
+import {inventoryFingerprint} from '../../lib/balanceTransferLedger.js';
+import {sameTransferContext} from '../../lib/balanceTransfer.js';
+import {verificationCards,credentialAmbiguous} from '../../lib/inventoryRecovery.js';
 export async function openVerificationSession(options) {
     const {getTransferWallet,walletSnapshot,readWallet,commitWallet}=options;
     const assertSession=session=>assertVerificationSession(session,options);
@@ -45,6 +45,7 @@ export async function assertVerificationSession(session, {assertActive=()=>{},ge
     assertActive();
     getTransferWallet();
     const current = await readWallet();
+    assertActive();
     assertInventoryContext(current, inventoryContext(session.state));
     if (current.active !== session.state.active || profileOf(current).revision !== session.profile.revision) {
       throw new Error("Inventory or Sheet context changed. Preview again.");
