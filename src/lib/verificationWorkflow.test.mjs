@@ -37,6 +37,98 @@ function packet(f,balance='12.34'){
  return `WMGC-RESULT\t1\nref\tbalanceCAD\tcheckedAt\n${request.ref}\t${balance}\t${new Date().toISOString()}`;
 }
 
+function contextualTarget(f,number=cardB.cardNumber){return {...inventoryContext(f.wallet),cardNumber:number,version:profileOf(f.wallet).versions[number]};}
+
+test('P1.2 single-card changed/unchanged/zero saves preserve the general session and saved Batch',async()=>{
+ for(const amount of ['12.34',String(cardB.currentBalance),'0']){
+  const f=fixture(),w=f.workflow;await prepare(f);w.setPacket('GENERAL RESULT DRAFT');w.setMode('manual');w.setAmount('GENERAL MANUAL DRAFT');
+  const prior=w.getSnapshot(),ledger=structuredClone(profileOf(f.wallet).ledger);
+  await w.startContextual(contextualTarget(f));
+  assert.equal(w.getSnapshot().selection.queue.length,1);assert.equal(w.getSnapshot().selection.queue[0].snapshot.cardNumber,cardB.cardNumber);
+  assert.equal(w.getSnapshot().mode,'manual');assert.equal(w.getSnapshot().manual.amount,'');
+  w.setMode('batch');assert.equal(w.getSnapshot().mode,'manual');
+  w.setAmount(amount);await w.saveObservation(amount,true);
+  assert.equal(w.getSnapshot().contextual.done,true);
+  assert.equal(profileOf(f.wallet).cards[1].currentBalance,Number(amount));
+  assert.equal(profileOf(f.wallet).cards[0].currentBalance,cardA.currentBalance);
+  assert.equal(profileOf(f.wallet).ledger.id,ledger.id);
+  assert.equal(w.finishContextual(),true);assert.equal(w.getSnapshot().selection,prior.selection);
+  assert.deepEqual(w.getSnapshot().manual,prior.manual);assert.equal(w.getSnapshot().packet,prior.packet);
+ }
+});
+
+test('P1.2 cancellation is read-only; transaction abort retains task/draft for retry and waits for durable completion',async()=>{
+ const f=fixture(),w=f.workflow;w.setAmount('general');const prior=w.getSnapshot(),before=structuredClone(f.wallet);
+ await w.startContextual(contextualTarget(f));w.setAmount('19.99');w.finishContextual();
+ assert.deepEqual(f.wallet,before);assert.deepEqual(w.getSnapshot().manual,prior.manual);
+ await w.startContextual(contextualTarget(f));w.setAmount('19.99');
+ const failure=f.hold(true),save=w.saveObservation('19.99',true);await failure.started.promise;
+ assert.equal(w.finishContextual(),false);assert.equal(w.getSnapshot().contextual.done,false);
+ failure.gate.resolve();await save;assert.deepEqual(f.wallet,before);assert.equal(w.getSnapshot().manual.amount,'19.99');
+ assert.match(w.getSnapshot().feedback.saveError,/transaction failure/);
+ const held=f.hold(),retry=w.saveObservation('19.99',true);await held.started.promise;
+ assert.equal(w.getSnapshot().contextual.done,false);held.gate.resolve();await retry;
+ assert.equal(w.getSnapshot().contextual.done,true);
+});
+
+test('P1.2 retained Companion correlation survives valid tasks and is cancelled on context or credential invalidation',async()=>{
+ for(const change of ['context','general-credentials','task-credentials','valid']){
+  const f=fixture(),w=f.workflow;await prepare(f);await w.sendRequest();
+  const transfer=w.getSnapshot().transfer;
+  await w.startContextual(contextualTarget(f));
+  if(change==='context')f.change();
+  if(change==='general-credentials')f.editCard({pin:'9999'});
+  if(change==='task-credentials'){
+   // Both queues cover A; edit the active task to exercise reset with retained state.
+   w.finishContextual();await w.startContextual(contextualTarget(f,cardA.cardNumber));f.editCard({pin:'9999'});
+  }
+  if(change==='valid'){
+   w.finishContextual();assert.deepEqual(w.getSnapshot().transfer,transfer);
+   assert.equal(f.sent.filter(message=>message.type==='wallet-transfer-cancel').length,0);
+  }else assert.equal(f.sent.filter(message=>message.type==='wallet-transfer-cancel'&&message.sessionId===transfer.sessionId).length,1);
+ }
+});
+
+test('P1.2 resolves saved origin version/context and fences removed or edited credentials',async()=>{
+ for(const changed of ['version','generation','pin','removed']){
+  const f=fixture(),w=f.workflow,target=contextualTarget(f,cardA.cardNumber);
+  if(changed==='version')await f.options.commitWallet({kind:'patch',action:'set-notes',...target,patch:{notes:'new'}});
+  if(changed==='generation')f.change(false);
+  if(changed==='pin')f.editCard({pin:'9999'},false);
+  if(changed==='removed')f.editCard({cardNumber:'0000000000000000'},false);
+  await w.startContextual(target);assert.equal(w.getSnapshot().contextual,null);
+ }
+ const f=fixture(),w=f.workflow;await w.startContextual(contextualTarget(f));w.setAmount('33.33');
+ f.change();assert.equal(w.getSnapshot().contextual,null);assert.equal(w.getSnapshot().manual.amount,'');
+});
+
+test('P0.2 residual: same-observation retries retain time; Batch advancing Manual cannot transfer it to the next card',async()=>{
+ const f=fixture(),w=f.workflow;await prepare(f);w.setMode('manual');
+ const commands=[],commit=f.options.commitWallet;
+ f.options.commitWallet=async command=>{commands.push(command);return commit(command);};f.notify();
+ const failed=f.hold(true),save=w.saveObservation('20.00');await failed.started.promise;failed.gate.resolve();await save;
+ const first=commands.at(-1).observation.checkedAt;
+ const failedAgain=f.hold(true),retry=w.saveObservation('20.00');await failedAgain.started.promise;failedAgain.gate.resolve();await retry;
+ assert.equal(commands.at(-1).observation.checkedAt,first);
+ w.setMode('batch');w.setPacket(packet(f));await w.importResults();await w.applyResults();
+ assert.equal(w.getSnapshot().manual.position,1);
+ await new Promise(resolve=>setTimeout(resolve,5));w.setMode('manual');await w.saveObservation('20.00');
+ assert.notEqual(commands.at(-1).observation.checkedAt,first);
+ assert.equal(commands.at(-1).cardNumber,cardB.cardNumber);
+});
+
+test('P0.2 residual: delayed fallback validator checks saved context/credentials and action ownership without notification',async()=>{
+ for(const changed of ['generation','pin','action']){
+  const f=fixture(),w=f.workflow,held=deferred(),started=deferred();let fallback=0;
+  f.options.copyText=async(_text,isCurrent,validate)=>{started.resolve();await held.promise;if(isCurrent()&&(!validate||await validate()))fallback++;return true;};f.notify();
+  const copy=w.copy('PIN',cardA.pin);await started.promise;
+  if(changed==='generation'){f.change(false);f.change(false);}
+  if(changed==='pin')f.editCard({pin:'9999'},false);
+  if(changed==='action')w.skip();
+  held.resolve();await copy;assert.equal(fallback,0);assert.equal(w.getSnapshot().feedback.copyMessage,'');
+ }
+});
+
 test('P0.2 workflow commands run without a presentation and retain drafts/progress across modes',async()=>{
  const f=fixture(),w=f.workflow;w.setAmount('27.31');w.setMode('batch');w.setMode('manual');
  assert.equal(w.getSnapshot().manual.amount,'27.31');

@@ -143,6 +143,15 @@ Browser inventory is stored in ordinary, unencrypted IndexedDB. Legacy localStor
 
 ## P1.1 unified navigation
 
+P1.2 adds a separate Checkout Verify Balance action beside the established balance
+update and used/active actions. It opens one Manual card with Save & return,
+Confirm unchanged and Cancel verification; the shared shell announces Balance
+Check and locks other destinations until completion/cancellation. Valid general
+verification/Batch work resumes unchanged afterward. Durable save and cancellation
+return to the originating accessible card and focus Verify Balance; inaccessible
+origins return to Cards with heading focus. Positive recovery preserves used status
+until explicit Mark Active. No merchant check starts automatically.
+
 P1.1 authorizes the shared M3 shell with Cards, Checkout and Balance Check,
 merchant total, compact sync status and private Settings. Preserve selection,
 filters, per-destination scroll, Checkout/Settings drafts, Manual/Batch progress,

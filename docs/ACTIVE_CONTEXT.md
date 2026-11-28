@@ -4,7 +4,37 @@ Read [agent rules](../AGENTS.md), [architecture](ARCHITECTURE.md),
 [M3 decisions](M3_DESIGN_DECISIONS.md), [roadmap](ROADMAP.md) and
 [QA](QA_TEST_CHECKLIST.md). GitHub is the sole durable project authority.
 
-## P0.2 — Functional Architecture Readiness
+## P1.2 — Contextual Single-Card Verification
+
+Received from Master Architecture → D-UX on 2026-11-28; action imp/go,
+AUTHORIZED. Expected/actual clean main:
+`1720a5fda576a4a6d61ad61c5a27b0b6f1f64477`. This fresh DEV session
+`32399722-5e9f-4fa6-ab46-063072cdf291` is the sole writer on
+`feat/p12-contextual-verification`; session inventory shows no competing writer.
+P0.2 is technically closed and Master-accepted; prior writer handback is received
+through this assignment. Reuse its evidence rather than reopening its audit.
+
+| Assignment | Route / scope | Session / writer | State / next action |
+| --- | --- | --- | --- |
+| P1.2 | Master Architecture → D-UX → Master; contextual Manual task and two P0.2 residual corrections | Session above is sole writer; independent technical reviewers read-only | AUTHORIZED; implement, validate/review exact candidate, required CI, protected merge, Wallet release, hosted synthetic checks, cleanup and explicit writer handback |
+
+Configuration: requested fresh Sol / Medium; actual model and thinking unknown.
+Existing Codespace, workspace-write, Auto-Review. Full implementation, routine
+corrections, independent technical review, commit/push/PR, required CI, normal
+protected merge, production Wallet publication, hosted synthetic verification and
+safe cleanup are explicitly authorized. No Worker redeployment, infrastructure,
+schema/protocol changes, runtime dependencies, live private-account/merchant tests,
+Companion Stable promotion, Checkout Undo, single-card Companion or P3.1.
+
+Required: direct Checkout Verify Balance through the existing controller/Manual
+inventory command; saved context/generation/card/version resolution; retained
+general drafts/progress/Batch state; durable success or explicit cancellation;
+identity-based safe return; workflow/card/version-bound observation retries and
+saved-context/credential/action checks before delayed clipboard fallback.
+Acceptance is recorded in QA. Native and Master acceptance remain separate.
+Source access: supplied assignment and applicable canonical contracts actually read.
+
+## P0.2 — technically closed and Master-accepted
 
 Received from Master Architecture in the existing fresh D-UX session on
 2026-11-28, including the completed continuation. Expected/actual main:
@@ -18,7 +48,7 @@ in the milestone PR.
 
 | Assignment | Route / scope | Session / writer | State / next action |
 | --- | --- | --- | --- |
-| P0.2 | Master Architecture → D-UX → Master | Existing session `8bab1894-dc3d-4207-a070-d9513a29d560` is sole writer on `feat/p02-verification-lifecycle`; independent reviewers read-only | AUTHORIZED; reproduce lifecycle failures, implement, validate/review, CI/release/verify, safely clean up and explicitly hand back writer authority |
+| P0.2 | Master Architecture → D-UX → Master | Prior session `8bab1894-dc3d-4207-a070-d9513a29d560`; writer returned in PR #261 | CLOSED; technically released at `1720a5f`, Master acceptance received with P1.2 assignment; reuse evidence |
 
 Execution: resume / imp, existing Codespace, workspace-write with Auto-Review.
 Requested GPT-6.2 if available, Medium; actual model/thinking unavailable and

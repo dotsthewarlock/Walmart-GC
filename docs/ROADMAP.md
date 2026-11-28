@@ -3,10 +3,30 @@
 ## Authorized sequence
 
 P0.2 → P1.2 → P3.1 → integrated functional acceptance → cohesive UX refactoring.
-Only P0.2 is currently authorized; sequencing does not authorize later work.
+P0.2 is technically closed and Master-accepted at `1720a5f` (PR #261).
+Only P1.2 is currently authorized; sequencing does not authorize later work.
 Prioritize maximum verified delivery with minimum organizational friction.
 
-## P0.2 — Functional Architecture Readiness
+## P1.2 — Contextual Single-Card Verification
+
+From accepted main `1720a5fda576a4a6d61ad61c5a27b0b6f1f64477`, add a distinct
+Checkout Verify Balance action using a temporary Manual task in the existing
+verification controller. Resolve saved card/context/generation/version, preserve
+valid general Manual drafts/progress and Batch state, save through the existing
+inventory command, and return by card identity after durable success or explicit
+cancellation. Inaccessible origins return safely to Cards. Update Balance and
+Mark Used/Active remain distinct. Bind retry observation times to workflow/card/
+version and revalidate saved context/credentials/action before delayed copy fallback.
+
+Implementation, routine corrections, independent exact-candidate technical review,
+required CI, commit/push/one PR, normal protected merge, Wallet release, hosted
+synthetic verification and safe cleanup/writer handback are authorized. Preserve
+production configuration and the unaffected Worker. No single-card Companion,
+Checkout Undo, acquisition, broad redesign, global store, runtime dependencies,
+schema/protocol/infrastructure change, live private/merchant tests, Stable promotion
+or P3.1. Native acceptance and Master architectural acceptance remain separate.
+
+## P0.2 — technically closed and Master-accepted
 
 From accepted main `e67a28a9dea37097ea57cc6400e8b3561c8adfd1`, establish lean
 App-lifetime verification ownership, pre-paint context/credential fencing and
@@ -167,7 +187,7 @@ planning labels, not dependencies or a requirement to finish architecture first.
 | --- | --- |
 | Released V0.1–V0.4 foundation | Card/CSV schema, Manual/Batch verification, protected V0.3 sync, resilient checks and precise UTC verification with date-only compatibility. Installation/offline shell shipped in PR #250; R1 is accepted and R2 is released with the current correction. |
 | P0 | Ordinary-use acceptance and demonstrated consequential defects; preserve R1 recovery, pending work and uncertain-write fences. |
-| P1 — unified Wallet UX | P1.1 shared Cards / Checkout / Balance Check shell and contextual return are authorized above. Checkout Undo and single-card verification enhancements remain deferred; see [M3 decisions](M3_DESIGN_DECISIONS.md#deferred-product-interactions). |
+| P1 — unified Wallet UX | P1.1 shared shell is released; P1.2 contextual single-card Manual verification is authorized above. Checkout Undo and single-card Companion remain deferred; see [M3 decisions](M3_DESIGN_DECISIONS.md#deferred-product-interactions). |
 | P2 / V0.5 — online use | Spending, partial redemption and refund reconciliation through existing pendingReconciliation plus merchant verification; no accounting subsystem. |
 | P3 / V0.6 — acquisition and management | Manual add, bulk paste/import, duplicate handling and card lifecycle; explicit camera scanning only when useful, with manual fallback. |
 | Later / V0.7+ — merchants | The next real merchant vertical slice when demand exists, retaining currency, identity and barcode differences; no speculative plugin framework. |
