@@ -233,3 +233,56 @@ test('P0.1 delayed transaction failure cannot publish an error into a reopened e
   }
   expect(qa.errors).toEqual([]); await context.close();
 });
+
+test('P0.1 pending Exit preserves reordered identity and yields to a newly started verification command', async ({ browser }) => {
+  const context = await browser.newContext(), remote = await syntheticRemote([cardA, cardB]);
+  const qa = await setup(context, remote, []);
+  await context.addInitScript(() => {
+    const descriptor = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete');
+    Object.defineProperty(IDBTransaction.prototype, 'oncomplete', { ...descriptor, set(handler) {
+      descriptor.set.call(this, event => {
+        if (this.mode === 'readonly' && sessionStorage.getItem('qa-hold-read') === 'yes') {
+          sessionStorage.removeItem('qa-hold-read');
+          window.qaFinishRead = () => handler.call(this, event);
+        } else handler.call(this, event);
+      });
+    } });
+  });
+  const page = await context.newPage(); await start(page); qa.mock.offline = true; await checkoutA(page);
+  const holdExit = async () => {
+    await page.locator('#nav-review').click();
+    await page.evaluate(() => { delete window.qaFinishRead; sessionStorage.setItem('qa-hold-read', 'yes'); });
+    await page.getByRole('button', { name: 'Exit', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => typeof window.qaFinishRead)).toBe('function');
+  };
+  await holdExit();
+  // Synthetic direct storage reorder, without a notification to the rendering tab.
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('walmartGc.inventory', 1);
+    request.onsuccess = () => {
+      const db = request.result, tx = db.transaction('state', 'readwrite'), store = tx.objectStore('state');
+      const read = store.get('wallet');
+      read.onsuccess = () => { const state = read.result; state.profiles[state.active].cards.reverse(); state.revision++; store.put(state, 'wallet'); };
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
+    };
+    request.onerror = () => reject(request.error);
+  }));
+  await page.evaluate(() => window.qaFinishRead());
+  await expect(page.locator('#nav-detail')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#card-detail')).toContainText('0042');
+  await page.locator('#nav-review').click();
+  await page.getByRole('button', { name: /^Select cards/ }).click();
+  await expect(page.getByLabel('Verified balance (CAD)')).toBeEnabled();
+  await page.getByLabel('Verified balance (CAD)').fill('44.44');
+  await page.evaluate(() => { delete window.qaFinishRead; sessionStorage.setItem('qa-hold-read', 'yes'); });
+  await page.getByRole('button', { name: 'Exit', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => typeof window.qaFinishRead)).toBe('function');
+  await holdSave(page, page.getByRole('button', { name: 'Save & next' }));
+  await page.evaluate(() => window.qaFinishRead());
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(page.locator('#nav-review')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#nav-detail')).toBeDisabled();
+  await releaseSave(page);
+  await expect(page.locator('#nav-review')).toHaveAttribute('aria-current', 'page');
+  expect(qa.errors).toEqual([]); await context.close();
+});

@@ -104,6 +104,12 @@ function App() {
   const navigationAction = useRef(0);
   const reviewReturn = useRef({ panel: 'list', focusId: 'review-balances' });
   const verificationSession=useVerificationSession(walletSnapshot);
+  const verificationBusy = useRef(false);
+  verificationBusy.current = verificationSession.busy;
+  useLayoutEffect(() => {
+    // Starting a command supersedes any asynchronous Exit already resolving.
+    if (verificationSession.busy) navigationAction.current++;
+  }, [verificationSession.busy]);
   const mainTouchStart = useRef(null);
   const [cards, setCards] = useState([]);
   const [localCardsError, setLocalCardsError] = useState("");
@@ -232,8 +238,8 @@ function App() {
       adoptWallet(state);
       // A late transaction notification may follow a newer context adoption.
       // It must not clear errors or change feedback in that newer context.
-      if (command.profile && command.kind !== 'select-compartment') {
-        try { assertInventoryContext(walletRef.current, command); }
+      if (command.profile) {
+        try { assertInventoryContext(walletRef.current, inventoryContext(state)); }
         catch { return state; }
       }
       if (feedbackIsCurrent()) setTransferMutationError("");
@@ -382,7 +388,7 @@ function App() {
   }, [activePanel]);
 
   function navigate(panel, focusId = null) {
-    if (verificationSession.busy || panel === activePanel) return;
+    if (verificationBusy.current || panel === activePanel) return;
     navigationAction.current++;
     panelScroll.current[activePanel] = window.scrollY;
     pendingPanelFocus.current = focusId;
@@ -418,16 +424,17 @@ function App() {
         const identity = await origin.cardIdentity;
         const state = await readWallet();
         const identities = await Promise.all(profileOf(state).cards.map(card => fingerprint(card.cardNumber)));
-        const index = identity ? identities.indexOf(identity) : -1;
-        const eligible = index >= 0 && calculateVisibleCards(profileOf(state).cards, preferences.current, preferences.current.sortMode).includes(index)
-          && !credentialAmbiguous(profileOf(state).recoveryEvidence, profileOf(state).cards[index].cardNumber);
+        const original = identity ? profileOf(state).cards[identities.indexOf(identity)] : null;
         // Hashing and IndexedDB are asynchronous. Reconfirm the exact snapshot,
         // and never redirect a user who navigated elsewhere while Exit waited.
-        const latest = await readWallet();
-        if (action !== navigationAction.current) return;
+        const saved = await readWallet();
+        if (action !== navigationAction.current || verificationBusy.current) return;
+        const latest = walletRef.current.revision > saved.revision ? walletRef.current : saved;
+        const index = original ? profileOf(latest).cards.findIndex(card => card.cardNumber === original.cardNumber) : -1;
+        const eligible = index >= 0 && calculateVisibleCards(profileOf(latest).cards, preferences.current, preferences.current.sortMode).includes(index)
+          && !credentialAmbiguous(profileOf(latest).recoveryEvidence, original.cardNumber);
         adoptWallet(latest);
-        if (state.active !== origin.profile || (state.contextGeneration ?? 0) !== origin.generation
-          || latest.revision !== state.revision || walletRef.current.revision !== latest.revision || !eligible) {
+        if (latest.active !== origin.profile || (latest.contextGeneration ?? 0) !== origin.generation || !eligible) {
           navigate('list');
           return;
         }

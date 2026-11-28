@@ -647,8 +647,9 @@ No feature extraction or new state store is required.
 App keeps per-destination scroll offsets and contextual return panel/control IDs
 in ephemeral refs. A Checkout review origin also captures a SHA-256 card identity
 digest and exact compartment/generation. Exit reads IndexedDB and resolves that
-card in the current eligible collection, reconfirms the snapshot after hashing and
-abandons late navigation if the user has already changed destination;
+card in the current eligible collection, resolves its index/eligibility against
+the latest saved snapshot after hashing and abandons late navigation if the user
+has changed destination or started a verification command;
 missing/filtered/credential-blocked or changed-context origins fall back to Cards
 with heading focus, never another card's barcode. Reordering preserves identity.
 No credentials are stored in these refs. Heading focus announces a destination; contextual return
